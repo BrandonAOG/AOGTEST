@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v1.0.2';
+var CACHE_NAME = 'aog-forms-v1.0.3';
 var DEV_MODE   = false; // ← SET TRUE during development/testing
 
 // ============================================================
@@ -18,7 +18,7 @@ var DEV_MODE   = false; // ← SET TRUE during development/testing
 // ============================================================
 var CHANGELOG = [
   'fixed transfer switch selectiions',
-  'Corrected values based on NFPA 54 and NFPa 58',
+  'fixed image capture bug on estimate form',
   'add more 1st stage and 2nd stage regulators for more variance',
   'ADDED 24KW & 26KW Generac Gaurdian legacy Generators'
 ];
