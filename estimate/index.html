@@ -1229,18 +1229,32 @@ function capturePageToCanvas() {
     forceStyle.id = 'capture-force-style';
     forceStyle.textContent = `
       .toolbar, .theme-toggle-btn { display: none !important; }
+      body { max-width: ${CAPTURE_W}px !important; }
       #page {
         width: ${CAPTURE_W}px !important;
+        max-width: ${CAPTURE_W}px !important;
         height: auto !important;
         min-height: ${PAPER_H}px !important;
         overflow: visible !important;
         display: flex !important;
         flex-direction: column !important;
+        border-left: 2px solid var(--cyan) !important;
+        border-right: 2px solid var(--cyan) !important;
       }
       .content {
         overflow: visible !important;
         min-height: 0 !important;
       }
+      /* Force desktop grid layout regardless of mobile viewport,
+         so page.scrollHeight matches what html2canvas renders at windowWidth:1050 */
+      .top-grid { grid-template-columns: 1fr 1fr !important; }
+      .top-col:first-child {
+        border-right: 1px solid var(--border) !important;
+        border-bottom: none !important;
+      }
+      .grid-2 { grid-template-columns: 1fr 1fr !important; }
+      .grid-3 { grid-template-columns: 1fr 1fr 1fr !important; }
+      .grid-4 { grid-template-columns: repeat(4, 1fr) !important; }
     `;
     document.head.appendChild(forceStyle);
 
