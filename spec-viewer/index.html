@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Always On Generators – Spec Viewer</title>
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Spec Viewer">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ── THEME VARIABLES ──────────────────────────────────────────────────── */
@@ -302,6 +309,13 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
 
 /* ── UTIL ─────────────────────────────────────────────────────────────── */
 .hidden{display:none!important}
+
+/* ── OFFLINE BANNER ───────────────────────────────────────────────────── */
+#offline-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;padding:10px 20px;background:linear-gradient(90deg,rgba(10,14,39,.97),rgba(15,21,53,.97));border-bottom:2px solid var(--o);text-align:center;font-family:var(--fm);font-size:.72rem;letter-spacing:3px;color:var(--ob);text-transform:uppercase;animation:bannerPulse 2s ease-in-out infinite}
+#offline-banner.visible{display:block}
+@keyframes bannerPulse{0%,100%{opacity:1}50%{opacity:.75}}
+#offline-banner::before{content:'⚠ ';color:var(--yb)}
+#offline-banner::after{content:' ⚠';color:var(--yb)}
 </style>
 </head>
 <body>
@@ -809,5 +823,36 @@ const ATS_DATA={
 'ns-3ph-600-800':{title:'Non-Service Rated 3-Phase · 600/800A · RTSN600/800 Series',subtitle:'Models RTSN600G3/J3/K3 · RTSN800G3/J3/K3',desc:'Compatible with 22–150kW liquid-cooled generator line. Three-phase in 120/208, 120/240, and 277/480V. Rugged steel NEMA 3R enclosure.',src:'0190980SBY Rev F (01/29/2021)',serviceRated:false,hasSPD:false,badges:['<span class="b bo">Non-Service Rated</span>','<span class="b bb">3-Phase</span>','<span class="b by">600/800A</span>','<span class="b bg">22–150kW Compatible</span>'],models:[{m:'RTSN600G3/J3/K3',a:'600',v:'120/208 / 120/240 / 277/480 3Ø',ws:'42,000',lug:'1/0 – 500 MCM'},{m:'RTSN800G3/J3/K3',a:'800',v:'120/208 / 120/240 / 277/480 3Ø',ws:'65,000',lug:'4/0 – 500 MCM'}],elec:[{l:'Phase',v:'Three Phase'},{l:'Voltages',v:'G3: 120/208V · J3: 120/240V · K3: 277/480V'},{l:'Transition',v:'Open'},{l:'Enclosure',v:'NEMA 3R Steel'},{l:'UL Recognition',v:'UL Recognized Contactor'},{l:'Transfer Time',v:'160 milliseconds'},{l:'Warranty',v:'2 Year Limited'},{l:'Compatible Generators',v:'22–150kW liquid-cooled line'}],timing:[['Utility Voltage Drop-out','<60%'],['Timer to Generator Start','10s Factory Set, Adj. 10–30s (Evolution™ only)'],['Engine Warmup Delay','5 Seconds'],['Standby Voltage Sensor','60% for 5 Seconds'],['Utility Voltage Pickup','>80%'],['Re-transfer Time Delay','15 Seconds'],['Engine Cooldown Timer','60 Seconds'],['Exerciser','Nexus™: 12 min weekly · Evolution™: 5–12 min adj.']],dims:[{m:'RTSN600G3/J3/K3',se:'Non-SE',h1:'61.4',h2:'66.0',w1:'30.0',w2:'36.0',d:'21.0',wt:'439'},{m:'RTSN800G3/J3/K3',se:'Non-SE',h1:'61.4',h2:'66.0',w1:'30.0',w2:'36.0',d:'21.0',wt:'439'}],feats:['Compatible with 22–150kW liquid-cooled generator line','Available in 120/208V (G3), 120/240V (J3), 277/480V (K3)','UL recognized Heavy Duty Generac Contactor','Electrically operated, mechanically-held contacts','Silver-plated or silver-alloy main contacts','160ms transfer time · NEMA 3R rugged steel enclosure','Manual operation without power','2 Year limited warranty'],acc:[]}
 };
 </script>
+
+<!-- Offline banner -->
+<div id="offline-banner">No network connection · Spec Viewer available offline</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('../sw.js', { scope: '../' })
+    .then(function(reg) {
+      console.log('[Spec Viewer] SW registered, scope:', reg.scope);
+      reg.addEventListener('updatefound', function() {
+        var newWorker = reg.installing;
+        newWorker.addEventListener('statechange', function() {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('[Spec Viewer] Update available');
+          }
+        });
+      });
+    })
+    .catch(function(err) { console.warn('[Spec Viewer] SW registration failed:', err); });
+}
+
+(function() {
+  var banner = document.getElementById('offline-banner');
+  function setOnline()  { if (banner) banner.classList.remove('visible'); }
+  function setOffline() { if (banner) banner.classList.add('visible');    }
+  window.addEventListener('online',  setOnline);
+  window.addEventListener('offline', setOffline);
+  if (!navigator.onLine) setOffline();
+})();
+</script>
+
 </body>
 </html>
