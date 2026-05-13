@@ -200,6 +200,19 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backgr
 
 @media(max-width:600px){.wrap{padding:18px 13px 40px}.co-name{font-size:1.5rem}.pb{padding:18px 16px}}
 
+/* ── ATS PICK GRID ────────────────────────────────────────────────────── */
+.ats-pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.ats-pick{position:relative;padding:14px 16px;background:linear-gradient(135deg,var(--panel-bg),var(--panel-bg2));border:1.5px solid var(--border);border-radius:4px;cursor:pointer;transition:all .25s;text-align:left}
+.ats-pick:hover{border-color:var(--o);transform:translateY(-2px);box-shadow:0 6px 20px rgba(249,115,22,.15)}
+.ats-pick.active{border-color:var(--yb);background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(249,115,22,.08));box-shadow:0 0 18px rgba(251,191,36,.2)}
+.aps-amps{font-family:var(--fd);font-size:.95rem;font-weight:900;letter-spacing:2px;color:var(--yb);margin-bottom:3px}
+.aps-name{font-family:var(--fm);font-size:.65rem;color:var(--text);letter-spacing:.5px;margin-bottom:4px;line-height:1.4}
+.aps-pn{font-family:var(--fm);font-size:.58rem;color:var(--be);letter-spacing:1px;opacity:.8}
+.aps-tag{position:absolute;top:8px;right:8px;font-family:var(--fm);font-size:.52rem;letter-spacing:1px;padding:2px 7px;border-radius:2px;text-transform:uppercase}
+.aps-tag.new{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#10B981}
+.aps-tag.spd{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.4);color:var(--bb)}
+.aps-tag.spec{background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.35);color:var(--ob)}
+
 /* ── Home button ── */
 .home-btn{position:fixed;top:14px;left:14px;z-index:9999;width:40px;height:40px;background:rgba(15,21,53,.9);border:1px solid rgba(251,191,36,.4);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all .2s;text-decoration:none;color:var(--text)}
 .home-btn:hover{background:rgba(251,191,36,.15);border-color:var(--yellow-bright);box-shadow:0 0 12px rgba(251,191,36,.3)}
@@ -268,29 +281,47 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backgr
   </div>
 </div>
 
-<!-- ══ STEP 02 — ATS: SWITCH TYPE ══ -->
+<!-- ══ STEP 02 — ATS: PHASE / TYPE ══ -->
 <div class="panel hidden" id="panel-ats-type">
-  <div class="ph"><div class="pn">02</div><div><div class="pt">Switch Type</div><div class="pd">Select transfer switch category</div></div></div>
+  <div class="ph"><div class="pn">02</div><div><div class="pt">Switch Category</div><div class="pd">Select phase and service rating</div></div></div>
   <div class="pb">
-    <div class="fw">
-      <label class="fl" for="ats-type-sel">Transfer Switch Series</label>
-      <select class="fsel" id="ats-type-sel" onchange="onAtsTypeChange()">
-        <option value="">— Select a switch series —</option>
-        <optgroup label="── Single Phase · Service Rated ──">
-          <option value="sr-100-200">Service Rated 100/150/200A · 1-Phase · G0099340/320/290 (New 2024)</option>
-          <option value="sr-100-200-spd">Service Rated + Surge Protection 100/150/200A · 1-Phase · G0099330/310/280</option>
-          <option value="sr-300-400">Service &amp; Non-Service Rated 300/400A · 1-Phase · RTSW300A3 / RTSC400A3 / RTSW400A3</option>
-          <option value="sr-600-800-1ph">Non-Service Rated 600/800A · 1-Phase · RTSC600A3 / RTSC800A3</option>
-          <option value="sr-rbu">Upgradeable Meter Transfer Switch 150/200A · 1-Phase · RBU150A3 / RBU200A3</option>
-          <option value="sr-rxgw">Service Rated w/ 20-40 Circuit Load Center 200A · 1-Phase · RXGW20SHA3</option>
-          <option value="sr-rxg16">Limited Circuit ATS 100A · 1-Phase · RXG16EZA3</option>
-          <option value="ns-100-200">Non-Service Rated 100/200A · 1-Phase · G0099350/300 (New 2024)</option>
-        </optgroup>
-        <optgroup label="── Three Phase · Non-Service Rated ──">
-          <option value="ns-3ph-100-400">Non-Service Rated 100/200/400A · 3-Phase · RTSN100/200/400 G3/J3/K3</option>
-          <option value="ns-3ph-600-800">Non-Service Rated 600/800A · 3-Phase · RTSN600/800 G3/J3/K3</option>
-        </optgroup>
-      </select>
+    <div class="cgrid" style="grid-template-columns:repeat(3,1fr)">
+      <button class="cbtn" id="ats-cat-sr" onclick="setAtsCategory('sr')">
+        <div class="cchk">✓</div>
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><rect x="9" y="12" width="6" height="10"/><circle cx="12" cy="6" r="1.5"/></svg>
+        <div class="cbl">Service Rated</div>
+        <div class="cbs">1-Phase · Meter-main position<br>100A – 400A</div>
+      </button>
+      <button class="cbtn" id="ats-cat-ns" onclick="setAtsCategory('ns')">
+        <div class="cchk">✓</div>
+        <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        <div class="cbl">Non-Service Rated</div>
+        <div class="cbs">1-Phase · Load-side of meter<br>100A – 800A</div>
+      </button>
+      <button class="cbtn" id="ats-cat-3ph" onclick="setAtsCategory('3ph')">
+        <div class="cchk">✓</div>
+        <svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="4"/></svg>
+        <div class="cbl">Three Phase</div>
+        <div class="cbs">208V / 240V / 480V<br>100A – 800A</div>
+      </button>
+    </div>
+
+    <!-- Service Rated sub-options -->
+    <div id="ats-sub-sr" class="hidden" style="margin-top:20px">
+      <div class="fl" style="margin-bottom:12px">▸ Select Series</div>
+      <div class="ats-pick-grid" id="ats-pick-sr"></div>
+    </div>
+
+    <!-- Non-Service Rated sub-options -->
+    <div id="ats-sub-ns" class="hidden" style="margin-top:20px">
+      <div class="fl" style="margin-bottom:12px">▸ Select Series</div>
+      <div class="ats-pick-grid" id="ats-pick-ns"></div>
+    </div>
+
+    <!-- Three Phase sub-options -->
+    <div id="ats-sub-3ph" class="hidden" style="margin-top:20px">
+      <div class="fl" style="margin-bottom:12px">▸ Select Series</div>
+      <div class="ats-pick-grid" id="ats-pick-3ph"></div>
     </div>
   </div>
 </div>
@@ -353,7 +384,7 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backgr
 
 <div class="foot">
   <div class="ft">Always On Generators · Field Operations Portal</div>
-  <div class="fv">GENERAC SPEC VIEWER <span>v4.0</span> · BrandonAOG · 2026</div>
+  <div class="fv">GENERAC SPEC VIEWER <span>v1.0</span> · BrandonAOG · 2026</div>
 </div>
 </div>
 
@@ -383,7 +414,13 @@ function setCategory(c){
   setHidden('panel-model',true);
   setHidden('panel-specs',true);
   if(c==='gen') popGenModels();
-  else document.getElementById('ats-type-sel').value='';
+  else {
+    _atsCat='';
+    ['sr','ns','3ph'].forEach(cat=>{
+      document.getElementById('ats-cat-'+cat).classList.remove('active');
+      document.getElementById('ats-sub-'+cat).classList.add('hidden');
+    });
+  }
 }
 
 function setHidden(id,hide){
@@ -457,16 +494,70 @@ function popGenModels(){
   setHidden('panel-model',false);clearSpecs();
 }
 
-// ── ATS LOGIC ──────────────────────────────────────────────────────────
-function onAtsTypeChange(){
-  const key=document.getElementById('ats-type-sel').value;
-  if(!key){setHidden('panel-model',true);clearSpecs();return;}
+// ── ATS CATEGORY DEFINITIONS ───────────────────────────────────────────
+const ATS_CATS = {
+  sr: [
+    { key:'sr-100-200',  amps:'100 / 150 / 200A', name:'Standard Service Rated ATS',           pn:'G0099340 · G0099320 · G0099290', tag:'new',  tagLabel:'NEW 2024' },
+    { key:'sr-100-200-spd', amps:'100 / 150 / 200A', name:'Service Rated ATS + Surge Protection (SPD)', pn:'G0099330 · G0099310 · G0099280', tag:'spd',  tagLabel:'SPD' },
+    { key:'sr-300-400',  amps:'300 / 400A',        name:'Heavy Duty Service Rated ATS',         pn:'RTSW300A3 · RTSW400A3 · RTSC400A3', tag:null },
+    { key:'sr-rbu',      amps:'150 / 200A',        name:'Upgradeable Meter Main Transfer Switch',pn:'RBU150A3 · RBU200A3',         tag:'spec', tagLabel:'METER MAIN' },
+    { key:'sr-rxgw',     amps:'200A',              name:'Service Rated ATS + 20–40 Circuit Load Center', pn:'RXGW20SHA3',             tag:'spec', tagLabel:'LOAD CTR' },
+  ],
+  ns: [
+    { key:'ns-100-200',  amps:'100 / 200A',        name:'Standard Non-Service Rated ATS',       pn:'G0099350 · G0099300',         tag:'new',  tagLabel:'NEW 2024' },
+    { key:'sr-600-800-1ph', amps:'600 / 800A',     name:'Heavy Duty Non-Service Rated ATS',     pn:'RTSC600A3 · RTSC800A3',       tag:null },
+    { key:'sr-rxg16',    amps:'100A',              name:'Limited Circuit ATS (16-Space Panel)', pn:'RXG16EZA3',                   tag:'spec', tagLabel:'LIMITED' },
+  ],
+  '3ph': [
+    { key:'ns-3ph-100-400', amps:'100 / 200 / 400A', name:'3-Phase Non-Service Rated ATS',     pn:'RTSN100/200/400 G3·J3·K3',   tag:null },
+    { key:'ns-3ph-600-800', amps:'600 / 800A',        name:'3-Phase Heavy Duty ATS',           pn:'RTSN600/800 G3·J3·K3',       tag:null },
+  ]
+};
+
+let _atsCat = '';
+
+function setAtsCategory(cat){
+  _atsCat = cat;
+  // Update cat buttons
+  ['sr','ns','3ph'].forEach(c=>{
+    document.getElementById('ats-cat-'+c).classList.toggle('active', c===cat);
+  });
+  // Hide all sub panels
+  ['sr','ns','3ph'].forEach(c=> document.getElementById('ats-sub-'+c).classList.add('hidden'));
+  clearSpecs();
+  document.getElementById('msel').value='';
+  setHidden('panel-model',true);
+
+  // Build pick cards
+  const grid = document.getElementById('ats-pick-'+cat);
+  grid.innerHTML = ATS_CATS[cat].map(item=>`
+    <div class="ats-pick" id="apick-${item.key}" onclick="selectAtsSeries('${item.key}')">
+      ${item.tag ? `<span class="aps-tag ${item.tag}">${item.tagLabel}</span>` : ''}
+      <div class="aps-amps">${item.amps}</div>
+      <div class="aps-name">${item.name}</div>
+      <div class="aps-pn">${item.pn}</div>
+    </div>`).join('');
+
+  document.getElementById('ats-sub-'+cat).classList.remove('hidden');
+}
+
+function selectAtsSeries(key){
+  // Highlight selected card
+  const allPicks = document.querySelectorAll('.ats-pick');
+  allPicks.forEach(el=>el.classList.remove('active'));
+  document.getElementById('apick-'+key).classList.add('active');
+
+  // Push into step 3 select and trigger show
   const s=document.getElementById('msel');
   const ats=ATS_DATA[key];
-  s.innerHTML='<option value="">— Select —</option><option value="'+key+'">'+ats.title+'</option>';
+  s.innerHTML='<option value="">— Select —</option><option value="'+key+'" selected>'+ats.title+'</option>';
   document.getElementById('mhint').textContent=ats.subtitle;
-  setHidden('panel-model',false);clearSpecs();
+  setHidden('panel-model',false);
+  // Auto-show since there's only one choice per series
+  show();
 }
+
+function onAtsTypeChange(){ /* legacy stub — no longer used */ }
 
 // ── MAIN SHOW ──────────────────────────────────────────────────────────
 function show(){
