@@ -1205,6 +1205,50 @@ function printForm() {
 }
 
 // ── CANVAS CAPTURE ──
+function cropCanvasToContent(canvas) {
+  try {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+
+    // "White" tolerance — anything below this on any channel counts as content
+    const WHITE_TOL = 240;
+    // Sample every Nth column for speed (still catches the page border on either edge,
+    // and any text/borders in between)
+    const SAMPLE_STRIDE = 8;
+
+    // Scan from bottom upward, find the last row containing non-white pixels
+    let bottomRow = -1;
+    for (let y = h - 1; y >= 0; y--) {
+      let found = false;
+      for (let x = 0; x < w; x += SAMPLE_STRIDE) {
+        const idx = (y * w + x) * 4;
+        if (data[idx] < WHITE_TOL || data[idx + 1] < WHITE_TOL || data[idx + 2] < WHITE_TOL) {
+          found = true;
+          break;
+        }
+      }
+      if (found) { bottomRow = y; break; }
+    }
+
+    if (bottomRow < 0) return canvas;            // entirely white — nothing to do
+    const padding = Math.round(h * 0.005);       // ~0.5% bottom padding
+    const cropHeight = Math.min(bottomRow + 1 + padding, h);
+    if (cropHeight >= h - 2) return canvas;      // already snug, no crop needed
+
+    const cropped = document.createElement('canvas');
+    cropped.width = w;
+    cropped.height = cropHeight;
+    cropped.getContext('2d').drawImage(canvas, 0, 0);
+    return cropped;
+  } catch (err) {
+    console.warn('Crop failed, returning original canvas:', err);
+    return canvas;
+  }
+}
+
 function capturePageToCanvas() {
   return new Promise((resolve, reject) => {
     const page = document.getElementById('page');
@@ -1276,7 +1320,7 @@ function capturePageToCanvas() {
         ignoreElements: el => el.classList.contains('toolbar') || el.classList.contains('theme-toggle-btn')
       }).then(canvas => {
         restore();
-        resolve(canvas);
+        resolve(cropCanvasToContent(canvas));
       }).catch(err => { restore(); reject(err); });
     }); });
   });
