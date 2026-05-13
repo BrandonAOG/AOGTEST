@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v1.0.8';
+var CACHE_NAME = 'aog-forms-v1.0.10';
 var DEV_MODE   = false; // ← SET TRUE during development/testing
 
 // ============================================================
@@ -20,7 +20,7 @@ var CHANGELOG = [
   'fixed transfer switch selectiions',
   'fixed image capture bug on estimate form',
   'add more 1st stage and 2nd stage regulators for more variance',
-  'testing est 2'
+  'testing est 3'
 ];
 // ============================================================
 
