@@ -169,41 +169,31 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
 .ss{margin-bottom:20px}
 .st{font-family:var(--fm);font-size:.62rem;letter-spacing:2.5px;color:var(--ob);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(249,115,22,.2)}
 
-/* ── FUEL TABLE ───────────────────────────────────────────────────────── */
-.fuel-scroll-hint{display:none;font-family:var(--fm);font-size:.56rem;color:var(--dim);letter-spacing:1px;text-align:right;margin-bottom:4px;opacity:.7}
-@media(max-width:640px){.fuel-scroll-hint{display:block}}
-.fuel-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:8px;border-radius:3px}
-.fuel-table-wrap::-webkit-scrollbar{height:4px}
-.fuel-table-wrap::-webkit-scrollbar-track{background:rgba(255,255,255,.04)}
-.fuel-table-wrap::-webkit-scrollbar-thumb{background:rgba(251,191,36,.3);border-radius:2px}
-.fuel-table{width:100%;border-collapse:collapse;min-width:420px}
-/* Header row */
-.fuel-table thead tr th{font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;padding:7px 11px;border-bottom:2px solid;text-align:center}
-.fuel-table thead tr th.ft-row-head{font-family:var(--fd);font-size:.55rem;font-weight:700;letter-spacing:1px;text-align:left;border-bottom:2px solid rgba(255,255,255,.1);color:var(--dim);background:transparent;padding-right:14px}
-.fuel-table thead tr th.ft-ng{background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.4);color:rgba(0,212,255,.9)}
-.fuel-table thead tr th.ft-lp{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.4);color:rgba(251,191,36,.9)}
-/* Body rows */
-.fuel-table tbody tr td{font-family:var(--fm);font-size:.72rem;padding:9px 11px;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,.04)}
-.fuel-table tbody tr:last-child td{border-bottom:none}
-.fuel-table td.ft-row-label{font-family:var(--fd);font-size:.63rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;text-align:left;white-space:nowrap;padding-right:14px}
-.fuel-table td.ft-row-label.ng-label{color:var(--be)}
-.fuel-table td.ft-row-label.lp-label{color:var(--yb)}
-/* NG data cells */
-.fuel-table td.ng-val{color:var(--be);background:rgba(0,212,255,.06)}
-.fuel-table td.ng-val.est{color:rgba(0,212,255,.5);background:rgba(249,115,22,.07);font-style:italic}
-/* LP data cells */
-.fuel-table td.lp-val{color:var(--yb);background:rgba(251,191,36,.06)}
-.fuel-table td.lp-val.est{color:rgba(251,191,36,.5);background:rgba(249,115,22,.07);font-style:italic}
-/* Pressure cells */
-.fuel-table td.pres-ng{color:var(--be);font-size:.62rem;background:rgba(0,212,255,.03);white-space:nowrap}
-.fuel-table td.pres-lp{color:var(--yb);font-size:.62rem;background:rgba(251,191,36,.03);white-space:nowrap}
-/* Row separator between NG and LP rows */
-.fuel-table tbody tr.fuel-row-sep td{height:4px;padding:0;background:rgba(255,255,255,.04);border-top:1px solid rgba(255,255,255,.07);border-bottom:none}
-
-.fuel-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;align-items:center}
-.fuel-legend-item{display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:.58rem;letter-spacing:.8px;color:var(--dim)}
-.fuel-legend-swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0}
-.fuel-legend-est{font-family:var(--fm);font-size:.57rem;color:rgba(249,115,22,.7);letter-spacing:.5px;font-style:italic}
+/* ── FUEL CARD ROWS (Gas Calc style) ──────────────────────────────────── */
+.fuel-rows-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.fuel-row-card{border-radius:3px;overflow:hidden;display:flex;align-items:stretch}
+.fuel-row-card.ng-row{border:1px solid rgba(0,212,255,.35);background:var(--ng-bg)}
+.fuel-row-card.lp-row{border:1px solid rgba(251,191,36,.35);background:var(--lp-bg)}
+[data-theme="light"] .fuel-row-card.ng-row{background:rgba(0,180,220,.07)}
+[data-theme="light"] .fuel-row-card.lp-row{background:rgba(251,191,36,.09)}
+.fuel-tag{display:flex;align-items:center;justify-content:center;min-width:52px;padding:0 10px;font-family:var(--fd);font-size:.72rem;font-weight:900;letter-spacing:3px;text-transform:uppercase;flex-shrink:0;writing-mode:horizontal-tb}
+.ng-row .fuel-tag{background:rgba(0,212,255,.12);color:var(--be);border-right:1px solid rgba(0,212,255,.25)}
+.lp-row .fuel-tag{background:rgba(251,191,36,.10);color:var(--yb);border-right:1px solid rgba(251,191,36,.20)}
+.fuel-cells{display:grid;grid-template-columns:repeat(7,minmax(100px,1fr));flex:1;overflow-x:auto}
+@media(max-width:900px){.fuel-cells{grid-template-columns:repeat(4,minmax(90px,1fr))}}
+@media(max-width:520px){.fuel-cells{grid-template-columns:repeat(2,minmax(90px,1fr))}}
+.fuel-cell{padding:10px 12px;border-right:1px solid rgba(255,255,255,.05);flex-shrink:0}
+.fuel-cell:last-child{border-right:none}
+.fc-label{font-family:var(--fm);font-size:.67rem;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px;white-space:nowrap}
+.ng-row .fc-label{color:rgba(0,212,255,.75)}
+.lp-row .fc-label{color:rgba(251,191,36,.75)}
+[data-theme="light"] .ng-row .fc-label{color:rgba(0,130,180,.85)}
+[data-theme="light"] .lp-row .fc-label{color:rgba(180,120,0,.9)}
+.fc-val{font-family:var(--fm);font-size:1.05rem;font-weight:700;line-height:1.25}
+.ng-row .fc-val{color:var(--be)}
+.lp-row .fc-val{color:var(--yb)}
+.fc-val.est{opacity:.65;font-style:italic}
+.fuel-est-note{font-family:var(--fm);font-size:.57rem;color:rgba(249,115,22,.7);letter-spacing:.5px;font-style:italic;margin-top:4px}
 .fnote{font-family:var(--fm);font-size:.57rem;color:var(--dim);padding:5px 2px;letter-spacing:.3px;line-height:1.65;margin-top:4px}
 
 /* ── KEY SPECS GRID ───────────────────────────────────────────────────── */
@@ -452,15 +442,8 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
       <!-- FUEL CONSUMPTION -->
       <div class="ss">
         <div class="st">▸ Fuel Consumption — Spec Sheet Accurate</div>
-        <div class="fuel-scroll-hint">← scroll to see all load points →</div>
-        <div class="fuel-table-wrap">
-          <table class="fuel-table" id="fuel-tbl"></table>
-        </div>
-        <div class="fuel-legend">
-          <div class="fuel-legend-item"><div class="fuel-legend-swatch" style="background:rgba(0,212,255,.55)"></div>Natural Gas (NG) — CFH</div>
-          <div class="fuel-legend-item"><div class="fuel-legend-swatch" style="background:rgba(251,191,36,.65)"></div>Liquid Propane (LP) — GPH</div>
-          <div class="fuel-legend-est" id="fuel-est-note"></div>
-        </div>
+        <div class="fuel-rows-wrap" id="fuel-rows-wrap"></div>
+        <div class="fuel-est-note" id="fuel-est-note"></div>
         <div class="fnote" id="fn"></div>
       </div>
 
@@ -578,8 +561,8 @@ const GENS=[
 {id:'r150',c:'liq',lbl:'150kW Protector RG · RG15090',mdl:'150kW Protector RG',num:'RG15090',grp:'Protector RG — 9.0L V8 · 130/150kW  [A0002505135]',src:'A0002505135 Rev. E',klp:140,kng:150,ilp:'558 (1-Ph LP)',ing:'600 (1-Ph NG)',cb:'700A (1-Ph)',wlb:2100,wkg:955,dims:'110.2×40.9×66.0 in / 2,800 mm OA length',sn:'77 dB(A) op / 71 dB(A) exercise @ 23 ft',sq:'71 dB(A) exercise',ng25:562,ngh:964,ng75:1353,ngf:1769,lp25:5.1,lph:8.4,lp75:11.9,lpf:15.3,png:'7–11" WC',plp:'7–11" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Group 31, 925 CCA Minimum (INCLUDED)',eng:'9.0L V-type 8-Cylinder, Turbocharged & Aftercooled',cyl:8,disp:'9.0L',comp:'9.1:1',blk:'—',vlv:'Hydraulic lifters',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous ±0.25%)',rpm:'1,800 op / 1,500 exercise',oil:'10.5 qt (9.9 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup (GGCAC standard)',color:'Bisque (Aluminum)',cert:'EPA · ETL · UL 2200 · UL 6200 · CE · NFPA 110',inst:'See drawing A0001618957',fc:'2" NPT female tee through baseframe',exer:'Selectable low-speed',der:'2.1% / 1,000 ft above 600 ft',po:[{v:'120/240V 1-Ph (NG)',nk:144,na:600,lk:134,la:558},{v:'208/120V 3-Phase',nk:150,na:520,lk:140,la:486},{v:'240/120V 3-Phase',nk:150,na:451,lk:140,la:421},{v:'480/277V 3-Phase',nk:150,na:226,lk:140,la:210}],ft:['⚠ NG=150kW / LP=140kW · 1-Phase: NG=144kW / LP=134kW','Power Zone® 410 — graphical display w/ heater','9.0L V8 Turbocharged & Aftercooled — 1,800 RPM','⚠ Model-specific fuel — NOT interchangeable','EPA · UL 2200 · UL 6200 · CE · NFPA 110','Battery Group 31 925 CCA INCLUDED','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'Altitude Derate',v:'2.1% / 1,000 ft above 600 ft'}],ac:[{p:'G0072150',n:'GGCAC Cellular Accessory',d:'Standard on new RG15090.'},{p:'G0080470',n:'NFPA 110 Controller Kit',d:'Key switch, alarm horn, E-stop.'},{p:'G0098820',n:'9.0L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
 ];
 
-// ── FUEL TABLE BUILDER — 2 rows (NG row + LP row) ─────────────────────
-function buildFuelTable(g){
+// ── FUEL CARD ROWS BUILDER (Gas Calc style) ────────────────────────────
+function buildFuelCards(g){
   const isLiq = g.c==='liq';
   const hasEx = isLiq && g.ngex!=null;
 
@@ -595,67 +578,40 @@ function buildFuelTable(g){
   if(isLiq){lp_25=g.lp25;lp_50=g.lph;lp_75=g.lp75;lp_full=g.lpf;}
   else{lp_50=g.lph;lp_full=g.lpf;lp_25=+(lp_50*0.55).toFixed(2);lp_75=+(lp_50+(lp_full-lp_50)*0.5).toFixed(2);lp_25_est=true;lp_75_est=true;}
 
-  function ngTd(val,est){
-    if(val==null)return'<td class="ng-val">—</td>';
-    return`<td class="ng-val${est?' est':''}">${val}${est?' *':''}</td>`;
-  }
-  function lpTd(val,est){
-    if(val==null)return'<td class="lp-val">—</td>';
-    return`<td class="lp-val${est?' est':''}">${val}${est?' *':''}</td>`;
-  }
+  const v=(val,est,unit)=>val==null?'—':`${val}${unit}${est?' *':''}`;
+  const cls=(est)=>`fc-val${est?' est':''}`;
 
-  // Build header — columns: [Label][Ex?][¼][½][¾][Full][Press]
-  let thead=`<thead><tr>
-    <th class="ft-row-head">Fuel</th>
-    ${hasEx?'<th class="ft-ng">Exercise (CFH)</th>':''}
-    <th class="ft-ng">¼ Load (CFH)</th>
-    <th class="ft-ng">½ Load (CFH)</th>
-    <th class="ft-ng">¾ Load (CFH)</th>
-    <th class="ft-ng">Full Load (CFH)</th>
-    <th class="ft-ng">NG Inlet Press.</th>
-    <th class="ft-lp">${hasEx?'Exercise (GPH)':'¼ Load (GPH)'}</th>
-    ${hasEx?'<th class="ft-lp">¼ Load (GPH)</th>':''}
-    <th class="ft-lp">½ Load (GPH)</th>
-    <th class="ft-lp">¾ Load (GPH)</th>
-    <th class="ft-lp">Full Load (GPH)</th>
-    <th class="ft-lp">LP Inlet Press.</th>
-  </tr></thead>`;
+  // Build NG cells
+  const ngCells = [
+    ...(hasEx?[`<div class="fuel-cell"><div class="fc-label">Exercise</div><div class="${cls(false)}">${ng_ex} CFH</div></div>`]:[]),
+    `<div class="fuel-cell"><div class="fc-label">¼ Load</div><div class="${cls(ng_25_est)}">${ng_25}${ng_25_est?' *':''} CFH</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">½ Load</div><div class="fc-val">${ng_50} CFH</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">¾ Load</div><div class="${cls(ng_75_est)}">${ng_75}${ng_75_est?' *':''} CFH</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">Full Load</div><div class="fc-val">${ng_full} CFH</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">BTU/hr Full</div><div class="fc-val">${(ng_full*g.bng_raw).toLocaleString()}</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">Inlet Press.</div><div class="fc-val" style="font-size:.72rem">${g.png}</div></div>`,
+  ].join('');
 
-  // NG row
-  let ngRow=`<tr>
-    <td class="ft-row-label ng-label">⛽ Natural Gas</td>
-    ${hasEx?ngTd(ng_ex,false):''}
-    ${ngTd(ng_25,ng_25_est)}
-    ${ngTd(ng_50,false)}
-    ${ngTd(ng_75,ng_75_est)}
-    ${ngTd(ng_full,false)}
-    <td class="pres-ng">${g.png}</td>
-    ${hasEx?lpTd(lp_ex,false):'<td class="lp-val" style="background:rgba(251,191,36,.04)">—</td>'}
-    ${hasEx?lpTd(lp_25,lp_25_est):''}
-    <td class="lp-val" style="background:rgba(0,0,0,0);color:var(--dim)">▼ LP row ▼</td>
-    <td class="lp-val" style="background:rgba(0,0,0,0);color:var(--dim)">▼</td>
-    <td class="lp-val" style="background:rgba(0,0,0,0);color:var(--dim)">▼</td>
-    <td class="pres-lp" style="opacity:.3">—</td>
-  </tr>`;
+  // Build LP cells
+  const lpCells = [
+    ...(hasEx?[`<div class="fuel-cell"><div class="fc-label">Exercise</div><div class="${cls(false)}">${lp_ex} GPH</div></div>`]:[]),
+    `<div class="fuel-cell"><div class="fc-label">¼ Load</div><div class="${cls(lp_25_est)}">${lp_25}${lp_25_est?' *':''} GPH</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">½ Load</div><div class="fc-val">${lp_50} GPH</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">¾ Load</div><div class="${cls(lp_75_est)}">${lp_75}${lp_75_est?' *':''} GPH</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">Full Load</div><div class="fc-val">${lp_full} GPH</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">BTU/hr Full</div><div class="fc-val">${(lp_full*91500).toLocaleString()}</div></div>`,
+    `<div class="fuel-cell"><div class="fc-label">Inlet Press.</div><div class="fc-val" style="font-size:.72rem">${g.plp}</div></div>`,
+  ].join('');
 
-  // LP row
-  let lpRow=`<tr>
-    <td class="ft-row-label lp-label">🔥 Liquid Propane</td>
-    ${hasEx?'<td class="ng-val" style="background:rgba(0,0,0,0);color:var(--dim)">—</td>':''}
-    <td class="ng-val" style="background:rgba(0,0,0,0);color:var(--dim)">—</td>
-    <td class="ng-val" style="background:rgba(0,0,0,0);color:var(--dim)">—</td>
-    <td class="ng-val" style="background:rgba(0,0,0,0);color:var(--dim)">—</td>
-    <td class="ng-val" style="background:rgba(0,0,0,0);color:var(--dim)">—</td>
-    <td class="pres-ng" style="opacity:.3">—</td>
-    ${hasEx?lpTd(lp_ex,false):''}
-    ${lpTd(lp_25,lp_25_est)}
-    ${lpTd(lp_50,false)}
-    ${lpTd(lp_75,lp_75_est)}
-    ${lpTd(lp_full,false)}
-    <td class="pres-lp">${g.plp}</td>
-  </tr>`;
-
-  return thead+`<tbody>${ngRow}<tr class="fuel-row-sep"><td colspan="99"></td></tr>${lpRow}</tbody>`;
+  return `
+    <div class="fuel-row-card ng-row">
+      <div class="fuel-tag">NG</div>
+      <div class="fuel-cells">${ngCells}</div>
+    </div>
+    <div class="fuel-row-card lp-row">
+      <div class="fuel-tag">LP</div>
+      <div class="fuel-cells">${lpCells}</div>
+    </div>`;
 }
 
 // ── GENERATOR LOGIC ────────────────────────────────────────────────────
@@ -762,11 +718,15 @@ function showGen(id){
     `<span class="b bo">Source: ${g.src}</span>`
   ].join('');
 
-  document.getElementById('fuel-tbl').innerHTML=buildFuelTable(g);
+  // bng_raw = numeric BTU/ft³ for NG BTU/hr calculation
+  const bngRaw = g.c==='liq' ? 1036 : 1000;
+  g.bng_raw = bngRaw;
+
+  document.getElementById('fuel-rows-wrap').innerHTML = buildFuelCards(g);
 
   const estNote=document.getElementById('fuel-est-note');
   if(g.c!=='liq'){
-    estNote.textContent='* Estimated via interpolation — ½ load & full load from spec sheet only';
+    estNote.textContent='* ¼ and ¾ load estimated via interpolation — spec sheet only publishes ½ load & full load';
     estNote.style.display='';
   }else{estNote.textContent='';estNote.style.display='none';}
 
