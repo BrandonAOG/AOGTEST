@@ -1216,11 +1216,12 @@ function capturePageToCanvas() {
     const prevBodyPad  = document.body.style.padding;
 
     const CAPTURE_W = 1050;
+    const PAPER_H   = Math.round(CAPTURE_W * 11 / 8.5); // 1359 — 8.5x11 ratio
 
     page.style.width     = CAPTURE_W + 'px';
     page.style.maxWidth  = CAPTURE_W + 'px';
     page.style.height    = 'auto';
-    page.style.minHeight = '0';
+    page.style.minHeight = PAPER_H + 'px';
     page.style.overflow  = 'visible';
     document.body.style.padding = '0';
 
@@ -1231,13 +1232,12 @@ function capturePageToCanvas() {
       #page {
         width: ${CAPTURE_W}px !important;
         height: auto !important;
-        min-height: 0 !important;
+        min-height: ${PAPER_H}px !important;
         overflow: visible !important;
         display: flex !important;
         flex-direction: column !important;
       }
       .content {
-        flex: 0 0 auto !important;
         overflow: visible !important;
         min-height: 0 !important;
       }
@@ -1255,7 +1255,7 @@ function capturePageToCanvas() {
     };
 
     requestAnimationFrame(() => { requestAnimationFrame(() => {
-      const CAPTURE_H = page.scrollHeight;
+      const CAPTURE_H = Math.max(page.scrollHeight, PAPER_H);
       html2canvas(page, {
         scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false,
         width: CAPTURE_W, height: CAPTURE_H, windowWidth: CAPTURE_W, scrollX: 0, scrollY: 0,
