@@ -767,12 +767,14 @@ function showAts(key){
   document.getElementById('ats-elec').innerHTML=ats.elec.map(e=>`<div class="ats-cell"><div class="ats-lbl">${e.l}</div><div class="ats-val">${e.v}</div></div>`).join('');
   document.getElementById('ats-timing').innerHTML=ats.timing.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
 
-  // ── Dims: H2, W2, Depth, Weight ──
+  // ── Dims: Model (with Amps + SE badge), H2, W2, Depth, Weight ──
   document.getElementById('ats-dims').innerHTML=ats.dims.map(d=>{
+    const modelEntry = ats.models.find(m=>m.m===d.m);
+    const amps = modelEntry ? `<span style="font-family:var(--fm);font-size:.62rem;color:var(--be);font-weight:400;margin-left:6px">${modelEntry.a}A</span>` : '';
     const badge = d.se
       ? `<span class="se-badge ${d.se==='SE'?'se':'nonse'}">${d.se}</span>`
       : '';
-    return `<tr><td>${d.m}${badge}</td><td class="dim-val">${d.h2}"</td><td class="dim-val">${d.w2}"</td><td class="dim-val">${d.d}"</td><td class="dim-val">${d.wt} lbs</td></tr>`;
+    return `<tr><td>${d.m}${amps}${badge}</td><td class="dim-val">${d.h2}"</td><td class="dim-val">${d.w2}"</td><td class="dim-val">${d.d}"</td><td class="dim-val">${d.wt} lbs</td></tr>`;
   }).join('');
 
   document.getElementById('ats-feats').innerHTML=ats.feats.map(f=>`<div class="fi">${f}</div>`).join('');
