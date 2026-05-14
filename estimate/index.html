@@ -570,6 +570,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   #install-difficulty-row { flex-shrink: 0 !important; margin-top: 0 !important; }
   #address-suggestions, #gps-status { display: none !important; }
   #install_days { padding: 2px 5px !important; min-height: 31px !important; height: 31px !important; }
+  #elec_run_ft { width: 9ch !important; min-width: 9ch !important; max-width: 9ch !important; flex-shrink: 0 !important; }
   .footer { background: #ffffff !important; border-top: 1px solid #D97706 !important; padding: 4px 20px !important; margin-top: 0 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; flex-shrink: 0 !important; width: 100% !important; min-height: auto !important; height: auto !important; }
   .footer-text { color: #D97706 !important; text-shadow: none !important; }
   body.dark-mode .page, body.dark-mode .header, body.dark-mode .section, body.dark-mode .section-header,
@@ -591,11 +592,19 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 }
 
 @media print {
-  /* Mobile Safari: viewport is screen width (~390px). Scale the 1050px page down to fit.
-     390 / 1050 = 0.371 — page fills viewport exactly, Safari scales to paper. */
-  body.mobile-safari { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+  /* ── MOBILE SAFARI PRINT ──────────────────────────────────────────────────
+     Safari on iOS renders at screen width before scaling to paper.
+     We render the full 1050px desktop layout, then use CSS zoom on <html>
+     so the entire document shrinks to the ~393px print viewport.
+     393 / 1050 = 0.374. Safari then scales the viewport to fill the paper.
+  ───────────────────────────────────────────────────────────────────────── */
+  body.mobile-safari {
+    width: 1050px !important;
+    max-width: 1050px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
   body.mobile-safari .page {
-    zoom: 0.371 !important;
     width: 1050px !important;
     max-width: 1050px !important;
     min-height: 1368px !important;
@@ -604,73 +613,79 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
     display: flex !important;
     flex-direction: column !important;
     box-sizing: border-box !important;
+    border: 1.5pt solid #D97706 !important;
+    box-shadow: none !important;
+    position: static !important;
   }
-  body.mobile-safari .footer { margin-top: 0 !important; flex-shrink: 0 !important; }
-  /* Force desktop two-column layout */
+  /* Scale entire document to fit ~393px Safari print viewport */
+  body.mobile-safari { zoom: 0.374 !important; }
+  /* Desktop two-column layouts */
   body.mobile-safari .top-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; margin-bottom: 0 !important; }
   body.mobile-safari .top-col:first-child { border-right: 1px solid #D97706 !important; border-bottom: none !important; }
   body.mobile-safari .grid-2 { display: grid !important; grid-template-columns: 1fr 1fr !important; }
   body.mobile-safari .grid-3 { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; }
   body.mobile-safari .grid-4 { display: grid !important; grid-template-columns: repeat(4,1fr) !important; }
-  /* Sizing — match desktop print values exactly */
-  body.mobile-safari .content       { flex: 1 !important; padding: 4px 14px !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }
-  body.mobile-safari .top-col       { padding: 6px 12px !important; }
-  body.mobile-safari .col-label     { margin-bottom: 4px !important; font-size: 0.62rem !important; }
-  body.mobile-safari .flood-bar     { margin-bottom: 0 !important; }
-  body.mobile-safari .flood-item    { padding: 3px 12px !important; }
-  body.mobile-safari .section       { margin-bottom: 0 !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; }
-  body.mobile-safari .section-header { padding: 4px 12px !important; font-size: 0.69rem !important; }
-  body.mobile-safari .section-body  { padding: 4px 12px !important; }
-  body.mobile-safari .inline-row    { min-height: 31px !important; margin-bottom: 2px !important; flex-wrap: wrap !important; }
-  body.mobile-safari .field-row     { min-height: 31px !important; margin-bottom: 2px !important; flex-wrap: nowrap !important; }
-  body.mobile-safari .check-item    { min-height: 26px !important; height: 26px !important; }
-  body.mobile-safari .yn-group      { height: 27px !important; }
-  body.mobile-safari .yn-group .yn-label { min-height: 27px !important; height: 27px !important; font-size: 0.67rem !important; line-height: 27px !important; padding: 0 11px !important; }
-  body.mobile-safari .divider       { margin: 4px 0 !important; }
-  body.mobile-safari .gas-appliances-box  { padding: 4px 8px !important; margin-bottom: 3px !important; }
-  body.mobile-safari .gas-appliances-label { margin-bottom: 3px !important; font-size: 0.57rem !important; }
-  body.mobile-safari input[type="text"], body.mobile-safari input[type="email"], body.mobile-safari input[type="tel"],
-  body.mobile-safari input[type="date"], body.mobile-safari input[type="number"] { min-height: 31px !important; height: 31px !important; font-size: 0.88rem !important; padding: 2px 5px !important; }
-  body.mobile-safari #gen_notes   { min-height: 40px !important; height: 40px !important; max-height: 40px !important; }
-  body.mobile-safari #pad_notes   { min-height: 32px !important; height: 32px !important; max-height: 32px !important; }
-  body.mobile-safari #gas_notes   { min-height: 40px !important; height: 40px !important; max-height: 40px !important; }
-  body.mobile-safari #ready_notes { min-height: 38px !important; height: 38px !important; max-height: 38px !important; width: 100% !important; box-sizing: border-box !important; }
-  body.mobile-safari .page, body.mobile-safari .header, body.mobile-safari .content,
-  body.mobile-safari .section, body.mobile-safari .section-body, body.mobile-safari .top-grid,
-  body.mobile-safari .top-col, body.mobile-safari .flood-bar, body.mobile-safari .flood-item,
-  body.mobile-safari .footer, body.mobile-safari .check-item, body.mobile-safari .yn-group,
-  body.mobile-safari .gas-appliances-box { background: #ffffff !important; background-image: none !important; box-shadow: none !important; }
-  body.mobile-safari .header { border-bottom-color: rgba(217,119,6,0.5) !important; }
+  /* Content fills page, sections spread evenly */
+  body.mobile-safari .content { flex: 1 !important; padding: 4px 14px !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; overflow: visible !important; }
+  body.mobile-safari .section { flex-shrink: 0 !important; flex-grow: 0 !important; margin-bottom: 0 !important; page-break-inside: avoid !important; }
+  body.mobile-safari .footer { flex-shrink: 0 !important; margin-top: 0 !important; }
+  body.mobile-safari .page::before, body.mobile-safari .page::after,
+  body.mobile-safari .page-corner-bl, body.mobile-safari .page-corner-br { display: none !important; }
+  /* Element sizing — identical to desktop print */
+  body.mobile-safari .header { background: #ffffff !important; border-bottom: 1px solid #D97706 !important; padding: 4px 28px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; flex-shrink: 0 !important; }
   body.mobile-safari .header::after { display: none !important; }
-  body.mobile-safari .section { border-color: rgba(217,119,6,0.4) !important; }
-  body.mobile-safari .section::before { background: none !important; }
-  body.mobile-safari .section-header { background: #f5f5f5 !important; color: #D97706 !important; text-shadow: none !important; box-shadow: none !important; border-bottom-color: rgba(217,119,6,0.4) !important; }
-  body.mobile-safari .section-header::before { background: #D97706 !important; box-shadow: none !important; animation: none !important; }
-  body.mobile-safari .section-header svg, body.mobile-safari .section-header svg * { stroke: #D97706 !important; }
-  body.mobile-safari .col-label { background: #f5f5f5 !important; color: #D97706 !important; border-color: rgba(217,119,6,0.4) !important; border-left-color: #D97706 !important; text-shadow: none !important; }
+  body.mobile-safari .logo-img { width: 48px !important; height: 48px !important; }
+  body.mobile-safari .company-name { font-size: 1.05rem !important; color: #D97706 !important; text-shadow: none !important; }
+  body.mobile-safari .doc-title { font-size: 1.05rem !important; color: #D97706 !important; text-shadow: none !important; }
+  body.mobile-safari .top-col { padding: 6px 12px !important; background: #ffffff !important; }
+  body.mobile-safari .col-label { background: #f5f5f5 !important; color: #D97706 !important; border-color: rgba(217,119,6,0.4) !important; border-left-color: #D97706 !important; text-shadow: none !important; margin-bottom: 4px !important; font-size: 0.62rem !important; padding: 2px 10px 2px 7px !important; }
   body.mobile-safari .col-label::before { background: #D97706 !important; box-shadow: none !important; animation: none !important; }
   body.mobile-safari .col-label svg, body.mobile-safari .col-label svg * { stroke: #D97706 !important; }
-  body.mobile-safari .company-name { color: #D97706 !important; text-shadow: none !important; letter-spacing: 2.5px !important; }
-  body.mobile-safari .doc-title    { color: #D97706 !important; text-shadow: none !important; letter-spacing: 4px !important; }
-  body.mobile-safari label, body.mobile-safari .inline-label, body.mobile-safari .gas-appliances-label { color: #6B7280 !important; text-shadow: none !important; }
-  body.mobile-safari .check-item span { color: #1F2937 !important; text-shadow: none !important; }
-  body.mobile-safari .check-item:has(input:checked) span { color: #D97706 !important; }
-  body.mobile-safari .yn-group { border-color: #D97706 !important; }
-  body.mobile-safari .yn-group .yn-label { color: #6B7280 !important; background: white !important; text-shadow: none !important; }
-  body.mobile-safari .yn-group .yn-label:first-of-type { border-right-color: #D97706 !important; }
-  body.mobile-safari .yn-group .yn-y:checked + .yn-label-y { color: #059669 !important; background: #f0f0f0 !important; text-shadow: none !important; box-shadow: none !important; }
-  body.mobile-safari .yn-group .yn-n:checked + .yn-label-n { color: #DC2626 !important; background: #f0f0f0 !important; text-shadow: none !important; box-shadow: none !important; }
-  body.mobile-safari input[type="text"], body.mobile-safari input[type="email"], body.mobile-safari input[type="tel"],
-  body.mobile-safari input[type="date"], body.mobile-safari input[type="number"] { background: white !important; color: #1F2937 !important; border-bottom-color: #D97706 !important; box-shadow: none !important; }
-  body.mobile-safari textarea { background: white !important; color: #1F2937 !important; border-color: rgba(217,119,6,0.4) !important; box-shadow: none !important; }
-  body.mobile-safari .check-item input[type="checkbox"], body.mobile-safari .check-item input[type="radio"] { accent-color: #D97706 !important; }
+  body.mobile-safari .flood-bar { margin-bottom: 0 !important; border-color: #D97706 !important; background: #ffffff !important; }
+  body.mobile-safari .flood-item { padding: 3px 12px !important; border-right-color: #D97706 !important; background: #ffffff !important; }
+  body.mobile-safari .section-header { background: #f5f5f5 !important; color: #D97706 !important; border-bottom: 1px solid #D97706 !important; text-shadow: none !important; box-shadow: none !important; padding: 4px 12px !important; font-size: 0.69rem !important; }
+  body.mobile-safari .section-header::before { background: #D97706 !important; box-shadow: none !important; animation: none !important; }
+  body.mobile-safari .section-header svg, body.mobile-safari .section-header svg * { stroke: #D97706 !important; }
+  body.mobile-safari .section-body { background: #ffffff !important; padding: 4px 12px !important; }
+  body.mobile-safari .section { border: 1px solid #D97706 !important; background: #ffffff !important; box-shadow: none !important; }
+  body.mobile-safari .section::before { background: none !important; }
+  body.mobile-safari .field-row { min-height: 31px !important; margin-bottom: 2px !important; flex-wrap: nowrap !important; }
+  body.mobile-safari .inline-row { min-height: 31px !important; margin-bottom: 2px !important; flex-wrap: wrap !important; }
+  body.mobile-safari label { color: #6B7280 !important; font-size: 0.62rem !important; text-shadow: none !important; }
+  body.mobile-safari .inline-label { color: #6B7280 !important; font-size: 0.62rem !important; text-shadow: none !important; }
+  body.mobile-safari input[type="text"], body.mobile-safari input[type="email"],
+  body.mobile-safari input[type="tel"], body.mobile-safari input[type="date"],
+  body.mobile-safari input[type="number"] { background: white !important; color: #1F2937 !important; border-bottom: 2px solid #D97706 !important; border-top: none !important; border-left: none !important; border-right: none !important; box-shadow: none !important; min-height: 31px !important; height: 31px !important; font-size: 0.88rem !important; padding: 2px 5px !important; }
+  body.mobile-safari input[type="date"] { min-width: 145px !important; width: 145px !important; }
   body.mobile-safari input::placeholder, body.mobile-safari textarea::placeholder { color: transparent !important; opacity: 0 !important; }
   body.mobile-safari input::-webkit-input-placeholder, body.mobile-safari textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
-  body.mobile-safari .footer-text { color: #9CA3AF !important; text-shadow: none !important; }
-  body.mobile-safari .page, body.mobile-safari .page::before, body.mobile-safari .page::after,
-  body.mobile-safari .page-corner-bl, body.mobile-safari .page-corner-br { border-color: #D97706 !important; }
-  body.mobile-safari .divider { border-top-color: rgba(217,119,6,0.3) !important; background: white !important; }
+  body.mobile-safari textarea { background: white !important; color: #1F2937 !important; border: 1px solid #D97706 !important; box-shadow: none !important; padding: 3px 6px !important; margin-top: 2px !important; font-size: 0.82rem !important; resize: none !important; overflow: hidden !important; }
+  body.mobile-safari #gen_notes  { min-height: 40px !important; height: 40px !important; max-height: 40px !important; }
+  body.mobile-safari #pad_notes  { min-height: 32px !important; height: 32px !important; max-height: 32px !important; }
+  body.mobile-safari #gas_notes  { min-height: 40px !important; height: 40px !important; max-height: 40px !important; }
+  body.mobile-safari #ready_notes { min-height: 38px !important; height: 38px !important; max-height: 38px !important; width: 100% !important; box-sizing: border-box !important; }
+  body.mobile-safari .yn-group { border: 1px solid #D97706 !important; background: #ffffff !important; box-shadow: none !important; height: 27px !important; }
+  body.mobile-safari .yn-group .yn-label { min-height: 27px !important; height: 27px !important; color: #6B7280 !important; background: white !important; text-shadow: none !important; font-size: 0.67rem !important; line-height: 27px !important; padding: 0 11px !important; }
+  body.mobile-safari .yn-group .yn-label:first-of-type { border-right: 1px solid #D97706 !important; }
+  body.mobile-safari .yn-group .yn-y:checked + .yn-label-y { color: #059669 !important; background: #f0f0f0 !important; text-shadow: none !important; box-shadow: none !important; }
+  body.mobile-safari .yn-group .yn-n:checked + .yn-label-n { color: #DC2626 !important; background: #f0f0f0 !important; text-shadow: none !important; box-shadow: none !important; }
+  body.mobile-safari .check-group { display: flex !important; flex-wrap: wrap !important; gap: 3px !important; }
+  body.mobile-safari .check-item { min-height: 26px !important; height: 26px !important; padding: 0 8px 0 6px !important; background: #ffffff !important; border: 1px solid #D97706 !important; box-shadow: none !important; display: flex !important; align-items: center !important; gap: 4px !important; }
+  body.mobile-safari .check-item input[type="checkbox"], body.mobile-safari .check-item input[type="radio"] { accent-color: #D97706 !important; width: 12px !important; height: 12px !important; min-height: 12px !important; min-width: 12px !important; margin: 0 !important; padding: 0 !important; }
+  body.mobile-safari .check-item span { color: #1F2937 !important; text-shadow: none !important; font-size: 0.62rem !important; }
+  body.mobile-safari .check-item:has(input:checked) span { color: #D97706 !important; }
+  body.mobile-safari .divider { border-top: 1px solid rgba(217,119,6,0.3) !important; background: white !important; margin: 4px 0 !important; }
   body.mobile-safari .divider::before { background: white !important; color: #D97706 !important; text-shadow: none !important; }
+  body.mobile-safari .gas-appliances-box { background: #ffffff !important; border: 1px solid rgba(217,119,6,0.4) !important; padding: 4px 8px !important; margin-bottom: 3px !important; box-shadow: none !important; }
+  body.mobile-safari .gas-appliances-box::before { background: none !important; }
+  body.mobile-safari .gas-appliances-label { color: #6B7280 !important; font-size: 0.57rem !important; margin-bottom: 3px !important; text-shadow: none !important; }
+  body.mobile-safari #install_days { min-height: 31px !important; height: 31px !important; padding: 2px 5px !important; }
+  body.mobile-safari #elec_run_ft { width: 9ch !important; min-width: 9ch !important; max-width: 9ch !important; }
+  body.mobile-safari .footer { background: #ffffff !important; border-top: 1px solid #D97706 !important; padding: 4px 20px !important; display: flex !important; justify-content: space-between !important; align-items: center !important; }
+  body.mobile-safari .footer-text { color: #9CA3AF !important; text-shadow: none !important; }
+  body.mobile-safari .toolbar, body.mobile-safari #theme-toggle-btn,
+  body.mobile-safari #gps-btn, body.mobile-safari #address-suggestions,
+  body.mobile-safari #gps-status { display: none !important; }
 }
 </style>
 </head>
