@@ -591,35 +591,50 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 }
 
 @media print {
-  body.mobile-safari { width: 100% !important; max-width: 100% !important; }
-  body.mobile-safari .page { zoom: 1 !important; width: 100% !important; max-width: 100% !important; margin: 0 auto !important; min-height: 100vh !important; }
-  body.mobile-safari .footer { margin-top: auto !important; }
-  body.mobile-safari .top-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+  /* Mobile Safari: viewport is screen width (~390px). Scale the 1050px page down to fit.
+     390 / 1050 = 0.371 — page fills viewport exactly, Safari scales to paper. */
+  body.mobile-safari { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+  body.mobile-safari .page {
+    zoom: 0.371 !important;
+    width: 1050px !important;
+    max-width: 1050px !important;
+    min-height: 1368px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+  }
+  body.mobile-safari .footer { margin-top: 0 !important; flex-shrink: 0 !important; }
+  /* Force desktop two-column layout */
+  body.mobile-safari .top-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; margin-bottom: 0 !important; }
   body.mobile-safari .top-col:first-child { border-right: 1px solid #D97706 !important; border-bottom: none !important; }
   body.mobile-safari .grid-2 { display: grid !important; grid-template-columns: 1fr 1fr !important; }
   body.mobile-safari .grid-3 { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; }
   body.mobile-safari .grid-4 { display: grid !important; grid-template-columns: repeat(4,1fr) !important; }
-  body.mobile-safari .content       { padding: 4px 14px !important; }
-  body.mobile-safari .top-col       { padding: 8px 10px !important; }
-  body.mobile-safari .col-label     { margin-bottom: 8px !important; }
-  body.mobile-safari .top-grid      { margin-bottom: 6px !important; }
-  body.mobile-safari .flood-bar     { margin-bottom: 4px !important; }
-  body.mobile-safari .flood-item    { padding: 2px 10px !important; }
-  body.mobile-safari .section       { margin-bottom: 2px !important; }
-  body.mobile-safari .section-header { padding: 4px 14px !important; }
-  body.mobile-safari .section-body  { padding: 3px 12px !important; }
-  body.mobile-safari .inline-row    { min-height: 26px !important; margin-bottom: 1px !important; }
-  body.mobile-safari .field-row     { min-height: 26px !important; margin-bottom: 1px !important; }
-  body.mobile-safari .check-item    { min-height: 22px !important; height: 22px !important; }
-  body.mobile-safari .yn-group      { height: 22px !important; }
-  body.mobile-safari .yn-group .yn-label { min-height: 22px !important; height: 22px !important; }
+  /* Sizing — match desktop print values exactly */
+  body.mobile-safari .content       { flex: 1 !important; padding: 4px 14px !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }
+  body.mobile-safari .top-col       { padding: 6px 12px !important; }
+  body.mobile-safari .col-label     { margin-bottom: 4px !important; font-size: 0.62rem !important; }
+  body.mobile-safari .flood-bar     { margin-bottom: 0 !important; }
+  body.mobile-safari .flood-item    { padding: 3px 12px !important; }
+  body.mobile-safari .section       { margin-bottom: 0 !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; }
+  body.mobile-safari .section-header { padding: 4px 12px !important; font-size: 0.69rem !important; }
+  body.mobile-safari .section-body  { padding: 4px 12px !important; }
+  body.mobile-safari .inline-row    { min-height: 31px !important; margin-bottom: 2px !important; flex-wrap: wrap !important; }
+  body.mobile-safari .field-row     { min-height: 31px !important; margin-bottom: 2px !important; flex-wrap: nowrap !important; }
+  body.mobile-safari .check-item    { min-height: 26px !important; height: 26px !important; }
+  body.mobile-safari .yn-group      { height: 27px !important; }
+  body.mobile-safari .yn-group .yn-label { min-height: 27px !important; height: 27px !important; font-size: 0.67rem !important; line-height: 27px !important; padding: 0 11px !important; }
   body.mobile-safari .divider       { margin: 4px 0 !important; }
-  body.mobile-safari .gas-appliances-box  { padding: 4px 6px !important; margin-bottom: 4px !important; }
-  body.mobile-safari .gas-appliances-label { margin-bottom: 4px !important; }
-  body.mobile-safari #gen_notes   { min-height: 28px !important; height: 28px !important; max-height: 28px !important; }
-  body.mobile-safari #pad_notes   { min-height: 22px !important; height: 22px !important; max-height: 22px !important; }
-  body.mobile-safari #gas_notes   { min-height: 28px !important; height: 28px !important; max-height: 28px !important; }
-  body.mobile-safari #ready_notes { min-height: 26px !important; height: 26px !important; max-height: 26px !important; width: 100% !important; box-sizing: border-box !important; }
+  body.mobile-safari .gas-appliances-box  { padding: 4px 8px !important; margin-bottom: 3px !important; }
+  body.mobile-safari .gas-appliances-label { margin-bottom: 3px !important; font-size: 0.57rem !important; }
+  body.mobile-safari input[type="text"], body.mobile-safari input[type="email"], body.mobile-safari input[type="tel"],
+  body.mobile-safari input[type="date"], body.mobile-safari input[type="number"] { min-height: 31px !important; height: 31px !important; font-size: 0.88rem !important; padding: 2px 5px !important; }
+  body.mobile-safari #gen_notes   { min-height: 40px !important; height: 40px !important; max-height: 40px !important; }
+  body.mobile-safari #pad_notes   { min-height: 32px !important; height: 32px !important; max-height: 32px !important; }
+  body.mobile-safari #gas_notes   { min-height: 40px !important; height: 40px !important; max-height: 40px !important; }
+  body.mobile-safari #ready_notes { min-height: 38px !important; height: 38px !important; max-height: 38px !important; width: 100% !important; box-sizing: border-box !important; }
   body.mobile-safari .page, body.mobile-safari .header, body.mobile-safari .content,
   body.mobile-safari .section, body.mobile-safari .section-body, body.mobile-safari .top-grid,
   body.mobile-safari .top-col, body.mobile-safari .flood-bar, body.mobile-safari .flood-item,
