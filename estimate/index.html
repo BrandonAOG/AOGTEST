@@ -932,7 +932,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 
   <div class="footer">
     <span class="footer-text">GENERATOR INSTALLATION ESTIMATE · CONFIDENTIAL</span>
-    <span style="font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:var(--text-dim);">Ver. 1.1</span>
+    <span id="ver-span" style="font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:var(--text-dim);">Ver. 1.1</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1163,10 +1163,14 @@ function printForm() {
 
   // ── Step 2: force title elements to amber via inline style ───────────────
   // Inline style beats every stylesheet rule including !important dark-mode rules.
-  var docTitle = document.querySelector('.doc-title');
-  var compName  = document.querySelector('.company-name');
-  if (docTitle) docTitle.setAttribute('style', 'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
-  if (compName)  compName.setAttribute('style',  'color:#D97706!important;text-shadow:none!important;');
+  var docTitle   = document.querySelector('.doc-title');
+  var compName   = document.querySelector('.company-name');
+  var footerText = document.querySelector('.footer-text');
+  var verSpan    = document.getElementById('ver-span');
+  if (docTitle)   docTitle.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
+  if (compName)   compName.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;');
+  if (footerText) footerText.setAttribute('style', 'color:#9CA3AF!important;text-shadow:none!important;');
+  if (verSpan)    verSpan.setAttribute('style',    "font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:#9CA3AF!important;text-shadow:none!important;");
 
   // ── Step 3: inject print styles ──────────────────────────────────────────
   var printStyle = document.createElement('style');
@@ -1201,8 +1205,10 @@ function printForm() {
 
     // Re-apply inline title styles after viewport re-render
     setTimeout(function() {
-      if (docTitle) docTitle.setAttribute('style', 'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
-      if (compName)  compName.setAttribute('style',  'color:#D97706!important;text-shadow:none!important;');
+      if (docTitle)   docTitle.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
+      if (compName)   compName.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;');
+      if (footerText) footerText.setAttribute('style', 'color:#9CA3AF!important;text-shadow:none!important;');
+      if (verSpan)    verSpan.setAttribute('style',    "font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:#9CA3AF!important;text-shadow:none!important;");
     }, 100);
 
     // Inject height reductions to prevent blank page 2
@@ -1241,8 +1247,10 @@ function printForm() {
     // Restore dark mode
     if (wasDark) document.body.classList.add('dark-mode');
     // Clear inline title styles
-    if (docTitle) docTitle.removeAttribute('style');
-    if (compName)  compName.removeAttribute('style');
+    if (docTitle)   docTitle.removeAttribute('style');
+    if (compName)   compName.removeAttribute('style');
+    if (footerText) footerText.removeAttribute('style');
+    if (verSpan)    verSpan.setAttribute('style', "font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:var(--text-dim);");
     // Restore viewport
     if (isMobileSafari && vp && origViewport) vp.setAttribute('content', origViewport);
   }
