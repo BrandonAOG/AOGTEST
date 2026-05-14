@@ -1822,7 +1822,8 @@ var SEASONAL_THEMES = {
   'memorialday': {'start':{month:5,day:25},'end':{month:5,day:31}},
   'mothersday':  {'start':{month:5,day:1},'end':{month:5,day:14}},
   'fathersday':  {'start':{month:6,day:1},'end':{month:6,day:20}},
-  'backtoschool':{'start':{month:8,day:1},'end':{month:8,day:31}},
+  'hotsummer':   {'start':{month:7,day:21},'end':{month:8,day:10}},
+  'backtoschool':{'start':{month:8,day:11},'end':{month:8,day:31}},
   'halloween':   {'start':{month:10,day:1},'end':{month:10,day:31}},
   'fall':        {'start':{month:9,day:23},'end':{month:10,day:31}},
   'thanksgiving':{'start':{month:11,day:1},'end':{month:11,day:30}},
@@ -1852,6 +1853,7 @@ var SEASONAL_TITLES = {
   memorialday:  '🇺🇸 Generator Installation Estimate',
   mothersday:   '🌷 Generator Installation Estimate',
   fathersday:   '👔 Generator Installation Estimate',
+  hotsummer:    '🔥 Generator Installation Estimate',
   backtoschool: '🎒 Generator Installation Estimate',
   laborday:     '🔨 Generator Installation Estimate',
   veteransday:  '🎖️ Generator Installation Estimate',
@@ -2374,6 +2376,72 @@ function createSeasonalCanvas(theme) {
         if(p.y>H+20){p.y=-10;p.x=Math.random()*W;}
       }
     },
+    hotsummer: {
+      count: 60,
+      make: function() {
+        var types=['flame','flame','flame','sun','heat'];
+        return {
+          x: Math.random()*W, y: H+20,
+          vx: (Math.random()-0.5)*1.5, vy: -(0.8+Math.random()*2.0),
+          life: 0.8+Math.random()*0.2, decay: 0.008+Math.random()*0.008,
+          size: 8+Math.random()*20,
+          type: types[Math.floor(Math.random()*types.length)],
+          wobble: Math.random()*Math.PI*2, wobbleSpeed: 0.04+Math.random()*0.06,
+          hue: 10+Math.random()*40
+        };
+      },
+      draw: function(p) {
+        ctx.save(); ctx.globalAlpha=p.life*0.7;
+        ctx.translate(p.x,p.y);
+        var s=p.size;
+        if(p.type==='flame'){
+          var grad=ctx.createRadialGradient(0,s*0.3,0,0,0,s);
+          grad.addColorStop(0,'#FFFFFF');
+          grad.addColorStop(0.2,'#FFD700');
+          grad.addColorStop(0.5,'#FF6600');
+          grad.addColorStop(1,'rgba(220,0,0,0)');
+          ctx.fillStyle=grad;
+          ctx.beginPath();
+          ctx.moveTo(0,s);
+          ctx.bezierCurveTo(-s*0.6,s*0.4,-s*0.8,-s*0.2,-s*0.1,-s);
+          ctx.bezierCurveTo(0,-s*0.6,0,-s*0.6,s*0.1,-s);
+          ctx.bezierCurveTo(s*0.8,-s*0.2,s*0.6,s*0.4,0,s);
+          ctx.fill();
+        } else if(p.type==='sun'){
+          ctx.fillStyle='rgba(255,220,0,0.9)';
+          ctx.beginPath(); ctx.arc(0,0,s*0.5,0,Math.PI*2); ctx.fill();
+          ctx.strokeStyle='rgba(255,160,0,0.7)'; ctx.lineWidth=s*0.15;
+          for(var i=0;i<8;i++){
+            ctx.save(); ctx.rotate(i*Math.PI/4);
+            ctx.beginPath(); ctx.moveTo(0,s*0.6); ctx.lineTo(0,s*1.1); ctx.stroke();
+            ctx.restore();
+          }
+        } else {
+          // Heat shimmer wavy line
+          ctx.strokeStyle='rgba(255,120,0,0.5)';
+          ctx.lineWidth=2;
+          ctx.beginPath();
+          for(var j=0;j<6;j++){
+            var x=( j-3)*s*0.25;
+            var y=Math.sin(j*1.2+p.wobble)*s*0.3;
+            j===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      },
+      tick: function(p) {
+        p.wobble+=p.wobbleSpeed;
+        p.x+=p.vx+Math.sin(p.wobble)*0.8;
+        p.y+=p.vy;
+        p.life-=p.decay;
+        if(p.life<=0||p.y<-s){
+          p.y=H+20; p.x=Math.random()*W;
+          p.life=0.8+Math.random()*0.2;
+          p.vy=-(0.8+Math.random()*2.0);
+        }
+      }
+    },
     backtoschool: {
       count: 30,
       make: function() {
@@ -2688,6 +2756,19 @@ function injectSeasonalStyles() {
     '@media screen { body.seasonal-backtoschool:not(.dark-mode) .section-header::before { background:#FF6B6B !important; } }',
     '@media screen { body.seasonal-backtoschool:not(.dark-mode) .col-label::before { background:#FF6B6B !important; } }',
     'body.seasonal-backtoschool .doc-title::after { content:" 🎒"; }',
+    'body.seasonal-hotsummer { --cyan:#FF4500; --cyan-dim:#FF2200; --amber:#FFD700; --border:rgba(255,69,0,0.25); --border-bright:rgba(255,69,0,0.6); }',
+    'body.seasonal-hotsummer:not(.dark-mode) { --panel:#fff8f0; --bg:#fff5e6; --bg3:#ffe8cc; --text:#1a0a00; }',
+    'body.seasonal-hotsummer .page { border-color:#FF4500 !important; box-shadow:0 0 60px rgba(255,69,0,0.25),0 0 120px rgba(255,150,0,0.1) !important; }',
+    'body.seasonal-hotsummer .header { background:linear-gradient(90deg,rgba(255,69,0,0.12),rgba(255,200,0,0.1),rgba(255,69,0,0.12)) !important; }',
+    'body.seasonal-hotsummer .section-header { background:linear-gradient(90deg,rgba(255,69,0,0.1),transparent) !important; letter-spacing:5px !important; }',
+    'body.seasonal-hotsummer:not(.dark-mode) .section-header::before { background:#FF4500 !important; box-shadow:0 0 10px #FF4500,0 0 20px rgba(255,69,0,0.6) !important; animation:hotsummer-pulse 1s ease-in-out infinite !important; }',
+    'body.seasonal-hotsummer:not(.dark-mode) .col-label::before { background:#FF4500 !important; box-shadow:0 0 10px #FF4500,0 0 20px rgba(255,69,0,0.6) !important; animation:hotsummer-pulse 1s ease-in-out infinite !important; }',
+    '@keyframes hotsummer-pulse { 0%,100%{background:#FF4500;box-shadow:0 0 10px #FF4500;} 50%{background:#FFD700;box-shadow:0 0 14px #FFD700;} }',
+    'body.seasonal-hotsummer .doc-title::after { content:" 🔥"; }',
+    'body.seasonal-hotsummer .company-name::after { content:" 🌡️"; font-size:0.8em; opacity:0.7; }',
+    '@media screen { body.seasonal-hotsummer { --cyan:#FF4500; --cyan-dim:#FF2200; --amber:#FFD700; --border:rgba(255,69,0,0.25); --border-bright:rgba(255,69,0,0.6); } }',
+    '@media screen { body.seasonal-hotsummer:not(.dark-mode) .section-header::before { background:#FF4500 !important; box-shadow:0 0 10px #FF4500,0 0 20px rgba(255,69,0,0.6) !important; animation:hotsummer-pulse 1s ease-in-out infinite !important; } }',
+    '@media screen { body.seasonal-hotsummer:not(.dark-mode) .col-label::before { background:#FF4500 !important; box-shadow:0 0 10px #FF4500,0 0 20px rgba(255,69,0,0.6) !important; animation:hotsummer-pulse 1s ease-in-out infinite !important; } }',
     '@media screen { body.seasonal-backtoschool { --cyan:#FF6B6B; --cyan-dim:#FF4444; --amber:#FFE66D; --border:rgba(255,107,107,0.2); --border-bright:rgba(255,107,107,0.45); } }',
     'body.seasonal-fall { --cyan:#D2691E; --cyan-dim:#A0522D; --amber:#DAA520; --border:rgba(210,105,30,0.25); --border-bright:rgba(210,105,30,0.5); }',
     'body.seasonal-fall:not(.dark-mode) { --panel:#fff8f0; --bg:#fff8f0; --bg3:#ffecd6; }',
