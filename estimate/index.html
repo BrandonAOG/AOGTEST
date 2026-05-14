@@ -1400,6 +1400,16 @@ function capturePageToCanvas() {
       '  --icon-color-section: #D97706 !important;',
       '  --icon-color-gps: #10B981 !important;',
       '}',
+      // Force seasonal theme colors back to light-mode amber on capture
+      '.icon-themed { color: #D97706 !important; }',
+      '.doc-title { color: #D97706 !important; text-shadow: none !important; }',
+      '.company-name { color: #D97706 !important; text-shadow: none !important; }',
+      '.section-header { color: #D97706 !important; }',
+      '.col-label { color: #D97706 !important; }',
+      '.section-header::before { background: #D97706 !important; box-shadow: none !important; animation: none !important; }',
+      '.col-label::before { background: #D97706 !important; box-shadow: none !important; animation: none !important; }',
+      'body[class*="seasonal-"] { background: #ffffff !important; }',
+      'body[class*="seasonal-"] .page { border-color: #D97706 !important; box-shadow: none !important; }',
       // ── Kill dark-mode gradient backgrounds that don't use vars ──
       'body.dark-mode, html.dark-mode-pending body { background: #ffffff !important; }',
       'body.dark-mode .page, html.dark-mode-pending .page { background: #ffffff !important; box-shadow: none !important; }',
@@ -2373,8 +2383,20 @@ document.addEventListener('DOMContentLoaded', function() {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('../sw.js', { scope: '../' })
-      .then(function(reg) { console.log('[SW] Registered, scope:', reg.scope); })
+      .then(function(reg) {
+        console.log('[SW] Registered, scope:', reg.scope);
+        // Check for SW updates on every load — ensures seasonal themes
+        // and file changes are never stuck behind a stale cache.
+        reg.update();
+      })
       .catch(function(err) { console.warn('[SW] Registration failed:', err); });
+  });
+
+  // If a new SW is waiting, activate it immediately instead of waiting
+  // for all tabs to close. This means seasonal theme changes go live
+  // as soon as the user refreshes — no manual cache clearing needed.
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    window.location.reload();
   });
 }
 </script>
