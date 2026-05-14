@@ -1287,27 +1287,8 @@ function printForm() {
     document.addEventListener('visibilitychange', onVis);
   }
 
-  if (isMobileSafari) {
-    var settleTimer = null;
-    var printFired = false;
-    function firePrint() {
-      if (printFired) return;
-      printFired = true;
-      window.print();
-    }
-    var lastWidth = document.getElementById('page') ? document.getElementById('page').offsetWidth : 0;
-    var checkInterval = setInterval(function() {
-      var currentWidth = document.getElementById('page') ? document.getElementById('page').offsetWidth : 0;
-      if (currentWidth === lastWidth && currentWidth > 800) {
-        clearInterval(checkInterval);
-        setTimeout(firePrint, 300);
-      }
-      lastWidth = currentWidth;
-    }, 100);
-    setTimeout(function() { clearInterval(checkInterval); firePrint(); }, 3000);
-  } else {
-    setTimeout(function() { window.print(); }, 250);
-  }
+  // Always print immediately to stay within the user gesture on Safari
+  window.print();
 }
 
 // ── CANVAS CAPTURE ──
