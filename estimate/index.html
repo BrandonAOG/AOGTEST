@@ -1261,11 +1261,9 @@ function printForm() {
           var xOffset = (pageW - imgW) / 2;
           pdf.addImage(imgData, 'JPEG', xOffset, 0, imgW, imgH);
           var ownerName = (document.getElementById('name') ? document.getElementById('name').value.trim() : '') || 'Customer';
-          var address = (document.getElementById('address') ? document.getElementById('address').value.trim() : '') || '';
-          var safeName = (ownerName + (address ? ' ' + address : '') + ' Estimate')
-            .replace(/[^a-zA-Z0-9 _\-]/g, '')
-            .replace(/\s+/g, '_')
-            .substring(0, 100);
+          var addr = (document.getElementById('address') ? document.getElementById('address').value.trim() : '') || '';
+          var rawName = ownerName + (addr ? ' ' + addr : '') + ' Estimate';
+          var safeName = rawName.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/[ ]+/g, '_').substring(0, 100);
           pdf.save(safeName + '.pdf');
           setStatus('PDF saved!');
           setTimeout(function() { setStatus(''); }, 3000);
