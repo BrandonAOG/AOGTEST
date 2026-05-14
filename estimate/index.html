@@ -1189,6 +1189,12 @@ function printForm() {
   document.title = getEstimateFilename('pdf').replace(/\.pdf$/, '');
 
   document.body.classList.remove('dark-mode');
+  // Strip seasonal classes so they don't bleed through on iOS reflow
+  var _printSeasonalClasses = [];
+  document.body.classList.forEach(function(c) { if (c.indexOf('seasonal-') === 0) _printSeasonalClasses.push(c); });
+  _printSeasonalClasses.forEach(function(c) { document.body.classList.remove(c); });
+  var _printSeasonalCanvas = document.getElementById('seasonal-canvas');
+  if (_printSeasonalCanvas) _printSeasonalCanvas.style.display = 'none';
 
   var docTitle   = document.querySelector('.doc-title');
   var compName   = document.querySelector('.company-name');
@@ -1266,6 +1272,8 @@ function printForm() {
     var el = document.getElementById('force-print-light'); if (el) el.remove();
     var fix = document.getElementById('safari-page-fix');  if (fix) fix.remove();
     if (wasDark) document.body.classList.add('dark-mode');
+    _printSeasonalClasses.forEach(function(c) { document.body.classList.add(c); });
+    if (_printSeasonalCanvas) _printSeasonalCanvas.style.display = '';
     if (docTitle)   docTitle.removeAttribute('style');
     if (compName)   compName.removeAttribute('style');
     if (footerText) footerText.removeAttribute('style');
