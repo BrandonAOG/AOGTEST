@@ -1153,34 +1153,21 @@ function printForm() {
   if (!validateForm()) return;
   var wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
-  // FIX: On mobile Safari, swap viewport to 1050px so Safari renders the full
-  // desktop layout and scales it to fit the paper automatically.
-  var vp = document.querySelector('meta[name="viewport"]');
-  var origViewport = vp ? vp.getAttribute('content') : null;
+
   var isMobileSafari = document.body.classList.contains('mobile-safari');
-  if (isMobileSafari && vp) {
-    vp.setAttribute('content', 'width=1050, initial-scale=1.0');
-    // Override min-height so Safari doesn't push content to page 2
+  if (isMobileSafari) {
     var safariPageFix = document.createElement('style');
     safariPageFix.id = 'safari-page-fix';
     safariPageFix.textContent = [
+      '@page { size: 390px 505px; margin: 0; }',
       '@media print {',
-      '  .page { min-height: 0 !important; }',
+      '  html, body { width: 390px !important; height: 505px !important; overflow: hidden !important; }',
+      '  .page { width: 390px !important; max-width: 390px !important; min-height: 0 !important; height: 505px !important; overflow: hidden !important; border: none !important; }',
+      '  .content { flex: 1 !important; overflow: hidden !important; justify-content: space-between !important; padding: 2px 4px !important; }',
       '  .footer { margin-top: auto !important; }',
-      '  .field-row, .inline-row { min-height: 30.7px !important; }',
-      '  input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"] { min-height: 30.7px !important; height: 30.7px !important; }',
-      '  .yn-group, .yn-group .yn-label { height: 26.7px !important; min-height: 26.7px !important; line-height: 26.7px !important; }',
-      '  .check-item { height: 25.7px !important; min-height: 25.7px !important; }',
-      '  #gen_notes  { height: 39.7px !important; min-height: 39.7px !important; max-height: 39.7px !important; }',
-      '  #pad_notes  { height: 31.7px !important; min-height: 31.7px !important; max-height: 31.7px !important; }',
-      '  #gas_notes  { height: 39.7px !important; min-height: 39.7px !important; max-height: 39.7px !important; }',
-      '  #ready_notes { height: 37.7px !important; min-height: 37.7px !important; max-height: 37.7px !important; }',
-      '  #install_days { height: 30.7px !important; min-height: 30.7px !important; }',
       '}'
     ].join('\n');
     document.head.appendChild(safariPageFix);
-    // Re-apply title colors after viewport change triggers re-render
-    requestAnimationFrame(function() { requestAnimationFrame(function() { forceTitleColors(); }); });
   }
   // On mobile Safari dark-mode removal + 1500ms delay is sufficient —
   // skip the force-print-light injection which can cause color conflicts on Safari.
@@ -1218,19 +1205,12 @@ function printForm() {
     // Restore title inline styles
     if (docTitle) { docTitle.style.color = origTitleColor || ''; docTitle.style.textShadow = origTitleShadow || ''; docTitle.style.letterSpacing = ''; }
     if (compName) { compName.style.color = origCompColor || ''; compName.style.textShadow = origCompShadow || ''; }
-    // Restore original viewport after print
-    if (isMobileSafari && vp && origViewport) {
-      vp.setAttribute('content', origViewport);
-      var fix = document.getElementById('safari-page-fix');
-      if (fix) fix.remove();
-    }
+    var fix = document.getElementById('safari-page-fix');
+    if (fix) fix.remove();
   }
   window.addEventListener('afterprint', onAfterPrint);
 
-  // On mobile Safari, wait 1500ms after dark-mode removal so the browser
-  // fully re-renders in light mode before the print dialog opens.
-  var printDelay = isMobileSafari ? 1500 : 250;
-  setTimeout(function() { window.print(); }, printDelay);
+  setTimeout(function() { window.print(); }, 250);
 }
 
 // ── CANVAS CAPTURE ──
