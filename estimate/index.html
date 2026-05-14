@@ -14,7 +14,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AOG Forms">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
 (function() {
@@ -1163,127 +1162,13 @@ function printForm() {
   if (!validateForm()) return;
 
   var isMobileSafari = document.body.classList.contains('mobile-safari');
-
-  // ── Mobile Safari: use html2canvas + jsPDF — no print dialog, no scaling issues ──
-  if (isMobileSafari) {
-    setStatus('Generating PDF…');
-    var wasDark = document.body.classList.contains('dark-mode');
-    if (wasDark) document.body.classList.remove('dark-mode');
-
-    // Force light colors inline before capture
-    var docTitle   = document.querySelector('.doc-title');
-    var compName   = document.querySelector('.company-name');
-    var footerText = document.querySelector('.footer-text');
-    var verSpan    = document.getElementById('ver-span');
-    if (docTitle)   docTitle.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
-    if (compName)   compName.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;');
-    if (footerText) footerText.setAttribute('style', 'color:#9CA3AF!important;text-shadow:none!important;');
-    if (verSpan)    verSpan.setAttribute('style',    'color:#9CA3AF!important;text-shadow:none!important;');
-
-    var page = document.getElementById('page');
-    var toolbar = document.getElementById('toolbar');
-    var themeBtn = document.getElementById('theme-toggle-btn');
-    if (toolbar) toolbar.style.display = 'none';
-    if (themeBtn) themeBtn.style.display = 'none';
-
-    // Expand page to full desktop width for capture
-    var prevWidth    = page.style.width;
-    var prevMaxWidth = page.style.maxWidth;
-    var prevMinH     = page.style.minHeight;
-    page.style.width    = '1050px';
-    page.style.maxWidth = '1050px';
-    page.style.minHeight = '1368px';
-    document.body.style.maxWidth = '1050px';
-
-    var forceStyle = document.createElement('style');
-    forceStyle.id = 'capture-light-style';
-    forceStyle.textContent = [
-      '.top-grid { grid-template-columns: 1fr 1fr !important; }',
-      '.top-col:first-child { border-right: 1px solid var(--border) !important; border-bottom: none !important; }',
-      '.grid-2 { grid-template-columns: 1fr 1fr !important; }',
-      '.grid-3 { grid-template-columns: 1fr 1fr 1fr !important; }',
-      '.grid-4 { grid-template-columns: repeat(4, 1fr) !important; }',
-      '.content { overflow: visible !important; }',
-      '.section-header::before { animation: none !important; }',
-      '.col-label::before { animation: none !important; }',
-      '.header::after { display: none !important; }'
-    ].join('
-');
-    document.head.appendChild(forceStyle);
-
-    function restoreAfterCapture() {
-      page.style.width    = prevWidth;
-      page.style.maxWidth = prevMaxWidth;
-      page.style.minHeight = prevMinH;
-      document.body.style.maxWidth = '';
-      if (toolbar) toolbar.style.display = '';
-      if (themeBtn) themeBtn.style.display = '';
-      if (wasDark) document.body.classList.add('dark-mode');
-      if (docTitle)   docTitle.removeAttribute('style');
-      if (compName)   compName.removeAttribute('style');
-      if (footerText) footerText.removeAttribute('style');
-      if (verSpan)    verSpan.removeAttribute('style');
-      var fs = document.getElementById('capture-light-style'); if (fs) fs.remove();
-    }
-
-    requestAnimationFrame(function() { requestAnimationFrame(function() {
-      html2canvas(page, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        width: 1050,
-        height: Math.max(page.scrollHeight, 1368),
-        windowWidth: 1050,
-        scrollX: 0,
-        scrollY: 0,
-        ignoreElements: function(el) {
-          return el.id === 'toolbar' || el.classList.contains('theme-toggle-btn');
-        }
-      }).then(function(canvas) {
-        restoreAfterCapture();
-        try {
-          var jsPDF = window.jspdf.jsPDF;
-          var pdf = new jsPDF({ orientation: 'portrait', unit: 'in', format: 'letter' });
-          // Letter page = 8.5 x 11 in. Canvas is 1050*2 = 2100px wide.
-          var imgData = canvas.toDataURL('image/jpeg', 0.92);
-          var pageW = 8.5;
-          var pageH = 11;
-          var imgW = pageW;
-          var imgH = (canvas.height / canvas.width) * imgW;
-          // If taller than one page, scale down to fit
-          if (imgH > pageH) {
-            var ratio = pageH / imgH;
-            imgW = imgW * ratio;
-            imgH = pageH;
-          }
-          var xOffset = (pageW - imgW) / 2;
-          pdf.addImage(imgData, 'JPEG', xOffset, 0, imgW, imgH);
-          var ownerName = (document.getElementById('name') ? document.getElementById('name').value.trim() : '') || 'Customer';
-          var addr = (document.getElementById('address') ? document.getElementById('address').value.trim() : '') || '';
-          var rawName = ownerName + (addr ? ' ' + addr : '') + ' Estimate';
-          var safeName = rawName.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/[ ]+/g, '_').substring(0, 100);
-          pdf.save(safeName + '.pdf');
-          setStatus('PDF saved!');
-          setTimeout(function() { setStatus(''); }, 3000);
-        } catch(e) {
-          restoreAfterCapture();
-          setStatus('PDF failed — try iPhone button instead.');
-          setTimeout(function() { setStatus(''); }, 4000);
-        }
-      }).catch(function() {
-        restoreAfterCapture();
-        setStatus('PDF failed — try iPhone button instead.');
-        setTimeout(function() { setStatus(''); }, 4000);
-      });
-    }); });
-    return;
-  }
-
-  // ── Desktop: standard print dialog ───────────────────────────────────────
   var wasDark = document.body.classList.contains('dark-mode');
-  if (wasDark) document.body.classList.remove('dark-mode');
+
+  // ── Step 1: strip dark-mode so everything renders light ──────────────────
+  document.body.classList.remove('dark-mode');
+
+  // ── Step 2: force title elements to amber via inline style ───────────────
+  // Inline style beats every stylesheet rule including !important dark-mode rules.
   var docTitle   = document.querySelector('.doc-title');
   var compName   = document.querySelector('.company-name');
   var footerText = document.querySelector('.footer-text');
@@ -1293,44 +1178,122 @@ function printForm() {
   if (footerText) footerText.setAttribute('style', 'color:#9CA3AF!important;text-shadow:none!important;');
   if (verSpan)    verSpan.setAttribute('style',    'color:#9CA3AF!important;text-shadow:none!important;');
 
+  // ── Step 3: inject print styles ──────────────────────────────────────────
   var printStyle = document.createElement('style');
   printStyle.id  = 'force-print-light';
   printStyle.textContent = [
     '@media print {',
     '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;border-color:rgba(217,119,6,0.4)!important;animation:none!important;transition:none!important; }',
-    '  .doc-title,.company-name { color:#D97706!important;text-shadow:none!important; }',
-    '  body.dark-mode .doc-title,body.dark-mode .company-name { color:#D97706!important;text-shadow:none!important; }',
-    '  body.dark-mode .footer-text { color:#9CA3AF!important;text-shadow:none!important; }',
-    '  body.dark-mode #ver-span { color:#9CA3AF!important;text-shadow:none!important; }',
-    '  .doc-title::before,.doc-title::after,.company-name::before,.company-name::after,.header::after { content:none!important;display:none!important; }',
+    '  .doc-title, .company-name { color:#D97706!important;text-shadow:none!important; }',
+    '  .doc-title::before, .doc-title::after, .company-name::before, .company-name::after, .header::after { content:none!important;display:none!important; }',
     '  html,body { background:white!important; }',
     '  .page { border:1.5pt solid #D97706!important;background:white!important; }',
     '  .section-header { background:#f5f5f5!important;color:#D97706!important;text-shadow:none!important; }',
-    '  .section-header svg,.section-header svg * { stroke:#D97706!important; }',
+    '  .section-header svg, .section-header svg * { stroke:#D97706!important; }',
     '  .col-label { color:#D97706!important;background:#f5f5f5!important;text-shadow:none!important; }',
     '  .yn-group { background:white!important;border-color:#D97706!important; }',
     '  .yn-group .yn-label { color:#6B7280!important;background:white!important;text-shadow:none!important; }',
     '  .check-item input[type="radio"],.check-item input[type="checkbox"] { accent-color:#D97706!important; }',
     '  .footer-text { color:#9CA3AF!important; }',
-    '  #ver-span { color:#9CA3AF!important; }',
     '  .toolbar,button,.theme-toggle-btn { display:none!important; }',
     '  .confirm-modal-backdrop { display:none!important; }',
     '}'
-  ].join('
-');
+  ].join('\n');
   document.head.appendChild(printStyle);
 
-  function onAfterPrint() {
-    window.removeEventListener('afterprint', onAfterPrint);
+  // ── Step 4: Safari-specific fixes ────────────────────────────────────────
+  var vp = document.querySelector('meta[name="viewport"]');
+  var origViewport = vp ? vp.getAttribute('content') : null;
+
+  if (isMobileSafari && vp) {
+    // Swap viewport so Safari renders the full 1050px desktop layout
+    vp.setAttribute('content', 'width=1050, initial-scale=1.0');
+
+    // Re-apply inline title styles after viewport re-render
+    setTimeout(function() {
+      if (docTitle)   docTitle.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
+      if (compName)   compName.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;');
+      if (footerText) footerText.setAttribute('style', 'color:#9CA3AF!important;text-shadow:none!important;');
+      if (verSpan)    verSpan.setAttribute('style',    'color:#9CA3AF!important;text-shadow:none!important;');
+    }, 100);
+
+    // Inject height reductions to prevent blank page 2
+    var safariPageFix = document.createElement('style');
+    safariPageFix.id = 'safari-page-fix';
+    safariPageFix.textContent = [
+      '@page { size: 8.5in 10.2in; margin: 0.1in; }',
+      '@media print {',
+      '  * { animation:none!important;animation-play-state:paused!important;transition:none!important; }',
+      '  .doc-title, .company-name { transform:translateZ(0);will-change:auto!important;isolation:auto!important; }',
+      '  .header::after { display:none!important;content:none!important; }',
+      '  .page { min-height:0!important; }',
+      '  .footer { margin-top:auto!important;padding:2px 14px!important; }',
+      '  .footer-text,.footer span { font-size:0.28rem!important; }',
+      '  .field-row,.inline-row { min-height:29.7px!important; }',
+      '  input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"] { min-height:29.7px!important;height:29.7px!important; }',
+      '  .yn-group,.yn-group .yn-label { height:25.7px!important;min-height:25.7px!important;line-height:25.7px!important; }',
+      '  .check-item { height:24.7px!important;min-height:24.7px!important; }',
+      '  #gen_notes  { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
+      '  #pad_notes  { height:29.7px!important;min-height:29.7px!important;max-height:29.7px!important; }',
+      '  #gas_notes  { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
+      '  #ready_notes { height:35.7px!important;min-height:35.7px!important;max-height:35.7px!important; }',
+      '  #install_days { height:29.7px!important;min-height:29.7px!important; }',
+      '}'
+    ].join('\n');
+    document.head.appendChild(safariPageFix);
+  }
+
+  // ── Step 5: restore everything after print closes ─────────────────────────
+  function restore() {
+    window.removeEventListener('afterprint', restore);
+    document.removeEventListener('visibilitychange', onVis);
+    // Remove injected styles
     var el = document.getElementById('force-print-light'); if (el) el.remove();
+    var fix = document.getElementById('safari-page-fix');  if (fix) fix.remove();
+    // Restore dark mode
     if (wasDark) document.body.classList.add('dark-mode');
+    // Clear inline title styles
     if (docTitle)   docTitle.removeAttribute('style');
     if (compName)   compName.removeAttribute('style');
     if (footerText) footerText.removeAttribute('style');
     if (verSpan)    verSpan.removeAttribute('style');
+    // Restore viewport
+    if (isMobileSafari && vp && origViewport) vp.setAttribute('content', origViewport);
   }
-  window.addEventListener('afterprint', onAfterPrint);
-  setTimeout(function() { window.print(); }, 250);
+  function onVis() { if (!document.hidden) restore(); }
+  window.addEventListener('afterprint', restore);
+  // visibilitychange is the reliable Safari fallback — NOT focus (fires too early, before print opens)
+  if (isMobileSafari) {
+    document.addEventListener('visibilitychange', onVis);
+  }
+
+  // ── Step 6: open print dialog ─────────────────────────────────────────────
+  // 1500ms on Safari so viewport re-render settles before print snapshot
+  if (isMobileSafari) {
+    // Wait for viewport change to fully settle before printing.
+    // We detect settlement by observing the page width stabilizing.
+    var settleTimer = null;
+    var printFired = false;
+    function firePrint() {
+      if (printFired) return;
+      printFired = true;
+      window.print();
+    }
+    // Observe page width — fire print 300ms after it stops changing
+    var lastWidth = document.getElementById('page') ? document.getElementById('page').offsetWidth : 0;
+    var checkInterval = setInterval(function() {
+      var currentWidth = document.getElementById('page') ? document.getElementById('page').offsetWidth : 0;
+      if (currentWidth === lastWidth && currentWidth > 800) {
+        clearInterval(checkInterval);
+        setTimeout(firePrint, 300);
+      }
+      lastWidth = currentWidth;
+    }, 100);
+    // Hard fallback at 3000ms in case observer never settles
+    setTimeout(function() { clearInterval(checkInterval); firePrint(); }, 3000);
+  } else {
+    setTimeout(function() { window.print(); }, 250);
+  }
 }
 
 // ── CANVAS CAPTURE ──
