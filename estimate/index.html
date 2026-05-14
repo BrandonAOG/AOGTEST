@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-title" content="AOG Forms">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-<script> 
+<script>
 (function() {
   'use strict';
   var IS_IOS_SAFARI = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
@@ -490,6 +490,9 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   .btn { flex: 1 1 calc(33% - 6px); }
   .check-item { flex: 1 1 calc(50% - 4px); min-width: 80px; }
 }
+
+/* Mobile Safari: zero page margins to suppress Safari URL/date/page footer */
+body.mobile-safari { -webkit-print-color-adjust: exact; }
 
 @media print {
   @page { size: 8.5in 11in; margin: 0.1in 0.1in 0.1in 0.1in; }
@@ -1164,9 +1167,14 @@ function printForm() {
     var safariPageFix = document.createElement('style');
     safariPageFix.id = 'safari-page-fix';
     safariPageFix.textContent = [
+      /* Kill Safari built-in URL/date/page-number headers and footers */
+      '@page { margin: 0 !important; }',
       '@media print {',
+      '  html { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }',
       '  .page { min-height: 0 !important; }',
-      '  .footer { margin-top: auto !important; }',
+      '  .footer { margin-top: auto !important; padding: 2px 14px !important; }',
+      '  .footer-text { font-size: 0.28rem !important; }',
+      '  .footer span { font-size: 0.28rem !important; }',
       '  .field-row, .inline-row { min-height: 30.7px !important; }',
       '  input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"] { min-height: 30.7px !important; height: 30.7px !important; }',
       '  .yn-group, .yn-group .yn-label { height: 26.7px !important; min-height: 26.7px !important; line-height: 26.7px !important; }',
@@ -1176,9 +1184,6 @@ function printForm() {
       '  #gas_notes  { height: 39.7px !important; min-height: 39.7px !important; max-height: 39.7px !important; }',
       '  #ready_notes { height: 37.7px !important; min-height: 37.7px !important; max-height: 37.7px !important; }',
       '  #install_days { height: 30.7px !important; min-height: 30.7px !important; }',
-      '  .footer { padding: 2px 14px !important; }',
-      '  .footer-text { font-size: 0.28rem !important; }',
-      '  .footer span { font-size: 0.28rem !important; }',
       '}'
     ].join('\n');
     document.head.appendChild(safariPageFix);
