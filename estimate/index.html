@@ -1245,7 +1245,6 @@ function printForm() {
   // ── Step 5: restore everything after print closes ─────────────────────────
   function restore() {
     window.removeEventListener('afterprint', restore);
-    window.removeEventListener('focus', restore);
     document.removeEventListener('visibilitychange', onVis);
     // Remove injected styles
     var el = document.getElementById('force-print-light'); if (el) el.remove();
@@ -1262,8 +1261,8 @@ function printForm() {
   }
   function onVis() { if (!document.hidden) restore(); }
   window.addEventListener('afterprint', restore);
+  // visibilitychange is the reliable Safari fallback — NOT focus (fires too early, before print opens)
   if (isMobileSafari) {
-    window.addEventListener('focus', restore);
     document.addEventListener('visibilitychange', onVis);
   }
 
