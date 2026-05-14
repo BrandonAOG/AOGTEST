@@ -204,7 +204,7 @@ body.dark-mode .company-name {
 }
 
 .doc-title {
-  font-family: var(--font-display); font-size: 1.1rem; color: var(--amber);
+  font-family: var(--font-display); font-size: 1.1rem; color: var(--cyan);
   letter-spacing: 4px; text-shadow: 0 0 12px rgba(217,119,6,0.2);
   font-weight: 500; text-align: right; white-space: nowrap; transition: all 0.3s ease;
 }
@@ -271,8 +271,8 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.btn-gold { background: rgba(217,119,6,0.08); border-color: rgba(217,119,6,0.4); color: var(--amber); }
-.btn-gold:hover { border-color: var(--amber); color: var(--amber); box-shadow: var(--glow-amber); }
+.btn-gold { background: rgba(217,119,6,0.08); border-color: rgba(217,119,6,0.4); color: var(--cyan); }
+.btn-gold:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow); }
 body.dark-mode .btn.btn-gold { background: rgba(0,255,200,0.08) !important; border-color: rgba(0,255,200,0.25) !important; color: #00FFC8 !important; text-shadow: 0 0 4px rgba(0,255,200,0.3) !important; }
 body.dark-mode .btn-gold:hover { background: rgba(217,119,6,0.25) !important; border-color: #00FFC8 !important; color: #00FFC8 !important; box-shadow: 0 0 15px rgba(217,119,6,0.5) !important; text-shadow: 0 0 12px rgba(217,119,6,0.8) !important; }
 
@@ -316,31 +316,14 @@ body.dark-mode .col-label { background: linear-gradient(90deg, rgba(26,40,71,0.7
 .col-label::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--icon-color-section); box-shadow: 0 0 6px var(--icon-color-section); flex-shrink: 0; animation: pulse 2s ease-in-out infinite; transition: all 0.3s ease; }
 body.dark-mode .col-label::before { background: #00FFC8; box-shadow: 0 0 6px #00FFC8, 0 0 12px rgba(0,255,200,0.4); }
 
-/* Force currentColor to resolve correctly by setting color on the SVG parent.
-   stroke="currentColor" reads the CSS `color` property, so we set both. */
-.section-header svg,
-.section-header svg *,
-.section-header svg path,
-.section-header svg line,
-.section-header svg circle,
-.section-header svg rect,
-.section-header svg polyline,
-.section-header svg polygon,
-.section-header svg ellipse { stroke: var(--icon-color-section) !important; fill: none !important; color: var(--icon-color-section) !important; }
-.section-header svg { color: var(--icon-color-section) !important; }
-
-.col-label svg,
-.col-label svg *,
-.col-label svg path,
-.col-label svg line,
-.col-label svg circle,
-.col-label svg rect,
-.col-label svg polyline,
-.col-label svg polygon,
-.col-label svg ellipse { stroke: var(--icon-color-section) !important; fill: none !important; color: var(--icon-color-section) !important; }
-.col-label svg { color: var(--icon-color-section) !important; }
+/* Icon colors handled by .icon-themed class — see below */
 
 .toolbar svg { stroke: var(--icon-color-primary) !important; color: var(--icon-color-primary) !important; }
+
+/* .icon-themed: color controls currentColor on all child SVG elements.
+   This is the only reliable cross-browser way to theme SVG icons. */
+.icon-themed { color: var(--cyan); }
+body.dark-mode .icon-themed { color: #00FFC8 !important; }
 .gps-btn svg { stroke: var(--icon-color-gps) !important; color: var(--icon-color-gps) !important; }
 #theme-toggle-btn svg { stroke: var(--icon-color-primary) !important; color: var(--icon-color-primary) !important; }
 
@@ -678,8 +661,8 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     <div class="top-grid">
       <div class="top-col">
         <div class="col-label">
-          <svg width="22" height="22" viewBox="0 0 122 122" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;color:var(--icon-color-section);" aria-hidden="true">
-            <path d="M61 10 C76 10 88 22 88 38 C88 54 76 66 61 66 C46 66 34 54 34 38 C34 22 46 10 61 10 M26 114 C26 90 44 74 61 74 C78 74 96 90 96 114 M26 114 H96 M20 52 L10 42 L20 32 M102 52 L112 42 L102 32" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg width="22" height="22" viewBox="0 0 122 122" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" aria-hidden="true">
+            <path d="M61 10 C76 10 88 22 88 38 C88 54 76 66 61 66 C46 66 34 54 34 38 C34 22 46 10 61 10 M26 114 C26 90 44 74 61 74 C78 74 96 90 96 114 M26 114 H96 M20 52 L10 42 L20 32 M102 52 L112 42 L102 32" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           Customer Info
         </div>
@@ -706,8 +689,8 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 
       <div class="top-col">
         <div class="col-label">
-          <svg width="22" height="22" viewBox="0 0 122 114" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;color:var(--icon-color-section);" aria-hidden="true">
-            <path d="M61 4 L8 48 M61 4 L114 48 M15 56 V112 H107 V56 M30 76 H56 V98 H30 V76 M68 74 H92 V112 H68 V74 M60 36 A6 6 0 1 1 60 48 A6 6 0 1 1 60 36" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg width="22" height="22" viewBox="0 0 122 114" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" aria-hidden="true">
+            <path d="M61 4 L8 48 M61 4 L114 48 M15 56 V112 H107 V56 M30 76 H56 V98 H30 V76 M68 74 H92 V112 H68 V74 M60 36 A6 6 0 1 1 60 48 A6 6 0 1 1 60 36" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           Property Info
         </div>
@@ -749,7 +732,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     <!-- Generator -->
     <div class="section">
       <div class="section-header">
-        <svg width="20" height="20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;color:var(--icon-color-section);" aria-hidden="true"><rect x="15" y="30" width="50" height="35" rx="2" stroke-width="2" fill="none"/><rect x="18" y="28" width="44" height="8" rx="1" stroke-width="1.5" fill="none" opacity="0.7"/><circle cx="78" cy="48" r="12" stroke-width="2" fill="none"/><line x1="65" y1="46" x2="68" y2="48" stroke-width="1.5"/><line x1="65" y1="50" x2="68" y2="48" stroke-width="1.5"/></svg>
+        <svg width="20" height="20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" aria-hidden="true"><rect x="15" y="30" width="50" height="35" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><rect x="18" y="28" width="44" height="8" rx="1" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.7"/><circle cx="78" cy="48" r="12" stroke="currentColor" stroke-width="2" fill="none"/><line x1="65" y1="46" x2="68" y2="48" stroke="currentColor" stroke-width="1.5"/><line x1="65" y1="50" x2="68" y2="48" stroke="currentColor" stroke-width="1.5"/></svg>
         Generator
       </div>
       <div class="section-body">
@@ -794,7 +777,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     <!-- Transfer Switch -->
     <div class="section">
       <div class="section-header">
-        <svg width="20" height="20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;color:var(--icon-color-section);" aria-hidden="true"><line x1="10" y1="30" x2="30" y2="30" stroke-width="2" stroke-linecap="round"/><line x1="70" y1="30" x2="90" y2="30" stroke-width="2" stroke-linecap="round"/><rect x="35" y="20" width="30" height="40" rx="3" stroke-width="2" fill="none"/><path d="M58 45 L65 45 M62 42 L65 45 L62 48" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg width="20" height="20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" aria-hidden="true"><line x1="10" y1="30" x2="30" y2="30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="70" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="35" y="20" width="30" height="40" rx="3" stroke="currentColor" stroke-width="2" fill="none"/><path d="M58 45 L65 45 M62 42 L65 45 L62 48" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Transfer Switch
       </div>
       <div class="section-body">
@@ -856,7 +839,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     <!-- Pad -->
     <div class="section">
       <div class="section-header">
-        <svg width="20" height="20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;color:var(--icon-color-section);" aria-hidden="true"><rect x="15" y="20" width="70" height="50" stroke-width="2" fill="none" rx="3"/><line x1="15" y1="70" x2="85" y2="72" stroke-width="1.5" opacity="0.6"/></svg>
+        <svg width="20" height="20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" aria-hidden="true"><rect x="15" y="20" width="70" height="50" stroke="currentColor" stroke-width="2" fill="none" rx="3"/><line x1="15" y1="70" x2="85" y2="72" stroke="currentColor" stroke-width="1.5" opacity="0.6"/></svg>
         Precast Pad
       </div>
       <div class="section-body">
@@ -880,7 +863,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     <!-- Fuel Tank -->
     <div class="section">
       <div class="section-header">
-        <svg width="30" height="20" viewBox="0 0 100 60" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;color:var(--icon-color-section);" aria-hidden="true"><ellipse cx="50" cy="28" rx="38" ry="14" stroke-width="2" fill="none"/><ellipse cx="12" cy="28" rx="8" ry="14" stroke-width="2" fill="none"/><ellipse cx="88" cy="28" rx="8" ry="14" stroke-width="2" fill="none"/><ellipse cx="50" cy="14" rx="8" ry="6" stroke-width="1.5" fill="none"/></svg>
+        <svg width="30" height="20" viewBox="0 0 100 60" fill="none" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" aria-hidden="true"><ellipse cx="50" cy="28" rx="38" ry="14" stroke="currentColor" stroke-width="2" fill="none"/><ellipse cx="12" cy="28" rx="8" ry="14" stroke="currentColor" stroke-width="2" fill="none"/><ellipse cx="88" cy="28" rx="8" ry="14" stroke="currentColor" stroke-width="2" fill="none"/><ellipse cx="50" cy="14" rx="8" ry="6" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
         Fuel Tank
       </div>
       <div class="section-body">
@@ -926,7 +909,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     <!-- Install Details -->
     <div class="section" id="install-difficulty-row">
       <div class="section-header">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--icon-color-section);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-themed" style="flex-shrink:0;" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         Install Details
       </div>
       <div class="section-body">
