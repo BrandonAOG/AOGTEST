@@ -1210,18 +1210,21 @@ function printForm() {
     safariPageFix.id = 'safari-page-fix';
     safariPageFix.textContent = [
       '@media print {',
+      '  * { animation:none!important;animation-play-state:paused!important;transition:none!important; }',
+      '  .doc-title, .company-name { transform:translateZ(0);will-change:auto!important;isolation:auto!important; }',
+      '  .header::after { display:none!important;content:none!important; }',
       '  .page { min-height:0!important; }',
       '  .footer { margin-top:auto!important;padding:2px 14px!important; }',
       '  .footer-text,.footer span { font-size:0.28rem!important; }',
-      '  .field-row,.inline-row { min-height:30.7px!important; }',
-      '  input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"] { min-height:30.7px!important;height:30.7px!important; }',
-      '  .yn-group,.yn-group .yn-label { height:26.7px!important;min-height:26.7px!important;line-height:26.7px!important; }',
-      '  .check-item { height:25.7px!important;min-height:25.7px!important; }',
-      '  #gen_notes  { height:39.7px!important;min-height:39.7px!important;max-height:39.7px!important; }',
-      '  #pad_notes  { height:31.7px!important;min-height:31.7px!important;max-height:31.7px!important; }',
-      '  #gas_notes  { height:39.7px!important;min-height:39.7px!important;max-height:39.7px!important; }',
-      '  #ready_notes { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
-      '  #install_days { height:30.7px!important;min-height:30.7px!important; }',
+      '  .field-row,.inline-row { min-height:29.7px!important; }',
+      '  input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"] { min-height:29.7px!important;height:29.7px!important; }',
+      '  .yn-group,.yn-group .yn-label { height:25.7px!important;min-height:25.7px!important;line-height:25.7px!important; }',
+      '  .check-item { height:24.7px!important;min-height:24.7px!important; }',
+      '  #gen_notes  { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
+      '  #pad_notes  { height:29.7px!important;min-height:29.7px!important;max-height:29.7px!important; }',
+      '  #gas_notes  { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
+      '  #ready_notes { height:35.7px!important;min-height:35.7px!important;max-height:35.7px!important; }',
+      '  #install_days { height:29.7px!important;min-height:29.7px!important; }',
       '}'
     ].join('\n');
     document.head.appendChild(safariPageFix);
@@ -1252,7 +1255,31 @@ function printForm() {
 
   // ── Step 6: open print dialog ─────────────────────────────────────────────
   // 1500ms on Safari so viewport re-render settles before print snapshot
-  setTimeout(function() { window.print(); }, isMobileSafari ? 1500 : 250);
+  if (isMobileSafari) {
+    // Wait for viewport change to fully settle before printing.
+    // We detect settlement by observing the page width stabilizing.
+    var settleTimer = null;
+    var printFired = false;
+    function firePrint() {
+      if (printFired) return;
+      printFired = true;
+      window.print();
+    }
+    // Observe page width — fire print 300ms after it stops changing
+    var lastWidth = document.getElementById('page') ? document.getElementById('page').offsetWidth : 0;
+    var checkInterval = setInterval(function() {
+      var currentWidth = document.getElementById('page') ? document.getElementById('page').offsetWidth : 0;
+      if (currentWidth === lastWidth && currentWidth > 800) {
+        clearInterval(checkInterval);
+        setTimeout(firePrint, 300);
+      }
+      lastWidth = currentWidth;
+    }, 100);
+    // Hard fallback at 3000ms in case observer never settles
+    setTimeout(function() { clearInterval(checkInterval); firePrint(); }, 3000);
+  } else {
+    setTimeout(function() { window.print(); }, 250);
+  }
 }
 
 // ── CANVAS CAPTURE ──
