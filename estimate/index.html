@@ -1156,23 +1156,49 @@ function printForm() {
   var vp = document.querySelector('meta[name="viewport"]');
   var origViewport = vp ? vp.getAttribute('content') : null;
   var isMobileSafari = document.body.classList.contains('mobile-safari');
-  // Force title colors inline so dark-mode !important rules can't override
   var docTitle = document.querySelector('.doc-title');
   var compName = document.querySelector('.company-name');
   var origTitleColor = docTitle ? docTitle.style.color : null;
   var origTitleShadow = docTitle ? docTitle.style.textShadow : null;
   var origCompColor = compName ? compName.style.color : null;
   var origCompShadow = compName ? compName.style.textShadow : null;
-  if (docTitle) { docTitle.style.setProperty('color', '#D97706', 'important'); docTitle.style.setProperty('text-shadow', 'none', 'important'); docTitle.style.setProperty('letter-spacing', '4px', 'important'); }
-  if (compName) { compName.style.setProperty('color', '#D97706', 'important'); compName.style.setProperty('text-shadow', 'none', 'important'); }
+
+  function forceTitleColors() {
+    if (docTitle) { docTitle.style.setProperty('color', '#D97706', 'important'); docTitle.style.setProperty('text-shadow', 'none', 'important'); docTitle.style.setProperty('letter-spacing', '4px', 'important'); }
+    if (compName) { compName.style.setProperty('color', '#D97706', 'important'); compName.style.setProperty('text-shadow', 'none', 'important'); }
+  }
+
+  // beforeprint fires right as the print dialog opens — last chance to set styles
+  function onBeforePrint() {
+    window.removeEventListener('beforeprint', onBeforePrint);
+    forceTitleColors();
+  }
+  window.addEventListener('beforeprint', onBeforePrint);
+  forceTitleColors(); // also set immediately
 
   if (isMobileSafari && vp) {
     vp.setAttribute('content', 'width=1050, initial-scale=1.0');
     // Override min-height so Safari doesn't push content to page 2
     var safariPageFix = document.createElement('style');
     safariPageFix.id = 'safari-page-fix';
-    safariPageFix.textContent = '@media print { .page { min-height: 0 !important; } .footer { margin-top: auto !important; } }';
+    safariPageFix.textContent = [
+      '@media print {',
+      '  .page { min-height: 0 !important; }',
+      '  .footer { margin-top: auto !important; }',
+      '  .field-row, .inline-row { min-height: 30.7px !important; }',
+      '  input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"] { min-height: 30.7px !important; height: 30.7px !important; }',
+      '  .yn-group, .yn-group .yn-label { height: 26.7px !important; min-height: 26.7px !important; line-height: 26.7px !important; }',
+      '  .check-item { height: 25.7px !important; min-height: 25.7px !important; }',
+      '  #gen_notes  { height: 39.7px !important; min-height: 39.7px !important; max-height: 39.7px !important; }',
+      '  #pad_notes  { height: 31.7px !important; min-height: 31.7px !important; max-height: 31.7px !important; }',
+      '  #gas_notes  { height: 39.7px !important; min-height: 39.7px !important; max-height: 39.7px !important; }',
+      '  #ready_notes { height: 37.7px !important; min-height: 37.7px !important; max-height: 37.7px !important; }',
+      '  #install_days { height: 30.7px !important; min-height: 30.7px !important; }',
+      '}'
+    ].join('\n');
     document.head.appendChild(safariPageFix);
+    // Re-apply title colors after viewport change triggers re-render
+    requestAnimationFrame(function() { requestAnimationFrame(function() { forceTitleColors(); }); });
   }
   var printStyle = document.createElement('style');
   printStyle.id = 'force-print-light';
