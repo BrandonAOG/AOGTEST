@@ -27,8 +27,6 @@
   window.PAPER_H_PX = 1056;
   window.PAGE_NATURAL_W = 1050;
 
-  // ── Apply theme SYNCHRONOUSLY before first paint to prevent flash ──
-  // Reads localStorage here in <head> — same tick as CSS parse, no FOUC.
   (function() {
     var saved = '';
     try { saved = localStorage.getItem('aog_theme_preference') || ''; } catch(e) {}
@@ -78,9 +76,6 @@
   --icon-color-gps: #10B981;
 }
 
-/* dark-mode-pending is set synchronously in <head> to prevent flash of wrong theme.
-   It carries the exact same variables as body.dark-mode so the page renders correctly
-   before DOMContentLoaded fires and moves the class to body. */
 body.dark-mode,
 html.dark-mode-pending body {
   --bg: #0A0E27; --bg2: #0F1535; --bg3: #1A2847; --bg4: #243458;
@@ -316,12 +311,8 @@ body.dark-mode .col-label { background: linear-gradient(90deg, rgba(26,40,71,0.7
 .col-label::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--icon-color-section); box-shadow: 0 0 6px var(--icon-color-section); flex-shrink: 0; animation: pulse 2s ease-in-out infinite; transition: all 0.3s ease; }
 body.dark-mode .col-label::before { background: #00FFC8; box-shadow: 0 0 6px #00FFC8, 0 0 12px rgba(0,255,200,0.4); }
 
-/* Icon colors handled by .icon-themed class — see below */
-
 .toolbar svg { stroke: var(--icon-color-primary) !important; color: var(--icon-color-primary) !important; }
 
-/* .icon-themed: color controls currentColor on all child SVG elements.
-   This is the only reliable cross-browser way to theme SVG icons. */
 .icon-themed { color: var(--cyan); }
 body.dark-mode .icon-themed { color: #00FFC8 !important; }
 .gps-btn svg { stroke: var(--icon-color-gps) !important; color: var(--icon-color-gps) !important; }
@@ -605,6 +596,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   body[class*="seasonal-"] .section-header svg, body[class*="seasonal-"] .section-header svg *,
   body[class*="seasonal-"] .col-label svg, body[class*="seasonal-"] .col-label svg * { stroke: #D97706 !important; color: #D97706 !important; }
   .confirm-modal-backdrop { display: none !important; }
+  #seasonal-canvas { display: none !important; }
 }
 
 </style>
@@ -955,7 +947,6 @@ function getInitialTheme() {
 }
 function applyTheme(theme) {
   var isDark = theme === 'dark';
-  // Apply to body (drives all CSS rules)
   if (isDark) {
     document.body.classList.add('dark-mode');
     document.documentElement.setAttribute('data-theme', 'dark');
@@ -963,7 +954,6 @@ function applyTheme(theme) {
     document.body.classList.remove('dark-mode');
     document.documentElement.setAttribute('data-theme', 'light');
   }
-  // Always clean up the pending class — it served its purpose before DOMContentLoaded
   document.documentElement.classList.remove('dark-mode-pending');
   try { localStorage.setItem(THEME_KEY, theme); } catch(e) {}
 }
@@ -1164,8 +1154,6 @@ function getFormData() {
 function setStatus(msg) { var el = document.getElementById('save-status'); if (el) el.textContent = msg; }
 
 // ── FILENAME HELPER ──
-// Builds: "John Smith - 123 Main St - Cape Coral FL 33990 - Estimate"
-// Used by PDF (document.title), Android (.download attr), and iPhone (img.alt / aria label).
 function getEstimateFilename(ext) {
   var name    = ((document.getElementById('name')     || {}).value || '').trim();
   var address = ((document.getElementById('address')  || {}).value || '').trim();
@@ -1177,7 +1165,6 @@ function getEstimateFilename(ext) {
   if (city)    parts.push(city);
   parts.push('Estimate');
 
-  // Strip characters illegal in filenames on Windows / macOS / iOS
   var slug = parts.join(' - ')
     .replace(/[\/\\:*?"<>|]/g, '')
     .replace(/\s{2,}/g, ' ')
@@ -1193,7 +1180,6 @@ function printForm() {
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var wasDark = document.body.classList.contains('dark-mode');
 
-  // Set document.title so the browser uses it as the default PDF save name
   var prevTitle = document.title;
   document.title = getEstimateFilename('pdf').replace(/\.pdf$/, '');
 
@@ -1226,6 +1212,7 @@ function printForm() {
     '  .footer-text { color:#9CA3AF!important; }',
     '  .toolbar,button,.theme-toggle-btn { display:none!important; }',
     '  .confirm-modal-backdrop { display:none!important; }',
+    '  #seasonal-canvas { display:none!important; }',
     '}'
   ].join('\n');
   document.head.appendChild(printStyle);
@@ -1279,7 +1266,6 @@ function printForm() {
     if (footerText) footerText.removeAttribute('style');
     if (verSpan)    verSpan.removeAttribute('style');
     if (isMobileSafari && vp && origViewport) vp.setAttribute('content', origViewport);
-    // Restore title after print dialog closes
     document.title = prevTitle;
   }
   function onVis() { if (!document.hidden) restore(); }
@@ -1367,15 +1353,21 @@ function capturePageToCanvas() {
     page.style.overflow  = 'visible';
     document.body.style.padding = '0';
 
+    // ── PATCH: Strip seasonal + dark-mode classes for clean light-mode capture ──
+    var seasonalClasses = [];
+    document.body.classList.forEach(function(c) { if (c.indexOf('seasonal-') === 0) seasonalClasses.push(c); });
+    seasonalClasses.forEach(function(c) { document.body.classList.remove(c); });
+    var wasDarkCapture = document.body.classList.contains('dark-mode');
+    document.body.classList.remove('dark-mode');
+    var seasonalCanvas = document.getElementById('seasonal-canvas');
+    if (seasonalCanvas) seasonalCanvas.style.display = 'none';
+
     var forceStyle = document.createElement('style');
     forceStyle.id = 'capture-force-style';
     forceStyle.textContent = [
-      // ── Hide all UI chrome — use display:none so no layout hole is left ──
       '.toolbar, #theme-toggle-btn, .theme-toggle-btn, .gps-btn,',
       '#gps-status, #gps-live, #offline-banner, #address-suggestions,',
       '.confirm-modal-backdrop, .page-corner-bl, .page-corner-br { display: none !important; }',
-      // ── Force light-mode CSS variables regardless of body class ──
-      // Overriding on :root beats body.dark-mode specificity
       ':root {',
       '  --cyan: #D97706 !important;',
       '  --cyan-dim: #B45309 !important;',
@@ -1400,7 +1392,6 @@ function capturePageToCanvas() {
       '  --icon-color-section: #D97706 !important;',
       '  --icon-color-gps: #10B981 !important;',
       '}',
-      // Force seasonal theme colors back to light-mode amber on capture
       '.icon-themed { color: #D97706 !important; }',
       '.doc-title { color: #D97706 !important; text-shadow: none !important; }',
       '.company-name { color: #D97706 !important; text-shadow: none !important; }',
@@ -1408,9 +1399,6 @@ function capturePageToCanvas() {
       '.col-label { color: #D97706 !important; }',
       '.section-header::before { background: #D97706 !important; box-shadow: none !important; animation: none !important; }',
       '.col-label::before { background: #D97706 !important; box-shadow: none !important; animation: none !important; }',
-      'body[class*="seasonal-"] { background: #ffffff !important; }',
-      'body[class*="seasonal-"] .page { border-color: #D97706 !important; box-shadow: none !important; }',
-      // ── Kill dark-mode gradient backgrounds that don't use vars ──
       'body.dark-mode, html.dark-mode-pending body { background: #ffffff !important; }',
       'body.dark-mode .page, html.dark-mode-pending .page { background: #ffffff !important; box-shadow: none !important; }',
       'body.dark-mode .header, html.dark-mode-pending .header { background: #ffffff !important; box-shadow: none !important; }',
@@ -1424,7 +1412,6 @@ function capturePageToCanvas() {
       'body.dark-mode .top-col { background: #ffffff !important; }',
       '* { animation: none !important; transition: none !important; }',
       '.header::after { display: none !important; }',
-      // ── Layout fixes for full 1050px desktop render ──
       'body { max-width: ' + CAPTURE_W + 'px !important; }',
       '#page { width: ' + CAPTURE_W + 'px !important; max-width: ' + CAPTURE_W + 'px !important; height: auto !important; min-height: ' + PAPER_H + 'px !important; overflow: visible !important; display: flex !important; flex-direction: column !important; }',
       '.content { overflow: visible !important; min-height: 0 !important; }',
@@ -1440,6 +1427,10 @@ function capturePageToCanvas() {
     var restore = function() {
       if (restored) return;
       restored = true;
+      // ── PATCH: Restore seasonal theme classes, dark-mode, and canvas ──
+      seasonalClasses.forEach(function(c) { document.body.classList.add(c); });
+      if (wasDarkCapture) document.body.classList.add('dark-mode');
+      if (seasonalCanvas) seasonalCanvas.style.display = '';
       page.style.width     = prevWidth;
       page.style.maxWidth  = prevMaxWidth;
       page.style.minHeight = prevMinH;
@@ -1455,7 +1446,6 @@ function capturePageToCanvas() {
         html2canvas(page, {
           scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false,
           width: CAPTURE_W, height: CAPTURE_H, windowWidth: CAPTURE_W, scrollX: 0, scrollY: 0,
-          // ignoreElements is a belt-and-suspenders backup — display:none above is the primary hide
           ignoreElements: function(el) {
             return el.id === 'theme-toggle-btn' ||
                    el.classList.contains('toolbar') ||
@@ -1465,6 +1455,7 @@ function capturePageToCanvas() {
                    el.id === 'gps-live' ||
                    el.id === 'offline-banner' ||
                    el.id === 'address-suggestions' ||
+                   el.id === 'seasonal-canvas' ||
                    el.classList.contains('confirm-modal-backdrop') ||
                    el.classList.contains('page-corner-bl') ||
                    el.classList.contains('page-corner-br');
@@ -1820,13 +1811,11 @@ var SEASONAL_TITLES = {
 
 function applySeasonalTheme(n) {
   Object.keys(SEASONAL_THEMES).forEach(function(k) { document.body.classList.remove('seasonal-'+k); });
-  // Remove any existing canvas overlay
   var old = document.getElementById('seasonal-canvas');
   if (old) old.remove();
   if (n !== 'default' && SEASONAL_THEMES[n]) {
     document.body.classList.add('seasonal-'+n);
     createSeasonalCanvas(n);
-    // Update browser tab title
     document.title = SEASONAL_TITLES[n] || 'Generator Installation Estimate';
   } else {
     document.title = 'Generator Installation Estimate';
@@ -1840,8 +1829,6 @@ function createSeasonalCanvas(theme) {
 
   var canvas = document.createElement('canvas');
   canvas.id = 'seasonal-canvas';
-  // Absolute inside .page (position:relative) so particles stay within the
-  // document boundary — no overflow on desktop or mobile.
   canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.55;';
   page.insertBefore(canvas, page.firstChild);
 
@@ -1849,7 +1836,6 @@ function createSeasonalCanvas(theme) {
   var W, H, particles = [], animId;
 
   function resize() {
-    // Size to the page element, not the viewport
     W = canvas.width  = page.offsetWidth;
     H = canvas.height = page.offsetHeight;
   }
@@ -1857,7 +1843,6 @@ function createSeasonalCanvas(theme) {
   window.addEventListener('resize', resize);
   setTimeout(resize, 500);
 
-  // ── Per-theme particle configs ──
   var configs = {
     newyear: {
       count: 80,
@@ -1896,7 +1881,6 @@ function createSeasonalCanvas(theme) {
         if (p.life<=0||p.y<-20) { p.y=H+10; p.x=Math.random()*W; p.life=0.8+Math.random()*0.2; }
       }
     },
-
     valentines: {
       count: 35,
       make: function() {
@@ -1928,7 +1912,6 @@ function createSeasonalCanvas(theme) {
         if (p.life<=0||p.y<-40) { p.y=H+20; p.x=Math.random()*W; p.life=0.7+Math.random()*0.3; }
       }
     },
-
     stpatricks: {
       count: 30,
       make: function() {
@@ -1944,7 +1927,6 @@ function createSeasonalCanvas(theme) {
         ctx.save(); ctx.globalAlpha = p.life * 0.7;
         ctx.translate(p.x,p.y); ctx.rotate(p.rot);
         var s=p.size*0.5;
-        // Four-leaf clover
         ['#22C55E','#16A34A','#15803D','#4ADE80'].forEach(function(col,i) {
           ctx.fillStyle=col;
           ctx.beginPath();
@@ -1961,7 +1943,6 @@ function createSeasonalCanvas(theme) {
         if (p.life<=0||p.y<-30) { p.y=H+10; p.x=Math.random()*W; p.life=0.6+Math.random()*0.4; }
       }
     },
-
     spring: {
       count: 40,
       make: function() {
@@ -1981,7 +1962,6 @@ function createSeasonalCanvas(theme) {
         ctx.fillStyle=p.color;
         ctx.translate(p.x,p.y); ctx.rotate(p.rot);
         var s=p.size;
-        // Petal shape
         for (var i=0;i<5;i++) {
           ctx.save(); ctx.rotate(i*Math.PI*2/5);
           ctx.beginPath();
@@ -1996,7 +1976,6 @@ function createSeasonalCanvas(theme) {
         if (p.y>H+20) { p.y=-10; p.x=Math.random()*W; }
       }
     },
-
     summer: {
       count: 20,
       make: function() {
@@ -2022,7 +2001,6 @@ function createSeasonalCanvas(theme) {
         if (p.y<-100||p.y>H+100) p.vy*=-1;
       }
     },
-
     fourthofjuly: {
       count: 60,
       make: function() {
@@ -2056,7 +2034,6 @@ function createSeasonalCanvas(theme) {
         }
       }
     },
-
     halloween: {
       count: 25,
       make: function() {
@@ -2078,9 +2055,7 @@ function createSeasonalCanvas(theme) {
         if (p.type==='bat') {
           var flap=Math.sin(p.flap)*0.5;
           ctx.fillStyle='#1a0a2e';
-          // Body
           ctx.beginPath(); ctx.ellipse(0,0,s*0.3,s*0.2,0,0,Math.PI*2); ctx.fill();
-          // Wings
           ctx.beginPath();
           ctx.moveTo(0,-s*0.1);
           ctx.bezierCurveTo(-s*0.3,-s*(0.5+flap),-s*0.8,-s*(0.2+flap),-s*0.9,s*0.1);
@@ -2091,7 +2066,6 @@ function createSeasonalCanvas(theme) {
           ctx.bezierCurveTo(s*0.3,-s*(0.5+flap),s*0.8,-s*(0.2+flap),s*0.9,s*0.1);
           ctx.bezierCurveTo(s*0.6,s*0.3,s*0.3,s*0.1,0,s*0.1);
           ctx.fill();
-          // Eyes
           ctx.fillStyle='#FF6B00';
           ctx.beginPath(); ctx.arc(-s*0.1,-s*0.05,s*0.05,0,Math.PI*2); ctx.fill();
           ctx.beginPath(); ctx.arc(s*0.1,-s*0.05,s*0.05,0,Math.PI*2); ctx.fill();
@@ -2112,7 +2086,6 @@ function createSeasonalCanvas(theme) {
           ctx.fillStyle='#2D5016';
           ctx.fillRect(-s*0.08,-s*0.65,s*0.16,s*0.25);
           ctx.fillStyle='#1a0a2e';
-          // Eyes
           ctx.beginPath(); ctx.moveTo(-s*0.3,-s*0.1); ctx.lineTo(-s*0.1,-s*0.2); ctx.lineTo(-s*0.1,s*0.0); ctx.closePath(); ctx.fill();
           ctx.beginPath(); ctx.moveTo(s*0.3,-s*0.1); ctx.lineTo(s*0.1,-s*0.2); ctx.lineTo(s*0.1,s*0.0); ctx.closePath(); ctx.fill();
           ctx.beginPath(); ctx.arc(0,s*0.15,s*0.25,0.2,Math.PI-0.2); ctx.stroke();
@@ -2126,7 +2099,6 @@ function createSeasonalCanvas(theme) {
         if (p.y<-40) p.y=H+40; if (p.y>H+40) p.y=-40;
       }
     },
-
     thanksgiving: {
       count: 25,
       make: function() {
@@ -2145,17 +2117,14 @@ function createSeasonalCanvas(theme) {
         ctx.save(); ctx.globalAlpha=0.65;
         ctx.translate(p.x,p.y); ctx.rotate(p.rot);
         var s=p.size;
-        // Leaf shape
         ctx.fillStyle=p.color;
         ctx.beginPath();
         ctx.moveTo(0,-s);
         ctx.bezierCurveTo(s*p.skew,-s*0.5,s*p.skew,s*0.5,0,s);
         ctx.bezierCurveTo(-s*p.skew,s*0.5,-s*p.skew,-s*0.5,0,-s);
         ctx.fill();
-        // Stem
         ctx.strokeStyle=p.color; ctx.lineWidth=1.5;
         ctx.beginPath(); ctx.moveTo(0,s); ctx.lineTo(0,s*1.4); ctx.stroke();
-        // Vein
         ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=0.8;
         ctx.beginPath(); ctx.moveTo(0,-s); ctx.lineTo(0,s); ctx.stroke();
         ctx.restore();
@@ -2166,7 +2135,6 @@ function createSeasonalCanvas(theme) {
         if (p.y>H+30) { p.y=-20; }
       }
     },
-
     christmas: {
       count: 55,
       make: function() {
@@ -2229,7 +2197,6 @@ function createSeasonalCanvas(theme) {
   }
   loop();
 
-  // Stop animation when page hidden, resume on show
   document.addEventListener('visibilitychange', function() {
     if (document.hidden) { cancelAnimationFrame(animId); }
     else { loop(); }
@@ -2240,19 +2207,13 @@ function injectSeasonalStyles() {
   var s = document.createElement('style');
   s.id = 'seasonal-styles';
   s.textContent = [
-
-    // ── Shared: seasonal canvas sits behind everything ──
     '#seasonal-canvas { pointer-events:none; }',
-
-    // ── NEW YEAR ──
     'body.seasonal-newyear { --cyan:#FFD700; --cyan-dim:#FFC200; --amber:#FF69B4; --border:rgba(255,215,0,0.25); --border-bright:rgba(255,215,0,0.5); }',
     'body.seasonal-newyear:not(.dark-mode) { --panel:#fffef5; --bg:#fffef5; --bg3:#fff8e1; }',
     'body.seasonal-newyear .page { border-color:#FFD700 !important; box-shadow:0 0 30px rgba(255,215,0,0.15),0 0 60px rgba(255,215,0,0.06) !important; }',
     'body.seasonal-newyear .section-header { border-bottom-color:rgba(255,215,0,0.3) !important; }',
     'body.seasonal-newyear .header { background:linear-gradient(90deg,rgba(255,215,0,0.06),rgba(255,105,180,0.06),rgba(255,215,0,0.06)) !important; }',
     'body.seasonal-newyear .doc-title::after { content:" 🎆"; }',
-
-    // ── VALENTINES ──
     'body.seasonal-valentines { --cyan:#E91E8C; --cyan-dim:#C2185B; --amber:#FF69B4; --border:rgba(233,30,140,0.2); --border-bright:rgba(233,30,140,0.45); }',
     'body.seasonal-valentines:not(.dark-mode) { --panel:#fff5f8; --bg:#fff5f8; --bg3:#fce4ec; }',
     'body.seasonal-valentines .page { border-color:#E91E8C !important; box-shadow:0 0 30px rgba(233,30,140,0.12) !important; }',
@@ -2260,16 +2221,12 @@ function injectSeasonalStyles() {
     'body.seasonal-valentines:not(.dark-mode) .col-label::before { background:#E91E8C !important; box-shadow:0 0 6px #E91E8C !important; }',
     'body.seasonal-valentines .header { background:linear-gradient(90deg,rgba(233,30,140,0.05),rgba(255,105,180,0.08),rgba(233,30,140,0.05)) !important; }',
     'body.seasonal-valentines .doc-title::after { content:" ♥"; color:#E91E8C; }',
-
-    // ── ST PATRICKS ──
     'body.seasonal-stpatricks { --cyan:#16A34A; --cyan-dim:#15803D; --amber:#22C55E; --border:rgba(22,163,74,0.25); --border-bright:rgba(22,163,74,0.5); }',
     'body.seasonal-stpatricks:not(.dark-mode) { --panel:#f0fdf4; --bg:#f0fdf4; --bg3:#dcfce7; }',
     'body.seasonal-stpatricks .page { border-color:#16A34A !important; box-shadow:0 0 30px rgba(22,163,74,0.12) !important; }',
     'body.seasonal-stpatricks .header { background:linear-gradient(90deg,rgba(22,163,74,0.05),rgba(34,197,94,0.08),rgba(22,163,74,0.05)) !important; }',
     'body.seasonal-stpatricks .doc-title::after { content:" ☘"; }',
     'body.seasonal-stpatricks .section-header { letter-spacing:5px !important; }',
-
-    // ── SPRING ──
     'body.seasonal-spring { --cyan:#EC4899; --cyan-dim:#DB2777; --amber:#F59E0B; --border:rgba(236,72,153,0.2); --border-bright:rgba(236,72,153,0.45); }',
     'body.seasonal-spring:not(.dark-mode) { --panel:#fff7fb; --bg:#fff7fb; --bg3:#fce7f3; }',
     'body.seasonal-spring .page { border-color:#EC4899 !important; box-shadow:0 0 40px rgba(236,72,153,0.1),0 0 80px rgba(251,191,36,0.06) !important; }',
@@ -2277,24 +2234,18 @@ function injectSeasonalStyles() {
     'body.seasonal-spring:not(.dark-mode) .section-header::before { background:#EC4899 !important; }',
     'body.seasonal-spring:not(.dark-mode) .col-label::before { background:#EC4899 !important; }',
     'body.seasonal-spring .doc-title::after { content:" 🌸"; }',
-
-    // ── SUMMER ──
     'body.seasonal-summer { --cyan:#F59E0B; --cyan-dim:#D97706; --amber:#EF4444; --border:rgba(245,158,11,0.25); --border-bright:rgba(245,158,11,0.5); }',
     'body.seasonal-summer:not(.dark-mode) { --panel:#fffbeb; --bg:#fffbeb; --bg3:#fef3c7; }',
     'body.seasonal-summer .page { border-color:#F59E0B !important; box-shadow:0 0 50px rgba(245,158,11,0.18),0 0 100px rgba(245,158,11,0.07) !important; }',
     'body.seasonal-summer .header { background:linear-gradient(90deg,rgba(245,158,11,0.07),rgba(251,191,36,0.1),rgba(245,158,11,0.07)) !important; }',
     'body.seasonal-summer .section-header { background:linear-gradient(90deg,#fef3c7,#fffbeb) !important; }',
     'body.seasonal-summer .doc-title::after { content:" ☀"; color:#F59E0B; }',
-
-    // ── FOURTH OF JULY ──
     'body.seasonal-fourthofjuly { --cyan:#2563EB; --cyan-dim:#1D4ED8; --amber:#DC2626; --border:rgba(37,99,235,0.25); --border-bright:rgba(37,99,235,0.5); }',
     'body.seasonal-fourthofjuly:not(.dark-mode) { --panel:#f8f9ff; --bg:#f8f9ff; --bg3:#eff2ff; }',
     'body.seasonal-fourthofjuly .page { border-color:#DC2626 !important; box-shadow:0 0 0 3px #2563EB,0 0 0 5px #DC2626,0 0 30px rgba(37,99,235,0.15) !important; }',
     'body.seasonal-fourthofjuly .header { background:linear-gradient(90deg,rgba(220,38,38,0.06),rgba(255,255,255,0.1),rgba(37,99,235,0.06)) !important; border-bottom-color:rgba(37,99,235,0.4) !important; }',
     'body.seasonal-fourthofjuly .section-header { background:linear-gradient(90deg,rgba(37,99,235,0.06),transparent) !important; }',
     'body.seasonal-fourthofjuly .doc-title::after { content:" 🎇"; }',
-
-    // ── HALLOWEEN ──
     'body.seasonal-halloween { --cyan:#F97316; --cyan-dim:#EA580C; --amber:#A855F7; --border:rgba(249,115,22,0.25); --border-bright:rgba(249,115,22,0.5); }',
     'body.seasonal-halloween:not(.dark-mode) { --panel:#1c0a00; --bg:#1c0a00; --bg3:#2d1200; --text:#FFD0A0; --text-muted:#C97B3A; --text-dim:#7A4A20; }',
     'body.seasonal-halloween .page { border-color:#F97316 !important; box-shadow:0 0 40px rgba(249,115,22,0.2),0 0 80px rgba(168,85,247,0.1) !important; }',
@@ -2307,16 +2258,12 @@ function injectSeasonalStyles() {
     'body.seasonal-halloween .yn-group { background:rgba(45,18,0,0.8) !important; border-color:rgba(249,115,22,0.35) !important; }',
     'body.seasonal-halloween .doc-title::after { content:" 🎃"; }',
     'body.seasonal-halloween .company-name { text-shadow:0 0 12px #F97316,0 0 24px rgba(249,115,22,0.4) !important; }',
-
-    // ── THANKSGIVING ──
     'body.seasonal-thanksgiving { --cyan:#B45309; --cyan-dim:#92400E; --amber:#DC2626; --border:rgba(180,83,9,0.25); --border-bright:rgba(180,83,9,0.5); }',
     'body.seasonal-thanksgiving:not(.dark-mode) { --panel:#fffbf5; --bg:#fffbf5; --bg3:#fef3e2; }',
     'body.seasonal-thanksgiving .page { border-color:#B45309 !important; box-shadow:0 0 40px rgba(180,83,9,0.1) !important; }',
     'body.seasonal-thanksgiving .header { background:linear-gradient(90deg,rgba(180,83,9,0.06),rgba(220,38,38,0.05),rgba(180,83,9,0.06)) !important; }',
     'body.seasonal-thanksgiving .section-header { background:linear-gradient(90deg,rgba(180,83,9,0.08),transparent) !important; }',
     'body.seasonal-thanksgiving .doc-title::after { content:" 🍂"; }',
-
-    // ── CHRISTMAS ──
     'body.seasonal-christmas { --cyan:#16A34A; --cyan-dim:#15803D; --amber:#DC2626; --border:rgba(22,163,74,0.25); --border-bright:rgba(220,38,38,0.5); }',
     'body.seasonal-christmas:not(.dark-mode) { --panel:#f6fff8; --bg:#f6fff8; --bg3:#dcfce7; }',
     'body.seasonal-christmas .page { border-color:#DC2626 !important; box-shadow:0 0 0 2px #16A34A,0 0 0 4px #DC2626,0 0 40px rgba(22,163,74,0.15),0 0 80px rgba(220,38,38,0.08) !important; }',
@@ -2327,8 +2274,6 @@ function injectSeasonalStyles() {
     '@keyframes christmas-pulse { 0%,100%{background:#DC2626;box-shadow:0 0 8px #DC2626;} 50%{background:#16A34A;box-shadow:0 0 8px #16A34A;} }',
     'body.seasonal-christmas .doc-title::after { content:" 🎄"; }',
     'body.seasonal-christmas .company-name::after { content:" ❄"; font-size:0.8em; opacity:0.6; }',
-
-    // ── Print: strip everything seasonal ──
     '@media print {',
     '  #seasonal-canvas { display:none !important; }',
     '  body[class*="seasonal-"] { background:#ffffff !important; }',
@@ -2338,7 +2283,6 @@ function injectSeasonalStyles() {
     '  body[class*="seasonal-"] .doc-title::after, body[class*="seasonal-"] .company-name::after { content:"" !important; }',
     '  body[class*="seasonal-"] input, body[class*="seasonal-"] textarea { background:#ffffff !important; color:#1F2937 !important; }',
     '}'
-
   ].join('\n');
   document.head.appendChild(s);
 }
@@ -2347,8 +2291,6 @@ function injectSeasonalStyles() {
 document.addEventListener('DOMContentLoaded', function() {
   var todayStr = new Date().toISOString().split('T')[0];
 
-  // Promote the synchronous dark-mode-pending class to body.dark-mode
-  // before applyTheme runs, so there is zero flash of wrong theme.
   if (document.documentElement.classList.contains('dark-mode-pending')) {
     document.body.classList.add('dark-mode');
   }
@@ -2363,7 +2305,6 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!navigator.onLine) { var b=document.getElementById('offline-banner'); if(b) b.classList.add('show'); document.body.classList.add('offline'); }
   injectSeasonalStyles();
   applySeasonalTheme(getCurrentSeasonalTheme());
-  // applyTheme reads localStorage and removes dark-mode-pending from <html>
   applyTheme(getInitialTheme());
   setupThemeToggle();
   setupAddressAutocomplete();
@@ -2385,16 +2326,11 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('../sw.js', { scope: '../' })
       .then(function(reg) {
         console.log('[SW] Registered, scope:', reg.scope);
-        // Check for SW updates on every load — ensures seasonal themes
-        // and file changes are never stuck behind a stale cache.
         reg.update();
       })
       .catch(function(err) { console.warn('[SW] Registration failed:', err); });
   });
 
-  // If a new SW is waiting, activate it immediately instead of waiting
-  // for all tabs to close. This means seasonal theme changes go live
-  // as soon as the user refreshes — no manual cache clearing needed.
   navigator.serviceWorker.addEventListener('controllerchange', function() {
     window.location.reload();
   });
