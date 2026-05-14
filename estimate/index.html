@@ -76,6 +76,7 @@
   --icon-color-gps: #10B981;
 }
 
+@media screen {
 body.dark-mode,
 html.dark-mode-pending body {
   --bg: #0A0E27; --bg2: #0F1535; --bg3: #1A2847; --bg4: #243458;
@@ -88,6 +89,7 @@ html.dark-mode-pending body {
   --amber: #D97706; --amber-dim: #B45309;
   --green: #10B981; --red: #F43F5E;
   --icon-color-primary: #00FFC8; --icon-color-section: #00FFC8; --icon-color-gps: #10B981;
+}
 }
 
 .btn-gold { transition: all 0.3s ease; }
@@ -1195,6 +1197,12 @@ function printForm() {
   _printSeasonalClasses.forEach(function(c) { document.body.classList.remove(c); });
   var _printSeasonalCanvas = document.getElementById('seasonal-canvas');
   if (_printSeasonalCanvas) _printSeasonalCanvas.style.display = 'none';
+  // Disable seasonal + dark mode stylesheets entirely so print preview can't re-apply them
+  var _seasonalSheet = document.getElementById('seasonal-styles');
+  if (_seasonalSheet) _seasonalSheet.parentNode.removeChild(_seasonalSheet);
+  var _darkModeSheet = document.getElementById('print-optimization-styles');
+  if (_darkModeSheet) _darkModeSheet.disabled = true;
+  var _printOptSheet = document.getElementById('print-optimization-styles');
 
   var docTitle   = document.querySelector('.doc-title');
   var compName   = document.querySelector('.company-name');
@@ -1269,28 +1277,55 @@ function printForm() {
   function restore() {
     window.removeEventListener('afterprint', restore);
     document.removeEventListener('visibilitychange', onVis);
-    var el = document.getElementById('force-print-light'); if (el) el.remove();
-    var fix = document.getElementById('safari-page-fix');  if (fix) fix.remove();
-    if (wasDark) document.body.classList.add('dark-mode');
+    var el = document.getElementById('force-print-light'); if (el) { el.remove(); }
+    var fix = document.getElementById('safari-page-fix');  if (fix) { fix.remove(); }
+    if (wasDark) { document.body.classList.add('dark-mode'); }
     _printSeasonalClasses.forEach(function(c) { document.body.classList.add(c); });
     if (_printSeasonalCanvas) _printSeasonalCanvas.style.display = '';
+    // Re-inject seasonal stylesheet
+    if (_seasonalSheet) document.head.appendChild(_seasonalSheet);
+    if (_darkModeSheet) _darkModeSheet.disabled = false;
     if (docTitle)   docTitle.removeAttribute('style');
     if (compName)   compName.removeAttribute('style');
     if (footerText) footerText.removeAttribute('style');
     if (verSpan)    verSpan.removeAttribute('style');
-    if (isMobileSafari && vp && origViewport) vp.setAttribute('content', origViewport);
+    if (isMobileSafari && vp && origViewport) { vp.setAttribute('content', origViewport); }
     document.title = prevTitle;
   }
   function onVis() { if (!document.hidden) restore(); }
-  window.addEventListener('afterprint', restore);
   if (isMobileSafari) {
-    document.addEventListener('visibilitychange', onVis);
+    var _wentHidden = false;
+    var _restorePoller = null;
+    document.addEventListener('visibilitychange', function _iosVis() {
+      if (document.hidden) {
+        _wentHidden = true;
+      } else if (_wentHidden) {
+        document.removeEventListener('visibilitychange', _iosVis);
+        if (_restorePoller) clearInterval(_restorePoller);
+        restore();
+      }
+    });
+    // Fallback: if page never hides (Safari blocked print), restore after 3s
+    setTimeout(function() {
+      if (!_wentHidden) {
+        restore();
+      }
+    }, 3000);
+  } else {
+    window.addEventListener('afterprint', restore);
   }
 
   // Force browser to flush layout/styles before printing, stays within gesture
   document.body.getBoundingClientRect();
   document.getElementById('page').getBoundingClientRect();
-  window.print();
+  if (isMobileSafari) {
+      setTimeout(function() {
+      document.body.getBoundingClientRect();
+      window.print();
+    }, 800);
+  } else {
+    window.print();
+  }
 }
 
 // ── CANVAS CAPTURE ──
