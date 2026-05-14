@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v1.0.56';
+var CACHE_NAME = 'aog-forms-v1.0.57';
 var DEV_MODE   = false; // ← SET TRUE during development/testing
 
 // ============================================================
@@ -17,7 +17,7 @@ var DEV_MODE   = false; // ← SET TRUE during development/testing
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  'testing estimate sheet 36',
+  'testing estimate sheet 37',
   'fixed image capture bug on estimate form',
   'add more 1st stage and 2nd stage regulators for more variance',
   'testing est 4'
