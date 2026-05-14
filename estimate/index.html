@@ -442,16 +442,7 @@ body.dark-mode .gas-appliances-label { color: #7DD3FC; }
 body.dark-mode .footer { background: linear-gradient(90deg, rgba(15,21,53,0.8) 0%, rgba(26,40,71,0.6) 100%); border-top-color: rgba(0,255,200,0.15); box-shadow: 0 -2px 8px rgba(0,0,0,0.5); }
 .footer-text { font-family: var(--font-display); font-size: 0.55rem; color: var(--text-dim); letter-spacing: 2px; }
 #ver-span { color: var(--text-dim); }
-@media print {
-  .footer-text,
-  body.dark-mode .footer-text { color: #9CA3AF !important; text-shadow: none !important; }
-  #ver-span,
-  body.dark-mode #ver-span { color: #9CA3AF !important; text-shadow: none !important; }
-  .doc-title,
-  body.dark-mode .doc-title { color: #D97706 !important; text-shadow: none !important; letter-spacing: 4px !important; }
-  .company-name,
-  body.dark-mode .company-name { color: #D97706 !important; text-shadow: none !important; }
-}
+
 body.dark-mode .footer-text { color: #7DD3FC; }
 
 /* ── Custom confirm modal ── */
@@ -598,6 +589,10 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   body.dark-mode .gas-appliances-box, body.dark-mode .gas-appliances-label {
     background: #ffffff !important; color: #1F2937 !important; text-shadow: none !important; box-shadow: none !important; border-color: #D97706 !important;
   }
+  body.dark-mode .footer-text { color: #D97706 !important; text-shadow: none !important; }
+  body.dark-mode #ver-span { color: #9CA3AF !important; text-shadow: none !important; }
+  body.dark-mode .doc-title { color: #D97706 !important; text-shadow: none !important; letter-spacing: 4px !important; }
+  body.dark-mode .company-name { color: #D97706 !important; text-shadow: none !important; }
   body[class*="seasonal-"] { background: #ffffff !important; color: #1F2937 !important; }
   body[class*="seasonal-"] .page { border-color: #D97706 !important; box-shadow: none !important; }
   body[class*="seasonal-"] .section-header, body[class*="seasonal-"] .col-label { color: #D97706 !important; text-shadow: none !important; }
@@ -1226,24 +1221,23 @@ function printForm() {
     var safariPageFix = document.createElement('style');
     safariPageFix.id = 'safari-page-fix';
     safariPageFix.textContent = [
-'@media print {',
-'  * { animation:none!important;animation-play-state:paused!important;transition:none!important; }',
-'  .doc-title, .company-name { transform:translateZ(0);will-change:auto!important;isolation:auto!important; }',
-'  .header::after { display:none!important;content:none!important; }',
-'  .page { min-height:0!important; }',
-'  .footer { padding:0!important;margin:0!important;line-height:0.6rem!important;height:auto!important; }',
-'  .footer-text,.footer span { font-size:0.25rem!important;line-height:0.6rem!important;display:block!important; }',
-'  .field-row,.inline-row { min-height:29.7px!important; }',
-'  input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"] { min-height:29.7px!important;height:29.7px!important; }',
-'  .yn-group,.yn-group .yn-label { height:25.7px!important;min-height:25.7px!important;line-height:25.7px!important; }',
-'  .check-item { height:24.7px!important;min-height:24.7px!important; }',
-'  #gen_notes  { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
-'  #pad_notes  { height:29.7px!important;min-height:29.7px!important;max-height:29.7px!important; }',
-'  #gas_notes  { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
-'  #ready_notes { height:35.7px!important;min-height:35.7px!important;max-height:35.7px!important; }',
-'  #install_days { height:29.7px!important;min-height:29.7px!important; }',
-'}'
-
+      '@media print {',
+      '  * { animation:none!important;animation-play-state:paused!important;transition:none!important; }',
+      '  .doc-title, .company-name { transform:translateZ(0);will-change:auto!important;isolation:auto!important; }',
+      '  .header::after { display:none!important;content:none!important; }',
+      '  .page { min-height:0!important; }',
+      '  .footer { margin-top:auto!important;padding:2px 14px!important; }',
+      '  .footer-text,.footer span { font-size:0.28rem!important; }',
+      '  .field-row,.inline-row { min-height:29.7px!important; }',
+      '  input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"] { min-height:29.7px!important;height:29.7px!important; }',
+      '  .yn-group,.yn-group .yn-label { height:25.7px!important;min-height:25.7px!important;line-height:25.7px!important; }',
+      '  .check-item { height:24.7px!important;min-height:24.7px!important; }',
+      '  #gen_notes  { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
+      '  #pad_notes  { height:29.7px!important;min-height:29.7px!important;max-height:29.7px!important; }',
+      '  #gas_notes  { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
+      '  #ready_notes { height:35.7px!important;min-height:35.7px!important;max-height:35.7px!important; }',
+      '  #install_days { height:29.7px!important;min-height:29.7px!important; }',
+      '}'
     ].join('\n');
     document.head.appendChild(safariPageFix);
   }
