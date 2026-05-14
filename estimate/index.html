@@ -1156,6 +1156,16 @@ function printForm() {
   var vp = document.querySelector('meta[name="viewport"]');
   var origViewport = vp ? vp.getAttribute('content') : null;
   var isMobileSafari = document.body.classList.contains('mobile-safari');
+  // Force title colors inline so dark-mode !important rules can't override
+  var docTitle = document.querySelector('.doc-title');
+  var compName = document.querySelector('.company-name');
+  var origTitleColor = docTitle ? docTitle.style.color : null;
+  var origTitleShadow = docTitle ? docTitle.style.textShadow : null;
+  var origCompColor = compName ? compName.style.color : null;
+  var origCompShadow = compName ? compName.style.textShadow : null;
+  if (docTitle) { docTitle.style.setProperty('color', '#D97706', 'important'); docTitle.style.setProperty('text-shadow', 'none', 'important'); docTitle.style.setProperty('letter-spacing', '4px', 'important'); }
+  if (compName) { compName.style.setProperty('color', '#D97706', 'important'); compName.style.setProperty('text-shadow', 'none', 'important'); }
+
   if (isMobileSafari && vp) {
     vp.setAttribute('content', 'width=1050, initial-scale=1.0');
     // Override min-height so Safari doesn't push content to page 2
@@ -1168,6 +1178,8 @@ function printForm() {
   printStyle.id = 'force-print-light';
   printStyle.textContent = [
     '*, *::before, *::after { background: white !important; color: #1F2937 !important; box-shadow: none !important; text-shadow: none !important; border-color: rgba(217,119,6,0.4) !important; animation: none !important; transition: none !important; }',
+    '.doc-title::before, .doc-title::after, .company-name::before, .company-name::after { content: none !important; display: none !important; }',
+    '.header::before { content: none !important; display: none !important; }',
     'html, body { background: white !important; }',
     '.page { border: 2px solid #D97706 !important; background: white !important; }',
     '.company-name, .doc-title { color: #D97706 !important; text-shadow: none !important; }',
@@ -1190,6 +1202,9 @@ function printForm() {
     window.removeEventListener('afterprint', onAfterPrint);
     var el = document.getElementById('force-print-light'); if (el) el.remove();
     if (wasDark) document.body.classList.add('dark-mode');
+    // Restore title inline styles
+    if (docTitle) { docTitle.style.color = origTitleColor || ''; docTitle.style.textShadow = origTitleShadow || ''; docTitle.style.letterSpacing = ''; }
+    if (compName) { compName.style.color = origCompColor || ''; compName.style.textShadow = origCompShadow || ''; }
     // Restore original viewport after print
     if (isMobileSafari && vp && origViewport) {
       vp.setAttribute('content', origViewport);
