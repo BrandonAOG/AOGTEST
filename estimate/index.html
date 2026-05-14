@@ -1154,97 +1154,105 @@ function setStatus(msg) { var el = document.getElementById('save-status'); if (e
 // ── PRINT ──
 function printForm() {
   if (!validateForm()) return;
-  var wasDark = document.body.classList.contains('dark-mode');
-  if (wasDark) document.body.classList.remove('dark-mode');
 
   var isMobileSafari = document.body.classList.contains('mobile-safari');
-  // FIX: On mobile Safari, swap viewport to 1050px so Safari renders the full
-  // desktop layout and scales it to fit the paper automatically.
+  var wasDark = document.body.classList.contains('dark-mode');
+
+  // ── Step 1: strip dark-mode so everything renders light ──────────────────
+  document.body.classList.remove('dark-mode');
+
+  // ── Step 2: force title elements to amber via inline style ───────────────
+  // Inline style beats every stylesheet rule including !important dark-mode rules.
+  var docTitle = document.querySelector('.doc-title');
+  var compName  = document.querySelector('.company-name');
+  if (docTitle) docTitle.setAttribute('style', 'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
+  if (compName)  compName.setAttribute('style',  'color:#D97706!important;text-shadow:none!important;');
+
+  // ── Step 3: inject print styles ──────────────────────────────────────────
+  var printStyle = document.createElement('style');
+  printStyle.id  = 'force-print-light';
+  printStyle.textContent = [
+    '@media print {',
+    '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;border-color:rgba(217,119,6,0.4)!important;animation:none!important;transition:none!important; }',
+    '  .doc-title, .company-name { color:#D97706!important;text-shadow:none!important; }',
+    '  .doc-title::before, .doc-title::after, .company-name::before, .company-name::after, .header::after { content:none!important;display:none!important; }',
+    '  html,body { background:white!important; }',
+    '  .page { border:1.5pt solid #D97706!important;background:white!important; }',
+    '  .section-header { background:#f5f5f5!important;color:#D97706!important;text-shadow:none!important; }',
+    '  .section-header svg, .section-header svg * { stroke:#D97706!important; }',
+    '  .col-label { color:#D97706!important;background:#f5f5f5!important;text-shadow:none!important; }',
+    '  .yn-group { background:white!important;border-color:#D97706!important; }',
+    '  .yn-group .yn-label { color:#6B7280!important;background:white!important;text-shadow:none!important; }',
+    '  .check-item input[type="radio"],.check-item input[type="checkbox"] { accent-color:#D97706!important; }',
+    '  .footer-text { color:#9CA3AF!important; }',
+    '  .toolbar,button,.theme-toggle-btn { display:none!important; }',
+    '  .confirm-modal-backdrop { display:none!important; }',
+    '}'
+  ].join('\n');
+  document.head.appendChild(printStyle);
+
+  // ── Step 4: Safari-specific fixes ────────────────────────────────────────
   var vp = document.querySelector('meta[name="viewport"]');
   var origViewport = vp ? vp.getAttribute('content') : null;
-    if (isMobileSafari && vp) {
+
+  if (isMobileSafari && vp) {
+    // Swap viewport so Safari renders the full 1050px desktop layout
     vp.setAttribute('content', 'width=1050, initial-scale=1.0');
+
+    // Re-apply inline title styles after viewport re-render
+    setTimeout(function() {
+      if (docTitle) docTitle.setAttribute('style', 'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
+      if (compName)  compName.setAttribute('style',  'color:#D97706!important;text-shadow:none!important;');
+    }, 100);
+
+    // Inject height reductions to prevent blank page 2
     var safariPageFix = document.createElement('style');
     safariPageFix.id = 'safari-page-fix';
     safariPageFix.textContent = [
-      /* Kill Safari built-in URL/date/page-number headers and footers */
-      '@page { margin: 0 !important; }',
       '@media print {',
-      '  html { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }',
-      '  .page { min-height: 0 !important; }',
-      '  .footer { margin-top: auto !important; padding: 2px 14px !important; }',
-      '  .footer-text { font-size: 0.28rem !important; }',
-      '  .footer span { font-size: 0.28rem !important; }',
-      '  .field-row, .inline-row { min-height: 30.7px !important; }',
-      '  input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"] { min-height: 30.7px !important; height: 30.7px !important; }',
-      '  .yn-group, .yn-group .yn-label { height: 26.7px !important; min-height: 26.7px !important; line-height: 26.7px !important; }',
-      '  .check-item { height: 25.7px !important; min-height: 25.7px !important; }',
-      '  #gen_notes  { height: 39.7px !important; min-height: 39.7px !important; max-height: 39.7px !important; }',
-      '  #pad_notes  { height: 31.7px !important; min-height: 31.7px !important; max-height: 31.7px !important; }',
-      '  #gas_notes  { height: 39.7px !important; min-height: 39.7px !important; max-height: 39.7px !important; }',
-      '  #ready_notes { height: 37.7px !important; min-height: 37.7px !important; max-height: 37.7px !important; }',
-      '  #install_days { height: 30.7px !important; min-height: 30.7px !important; }',
+      '  .page { min-height:0!important; }',
+      '  .footer { margin-top:auto!important;padding:2px 14px!important; }',
+      '  .footer-text,.footer span { font-size:0.28rem!important; }',
+      '  .field-row,.inline-row { min-height:30.7px!important; }',
+      '  input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"] { min-height:30.7px!important;height:30.7px!important; }',
+      '  .yn-group,.yn-group .yn-label { height:26.7px!important;min-height:26.7px!important;line-height:26.7px!important; }',
+      '  .check-item { height:25.7px!important;min-height:25.7px!important; }',
+      '  #gen_notes  { height:39.7px!important;min-height:39.7px!important;max-height:39.7px!important; }',
+      '  #pad_notes  { height:31.7px!important;min-height:31.7px!important;max-height:31.7px!important; }',
+      '  #gas_notes  { height:39.7px!important;min-height:39.7px!important;max-height:39.7px!important; }',
+      '  #ready_notes { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
+      '  #install_days { height:30.7px!important;min-height:30.7px!important; }',
       '}'
     ].join('\n');
     document.head.appendChild(safariPageFix);
   }
-  // On mobile Safari dark-mode removal + 1500ms delay is sufficient —
-  // skip the force-print-light injection which can cause color conflicts on Safari.
-  if (isMobileSafari) {
-    // no force-print-light needed — dark-mode class already removed above
-  }
-  var printStyle = !isMobileSafari ? document.createElement('style') : null;
-  if (printStyle) printStyle.id = 'force-print-light';
-  if (printStyle) printStyle.textContent = [
-    '*, *::before, *::after { background: white !important; color: #1F2937 !important; box-shadow: none !important; text-shadow: none !important; border-color: rgba(217,119,6,0.4) !important; animation: none !important; transition: none !important; }',
-    '.doc-title::before, .doc-title::after, .company-name::before, .company-name::after { content: none !important; display: none !important; }',
-    '.header::before { content: none !important; display: none !important; }',
-    'html, body { background: white !important; }',
-    '.page { border: 2px solid #D97706 !important; background: white !important; }',
-    '.company-name, .doc-title { color: #D97706 !important; text-shadow: none !important; }',
-    'body.dark-mode .doc-title, body.dark-mode .company-name { color: #D97706 !important; text-shadow: none !important; }',
-    '.section-header { background: #f5f5f5 !important; color: #D97706 !important; text-shadow: none !important; }',
-    '.col-label { color: #D97706 !important; background: #f5f5f5 !important; text-shadow: none !important; }',
-    '.check-item input[type="radio"], .check-item input[type="checkbox"] { accent-color: #D97706 !important; }',
-    '.yn-group { background: white !important; border-color: #D97706 !important; }',
-    '.yn-group .yn-label { color: #6B7280 !important; background: white !important; text-shadow: none !important; }',
-    '.section-header svg, .section-header svg * { stroke: #D97706 !important; }',
-    '.footer-text { color: #9CA3AF !important; }',
-    '.toolbar, button, .theme-toggle-btn { display: none !important; }',
-    '.confirm-modal-backdrop { display: none !important; }'
-  ].join('\n');
-  if (printStyle) document.head.appendChild(printStyle);
 
-  // FIX: use afterprint event instead of a fixed setTimeout so dark mode
-  // is restored only after the print dialog actually closes
-  function onAfterPrint() {
-    // Remove all listeners so this only fires once
-    window.removeEventListener('afterprint', onAfterPrint);
-    window.removeEventListener('focus', onAfterPrint);
-    document.removeEventListener('visibilitychange', onVisChange);
+  // ── Step 5: restore everything after print closes ─────────────────────────
+  function restore() {
+    window.removeEventListener('afterprint', restore);
+    window.removeEventListener('focus', restore);
+    document.removeEventListener('visibilitychange', onVis);
+    // Remove injected styles
     var el = document.getElementById('force-print-light'); if (el) el.remove();
+    var fix = document.getElementById('safari-page-fix');  if (fix) fix.remove();
+    // Restore dark mode
     if (wasDark) document.body.classList.add('dark-mode');
-    // Restore original viewport and remove Safari fixes
-    if (isMobileSafari && vp && origViewport) {
-      vp.setAttribute('content', origViewport);
-      var fix = document.getElementById('safari-page-fix');
-      if (fix) fix.remove();
-    }
+    // Clear inline title styles
+    if (docTitle) docTitle.removeAttribute('style');
+    if (compName)  compName.removeAttribute('style');
+    // Restore viewport
+    if (isMobileSafari && vp && origViewport) vp.setAttribute('content', origViewport);
   }
-  function onVisChange() {
-    if (!document.hidden) onAfterPrint();
-  }
-  window.addEventListener('afterprint', onAfterPrint);
-  // Safari often doesn't fire afterprint — use focus and visibilitychange as fallbacks
+  function onVis() { if (!document.hidden) restore(); }
+  window.addEventListener('afterprint', restore);
   if (isMobileSafari) {
-    window.addEventListener('focus', onAfterPrint);
-    document.addEventListener('visibilitychange', onVisChange);
+    window.addEventListener('focus', restore);
+    document.addEventListener('visibilitychange', onVis);
   }
 
-  // On mobile Safari, wait 1500ms after dark-mode removal so the browser
-  // fully re-renders in light mode before the print dialog opens.
-  var printDelay = isMobileSafari ? 1500 : 250;
-  setTimeout(function() { window.print(); }, printDelay);
+  // ── Step 6: open print dialog ─────────────────────────────────────────────
+  // 1500ms on Safari so viewport re-render settles before print snapshot
+  setTimeout(function() { window.print(); }, isMobileSafari ? 1500 : 250);
 }
 
 // ── CANVAS CAPTURE ──
