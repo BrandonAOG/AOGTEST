@@ -1827,6 +1827,7 @@ var SEASONAL_THEMES = {
   'fall':        {'start':{month:9,day:23},'end':{month:10,day:31}},
   'thanksgiving':{'start':{month:11,day:1},'end':{month:11,day:30}},
   'laborday':    {'start':{month:9,day:1},'end':{month:9,day:7}},
+  'veteransday': {'start':{month:11,day:11},'end':{month:11,day:11}},
   'christmas':   {'start':{month:12,day:1},'end':{month:12,day:31}}
 };
 function getCurrentSeasonalTheme() {
@@ -1853,6 +1854,7 @@ var SEASONAL_TITLES = {
   fathersday:   '👔 Generator Installation Estimate',
   backtoschool: '🎒 Generator Installation Estimate',
   laborday:     '🔨 Generator Installation Estimate',
+  veteransday:  '🎖️ Generator Installation Estimate',
   fall:         '🍁 Generator Installation Estimate',
   halloween:    '🎃 Generator Installation Estimate',
   thanksgiving: '🍂 Generator Installation Estimate',
@@ -2463,6 +2465,57 @@ function createSeasonalCanvas(theme) {
         if(p.y>H+20){p.y=-20;p.x=Math.random()*W;}
       }
     },
+    veteransday: {
+      count: 55,
+      make: function() {
+        var cols=['#B22234','#FFFFFF','#3C3B6E','#B22234','#FFFFFF'];
+        var types=['star','star','star','ribbon','ribbon'];
+        return {
+          x: Math.random()*W, y: -10,
+          vx: (Math.random()-0.5)*0.8, vy: 0.6+Math.random()*1.2,
+          life: 1, decay: 0,
+          size: 5+Math.random()*10,
+          color: cols[Math.floor(Math.random()*cols.length)],
+          type: types[Math.floor(Math.random()*types.length)],
+          rot: Math.random()*Math.PI*2, rotSpeed: (Math.random()-0.5)*0.04
+        };
+      },
+      draw: function(p) {
+        ctx.save(); ctx.globalAlpha=0.75;
+        ctx.fillStyle=p.color;
+        ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+        var s=p.size;
+        if(p.type==='star'){
+          ctx.beginPath();
+          for(var i=0;i<5;i++){
+            var a=(i*4*Math.PI/5)-Math.PI/2;
+            var b=a+2*Math.PI/10;
+            ctx.lineTo(Math.cos(a)*s,Math.sin(a)*s);
+            ctx.lineTo(Math.cos(b)*s*0.4,Math.sin(b)*s*0.4);
+          }
+          ctx.closePath(); ctx.fill();
+        } else {
+          // Medal ribbon
+          ctx.fillStyle='#B22234';
+          ctx.fillRect(-s*0.25,-s,s*0.5,s*0.6);
+          ctx.fillStyle='#3C3B6E';
+          ctx.fillRect(-s*0.25,-s*0.5,s*0.5,s*0.25);
+          ctx.fillStyle='#DAA520';
+          ctx.beginPath(); ctx.arc(0,s*0.25,s*0.38,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle='#C8960C';
+          ctx.beginPath(); ctx.arc(0,s*0.25,s*0.25,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle='#FFD700';
+          ctx.font = (s*0.28)+'px serif';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText('★',0,s*0.25);
+        }
+        ctx.restore();
+      },
+      tick: function(p) {
+        p.rot+=p.rotSpeed; p.x+=p.vx; p.y+=p.vy;
+        if(p.y>H+20){p.y=-10;p.x=Math.random()*W;}
+      }
+    },
     christmas: {
       count: 55,
       make: function() {
@@ -2645,6 +2698,13 @@ function injectSeasonalStyles() {
     'body.seasonal-fall .section-header { background:linear-gradient(90deg,rgba(210,105,30,0.08),transparent) !important; }',
     'body.seasonal-fall .doc-title::after { content:" 🍁"; }',
     '@media screen { body.seasonal-fall { --cyan:#D2691E; --cyan-dim:#A0522D; --amber:#DAA520; --border:rgba(210,105,30,0.25); --border-bright:rgba(210,105,30,0.5); } }',
+    'body.seasonal-veteransday { --cyan:#B22234; --cyan-dim:#8B0000; --amber:#DAA520; --border:rgba(178,34,52,0.25); --border-bright:rgba(178,34,52,0.5); }',
+    'body.seasonal-veteransday:not(.dark-mode) { --panel:#fff8f8; --bg:#fff8f8; --bg3:#ffe4e4; }',
+    'body.seasonal-veteransday .page { border-color:#B22234 !important; box-shadow:0 0 0 3px #3C3B6E,0 0 0 5px #B22234,0 0 30px rgba(178,34,52,0.15) !important; }',
+    'body.seasonal-veteransday .header { background:linear-gradient(90deg,rgba(178,34,52,0.08),rgba(255,255,255,0.1),rgba(60,59,110,0.08)) !important; }',
+    'body.seasonal-veteransday .section-header { background:linear-gradient(90deg,rgba(60,59,110,0.08),transparent) !important; }',
+    'body.seasonal-veteransday .doc-title::after { content:" 🎖️"; }',
+    '@media screen { body.seasonal-veteransday { --cyan:#B22234; --cyan-dim:#8B0000; --amber:#DAA520; --border:rgba(178,34,52,0.25); --border-bright:rgba(178,34,52,0.5); } }',
     '@media screen { body.seasonal-christmas { --cyan:#16A34A; --cyan-dim:#15803D; --amber:#DC2626; --border:rgba(22,163,74,0.25); --border-bright:rgba(220,38,38,0.5); } }',
     'body.seasonal-christmas:not(.dark-mode) { --panel:#f6fff8; --bg:#f6fff8; --bg3:#dcfce7; }',
     'body.seasonal-christmas .page { border-color:#DC2626 !important; box-shadow:0 0 0 2px #16A34A,0 0 0 4px #DC2626,0 0 40px rgba(22,163,74,0.15),0 0 80px rgba(220,38,38,0.08) !important; }',
