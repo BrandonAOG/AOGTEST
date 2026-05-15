@@ -387,10 +387,10 @@ body.dark-mode .check-item span { color: #E0F7FF; }
 .check-item:has(input:checked) span { color: var(--cyan); text-shadow: 0 0 4px rgba(217,119,6,0.3); }
 body.dark-mode .check-item:has(input:checked) span { color: #00FFC8; text-shadow: 0 0 8px rgba(0,255,200,0.5); }
 
-.yn-group { display: inline-flex; border: 1px solid rgba(217,119,6,0.3); overflow: hidden; flex-shrink: 0; background: var(--panel); transition: all 0.3s ease; height: 22px; align-self: center; }
+.yn-group { display: inline-flex; border: 1px solid rgba(217,119,6,0.3); overflow: hidden; flex-shrink: 0; background: var(--panel); transition: all 0.3s ease; }
 body.dark-mode .yn-group { background: rgba(15,21,53,0.8); border-color: rgba(0,255,200,0.15); }
 .yn-group input[type="radio"] { display: none; }
-.yn-group .yn-label { padding: 0 10px; font-family: var(--font-display); font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; cursor: pointer; color: var(--text-muted); background: transparent; border: none; min-height: 22px; height: 22px; display: flex; align-items: center; white-space: nowrap; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: all 0.15s; }
+.yn-group .yn-label { padding: 0 12px; font-family: var(--font-display); font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; cursor: pointer; color: var(--text-muted); background: transparent; border: none; min-height: 30px; height: 30px; display: flex; align-items: center; white-space: nowrap; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: all 0.15s; }
 body.dark-mode .yn-group .yn-label { color: #7DD3FC; border-color: rgba(0,255,200,0.1); background: transparent; }
 .yn-group .yn-label:first-of-type { border-right: 1px solid rgba(217,119,6,0.2); }
 body.dark-mode .yn-group .yn-label:first-of-type { border-right-color: rgba(0,255,200,0.1); }
@@ -580,6 +580,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   #address-suggestions, #gps-status { display: none !important; }
   #install_days { padding: 2px 5px !important; min-height: 31px !important; height: 31px !important; }
   #elec_run_ft { width: 9ch !important; min-width: 9ch !important; max-width: 9ch !important; flex-shrink: 0 !important; }
+  #gen_size { width: 15ch !important; min-width: 15ch !important; max-width: 15ch !important; flex-shrink: 0 !important; }
   .footer { background: #ffffff !important; border-top: 1px solid #D97706 !important; padding: 4px 20px !important; margin-top: auto !important; display: flex !important; justify-content: space-between !important; align-items: center !important; flex-shrink: 0 !important; width: 100% !important; min-height: auto !important; height: auto !important; }
   .footer-text { color: #D97706 !important; text-shadow: none !important; }
   body.dark-mode .page, body.dark-mode .header, body.dark-mode .section, body.dark-mode .section-header,
@@ -760,15 +761,13 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
           </div>
           <span class="inline-label" style="margin-left:6px;">Wiring</span>
           <div class="check-group" role="group" aria-label="Wiring type">
-            <label class="check-item"><input type="checkbox" name="wiring" value="al"><span>Al</span></label>
-            <label class="check-item"><input type="checkbox" name="wiring" value="CU"><span>CU</span></label>
+            <label class="check-item"><input type="checkbox" name="wiring" value="aluminum"><span>Aluminum</span></label>
+            <label class="check-item"><input type="checkbox" name="wiring" value="copper"><span>Copper</span></label>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
-            <span class="inline-label" style="margin:0;">Bore</span>
-            <div class="yn-group" role="group" aria-label="Bore required">
-              <input type="radio" name="bore_gen" id="bore_gen_y" value="Y" class="yn-y"><label class="yn-label yn-label-y" for="bore_gen_y">Y</label>
-              <input type="radio" name="bore_gen" id="bore_gen_n" value="N" class="yn-n"><label class="yn-label yn-label-n" for="bore_gen_n">N</label>
-            </div>
+          <span class="inline-label">Bore</span>
+          <div class="yn-group" role="group" aria-label="Bore required">
+            <input type="radio" name="bore_gen" id="bore_gen_y" value="Y" class="yn-y"><label class="yn-label yn-label-y" for="bore_gen_y">Y</label>
+            <input type="radio" name="bore_gen" id="bore_gen_n" value="N" class="yn-n"><label class="yn-label yn-label-n" for="bore_gen_n">N</label>
           </div>
         </div>
         <div class="field-block"><textarea id="gen_notes" name="gen_notes" placeholder="Additional notes on generator placement / run…" aria-label="Generator notes"></textarea></div>
@@ -1218,31 +1217,9 @@ function printForm() {
   var printStyle = document.createElement('style');
   printStyle.id  = 'force-print-light';
   printStyle.textContent = [
-    'body {',
-    '  --cyan: #D97706 !important;',
-    '  --cyan-dim: #B45309 !important;',
-    '  --cyan-dark: #92400E !important;',
-    '  --amber: #D97706 !important;',
-    '  --amber-dim: #B45309 !important;',
-    '  --bg: #FFFFFF !important;',
-    '  --bg3: #F8F8F8 !important;',
-    '  --panel: #FFFFFF !important;',
-    '  --text: #1F2937 !important;',
-    '  --text-muted: #6B7280 !important;',
-    '  --text-dim: #9CA3AF !important;',
-    '  --glow: none !important;',
-    '  --icon-color-primary: #D97706 !important;',
-    '  --icon-color-section: #D97706 !important;',
-    '}',
-    '*, *::before, *::after {',
-    '  animation: none !important;',
-    '  animation-play-state: paused !important;',
-    '  transition: none !important;',
-    '}',
     '@media print {',
-    '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;border-color:rgba(217,119,6,0.4)!important;animation:none!important;animation-play-state:paused!important;transition:none!important; }',
+    '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;border-color:rgba(217,119,6,0.4)!important;animation:none!important;transition:none!important; }',
     '  .doc-title, .company-name { color:#D97706!important;text-shadow:none!important; }',
-    '  .doc-title::after, .company-name::after { content:"" !important; display:none !important; }',
     '  .doc-title::before, .doc-title::after, .company-name::before, .company-name::after, .header::after { content:none!important;display:none!important; }',
     '  html,body { background:white!important; }',
     '  .page { border:1.5pt solid #D97706!important;background:white!important; }',
