@@ -473,28 +473,45 @@ body.dark-mode .miscues-textarea {
     background: #ffffff !important;
     color: #1F2937 !important;
     box-sizing: border-box !important;
-    /* NO height, NO overflow — content sizes naturally */
     height: auto !important;
     overflow: visible !important;
-    /* Don't break inside a page */
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    /* Allow Safari to flow content naturally — avoid only on page1 */
+    page-break-inside: auto !important;
+    break-inside: auto !important;
   }
 
-  /* Page 1 ends here — next content starts new page */
+  /* Page 1: prevent breaking inside, force page after */
   #page1 {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
     page-break-after: always !important;
     break-after: page !important;
     page-break-before: avoid !important;
     break-before: avoid !important;
   }
 
-  /* Page 2 always starts on a new page */
+  /* Page 2: always starts fresh, allow content to flow/break freely */
   #page2 {
     page-break-before: always !important;
     break-before: page !important;
     page-break-after: avoid !important;
     break-after: avoid !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  /* Safari print: CSS grid can collapse — use table-based layout for page2 split */
+  .page2-tables-split {
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: separate !important;
+    border-spacing: 8pt 0 !important;
+  }
+  .page2-tables-split .tables-col {
+    display: table-cell !important;
+    width: 50% !important;
+    vertical-align: top !important;
   }
 
   /* ── 6. Header ── */
@@ -652,11 +669,8 @@ body.dark-mode .miscues-textarea {
     gap: 0 8pt !important;
     width: 100% !important;
   }
+  /* page2-tables-split uses table layout defined above for Safari compat */
   .page2-tables-split {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 0 8pt !important;
-    width: 100% !important;
     margin-bottom: 4pt !important;
   }
   .tables-col {
