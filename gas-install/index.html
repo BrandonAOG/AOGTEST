@@ -898,6 +898,137 @@ body.dark-mode .miscues-textarea {
   }
 
 } /* end @media print */
+
+/* ============================================================
+   MOBILE SAFARI PRINT FIXES
+   Safari on iOS ignores many @media print rules and renders
+   the screen layout instead. These overrides force correct
+   print behavior via -webkit- prefixes and explicit sizing.
+   ============================================================ */
+@media print {
+
+  /* Force Safari to use exact colors (backgrounds, borders) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Safari collapses flex/grid — reinforce critical layouts */
+  .two-col {
+    display: -webkit-box !important;
+    display: -webkit-flex !important;
+    display: flex !important;
+    -webkit-box-orient: horizontal !important;
+    -webkit-flex-direction: row !important;
+    flex-direction: row !important;
+    -webkit-flex-wrap: nowrap !important;
+    flex-wrap: nowrap !important;
+    gap: 0 8pt !important;
+  }
+  .two-col > div {
+    -webkit-box-flex: 1 !important;
+    -webkit-flex: 1 1 50% !important;
+    flex: 1 1 50% !important;
+    min-width: 0 !important;
+    width: 50% !important;
+  }
+  .top-fields {
+    display: -webkit-box !important;
+    display: -webkit-flex !important;
+    display: flex !important;
+    -webkit-flex-wrap: wrap !important;
+    flex-wrap: wrap !important;
+    gap: 0.5pt 10pt !important;
+  }
+  .top-fields .field-row {
+    -webkit-box-flex: 0 !important;
+    -webkit-flex: 0 0 48% !important;
+    flex: 0 0 48% !important;
+    min-width: 0 !important;
+  }
+  .tables-split {
+    display: -webkit-box !important;
+    display: -webkit-flex !important;
+    display: flex !important;
+    -webkit-flex-direction: row !important;
+    flex-direction: row !important;
+    gap: 0 6pt !important;
+  }
+  .tables-split .tables-col {
+    -webkit-box-flex: 1 !important;
+    -webkit-flex: 1 1 50% !important;
+    flex: 1 1 50% !important;
+    min-width: 0 !important;
+    width: 50% !important;
+  }
+
+  /* Safari page break — use both old and new syntax */
+  #page1 {
+    -webkit-column-break-after: always !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  #page2 {
+    -webkit-column-break-before: always !important;
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Force font smoothing for print */
+  body {
+    -webkit-font-smoothing: antialiased !important;
+    text-rendering: optimizeLegibility !important;
+  }
+
+  /* Safari sometimes ignores input/textarea values in print —
+     ensure text is visible and not clipped */
+  input[type="text"],
+  input[type="date"],
+  textarea {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    overflow: visible !important;
+  }
+
+  /* Prevent Safari from hiding checkbox state */
+  input[type="checkbox"] {
+    -webkit-appearance: checkbox !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* Safari YN pill background colors */
+  .yn-checkbox-wrap.yn-yes.checked {
+    background: #059669 !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  .yn-checkbox-wrap.yn-no.checked {
+    background: #DC2626 !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  .yn-checkbox-wrap.yn-opt.checked {
+    background: #D97706 !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* Table header backgrounds — Safari needs explicit forcing */
+  table.mat-table th,
+  table.mat-table td.row-label.section-header {
+    background: #4B5563 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table td.row-label {
+    background: #fafafa !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table tbody tr:nth-child(even) td.row-label {
+    background: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -1240,7 +1371,35 @@ if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
 /* ================================================================
    AUTO-SAVE
 ================================================================ */
-const SAVE_KEY = 'aog_gas_v4';
+/* ================================================================
+   MOBILE SAFARI PRINT — VIEWPORT SCALE FIX
+================================================================ */
+(function() {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (!isIOS) return;
+
+  const metaViewport = document.querySelector('meta[name="viewport"]');
+  const originalContent = metaViewport ? metaViewport.getAttribute('content') : null;
+
+  window.addEventListener('beforeprint', function() {
+    // Force Safari to render at full 1050px width for print
+    if (metaViewport) {
+      metaViewport.setAttribute('content', 'width=1050, initial-scale=1.0');
+    }
+    // Ensure body is full width
+    document.body.style.width = '1050px';
+    document.body.style.maxWidth = '1050px';
+  });
+
+  window.addEventListener('afterprint', function() {
+    // Restore normal viewport
+    if (metaViewport && originalContent) {
+      metaViewport.setAttribute('content', originalContent);
+    }
+    document.body.style.width = '';
+    document.body.style.maxWidth = '';
+  });
+})();
 let saveTimer = null;
 
 function collectState() {
