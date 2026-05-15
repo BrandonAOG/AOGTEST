@@ -305,6 +305,13 @@ body.dark-mode .reg-row { border-color:rgba(0,255,200,0.2); }
   display:grid; grid-template-columns:1fr 1fr; gap:0 12px; width:100%; margin-bottom:12px;
 }
 @media (max-width:700px) { .page2-tables-split { grid-template-columns:1fr; } }
+/* Give each page2 column a subtle top accent for visual separation */
+.page2-tables-split .tables-col .mat-table thead tr th:first-child {
+  border-left: 3px solid #D97706;
+}
+body.dark-mode .page2-tables-split .tables-col .mat-table thead tr th:first-child {
+  border-left: 3px solid #00FFC8;
+}
 
 /* ============================================================
    MATERIAL TABLES
@@ -710,7 +717,9 @@ body.dark-mode .miscues-textarea {
   table.mat-table td input[type="text"] {
     font-size: 6pt !important;
     color: #1F2937 !important;
-    background: transparent !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
     border: none !important;
     width: 100% !important;
     text-align: center !important;
@@ -794,20 +803,16 @@ table.mat-table tbody tr:nth-child(even) td.row-label {
 }
 
 } /* end @media print */
-
-/* ── Home button ── */
-.home-btn{position:fixed;top:14px;left:14px;z-index:9999;width:40px;height:40px;background:rgba(15,21,53,.9);border:1px solid rgba(251,191,36,.4);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all .2s;text-decoration:none;color:var(--text)}
-.home-btn:hover{background:rgba(251,191,36,.15);border-color:var(--yellow-bright);box-shadow:0 0 12px rgba(251,191,36,.3)}
 </style>
 </head>
 <body>
-<a class="home-btn" href="../" title="Back to Hub">🏠</a>
 
 <!-- ========== ACTION BAR ========== -->
 <div class="action-bar">
   <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;">
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;width:100%;">
-      <button class="btn" onclick="window.print()">📄 PRINT</button>
+      <button class="btn" onclick="window.location.href='../'">🏠</button>
+      <button class="btn" onclick="(function(){ document.title = buildFileName('pdf', null).replace('.pdf',''); window.print(); })()">📄 PRINT</button>
       <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
       <button class="btn" onclick="saveForIPhone()">📱 iPHONE</button>
       <button class="btn" onclick="saveForAndroid()">🤖 ANDROID</button>
@@ -971,7 +976,7 @@ table.mat-table tbody tr:nth-child(even) td.row-label {
         <div class="grid-section">
           <table class="mat-table" id="nipples-left-table">
             <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
-            <thead><tr><th style="text-align:left;">Galv. Nipples &amp; Misc.</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
+            <thead><tr><th style="text-align:left;">Galv. Nipples</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
             <tbody id="nipples-left-body"></tbody>
           </table>
         </div>
@@ -980,7 +985,7 @@ table.mat-table tbody tr:nth-child(even) td.row-label {
         <div class="grid-section">
           <table class="mat-table" id="nipples-right-table">
             <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
-            <thead><tr><th style="text-align:left;">Galv. Nipples &amp; Misc.</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
+            <thead><tr><th style="text-align:left;">Misc. Materials</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
             <tbody id="nipples-right-body"></tbody>
           </table>
         </div>
@@ -1068,33 +1073,42 @@ function addRow(tbody, label, numCols, isHeader) {
   ['12 Inch','18 Inch','48 Inch','60 Inch'].forEach(r => addRow(b, r, n, false));
 })();
 
-const ALL_NIPPLE_ROWS = [
+const NIPPLE_ROWS = [
   {label:'CLOSE STD Galv. Nipple', isHeader:true},
   {label:'1½" Nipple'},{label:'2" Nipple'},{label:'2½" Nipple'},
   {label:'3" Nipple'},{label:'3½" Nipple'},{label:'4" Nipple'},
   {label:'4½" Nipple'},{label:'5" Nipple'},{label:'5½" Nipple'},
   {label:'6" Nipple'},{label:'7" Nipple'},{label:'8" Nipple'},
   {label:'9" Nipple'},{label:'10" Nipple'},{label:'12" Nipple'},
-  {label:'Yellow Met. Tape (Per FT)'},{label:'3/16 Galv. Cable (Per FT)'},
-  {label:"Galv. 45's"},{label:'3/16 C-Bolt Clamp'},
-  {label:'Tank Anchor – 48"'},{label:'17lb Anode Bags'},{label:'9lb Anode Bags'},
-  {label:'¾" Galv. 2-Hole Straps'},{label:'½" Galv. 2-Hole Straps'},
-  {label:'¾" CCST (Per FT)'},{label:'½" Shut Off'},{label:'¾" Shut Off'},
-  {label:'¾" SXS 80 PVC 90 Elbow'},{label:'30 PSI Test Gauge'},
-  {label:'CSST Fitting'},{label:'1"×¾" Reducing Male PVC'},
-  {label:'CCST Union Fitting'},{label:'20" POL × POL'},{label:'12" POL × POL'},
-  {label:'Rigid Pipe Strut Clamp'},{label:'Galv. Minis'},
-  {label:'Galv. Strut – Deep (FT)'},{label:'Galv. Strut – Shallow (FT)'}
 ];
 
-const mid = Math.ceil(ALL_NIPPLE_ROWS.length / 2);
+const MISC_ROWS = [
+  {label:'Strapping & Cable', isHeader:true},
+  {label:'Yellow Met. Tape (Per FT)'},{label:'3/16 Galv. Cable (Per FT)'},
+  {label:'3/16 C-Bolt Clamp'},
+  {label:'¾" Galv. 2-Hole Straps'},{label:'½" Galv. 2-Hole Straps'},
+  {label:'Galv. Minis'},
+  {label:'Rigid Pipe Strut Clamp'},
+  {label:'Galv. Strut – Deep (FT)'},{label:'Galv. Strut – Shallow (FT)'},
+  {label:'Anodes & Anchors', isHeader:true},
+  {label:'Tank Anchor – 48"'},{label:'17lb Anode Bags'},{label:'9lb Anode Bags'},
+  {label:'CSST & Fittings', isHeader:true},
+  {label:'¾" CCST (Per FT)'},{label:'CSST Fitting'},{label:'CCST Union Fitting'},
+  {label:'Shut-Offs & Gauges', isHeader:true},
+  {label:'½" Shut Off'},{label:'¾" Shut Off'},{label:'30 PSI Test Gauge'},
+  {label:'Misc. Fittings', isHeader:true},
+  {label:'¾" SXS 80 PVC 90 Elbow'},
+  {label:'1"×¾" Reducing Male PVC'},
+  {label:'20" POL × POL'},{label:'12" POL × POL'},
+];
+
 (function() {
   const b = document.getElementById('nipples-left-body');
-  ALL_NIPPLE_ROWS.slice(0, mid).forEach(r => addRow(b, r.label, 5, r.isHeader || false));
+  NIPPLE_ROWS.forEach(r => addRow(b, r.label, 5, r.isHeader || false));
 })();
 (function() {
   const b = document.getElementById('nipples-right-body');
-  ALL_NIPPLE_ROWS.slice(mid).forEach(r => addRow(b, r.label, 5, r.isHeader || false));
+  MISC_ROWS.forEach(r => addRow(b, r.label, 5, r.isHeader || false));
 })();
 
 /* ================================================================
@@ -1194,6 +1208,21 @@ function clearForm() {
 }
 
 /* ================================================================
+   FILENAME BUILDER
+================================================================ */
+function buildFileName(ext, page) {
+  const name    = (document.querySelector('.top-fields .field-row:nth-child(1) input[type="text"]')?.value || '').trim();
+  const address = (document.querySelector('.top-fields .field-row:nth-child(3) input[type="text"]')?.value || '').trim();
+  const sanitize = s => s.replace(/[^a-zA-Z0-9\s\-]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  const parts = [];
+  if (name)    parts.push(sanitize(name));
+  if (address) parts.push(sanitize(address));
+  parts.push('Gas_Install');
+  if (page != null) parts.push('P' + page);
+  return parts.join('_') + '.' + ext;
+}
+
+/* ================================================================
    SAVE — iPHONE
 ================================================================ */
 function saveForIPhone() {
@@ -1231,7 +1260,7 @@ function saveForIPhone() {
         wrap.style.cssText = 'text-align:center;';
         const lbl = document.createElement('div');
         lbl.style.cssText = 'color:#ddd;font-size:11px;margin-bottom:6px;font-family:Arial,sans-serif;';
-        lbl.textContent = 'Page ' + (idx + 1) + ' — long-press image → Save to Photos';
+        lbl.textContent = buildFileName('jpg', idx + 1) + ' — long-press image → Save to Photos';
         const img = document.createElement('img');
         img.src = canvas.toDataURL('image/jpeg', 0.93);
         img.style.cssText = 'max-width:100%;border:2px solid #444;border-radius:4px;display:block;margin:0 auto;';
@@ -1277,8 +1306,8 @@ function saveForAndroid() {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
         const a = document.createElement('a');
         a.download = pages.length === 1
-          ? 'AOG_Gas_Install.jpg'
-          : 'AOG_Gas_Install_P' + (idx + 1) + '.jpg';
+          ? buildFileName('jpg', null)
+          : buildFileName('jpg', idx + 1);
         a.href = canvas.toDataURL('image/jpeg', 0.93);
         a.click();
         done++;
