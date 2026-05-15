@@ -53,7 +53,7 @@ body.dark-mode {
    MOBILE INPUT FIX — prevent iOS Safari auto-zoom (needs ≥16px)
    ============================================================ */
 @media (max-width:768px) {
-  input[type="text"], textarea, .inline-input, .full-line-input,
+  input[type="text"], input[type="date"], textarea, .inline-input, .full-line-input,
   .reg-field input, .miscues-textarea, textarea.multiline {
     font-size: 16px !important;
   }
@@ -230,6 +230,47 @@ body.dark-mode textarea.multiline {
 body.dark-mode .yn-checkbox-wrap { border-color:rgba(0,255,200,0.3); }
 
 /* ============================================================
+   PAGE 1 — NON-TABLE ELEMENTS 0.5px SMALLER
+   ============================================================ */
+/* Base font shrink on page1 sections (excluding tables) */
+#page1 .section-row { font-size: 11.5px; }
+#page1 .section-title { font-size: 11.5px; }
+#page1 .field-row { font-size: 11.5px; }
+#page1 .field-row label { font-size: 11.5px; }
+#page1 .field-row input[type="text"],
+#page1 .field-row input[type="date"] { font-size: 11.5px; }
+#page1 .inline-input { font-size: 11.5px; }
+#page1 .full-line-input { font-size: 11.5px; }
+#page1 .reg-row { font-size: 10.5px; }
+#page1 .reg-field input { font-size: 10.5px; }
+#page1 .yn-checkbox-wrap { font-size: 10.5px; }
+#page1 input[type="checkbox"] { width: 13px; height: 13px; }
+#page1 .miscues-textarea { font-size: 11.5px; }
+
+/* Date input styling */
+input[type="date"] {
+  font-family: Arial, sans-serif; font-size: 12px; color: var(--text);
+  background: var(--panel); border: none;
+  border-bottom: 1px solid rgba(217,119,6,0.25);
+  padding: 2px 4px; outline: none; transition: all 0.2s;
+  -webkit-appearance: none; appearance: none;
+  caret-color: var(--cyan); max-width: 100%; flex: 1; min-width: 80px;
+  cursor: pointer;
+}
+input[type="date"]:focus {
+  border-bottom-color: var(--cyan); background: rgba(217,119,6,0.04);
+  box-shadow: 0 2px 0 0 rgba(217,119,6,0.3);
+}
+body.dark-mode input[type="date"] {
+  background: rgba(10,14,39,0.6); border-bottom-color: rgba(0,255,200,0.2);
+  color: #E0F7FF; color-scheme: dark;
+}
+body.dark-mode input[type="date"]:focus {
+  border-bottom-color: #00FFC8; background: rgba(26,40,71,0.8);
+  box-shadow: 0 0 8px rgba(0,255,200,0.2);
+}
+
+/* ============================================================
    HEADER / LOGO
    ============================================================ */
 .page1-header { text-align:center; margin-bottom:10px; }
@@ -324,7 +365,7 @@ body.dark-mode .inline-input { color:#E0F7FF; border-bottom-color:rgba(0,255,200
 .section-title {
   font-weight:bold; font-size:12px; text-transform:uppercase;
   border-bottom:1px solid var(--border-bright);
-  padding-bottom:2px; margin-bottom:4px; color:var(--text);
+  padding-bottom:2px; margin-bottom:4px; color:#D97706;
 }
 .section-row {
   font-size:12px; margin-bottom:2px;
@@ -621,7 +662,8 @@ body.dark-mode .miscues-textarea {
     line-height: 1.4 !important;
   }
   .field-row label { font-size: 7.5pt !important; white-space: nowrap !important; }
-  .field-row input[type="text"] {
+  .field-row input[type="text"],
+  .field-row input[type="date"] {
     font-size: 7.5pt !important;
     color: #1F2937 !important;
     background: transparent !important;
@@ -646,7 +688,7 @@ body.dark-mode .miscues-textarea {
     border-bottom: 0.5pt solid rgba(217,119,6,0.5) !important;
     padding-bottom: 0.5pt !important;
     margin-bottom: 1pt !important;
-    color: #1F2937 !important;
+    color: #D97706 !important;
   }
   .section-row {
     font-size: 7.5pt !important;
@@ -674,6 +716,11 @@ body.dark-mode .miscues-textarea {
     border-bottom: 0.5pt solid #999 !important;
   }
   .full-line-input { width: 100% !important; }
+
+  /* Team Member / Checked By — narrow to fit one line in print */
+  .section-row .inline-input[style*="15ch"] {
+    width: 10ch !important;
+  }
 
   /* ── 10. Checkboxes & YN pills ── */
   input[type="checkbox"] {
@@ -901,7 +948,7 @@ body.dark-mode .miscues-textarea {
 
     <div class="top-fields">
       <div class="field-row"><label>Customer Name:</label><input type="text" placeholder="Full name"></div>
-      <div class="field-row"><label>Date:</label><input type="text" id="f-date" placeholder="MM/DD/YYYY" inputmode="numeric"></div>
+      <div class="field-row"><label>Date:</label><input type="date" id="f-date"></div>
       <div class="field-row"><label>Address:</label><input type="text" placeholder="Job address"></div>
       <div class="field-row"><label>Gas Truck:</label><input type="text" placeholder="Truck #"></div>
       <div class="field-row"><label>Job:</label><input type="text" placeholder="Job number"></div>
@@ -914,25 +961,25 @@ body.dark-mode .miscues-textarea {
       <div>
         <div class="section">
           <div class="section-title">GAS</div>
-          <div class="section-row"><b>Team Member:</b>&nbsp;<input class="inline-input xshort" type="text">&nbsp;<b>Checked By:</b>&nbsp;<input class="inline-input xshort" type="text"></div>
+          <div class="section-row"><b>Team Member:</b>&nbsp;<input class="inline-input" style="width:15ch;" type="text">&nbsp;<b>Checked By:</b>&nbsp;<input class="inline-input" style="width:15ch;" type="text"></div>
           <div class="section-row">Natural Gas: <input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row">LP Tank Installation: <input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row">LP Tank Size: <input class="inline-input" style="width:32px;" type="text"> AG <input type="checkbox"> UG <input type="checkbox"></div>
-          <div class="section-row">Tank Serial #: <input class="inline-input" style="width:100px;" type="text"></div>
+          <div class="section-row">LP Tank Size: <input class="inline-input" style="width:15ch;" type="text"> <input type="checkbox"> AG <input type="checkbox"> UG</div>
+          <div class="section-row">Tank Serial #: <input class="inline-input" style="width:15ch;" type="text"></div>
           <div class="section-row">Existing Gas: <input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row">Surface Mounted Length: <input class="inline-input" style="width:40px;" type="text"></div>
           <div class="section-row">Underground Length: <input class="inline-input" style="width:40px;" type="text"></div>
           <div class="section-row">Attic CSST Length: <input class="inline-input" style="width:40px;" type="text"></div>
-          <div class="section-row">Needs Completed: <input class="inline-input" style="width:110px;" type="text"></div>
+          <div class="section-row" style="flex-direction:column;align-items:flex-start;gap:2px;"><b>Needs Completed:</b><textarea class="multiline" rows="2" style="width:100%;min-height:38px;resize:none;font-size:11.5px;" placeholder="Enter items to be completed…"></textarea></div>
           <div class="section-row"><input type="text" class="full-line-input" placeholder="Additional notes"></div>
         </div>
         <hr class="section-hr">
         <div class="section">
           <div class="section-title">CLEAN UP</div>
-          <div class="section-row"><b>Team Member:</b>&nbsp;<input class="inline-input xshort" type="text">&nbsp;<b>Checked By:</b>&nbsp;<input class="inline-input xshort" type="text"></div>
+          <div class="section-row"><b>Team Member:</b>&nbsp;<input class="inline-input" style="width:15ch;" type="text">&nbsp;<b>Checked By:</b>&nbsp;<input class="inline-input" style="width:15ch;" type="text"></div>
           <div class="section-row" style="font-weight:bold;">EVERYTHING CLEAN: <input type="checkbox"> YES</div>
           <div class="section-row">Ready for H/O Training: <input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row">Why Not: <input class="inline-input" style="width:110px;" type="text"></div>
+          <div class="section-row" style="flex-direction:column;align-items:flex-start;gap:2px;"><b>Why Not:</b><textarea class="multiline" rows="2" style="width:100%;min-height:38px;resize:none;font-size:11.5px;" placeholder="Enter reason…"></textarea></div>
         </div>
         <hr class="section-hr">
         <div class="section">
@@ -944,7 +991,7 @@ body.dark-mode .miscues-textarea {
       <div>
         <div class="section">
           <div class="section-title">WALK THROUGH</div>
-          <div class="section-row"><b>Team Member:</b>&nbsp;<input class="inline-input xshort" type="text">&nbsp;<b>Checked By:</b>&nbsp;<input class="inline-input xshort" type="text"></div>
+          <div class="section-row"><b>Team Member:</b>&nbsp;<input class="inline-input" style="width:15ch;" type="text">&nbsp;<b>Checked By:</b>&nbsp;<input class="inline-input" style="width:15ch;" type="text"></div>
           <div class="section-row">Gas Affidavit Form: <input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row">Leak Check: <input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row">Sediment Trap (Liq. Cooled Only): <input type="checkbox"> YES <input type="checkbox"> NO</div>
@@ -959,7 +1006,7 @@ body.dark-mode .miscues-textarea {
         <hr class="section-hr">
         <div class="section">
           <div class="section-title">INSPECTION(S)</div>
-          <div class="section-row"><b>Team Member:</b>&nbsp;<input class="inline-input xshort" type="text">&nbsp;<b>Checked By:</b>&nbsp;<input class="inline-input xshort" type="text"></div>
+          <div class="section-row"><b>Team Member:</b>&nbsp;<input class="inline-input" style="width:15ch;" type="text">&nbsp;<b>Checked By:</b>&nbsp;<input class="inline-input" style="width:15ch;" type="text"></div>
           <div class="section-row">Inspected: <input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row">FIRE Inspector: <input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row">County: <input type="checkbox"> YES <input type="checkbox"> NO</div>
