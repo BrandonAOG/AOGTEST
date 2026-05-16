@@ -1086,8 +1086,7 @@ body.dark-mode .miscues-textarea {
   .top-fields .field-row {
     display: table-cell !important; vertical-align: bottom !important;
     font-size: 7.5pt !important; line-height: 1.2 !important;
-    min-height: 0 !important; padding-top: 0 !important;
-    padding-bottom: 1pt !important;
+    min-height: 0 !important; padding-top: 0 !important; padding-bottom: 1pt !important;
   }
   .top-fields .field-row label { font-size: 7.5pt !important; white-space: nowrap !important; }
   .top-fields .field-row input[type="text"],
@@ -1115,6 +1114,9 @@ body.dark-mode .miscues-textarea {
     display: block !important; overflow: visible !important;
   }
   hr.section-hr { margin: 1pt 0 !important; }
+
+  /* ── Team Member / Checked By inline inputs — keep short ── */
+  .section-row .inline-input { width: 7ch !important; }
 
   /* ── Inline inputs ── */
   .inline-input, .full-line-input {
@@ -1146,31 +1148,25 @@ body.dark-mode .miscues-textarea {
     border: 0.5pt solid #bbb !important;
   }
 
-  /* ── Regulator row — BLUE, full-width, own row ── */
+  /* ── Regulator row ── */
   .reg-row {
-    display: block !important; width: 100% !important;
     font-size: 7pt !important; font-weight: bold !important;
-    padding: 2pt 4pt !important; margin-bottom: 2pt !important;
-    gap: 0 !important;
-    background: #1E40AF !important; color: #ffffff !important;
-    border: none !important; border-radius: 1pt !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-    line-height: 1.5 !important; overflow: visible !important;
+    padding: 1pt 0 !important; margin-bottom: 2pt !important;
+    border-top: 0.5pt solid #ccc !important; border-bottom: 0.5pt solid #ccc !important;
+    display: block !important; width: 100% !important; line-height: 1.5 !important;
   }
-  .reg-field {
-    display: inline-flex !important; align-items: center !important;
-    gap: 2pt !important; margin-right: 8pt !important;
-    white-space: nowrap !important;
-  }
-  .reg-field label { font-size: 7pt !important; color: #ffffff !important; }
+  .reg-field { display: inline-flex !important; align-items: center !important; gap: 2pt !important; margin-right: 6pt !important; white-space: nowrap !important; }
+  .reg-field label { font-size: 7pt !important; color: #1F2937 !important; }
   .reg-field input {
-    font-size: 7pt !important; width: 22pt !important;
-    color: #ffffff !important; background: rgba(255,255,255,0.2) !important;
-    border: none !important; border-bottom: 0.5pt solid rgba(255,255,255,0.6) !important;
+    font-size: 7pt !important; width: 22pt !important; color: #1F2937 !important;
+    background: transparent !important; border: none !important;
+    border-bottom: 0.5pt solid #999 !important;
     line-height: 1.2 !important; padding: 0 2pt !important;
     min-height: 0 !important; overflow: visible !important; clip-path: none !important;
-    -webkit-print-color-adjust: exact !important;
+    -webkit-appearance: none !important;
   }
+  /* Keep REGULATORS span blue in print too */
+  .reg-field label span { color: #1E40AF !important; -webkit-print-color-adjust: exact !important; }
 
   /* ── Tables split: table layout — fr/flex fails in Mobile Safari print ── */
   .tables-split, .page2-tables-split {
@@ -1372,7 +1368,7 @@ body.dark-mode .miscues-textarea {
     </div>
 
     <div class="reg-row">
-      <div class="reg-field"><label>REGULATORS 1<sup>ST</sup> STAGE:</label><input type="text"></div>
+      <div class="reg-field"><label><span style="color:#1E40AF;font-weight:bold;">REGULATORS</span> 1<sup>ST</sup> STAGE:</label><input type="text"></div>
       <div class="reg-field"><label>NORGAS:</label><input type="text"></div>
       <div class="reg-field"><label>2<sup>ND</sup> STAGE STRAIGHT:</label><input type="text"></div>
       <div class="reg-field"><label>2<sup>ND</sup> STAGE BACK MOUNT:</label><input type="text"></div>
@@ -1989,7 +1985,6 @@ function setStatus(msg) {
     if (!p2) return;
     p2.style.cssText += ';display:block!important;visibility:visible!important;opacity:1!important;width:100%!important;';
 
-    // page2 tables split — table layout (fr/flex fail in Mobile Safari print)
     const split = p2.querySelector('.page2-tables-split');
     if (split) {
       split.style.cssText += ';display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;';
@@ -2011,7 +2006,7 @@ function setStatus(msg) {
     const other = p2.querySelector('.other-section');
     if (other) other.style.cssText += ';display:block!important;width:100%!important;margin-top:2pt!important;';
 
-    // page1 table split — same treatment
+    // page1 splits — table layout (fr/flex fail in Mobile Safari print)
     const p1 = document.getElementById('page1');
     if (p1) {
       const s1 = p1.querySelector('.tables-split');
@@ -2028,15 +2023,6 @@ function setStatus(msg) {
           col.style.cssText += ';display:table-cell!important;width:50%!important;vertical-align:top!important;';
         });
       }
-      // Blue regulator row
-      const reg = p1.querySelector('.reg-row');
-      if (reg) {
-        reg.style.cssText += ';display:block!important;width:100%!important;background:#1E40AF!important;color:#ffffff!important;padding:2pt 4pt!important;margin-bottom:2pt!important;border:none!important;border-radius:1pt!important;-webkit-print-color-adjust:exact!important;';
-        reg.querySelectorAll('label').forEach(l => { l.style.color = '#ffffff'; });
-        reg.querySelectorAll('input').forEach(i => {
-          i.style.cssText += ';color:#ffffff!important;background:rgba(255,255,255,0.2)!important;border:none!important;border-bottom:0.5pt solid rgba(255,255,255,0.6)!important;';
-        });
-      }
     }
   }
 
@@ -2045,8 +2031,8 @@ function setStatus(msg) {
     if (pw) pw.removeAttribute('style');
     const p1 = document.getElementById('page1');
     if (p1) {
-      [p1.querySelector('.tables-split'), p1.querySelector('.two-col'), p1.querySelector('.reg-row'),
-       ...Array.from(p1.querySelectorAll('.tables-col, table.mat-table, thead, tbody, tr, th, td, label, input'))
+      [p1.querySelector('.tables-split'), p1.querySelector('.two-col'),
+       ...Array.from(p1.querySelectorAll('.tables-col, table.mat-table, thead, tbody, tr, th, td'))
       ].forEach(el => { if (el) el.removeAttribute('style'); });
     }
     const p2 = document.getElementById('page2');
