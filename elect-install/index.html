@@ -1328,7 +1328,10 @@ function dbgUpdate() {
 }
 new MutationObserver(() => {
   dbgUpdate();
-  dbgLog('class changed → [' + document.body.className + ']', 'event-class');
+  const isDark = document.body.classList.contains('dark-mode');
+  const mode = isDark ? '🌙 DARK MODE' : '☀️ LIGHT MODE';
+  const cls = isDark ? 'event-class' : 'event-after';
+  dbgLog('class changed → ' + mode, cls);
 }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
 // ===== SERVICE WORKER =====
