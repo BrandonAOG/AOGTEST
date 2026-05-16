@@ -1206,7 +1206,10 @@ function openPrintPreview() {
   const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
   function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
   origDocTitle = document.title;
-  document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
+  const printTitle = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
+  document.title = printTitle;
+  // Safari reads history state for print filename
+  try { history.replaceState(null, printTitle, window.location.href); } catch(e) {}
 
   wasDarkAtPrint = document.body.classList.contains('dark-mode');
   if (wasDarkAtPrint) {
@@ -1296,6 +1299,7 @@ window.addEventListener('afterprint', () => {
   if (nt) nt.remove();
   if (wasDarkAtPrint) document.body.classList.add('dark-mode');
   document.title = origDocTitle;
+  try { history.replaceState(null, origDocTitle, window.location.href); } catch(e) {}
 });
 
 // ===== SERVICE WORKER =====
