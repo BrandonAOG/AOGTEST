@@ -319,12 +319,64 @@ body.dark-mode .footer-field label { color: #E0F7FF; }
 
 /* ===== PAGE 1 ===== */
 .page1-header { text-align: center; margin-bottom: 14px; }
-.logo-area { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; justify-content: center; flex-wrap: wrap; }
+.logo-area {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 16px; justify-content: center; flex-wrap: wrap;
+}
+.logo-area img {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 0 12px rgba(217,119,6,0.6))
+    drop-shadow(0 0 24px rgba(217,119,6,0.4))
+    brightness(1.1);
+  animation: logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 12px rgba(217,119,6,0.6))
+      drop-shadow(0 0 24px rgba(217,119,6,0.4))
+      brightness(1.1);
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 18px rgba(217,119,6,0.8))
+      drop-shadow(0 0 36px rgba(217,119,6,0.6))
+      brightness(1.2);
+  }
+}
+body.dark-mode .logo-area img {
+  filter:
+    drop-shadow(0 0 12px rgba(0,255,200,0.6))
+    drop-shadow(0 0 24px rgba(0,255,200,0.4))
+    brightness(1.1);
+  animation: logoPulseDark 3s ease-in-out infinite;
+}
+@keyframes logoPulseDark {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 12px rgba(0,255,200,0.6))
+      drop-shadow(0 0 24px rgba(0,255,200,0.4))
+      brightness(1.1);
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 18px rgba(0,255,200,0.8))
+      drop-shadow(0 0 36px rgba(0,255,200,0.6))
+      brightness(1.2);
+  }
+}
 .checklist-title { font-weight: bold; font-size: 18px; border-top: 2px solid var(--text); padding-top: 10px; margin-bottom: 16px; color: var(--text); font-family: Arial, sans-serif; }
 body.dark-mode .checklist-title { border-top-color: #00FFC8; color: #00FFC8; }
 .logo-text { font-family: 'Arial Black', sans-serif; font-size: 16px; line-height: 1; color: #D97706; white-space: nowrap; }
 .logo-text span { color: #D97706; }
-body.dark-mode .logo-text span { color: #00FFC8; }
+.logo-always { color: #111111 !important; }
+.logo-generators { color: #111111 !important; }
+body.dark-mode .logo-always { color: #ffffff !important; }
+body.dark-mode .logo-generators { color: #ffffff !important; }
+.logo-text span.logo-on { color: #D97706 !important; }
 .top-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-bottom: 12px; width: 100%; }
 @media (max-width: 600px) { .top-fields { grid-template-columns: 1fr; gap: 6px; } }
 .field-row { display: flex; align-items: flex-end; gap: 6px; width: 100%; min-width: 0; font-family: Arial, sans-serif; }
@@ -632,6 +684,10 @@ body.dark-mode .notice { color: #7DD3FC; }
   .form-page * { box-shadow: none !important; }
   .logo-text { color: #D97706 !important; }
   .logo-text span { color: #D97706 !important; }
+  .logo-on { color: #D97706 !important; }
+  .logo-always { color: #111111 !important; }
+  .logo-generators { color: #111111 !important; }
+  .logo-area img { filter: none !important; animation: none !important; }
 }
 
 /* ===== MOBILE-ONLY PRINT RULES (max-width: 767px) =====
@@ -724,11 +780,11 @@ body.dark-mode .notice { color: #7DD3FC; }
     <div class="page1-header">
       <div class="logo-area">
         <img src="../logo.png"
-             onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/a/ACg8ocJP3abFJ_3mTYZ2vCcFGJ5eDsMroNqrPrfd3aX3T5Pa-Xq7SVg=s317-c-no';"
+             onerror="this.onerror=null;this.style.display='none';"
              alt="Always On Generators Logo"
-             style="width:40px;height:40px;display:block;border-radius:50%;object-fit:cover;flex-shrink:0;">
-        <div class="logo-text">ALWAYS<span>ON</span><br>
-          <span style="color:#111;font-size:10px;font-family:Arial,sans-serif;letter-spacing:1px;">GENERATORS</span>
+             style="width:100px;height:100px;display:block;object-fit:contain;flex-shrink:0;">
+        <div class="logo-text"><span class="logo-always">ALWAYS</span><span class="logo-on">ON</span><br>
+          <span class="logo-generators" style="font-size:10px;font-family:Arial,sans-serif;letter-spacing:1px;">GENERATORS</span>
         </div>
       </div>
       <div class="checklist-title">ELECTRICAL INSTALLATION CHECKLIST</div>
