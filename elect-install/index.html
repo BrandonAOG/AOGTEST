@@ -561,19 +561,15 @@ body.dark-mode .notice { color: #7DD3FC; }
   #page2 .footer-field input.short { width: 32px !important; }
   #page2 .footer-field input.wide  { width: 65px !important; }
 }
-
-/* ── Home button ── */
-.home-btn{position:fixed;top:14px;left:14px;z-index:9999;width:40px;height:40px;background:rgba(15,21,53,.9);border:1px solid rgba(251,191,36,.4);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all .2s;text-decoration:none;color:var(--text)}
-.home-btn:hover{background:rgba(251,191,36,.15);border-color:var(--yellow-bright);box-shadow:0 0 12px rgba(251,191,36,.3)}
 </style>
 </head>
 <body>
-<a class="home-btn" href="../" title="Back to Hub">🏠</a>
 
 <!-- ACTION BAR -->
 <div class="action-bar">
   <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:100%;">
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
       <button class="btn" id="btn-pdf" onclick="openPrintPreview()">📄 PDF</button>
       <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
       <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPhone</button>
@@ -977,8 +973,31 @@ function clearForm() {
   document.querySelectorAll('.ts-toggle').forEach(t => t.classList.remove('collapsed'));
 }
 
+// ===== FILENAME HELPER =====
+function buildFilename(ext, pageNum, totalPages) {
+  // Pull Customer Name and Address from the top-fields inputs
+  const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
+  // Order: Customer Name (0), Date (1), Address (2)
+  const customerName = (topInputs[0] ? topInputs[0].value.trim() : '') || 'Customer';
+  const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
+  // Sanitize: replace any character that's not alphanumeric, space, hyphen, or dot
+  function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
+  const namePart    = sanitize(customerName);
+  const addressPart = sanitize(address);
+  const suffix = totalPages > 1 ? `_Page${pageNum}` : '';
+  return `${namePart}_${addressPart}_Elec_Install${suffix}.${ext}`;
+}
+
 // ===== PRINT — simple synchronous, exactly as doc9 had it =====
 function openPrintPreview() {
+  // Set the document title so the browser uses it as the default PDF/print filename
+  const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
+  const customerName = (topInputs[0] ? topInputs[0].value.trim() : '') || 'Customer';
+  const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
+  function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
+  const origTitle = document.title;
+  document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
+
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
   const ab = document.querySelector('.action-bar');
@@ -989,6 +1008,7 @@ function openPrintPreview() {
   if (ab) ab.style.display = '';
   if (nt) nt.style.display = '';
   if (wasDark) document.body.classList.add('dark-mode');
+  document.title = origTitle;
 }
 
 // ===== IPHONE =====
@@ -1008,15 +1028,17 @@ function saveForIPhone() {
   let completed = 0;
   pages.forEach((page, idx) => {
     const wrapper = document.createElement('div'); wrapper.style.cssText = 'text-align:center;';
-    const lbl = document.createElement('div'); lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:8px;'; lbl.textContent = `Page ${idx+1} of ${pages.length}`;
+    const fname = buildFilename('jpg', idx + 1, pages.length);
+    const lbl = document.createElement('div'); lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:4px;'; lbl.textContent = `Page ${idx+1} of ${pages.length}`;
+    const fnlbl = document.createElement('div'); fnlbl.style.cssText = 'color:#aaa;font-size:10px;margin-bottom:8px;word-break:break-all;'; fnlbl.textContent = fname;
     const img = document.createElement('img');
     html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
       img.src = canvas.toDataURL('image/jpeg', 0.85);
       img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
-      img.alt = `Form page ${idx+1}`;
-      wrapper.appendChild(lbl); wrapper.appendChild(img); container.appendChild(wrapper);
+      img.alt = fname;
+      wrapper.appendChild(lbl); wrapper.appendChild(fnlbl); wrapper.appendChild(img); container.appendChild(wrapper);
       completed++;
-      if (completed === pages.length) { setStatus('Images ready. Long-press to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
+      if (completed === pages.length) { setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
     });
   });
   closeBtn.onclick = () => { setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
@@ -1032,7 +1054,7 @@ function saveForAndroid() {
   pages.forEach((page, idx) => {
     html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
       const link = document.createElement('a');
-      link.download = pages.length === 1 ? 'AlwaysOn_Generators_Form.jpg' : `AlwaysOn_Generators_Form_Page${idx+1}.jpg`;
+      link.download = buildFilename('jpg', idx + 1, pages.length);
       link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
       completed++;
       if (completed === pages.length) { setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
