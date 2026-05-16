@@ -43,6 +43,14 @@
   styleEl.textContent = PRINT_CSS;
   document.head.appendChild(styleEl);
   if (IS_MOBILE) document.documentElement.classList.add('is-mobile-device');
+
+  // On iOS Safari, force viewport width to 1050px immediately so the page
+  // is already laid out at full print width before the print dialog opens.
+  // The mobile CSS media queries still handle the visual appearance on screen.
+  if (IS_IOS_SAFARI) {
+    var vp = document.querySelector('meta[name="viewport"]');
+    if (vp) vp.setAttribute('content', 'width=1050, initial-scale=' + (screen.width / 1050).toFixed(4) + ', viewport-fit=cover');
+  }
 })();
 </script>
 
@@ -556,11 +564,13 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 @media print {
   @page { size: 8.5in 11in; margin: 0.05in 0.05in 0.05in 0.05in; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; animation-play-state: paused !important; transition: none !important; }
-  .toolbar, #theme-toggle-btn, #offline-banner, #address-suggestions, #gps-status, #gps-btn { display: none !important; }
+  .toolbar, #theme-toggle-btn, #offline-banner, #address-suggestions, #gps-status, #gps-btn, #print-debug { display: none !important; }
   .header::after { display: none !important; }
   body::before, body::after, body[class*="seasonal-"]::before, body[class*="seasonal-"]::after { display: none !important; content: none !important; }
-  html { zoom: 0.758; margin: 0 !important; padding: 0 !important; }
-  body { margin: 0 auto !important; padding: 0 !important; width: 1050px !important; max-width: none !important; background: #ffffff !important; background-image: none !important; color: #1F2937 !important; --icon-color-section: #D97706 !important; --cyan: #D97706 !important; }
+  html { margin: 0 !important; padding: 0 !important; zoom: 0.758; }
+  html.mobile-safari { zoom: 1 !important; width: 1050px !important; margin: 0 !important; padding: 0 !important; -webkit-transform: scale(0.758); -webkit-transform-origin: top left; transform: scale(0.758); transform-origin: top left; }
+  html.mobile-safari body { margin-left: 13px !important; }
+  body { margin: 0 !important; padding: 0 !important; width: 1050px !important; max-width: none !important; min-height: 0 !important; background: #ffffff !important; background-image: none !important; color: #1F2937 !important; --icon-color-section: #D97706 !important; --cyan: #D97706 !important; }
   .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: visible !important; background: #ffffff !important; border: 1.5pt solid #D97706 !important; box-shadow: none !important; position: static !important; outline: none !important; }
   .content { flex: 1 !important; min-height: 0 !important; overflow: visible !important; padding: 4px 14px !important; background: #ffffff !important; display: flex !important; flex-direction: column !important; gap: 0 !important; justify-content: space-between !important; height: 0 !important; }
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none !important; }
@@ -2936,6 +2946,32 @@ document.addEventListener('DOMContentLoaded', function() {
       if (el && el.value.trim()) validator.validateField(fieldId);
     });
   }, 0);
+
+  // ── MOBILE SAFARI PRINT WIDTH FIX ───────────────────────────
+  // Only runs on iOS Safari — desktop uses CSS zoom via @media print
+  if (window.IS_IOS_SAFARI) {
+    (function() {
+      var metaViewport = document.querySelector('meta[name="viewport"]');
+      var originalContent = metaViewport ? metaViewport.getAttribute('content') : null;
+      window.addEventListener('beforeprint', function() {
+        if (metaViewport) {
+          metaViewport.setAttribute('content', 'width=1050, initial-scale=0.758');
+        }
+        document.documentElement.style.width = '1050px';
+        document.body.style.width = '1050px';
+        document.body.style.minHeight = '0';
+      });
+      window.addEventListener('afterprint', function() {
+        if (metaViewport && originalContent) {
+          metaViewport.setAttribute('content', originalContent);
+        }
+        document.documentElement.style.width = '';
+        document.body.style.width = '';
+        document.body.style.minHeight = '';
+      });
+    })();
+  }
+  // ── END MOBILE SAFARI PRINT WIDTH FIX ───────────────────────
 
   // ── PRINT DEBUG ──────────────────────────────────────────────
   (function initPrintDebug() {
