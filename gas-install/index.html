@@ -2056,14 +2056,13 @@ function setStatus(msg) {
     document.querySelectorAll('.section-row .inline-input').forEach(el =>
       save(el, 'width:7ch!important;font-size:7pt!important;line-height:1.2!important;min-height:0!important;padding:0 2pt!important;clip-path:none!important;-webkit-appearance:none!important;'));
 
-    // ── ALL text/date inputs and textareas at 7pt — run last so it wins (excludes table inputs) ──
-    document.querySelectorAll('input[type="text"], input[type="date"], textarea').forEach(el => {
-      if (!el.closest('table.mat-table')) {
-        const existing = el.style.cssText || '';
-        savedStyles.push({ el, was: el.getAttribute('style') || '' });
-        el.style.cssText = existing + ';font-size:7pt!important;';
-      }
-    });
+    // ── full-line inputs ──
+    document.querySelectorAll('.full-line-input').forEach(el =>
+      save(el, 'font-size:7pt!important;width:100%!important;'));
+
+    // ── reg-field inputs ──
+    document.querySelectorAll('.reg-field input[type="text"]').forEach(el =>
+      save(el, 'font-size:7pt!important;width:22pt!important;border:none!important;border-bottom:0.5pt solid #999!important;padding:0 2pt!important;background:transparent!important;clip-path:none!important;'));
 
     // ── page 1 textareas ──
     document.querySelectorAll('#page1 textarea.multiline, .miscues-textarea').forEach(el =>
