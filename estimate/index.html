@@ -92,6 +92,52 @@ html.dark-mode-pending body {
 }
 }
 
+/* ── PRINT DEBUG PANEL ── */
+#print-debug {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  z-index: 99999;
+  background: rgba(0,0,0,0.88);
+  color: #00FFC8;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  padding: 10px 14px;
+  border: 1px solid #00FFC8;
+  border-radius: 4px;
+  min-width: 220px;
+  max-width: 260px;
+  box-shadow: 0 0 16px rgba(0,255,200,0.3);
+  pointer-events: none;
+  user-select: none;
+}
+#print-debug .dbg-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #FFD700;
+  border-bottom: 1px solid rgba(0,255,200,0.3);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+}
+#print-debug .dbg-row { display: flex; justify-content: space-between; gap: 12px; }
+#print-debug .dbg-key { color: #7DD3FC; }
+#print-debug .dbg-val { color: #fff; font-weight: bold; }
+#print-debug .dbg-warn { color: #FF6B6B; }
+#print-debug .dbg-ok   { color: #34D399; }
+#print-debug .dbg-hint {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #888;
+  border-top: 1px solid rgba(0,255,200,0.15);
+  padding-top: 5px;
+  line-height: 1.4;
+}
+@media print {
+  #print-debug { display: none !important; }
+}
+
 .btn-gold { transition: all 0.3s ease; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -516,7 +562,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   html { zoom: 0.758; margin: 0 !important; padding: 0 !important; }
   body { margin: 0 auto !important; padding: 0 !important; width: 1050px !important; max-width: none !important; background: #ffffff !important; background-image: none !important; color: #1F2937 !important; --icon-color-section: #D97706 !important; --cyan: #D97706 !important; }
   .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: visible !important; background: #ffffff !important; border: 1.5pt solid #D97706 !important; box-shadow: none !important; position: static !important; outline: none !important; }
-  .content { flex: 1 !important; min-height: 0 !important; overflow: visible !important; padding: 4px 14px !important; background: #ffffff !important; display: flex !important; flex-direction: column !important; gap: 0 !important; justify-content: flex-start !important; height: auto !important; }
+  .content { flex: 1 !important; min-height: 0 !important; overflow: visible !important; padding: 4px 14px !important; background: #ffffff !important; display: flex !important; flex-direction: column !important; gap: 0 !important; justify-content: space-between !important; height: 0 !important; }
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none !important; }
   .header { background: #ffffff !important; border-bottom: 1px solid #D97706 !important; padding: 10px 28px !important; min-height: auto !important; height: auto !important; display: flex !important; align-items: center !important; justify-content: space-between !important; flex-shrink: 0 !important; }
   .logo-img { width: 48px !important; height: 48px !important; }
@@ -656,6 +702,19 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     <button class="btn btn-gold" id="email-btn" onclick="sendEmail()" title="Send estimate via email">✉ EMAIL</button>
     <button class="btn" onclick="confirmClear()" title="Clear all fields and start over">🗑 CLEAR</button>
     <span id="save-status" style="font-family:var(--font-display);font-size:0.45rem;color:var(--text-muted);letter-spacing:1px;align-self:center;margin-left:4px;" aria-live="polite"></span>
+  </div>
+
+  <!-- PRINT DEBUG PANEL — remove before release -->
+  <div id="print-debug">
+    <div class="dbg-title">📐 Print Debug</div>
+    <div class="dbg-row"><span class="dbg-key">Page height</span><span class="dbg-val" id="dbg-page-h">—</span></div>
+    <div class="dbg-row"><span class="dbg-key">Viewport H</span><span class="dbg-val" id="dbg-vp-h">—</span></div>
+    <div class="dbg-row"><span class="dbg-key">Scroll H</span><span class="dbg-val" id="dbg-scroll-h">—</span></div>
+    <div class="dbg-row"><span class="dbg-key">A4 target</span><span class="dbg-val">1123 px</span></div>
+    <div class="dbg-row"><span class="dbg-key">Letter target</span><span class="dbg-val">1056 px</span></div>
+    <div class="dbg-row"><span class="dbg-key">Fit status</span><span class="dbg-val" id="dbg-status">—</span></div>
+    <div class="dbg-row"><span class="dbg-key">Delta</span><span class="dbg-val" id="dbg-delta">—</span></div>
+    <div class="dbg-hint" id="dbg-hint">Tap PDF button to test print layout.</div>
   </div>
 
   <div class="content">
@@ -2877,6 +2936,55 @@ document.addEventListener('DOMContentLoaded', function() {
       if (el && el.value.trim()) validator.validateField(fieldId);
     });
   }, 0);
+
+  // ── PRINT DEBUG ──────────────────────────────────────────────
+  (function initPrintDebug() {
+    var LETTER_H = 1056; // px at 96dpi
+    var A4_H     = 1123;
+
+    function updateDebug() {
+      var page     = document.getElementById('page');
+      var pageH    = page ? Math.round(page.getBoundingClientRect().height) : 0;
+      var vpH      = Math.round(window.innerHeight);
+      var scrollH  = Math.round(document.documentElement.scrollHeight);
+
+      document.getElementById('dbg-page-h').textContent   = pageH   + ' px';
+      document.getElementById('dbg-vp-h').textContent     = vpH     + ' px';
+      document.getElementById('dbg-scroll-h').textContent = scrollH + ' px';
+
+      // Compare against Letter (most common for US mobile Safari print)
+      var delta      = pageH - LETTER_H;
+      var absDelta   = Math.abs(delta);
+      var statusEl   = document.getElementById('dbg-status');
+      var deltaEl    = document.getElementById('dbg-delta');
+      var hintEl     = document.getElementById('dbg-hint');
+
+      deltaEl.textContent = (delta >= 0 ? '+' : '') + delta + ' px';
+
+      if (absDelta <= 20) {
+        statusEl.textContent = '✅ Good fit';
+        statusEl.className   = 'dbg-val dbg-ok';
+        deltaEl.className    = 'dbg-val dbg-ok';
+        hintEl.textContent   = 'Content fits letter page nicely.';
+      } else if (delta > 20) {
+        statusEl.textContent = '⬆ Too tall';
+        statusEl.className   = 'dbg-val dbg-warn';
+        deltaEl.className    = 'dbg-val dbg-warn';
+        hintEl.textContent   = 'Reduce padding/margins or font sizes by ~' + absDelta + 'px.';
+      } else {
+        statusEl.textContent = '⬇ Too short';
+        statusEl.className   = 'dbg-val dbg-warn';
+        deltaEl.className    = 'dbg-val dbg-warn';
+        hintEl.textContent   = 'Content has ~' + absDelta + 'px of empty space at bottom.';
+      }
+    }
+
+    updateDebug();
+    window.addEventListener('resize', updateDebug);
+    // Re-check periodically in case content shifts after load
+    setInterval(updateDebug, 1500);
+  })();
+  // ── END PRINT DEBUG ──────────────────────────────────────────
 });
 </script>
 
