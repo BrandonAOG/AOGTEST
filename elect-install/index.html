@@ -365,6 +365,27 @@ body.dark-mode .notice { color: #7DD3FC; }
 
   @page { size: 8.5in 11in; margin: 0.2in; }
 
+  /* Force light-mode CSS variables for Safari, which fires the print
+     renderer before JS can strip the dark-mode class from <body> */
+  html, body, body.dark-mode {
+    --bg: #FFFFFF !important;
+    --bg2: #FFFFFF !important;
+    --bg3: #F8F8F8 !important;
+    --bg4: #F0F0F0 !important;
+    --panel: #FFFFFF !important;
+    --panel2: #FAFAFA !important;
+    --border: rgba(217,119,6,0.25) !important;
+    --border-bright: rgba(217,119,6,0.5) !important;
+    --text: #1F2937 !important;
+    --text-muted: #6B7280 !important;
+    --text-dim: #9CA3AF !important;
+    --cyan: #D97706 !important;
+    --cyan-dim: #B45309 !important;
+    --cyan-dark: #92400E !important;
+    --glow: none !important;
+    --glow-amber: none !important;
+  }
+
   html, body {
     margin: 0 !important; padding: 0 !important;
     width: 100% !important; max-width: 100% !important;
@@ -372,7 +393,41 @@ body.dark-mode .notice { color: #7DD3FC; }
     overflow: visible !important;
   }
 
+  /* Kill dark-mode gradient background on body */
+  body.dark-mode {
+    background: #fff !important;
+    background-image: none !important;
+    background-attachment: initial !important;
+  }
+
   .action-bar, .theme-toggle-btn, .notice { display: none !important; }
+
+  /* Neutralise any dark-mode element backgrounds that don't use CSS vars */
+  body.dark-mode .action-bar,
+  body.dark-mode .form-page,
+  body.dark-mode .page-wrapper,
+  body.dark-mode .ts-header,
+  body.dark-mode .ts-body,
+  body.dark-mode .ts-block,
+  body.dark-mode input[type="text"],
+  body.dark-mode textarea,
+  body.dark-mode select,
+  body.dark-mode table.mat-table td,
+  body.dark-mode table.mat-table td.row-label {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #1F2937 !important;
+    box-shadow: none !important;
+    border-color: #555 !important;
+  }
+  body.dark-mode table.mat-table th {
+    background: #4B5563 !important;
+    color: #ffffff !important;
+  }
+  body.dark-mode .yn-checkbox-wrap { border-color: #bbb !important; color: #1F2937 !important; background: transparent !important; }
+  body.dark-mode .yn-checkbox-wrap.yn-yes.checked { background: #059669 !important; color: #fff !important; }
+  body.dark-mode .yn-checkbox-wrap.yn-no.checked  { background: #DC2626 !important; color: #fff !important; }
+  body.dark-mode .yn-checkbox-wrap.yn-opt.checked { background: #D97706 !important; color: #fff !important; }
 
   .page-wrapper { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
 
@@ -758,7 +813,7 @@ body.dark-mode .notice { color: #7DD3FC; }
       <table class="mat-table" id="wireway-table">
         <thead><tr>
           <th style="width:100px;">WIREWAY</th>
-          <th>3'</th><th>4'</th><th>5'</th><th>6'</th>
+          <th>2'</th><th>3'</th><th>4'</th><th>5'</th><th>6'</th>
         </tr></thead>
         <tbody id="wireway-body"></tbody>
       </table>
@@ -768,7 +823,7 @@ body.dark-mode .notice { color: #7DD3FC; }
       <table class="mat-table" id="polaris-table">
         <thead><tr>
           <th style="width:100px;">POLARIS TAPS</th>
-          <th>2-Port</th><th>3-Port</th><th>4-Port</th><th>5-Port</th><th>6-Port</th>
+          <th>Straights</th><th>2-Port</th><th>3-Port</th><th>4-Port</th><th>5-Port</th>
         </tr></thead>
         <tbody id="polaris-body"></tbody>
       </table>
@@ -860,7 +915,7 @@ fittings.forEach(name => {
   const lbl = document.createElement("td");
   lbl.className = "row-label"; lbl.textContent = name;
   tr.appendChild(lbl);
-  ["3'","4'","5'","6'"].forEach(() => {
+  ["2'","3'","4'","5'","6'"].forEach(() => {
     const td = document.createElement("td");
     const inp = document.createElement("input"); inp.type = "text";
     td.appendChild(inp); tr.appendChild(td);
@@ -873,7 +928,7 @@ fittings.forEach(name => {
   const lbl = document.createElement("td");
   lbl.className = "row-label"; lbl.textContent = name;
   tr.appendChild(lbl);
-  ["2-Port","3-Port","4-Port","5-Port","6-Port"].forEach(() => {
+  ["Straights","2-Port","3-Port","4-Port","5-Port"].forEach(() => {
     const td = document.createElement("td");
     const inp = document.createElement("input"); inp.type = "text";
     td.appendChild(inp); tr.appendChild(td);
