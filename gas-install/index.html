@@ -1287,8 +1287,57 @@ body.dark-mode .miscues-textarea {
       </button>
     </div>
     <div id="save-status"></div>
+    <div style="text-align:center;margin-top:2px;">
+      <button class="btn" onclick="toggleDebug()" style="font-size:9px;padding:5px 10px;opacity:0.6;">🔍 DEBUG</button>
+    </div>
   </div>
 </div>
+
+<!-- DEBUG PANEL -->
+<div id="debug-panel" style="display:none;background:#1a1a2e;color:#00ff88;font-family:monospace;font-size:11px;padding:12px 16px;border-bottom:2px solid #00ff88;max-height:340px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;"></div>
+
+<script>
+function toggleDebug() {
+  var panel = document.getElementById('debug-panel');
+  if (panel.style.display === 'none') { panel.style.display = 'block'; runDebug(); }
+  else { panel.style.display = 'none'; }
+}
+function runDebug() {
+  var panel = document.getElementById('debug-panel');
+  var lines = [];
+  lines.push('=== DEVICE ===');
+  lines.push('UA: ' + navigator.userAgent);
+  lines.push('Screen: ' + screen.width + 'x' + screen.height + '  pixelRatio:' + window.devicePixelRatio);
+  lines.push('Window: ' + window.innerWidth + 'x' + window.innerHeight);
+  lines.push('');
+  lines.push('=== .top-fields (computed) ===');
+  var tf = document.querySelector('.top-fields');
+  if (tf) {
+    var cs = window.getComputedStyle(tf);
+    lines.push('display: ' + cs.display);
+    lines.push('grid-template-columns: ' + cs.gridTemplateColumns);
+    lines.push('flex-wrap: ' + cs.flexWrap);
+    lines.push('width: ' + cs.width + '  offsetWidth: ' + tf.offsetWidth);
+    lines.push('children count: ' + tf.children.length);
+  } else { lines.push('NOT FOUND'); }
+  lines.push('');
+  lines.push('=== .field-row children ===');
+  var rows = document.querySelectorAll('.top-fields .field-row');
+  rows.forEach(function(row, i) {
+    var cs = window.getComputedStyle(row);
+    var lbl = row.querySelector('label') ? row.querySelector('label').textContent.trim() : '(no label)';
+    lines.push('[' + i + '] "' + lbl + '"');
+    lines.push('     display:' + cs.display + '  width:' + cs.width + '  offsetWidth:' + row.offsetWidth);
+    lines.push('     flex:' + cs.flex + '  flexBasis:' + cs.flexBasis);
+  });
+  lines.push('');
+  lines.push('=== MEDIA MATCHES ===');
+  lines.push('print: ' + window.matchMedia('print').matches);
+  lines.push('max-device-width:1024px: ' + window.matchMedia('(max-device-width:1024px)').matches);
+  lines.push('max-device-width:767px: ' + window.matchMedia('(max-device-width:767px)').matches);
+  panel.textContent = lines.join('\n');
+}
+</script>
 
 <!-- ========== PAGE WRAPPER ========== -->
 <div class="page-wrapper" id="page-wrapper">
@@ -1757,7 +1806,7 @@ function injectCaptureStyles() {
     .inline-input, .full-line-input { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding:1pt 2pt 0 2pt!important; overflow:visible!important; background:transparent!important; border-top:none!important; border-left:none!important; border-right:none!important; border-bottom:0.5pt solid #999!important; }
     input[type="text"], input[type="date"] { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding:1pt 2pt 0 2pt!important; overflow:visible!important; background:transparent!important; color:#1F2937!important; }
     textarea { font-size:9pt!important; line-height:1.35!important; overflow:visible!important; background:transparent!important; color:#1F2937!important; }
-    .action-bar, .notice, #save-status { display:none!important; }
+    .action-bar, .notice, #save-status, #debug-panel { display:none!important; }
     .page2-tables-split { display:flex!important; flex-direction:row!important; gap:0 6pt!important; width:100%!important; }
     .page2-tables-split .tables-col { flex:1 1 50%!important; min-width:0!important; width:50%!important; display:block!important; }
     .tables-split { display:flex!important; flex-direction:row!important; gap:0 6pt!important; width:100%!important; }
