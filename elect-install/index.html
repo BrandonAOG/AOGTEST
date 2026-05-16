@@ -1009,5 +1009,297 @@ body.dark-mode .notice { color: #7DD3FC; }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+<script>
+// ===== THEME =====
+const THEME_KEY = 'aog_forms_theme_preference';
+function getInitialTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved) return saved;
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+  return 'light';
+}
+function applyTheme(theme) {
+  if (theme === 'dark') document.body.classList.add('dark-mode');
+  else document.body.classList.remove('dark-mode');
+  try { localStorage.setItem(THEME_KEY, theme); } catch(e) {}
+}
+function toggleTheme() { applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark'); }
+function setupThemeToggle() {
+  const btn = document.getElementById('theme-toggle-btn');
+  if (!btn) return;
+  btn.addEventListener('click', toggleTheme);
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!localStorage.getItem(THEME_KEY)) applyTheme(e.matches ? 'dark' : 'light');
+    });
+  }
+}
+applyTheme(getInitialTheme());
+
+// ===== BUILD TABLES =====
+const fittings = [
+  "PVC Pipe","Weatherproof Seals","Weatherproof Lock Rings","Fiber Bushings",
+  "Lock Rings","Male Adapters","Female Adapters","Couplings","Box Adapters",
+  "LB PVC","LL PVC","LR PVC","Sch40 90s","Sch40 45s","Seal Tight Straights",
+  "Seal Tight 90s","Seal Tight Car-Flex Hose","Myers Hubs","PVC Offset",
+  "Mini's","Strut Clamps","Two Hole Straps PVC","K.O. Seals","Weatherproof Seals"
+];
+const fittingSizes = ['5"','4"','3-1/2"','3"','2-1/2"','2"','1-1/2"','1-1/4"','1"','¾"','½"'];
+
+fittings.forEach(name => {
+  const tr = document.createElement("tr");
+  const lbl = document.createElement("td");
+  lbl.className = "row-label"; lbl.textContent = name;
+  tr.appendChild(lbl);
+  fittingSizes.forEach(() => {
+    const td = document.createElement("td");
+    const inp = document.createElement("input"); inp.type = "text"; inp.inputMode = "numeric"; inp.pattern = "[0-9]*";
+    td.appendChild(inp); tr.appendChild(td);
+  });
+  document.getElementById("fittings-body").appendChild(tr);
+});
+
+['4" x 4"','6" x 6"','8" x 8"','10" x 10"','12" x 12"'].forEach(name => {
+  const tr = document.createElement("tr");
+  const lbl = document.createElement("td");
+  lbl.className = "row-label"; lbl.textContent = name;
+  tr.appendChild(lbl);
+  ["2'","3'","4'","5'","6'"].forEach(() => {
+    const td = document.createElement("td");
+    const inp = document.createElement("input"); inp.type = "text"; inp.inputMode = "numeric"; inp.pattern = "[0-9]*";
+    td.appendChild(inp); tr.appendChild(td);
+  });
+  document.getElementById("wireway-body").appendChild(tr);
+});
+
+["4 AWG","1/0","3/0","250 MCM","350 MCM","500 MCM"].forEach(name => {
+  const tr = document.createElement("tr");
+  const lbl = document.createElement("td");
+  lbl.className = "row-label"; lbl.textContent = name;
+  tr.appendChild(lbl);
+  ["Straights","2-Port","3-Port","4-Port","5-Port"].forEach(() => {
+    const td = document.createElement("td");
+    const inp = document.createElement("input"); inp.type = "text"; inp.inputMode = "numeric"; inp.pattern = "[0-9]*";
+    td.appendChild(inp); tr.appendChild(td);
+  });
+  document.getElementById("polaris-body").appendChild(tr);
+});
+
+// ===== TRANSFER SWITCH =====
+let tsCount = 0;
+function buildTSBlock(num) {
+  const block = document.createElement("div");
+  block.className = "ts-block"; block.dataset.tsNum = num;
+  const header = document.createElement("div"); header.className = "ts-header";
+  const headerLeft = document.createElement("div"); headerLeft.className = "ts-header-left";
+  const toggle = document.createElement("span"); toggle.className = "ts-toggle"; toggle.textContent = "▼";
+  headerLeft.appendChild(toggle);
+  headerLeft.appendChild(document.createTextNode(` Transfer Switch ${num}`));
+  header.appendChild(headerLeft);
+  if (num > 1) {
+    const rb = document.createElement("button"); rb.className = "ts-remove-btn"; rb.textContent = "Remove";
+    rb.onclick = function() { removeTS(this); }; header.appendChild(rb);
+  }
+  headerLeft.addEventListener('click', function() {
+    block.querySelector('.ts-body').classList.toggle('hidden');
+    block.querySelector('.ts-toggle').classList.toggle('collapsed');
+  });
+  const body = document.createElement("div"); body.className = "ts-body";
+  body.innerHTML = `
+    <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
+    <div class="section-row"><label>Transfer Switch Type:</label><input type="checkbox"> ASE <input type="checkbox"> NSE <input type="checkbox"> Existing</div>
+    <div class="section-row"><input type="checkbox"> 16space <input type="checkbox"> 20space <input type="checkbox"> 100A <input type="checkbox"> 200A <input type="checkbox"> 300A <input type="checkbox"> 400A <input type="checkbox"> 600A <label>Quantity:</label><input class="inline-input xshort" type="text"></div>
+    <div class="section-row"><label>Transfer Switch Location:</label><input type="checkbox"> INSIDE <input type="checkbox"> OUTSIDE</div>
+    <div class="section-row"><label>Transfer Switch Mounted:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
+    <div class="section-row"><label>Surge Protector(s):</label><input type="checkbox"> YES <input type="checkbox"> NO <label>Quantity:</label><input class="inline-input xshort" type="text"></div>
+    <div class="section-row"><label>Panel Lugs Torqued to Spec:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
+    <div class="section-row"><label>Generator Electrical Run Torqued to Spec In Generator &amp; TS:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
+    <div class="section-row"><label>Needs Completed:</label><input type="text" style="width:100%;border:none;border-bottom:1px solid var(--text);"></div>
+  `;
+  block.appendChild(header); block.appendChild(body);
+  return block;
+}
+function addTransferSwitch() {
+  tsCount++;
+  document.getElementById("ts-container").appendChild(buildTSBlock(tsCount));
+  renumberTS(); applyYNColors();
+}
+function removeTS(btn) { btn.closest(".ts-block").remove(); renumberTS(); }
+function renumberTS() {
+  const blocks = document.querySelectorAll(".ts-block");
+  blocks.forEach((block, i) => {
+    const num = i + 1; block.dataset.tsNum = num;
+    const headerLeft = block.querySelector(".ts-header-left");
+    const textNode = Array.from(headerLeft.childNodes).find(n => n.nodeType === 3);
+    if (textNode) textNode.textContent = ` Transfer Switch ${num}`;
+    let rb = block.querySelector(".ts-remove-btn");
+    if (blocks.length > 1) {
+      if (!rb) { rb = document.createElement("button"); rb.className = "ts-remove-btn"; rb.textContent = "Remove"; rb.onclick = function() { removeTS(this); }; block.querySelector(".ts-header").appendChild(rb); }
+    } else { if (rb) rb.remove(); }
+  });
+  tsCount = document.querySelectorAll(".ts-block").length;
+}
+addTransferSwitch();
+
+// ===== YES/NO COLORS =====
+function applyYNColors() {
+  const page1 = document.getElementById('page1'); if (!page1) return;
+  page1.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    if (cb.parentElement && cb.parentElement.classList.contains('yn-checkbox-wrap')) return;
+    let nextNode = cb.nextSibling;
+    while (nextNode && nextNode.nodeType === 3 && nextNode.textContent.trim() === '') nextNode = nextNode.nextSibling;
+    let label = '', textNode = null;
+    if (nextNode && nextNode.nodeType === 3) { label = nextNode.textContent.trim(); textNode = nextNode; }
+    if (!label) return;
+    const upper = label.toUpperCase();
+    const typeClass = upper === 'YES' ? 'yn-yes' : upper === 'NO' ? 'yn-no' : 'yn-opt';
+    const wrap = document.createElement('span'); wrap.className = 'yn-checkbox-wrap ' + typeClass;
+    cb.parentNode.insertBefore(wrap, cb); wrap.appendChild(cb);
+    if (textNode) { wrap.appendChild(document.createTextNode(' ' + label)); textNode.remove(); }
+    function syncState() { wrap.classList.toggle('checked', cb.checked); }
+    cb.addEventListener('change', syncState);
+    wrap.addEventListener('click', (e) => { if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); } });
+    syncState();
+  });
+}
+const ynObserver = new MutationObserver(() => applyYNColors());
+
+// ===== CLEAR =====
+function clearForm() {
+  if (!confirm("Clear all fields? This cannot be undone.")) return;
+  document.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = "");
+  document.querySelectorAll('input[type="checkbox"]').forEach(el => {
+    el.checked = false;
+    const w = el.parentElement;
+    if (w && w.classList.contains('yn-checkbox-wrap')) w.classList.remove('checked');
+  });
+  document.querySelectorAll('.ts-body').forEach(b => b.classList.remove('hidden'));
+  document.querySelectorAll('.ts-toggle').forEach(t => t.classList.remove('collapsed'));
+}
+
+// ===== FILENAME HELPER =====
+function buildFilename(ext, pageNum, totalPages) {
+  // Pull Customer Name and Address from the top-fields inputs
+  const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
+  // Order: Customer Name (0), Date (1), Address (2)
+  const customerName = (topInputs[0] ? topInputs[0].value.trim() : '') || 'Customer';
+  const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
+  // Sanitize: replace any character that's not alphanumeric, space, hyphen, or dot
+  function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
+  const namePart    = sanitize(customerName);
+  const addressPart = sanitize(address);
+  const suffix = totalPages > 1 ? `_Page${pageNum}` : '';
+  return `${namePart}_${addressPart}_Elec_Install${suffix}.${ext}`;
+}
+
+// ===== PRINT =====
+let wasDarkAtPrint = false;
+function openPrintPreview() {
+  const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
+  const customerName = (topInputs[0] ? topInputs[0].value.trim() : '') || 'Customer';
+  const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
+  function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
+  const origTitle = document.title;
+  document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
+
+  wasDarkAtPrint = document.body.classList.contains('dark-mode');
+  if (wasDarkAtPrint) {
+    const noTrans = document.createElement('style');
+    noTrans.id = 'no-transitions';
+    noTrans.textContent = '* { transition: none !important; animation: none !important; }';
+    document.head.appendChild(noTrans);
+    document.body.classList.remove('dark-mode');
+    void document.body.offsetHeight;
+  }
+  window.print();
+  document.title = origTitle;
+}
+
+// ===== IPHONE =====
+function saveForIPhone() {
+  setStatus('Rendering pages, please wait…');
+  const pages = document.querySelectorAll('.form-page');
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;overflow-y:auto;';
+  const closeBtn = document.createElement('button');
+  closeBtn.style.cssText = 'position:sticky;top:16px;background:#DC2626;color:#fff;border:none;border-radius:4px;padding:8px 16px;font-size:12px;cursor:pointer;font-weight:bold;z-index:10000;';
+  closeBtn.textContent = '✕ Close';
+  const container = document.createElement('div');
+  container.style.cssText = 'display:flex;flex-direction:column;gap:12px;width:100%;max-width:600px;';
+  overlay.appendChild(closeBtn); overlay.appendChild(container); document.body.appendChild(overlay);
+  let completed = 0;
+  pages.forEach((page, idx) => {
+    const wrapper = document.createElement('div'); wrapper.style.cssText = 'text-align:center;';
+    const fname = buildFilename('jpg', idx + 1, pages.length);
+    const lbl = document.createElement('div'); lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:4px;'; lbl.textContent = `Page ${idx+1} of ${pages.length}`;
+    const fnlbl = document.createElement('div'); fnlbl.style.cssText = 'color:#aaa;font-size:10px;margin-bottom:8px;word-break:break-all;'; fnlbl.textContent = fname;
+    const img = document.createElement('img');
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
+      img.src = canvas.toDataURL('image/jpeg', 0.85);
+      img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
+      img.alt = fname;
+      wrapper.appendChild(lbl); wrapper.appendChild(fnlbl); wrapper.appendChild(img); container.appendChild(wrapper);
+      completed++;
+      if (completed === pages.length) { setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
+    });
+  });
+  closeBtn.onclick = () => { setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
+}
+
+// ===== ANDROID =====
+function saveForAndroid() {
+  setStatus('Rendering pages, please wait…');
+  const pages = document.querySelectorAll('.form-page');
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+  let completed = 0;
+  pages.forEach((page, idx) => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = buildFilename('jpg', idx + 1, pages.length);
+      link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
+      completed++;
+      if (completed === pages.length) { setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
+    });
+  });
+}
+
+function setStatus(msg) { document.getElementById('save-status').textContent = msg; }
+
+// ===== INIT =====
+function initApp() {
+  applyYNColors();
+  setupThemeToggle();
+  const container = document.getElementById('ts-container');
+  if (container) ynObserver.observe(container, { childList: true, subtree: true });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
+
+// ===== BEFORE/AFTER PRINT =====
+window.addEventListener('beforeprint', () => {
+  // Safari: fires after window.print() returns, dark mode already stripped manually
+});
+window.addEventListener('afterprint', () => {
+  const nt = document.getElementById('no-transitions');
+  if (nt) nt.remove();
+  if (wasDarkAtPrint) document.body.classList.add('dark-mode');
+});
+
+// ===== SERVICE WORKER =====
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+}
+</script>
+
 </body>
 </html>
