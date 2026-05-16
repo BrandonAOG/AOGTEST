@@ -1375,7 +1375,7 @@ body.dark-mode .miscues-textarea {
         <div class="grid-section">
           <table class="mat-table" id="pipe-table">
             <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
-            <thead><tr><th style="text-align:left;">Galv. Pipe &amp; Fittings</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
+            <thead><tr><th style="text-align:right;">Galv. Pipe &amp; Fittings</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
             <tbody id="pipe-body"></tbody>
           </table>
         </div>
@@ -1384,14 +1384,14 @@ body.dark-mode .miscues-textarea {
         <div class="grid-section">
           <table class="mat-table" id="poly-table">
             <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
-            <thead><tr><th style="text-align:left;">Poly Fittings</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
+            <thead><tr><th style="text-align:right;">Poly Fittings</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
             <tbody id="poly-body"></tbody>
           </table>
         </div>
         <div class="grid-section">
           <table class="mat-table" id="whips-table">
             <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
-            <thead><tr><th style="text-align:left;">Appliance Whips</th><th>½"</th><th>3/8"</th><th>5/8"</th><th>1"</th><th>¾"</th></tr></thead>
+            <thead><tr><th style="text-align:right;">Appliance Whips</th><th>½"</th><th>3/8"</th><th>5/8"</th><th>1"</th><th>¾"</th></tr></thead>
             <tbody id="whips-body"></tbody>
           </table>
         </div>
@@ -1408,14 +1408,14 @@ body.dark-mode .miscues-textarea {
         <div class="grid-section">
           <table class="mat-table" id="nipples-left-table">
             <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
-            <thead><tr><th style="text-align:left;">Galv. Nipples</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
+            <thead><tr><th style="text-align:right;">Galv. Nipples</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
             <tbody id="nipples-left-body"></tbody>
           </table>
         </div>
         <div class="grid-section">
           <table class="mat-table" id="risers-table">
             <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
-            <thead><tr><th style="text-align:left;">Risers</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
+            <thead><tr><th style="text-align:right;">Risers</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
             <tbody id="risers-body"></tbody>
           </table>
         </div>
@@ -1424,7 +1424,7 @@ body.dark-mode .miscues-textarea {
         <div class="grid-section">
           <table class="mat-table" id="nipples-right-table">
             <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
-            <thead><tr><th style="text-align:left;">Misc. Materials</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
+            <thead><tr><th style="text-align:right;">Misc. Materials</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
             <tbody id="nipples-right-body"></tbody>
           </table>
         </div>
@@ -2055,6 +2055,15 @@ function setStatus(msg) {
     // ── inline inputs — shorten team member fields ──
     document.querySelectorAll('.section-row .inline-input').forEach(el =>
       save(el, 'width:7ch!important;font-size:7pt!important;line-height:1.2!important;min-height:0!important;padding:0 2pt!important;clip-path:none!important;-webkit-appearance:none!important;'));
+
+    // ── ALL text/date inputs and textareas at 7pt — run last so it wins (excludes table inputs) ──
+    document.querySelectorAll('input[type="text"], input[type="date"], textarea').forEach(el => {
+      if (!el.closest('table.mat-table')) {
+        const existing = el.style.cssText || '';
+        savedStyles.push({ el, was: el.getAttribute('style') || '' });
+        el.style.cssText = existing + ';font-size:7pt!important;';
+      }
+    });
 
     // ── page 1 textareas ──
     document.querySelectorAll('#page1 textarea.multiline, .miscues-textarea').forEach(el =>
