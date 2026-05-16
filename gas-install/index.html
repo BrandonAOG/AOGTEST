@@ -1745,10 +1745,8 @@ function setStatus(msg) {
 
 /* ================================================================
    BEFORE/AFTER PRINT — Mobile Safari ONLY
-   @media print and (max-device-width) is unreliable on iOS Safari —
-   it may not match at print time. Instead we inject a <style> tag
-   directly into <head> at beforeprint and remove it at afterprint.
-   Inline styles on elements are also applied as a belt-and-suspenders.
+   @media queries are unreliable in Mobile Safari print.
+   Inline styles beat everything — apply directly to elements.
 ================================================================ */
 (function() {
   const ua = navigator.userAgent;
@@ -1758,145 +1756,12 @@ function setStatus(msg) {
   if (!isMobileSafari) return;
 
   let savedPH = [];
-  let injectedStyle = null;
+  let savedStyles = [];
 
-  // ── The full mobile print CSS injected as a real <style> tag ──────
-  const MOBILE_PRINT_CSS = `
-@media print {
-  * { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }
-
-  .action-bar, .notice, #save-status { display:none!important; }
-  input::placeholder, textarea::placeholder,
-  *::-webkit-input-placeholder { color:transparent!important; opacity:0!important; }
-
-  html, body { background:#fff!important; color:#1F2937!important;
-    max-width:100%!important; width:100%!important;
-    margin:0!important; padding:0!important;
-    overflow:visible!important; min-height:0!important; font-size:7.5pt!important; }
-
-  .page-wrapper { display:block!important; width:100%!important;
-    max-width:100%!important; padding:0!important; margin:0!important; }
-
-  .form-page { display:block!important; width:100%!important;
-    max-width:100%!important; padding:4pt 6pt!important; margin:0!important;
-    box-sizing:border-box!important; height:auto!important; overflow:visible!important;
-    background:#fff!important; }
-
-  #page1 { page-break-after:always!important; break-after:page!important;
-    -webkit-column-break-after:always!important; }
-  #page2 { page-break-before:always!important; break-before:page!important;
-    -webkit-column-break-before:always!important; }
-
-  .page1-header { margin-bottom:2pt!important; }
-  .logo-area { gap:4pt!important; margin-bottom:2pt!important; flex-wrap:nowrap!important; }
-  .logo-area img { width:22pt!important; height:22pt!important; }
-  .logo-text { font-size:10pt!important; }
-  .checklist-title { font-size:9pt!important; text-align:center!important;
-    padding-top:2pt!important; margin-bottom:2pt!important; }
-
-  .top-fields { display:table!important; width:100%!important;
-    table-layout:fixed!important; border-collapse:separate!important;
-    border-spacing:4pt 0!important; margin-bottom:2pt!important; }
-  .top-fields .field-row { display:table-cell!important; vertical-align:bottom!important;
-    font-size:7.5pt!important; line-height:1.2!important;
-    min-height:0!important; padding:0 0 1pt 0!important; }
-  .top-fields .field-row label { font-size:7.5pt!important; white-space:nowrap!important; }
-  .top-fields .field-row input[type="text"],
-  .top-fields .field-row input[type="date"] { font-size:7.5pt!important;
-    min-height:0!important; padding:0 2pt!important; clip-path:none!important;
-    -webkit-appearance:none!important; }
-
-  .two-col { display:table!important; width:100%!important;
-    table-layout:fixed!important; border-collapse:separate!important;
-    border-spacing:4pt 0!important; margin-bottom:2pt!important; }
-  .two-col > div { display:table-cell!important; width:50%!important; vertical-align:top!important; }
-
-  .section { margin-bottom:0!important; }
-  .section-title { font-size:7.5pt!important; padding-bottom:0!important; margin-bottom:0!important; }
-  .section-row { font-size:7.5pt!important; line-height:1.2!important;
-    min-height:0!important; padding-top:0!important; margin-bottom:0!important;
-    display:block!important; overflow:visible!important; }
-  hr.section-hr { margin:1pt 0!important; }
-  .section-row .inline-input { width:7ch!important; }
-  .inline-input, .full-line-input { font-size:7.5pt!important; line-height:1.2!important;
-    min-height:0!important; padding:0 2pt!important; clip-path:none!important;
-    -webkit-appearance:none!important; }
-  .full-line-input { width:100%!important; }
-
-  input[type="checkbox"] { -webkit-appearance:checkbox!important;
-    width:7pt!important; height:7pt!important; }
-  .yn-checkbox-wrap { font-size:7.5pt!important; padding:0 1.5pt!important;
-    line-height:1.1!important; }
-  .yn-checkbox-wrap.yn-yes.checked { background:#059669!important; }
-  .yn-checkbox-wrap.yn-no.checked  { background:#DC2626!important; }
-  .yn-checkbox-wrap.yn-opt.checked { background:#D97706!important; }
-
-  #page1 textarea.multiline, .miscues-textarea { font-size:7.5pt!important;
-    height:12pt!important; min-height:12pt!important; max-height:12pt!important;
-    padding:0 2pt!important; line-height:1.2!important; overflow:hidden!important;
-    resize:none!important; display:block!important; width:100%!important;
-    background:#fff!important; border:0.5pt solid #bbb!important; }
-
-  .reg-row { font-size:7pt!important; padding:1pt 0!important; margin-bottom:2pt!important;
-    border-top:0.5pt solid #ccc!important; border-bottom:0.5pt solid #ccc!important;
-    display:block!important; width:100%!important; line-height:1.5!important; }
-  .reg-field { display:inline-flex!important; align-items:center!important;
-    gap:2pt!important; margin-right:6pt!important; white-space:nowrap!important; }
-  .reg-field label { font-size:7pt!important; color:#1F2937!important; }
-  .reg-field label span { color:#1E40AF!important; }
-  .reg-field input { font-size:7pt!important; width:22pt!important;
-    background:transparent!important; border:none!important;
-    border-bottom:0.5pt solid #999!important; padding:0 2pt!important;
-    clip-path:none!important; -webkit-appearance:none!important; }
-
-  .tables-split, .page2-tables-split { display:table!important; width:100%!important;
-    table-layout:fixed!important; border-collapse:separate!important;
-    border-spacing:4pt 0!important; margin-bottom:2pt!important; }
-  .tables-split .tables-col, .page2-tables-split .tables-col {
-    display:table-cell!important; width:50%!important; vertical-align:top!important; }
-  .grid-section { margin-bottom:1pt!important; overflow:visible!important; }
-
-  table.mat-table { font-size:7.5pt!important; width:100%!important;
-    table-layout:fixed!important; border-collapse:collapse!important;
-    display:table!important; visibility:visible!important; }
-  table.mat-table col.col-data { width:16pt!important; }
-  table.mat-table thead { display:table-header-group!important; }
-  table.mat-table tbody { display:table-row-group!important; }
-  table.mat-table tr { display:table-row!important; visibility:visible!important; }
-  table.mat-table th, table.mat-table td { font-size:7.5pt!important;
-    border:0.5pt solid #333!important; padding:0.5pt 1pt!important;
-    display:table-cell!important; visibility:visible!important;
-    opacity:1!important; line-height:1.15!important; overflow:visible!important; }
-  table.mat-table th { background:#4B5563!important; color:#fff!important;
-    white-space:nowrap!important; -webkit-print-color-adjust:exact!important; }
-  table.mat-table td.row-label { text-align:left!important; font-weight:bold!important;
-    background:#fafafa!important; color:#1F2937!important;
-    -webkit-print-color-adjust:exact!important; }
-  table.mat-table td.row-label.section-header { background:#4B5563!important;
-    color:#fff!important; text-align:center!important;
-    -webkit-print-color-adjust:exact!important; }
-  table.mat-table tbody tr:nth-child(even) td.row-label { background:#f0f0f0!important;
-    -webkit-print-color-adjust:exact!important; }
-  table.mat-table td input[type="text"] { font-size:7.5pt!important; color:#1F2937!important;
-    background:#fff!important; border:none!important; width:100%!important;
-    text-align:center!important; padding:0!important; display:block!important;
-    -webkit-appearance:none!important; }
-
-  #page2 textarea.multiline { font-size:8pt!important; height:40pt!important;
-    min-height:40pt!important; max-height:40pt!important;
-    background:#fff!important; border:0.5pt solid #bbb!important;
-    padding:2pt!important; line-height:1.3!important; overflow:hidden!important;
-    display:block!important; width:100%!important; resize:none!important; }
-  .other-section { padding-top:2pt!important; }
-  .other-title { font-size:9pt!important; padding:2pt 4pt!important;
-    margin-bottom:2pt!important; background:#4B5563!important; color:#fff!important;
-    -webkit-print-color-adjust:exact!important; }
-
-  input[type="text"], input[type="date"], textarea {
-    -webkit-appearance:none!important; opacity:1!important;
-    visibility:visible!important; overflow:visible!important;
-    clip-path:none!important; }
-}`;
+  function save(el, css) {
+    savedStyles.push({ el, was: el.getAttribute('style') || '' });
+    el.style.cssText = css;
+  }
 
   function stripPlaceholders() {
     savedPH = [];
@@ -1909,26 +1774,91 @@ function setStatus(msg) {
     savedPH.forEach(({ el, val }) => el.setAttribute('placeholder', val));
     savedPH = [];
   }
-
-  function injectPrintStyles() {
-    if (injectedStyle) return;
-    injectedStyle = document.createElement('style');
-    injectedStyle.id = 'aog-mobile-print-fix';
-    injectedStyle.textContent = MOBILE_PRINT_CSS;
-    document.head.appendChild(injectedStyle);
+  function restoreStyles() {
+    savedStyles.forEach(({ el, was }) => {
+      if (was) el.setAttribute('style', was);
+      else el.removeAttribute('style');
+    });
+    savedStyles = [];
   }
 
-  function removePrintStyles() {
-    if (injectedStyle) { injectedStyle.remove(); injectedStyle = null; }
+  function applyPrintLayout() {
+    savedStyles = [];
+
+    // ── page-wrapper: must be block for page-breaks ──
+    const pw = document.querySelector('.page-wrapper');
+    if (pw) save(pw, 'display:block!important;width:100%!important;max-width:100%!important;padding:0!important;margin:0!important;');
+
+    // ── form pages ──
+    document.querySelectorAll('.form-page').forEach(el =>
+      save(el, 'display:block!important;width:100%!important;max-width:100%!important;padding:4pt 6pt!important;margin:0!important;box-sizing:border-box!important;height:auto!important;overflow:visible!important;background:#fff!important;'));
+
+    // ── two-col: table layout (grid/flex fail in Mobile Safari print) ──
+    document.querySelectorAll('.two-col').forEach(el =>
+      save(el, 'display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;margin-bottom:2pt!important;'));
+    document.querySelectorAll('.two-col > div').forEach(el =>
+      save(el, 'display:table-cell!important;width:50%!important;vertical-align:top!important;'));
+
+    // ── top-fields ──
+    document.querySelectorAll('.top-fields').forEach(el =>
+      save(el, 'display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;margin-bottom:2pt!important;'));
+    document.querySelectorAll('.top-fields .field-row').forEach(el =>
+      save(el, 'display:table-cell!important;vertical-align:bottom!important;font-size:7.5pt!important;line-height:1.2!important;min-height:0!important;padding:0 0 1pt 0!important;'));
+
+    // ── tables-split (page 1 & 2) ──
+    document.querySelectorAll('.tables-split, .page2-tables-split').forEach(el =>
+      save(el, 'display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;margin-bottom:2pt!important;'));
+    document.querySelectorAll('.tables-split .tables-col, .page2-tables-split .tables-col').forEach(el =>
+      save(el, 'display:table-cell!important;width:50%!important;vertical-align:top!important;box-sizing:border-box!important;'));
+
+    // ── section rows ──
+    document.querySelectorAll('.section-row').forEach(el =>
+      save(el, 'font-size:7.5pt!important;line-height:1.2!important;min-height:0!important;padding-top:0!important;margin-bottom:0!important;display:block!important;overflow:visible!important;'));
+    document.querySelectorAll('.section-title').forEach(el =>
+      save(el, 'font-size:7.5pt!important;padding-bottom:0!important;margin-bottom:0!important;'));
+    document.querySelectorAll('.section').forEach(el =>
+      save(el, 'margin-bottom:0!important;'));
+
+    // ── inline inputs — shorten team member fields ──
+    document.querySelectorAll('.section-row .inline-input').forEach(el =>
+      save(el, 'width:7ch!important;font-size:7.5pt!important;line-height:1.2!important;min-height:0!important;padding:0 2pt!important;clip-path:none!important;-webkit-appearance:none!important;'));
+
+    // ── page 1 textareas ──
+    document.querySelectorAll('#page1 textarea.multiline, .miscues-textarea').forEach(el =>
+      save(el, 'font-size:7.5pt!important;height:12pt!important;min-height:12pt!important;max-height:12pt!important;padding:0 2pt!important;line-height:1.2!important;overflow:hidden!important;resize:none!important;display:block!important;width:100%!important;background:#fff!important;border:0.5pt solid #bbb!important;'));
+
+    // ── page 2 textarea ──
+    document.querySelectorAll('#page2 textarea.multiline').forEach(el =>
+      save(el, 'font-size:8pt!important;height:40pt!important;min-height:40pt!important;max-height:40pt!important;background:#fff!important;border:0.5pt solid #bbb!important;padding:2pt!important;line-height:1.3!important;overflow:hidden!important;display:block!important;width:100%!important;resize:none!important;'));
+
+    // ── mat-tables ──
+    document.querySelectorAll('table.mat-table').forEach(el =>
+      save(el, 'display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;visibility:visible!important;font-size:7.5pt!important;'));
+    document.querySelectorAll('table.mat-table thead').forEach(el =>
+      save(el, 'display:table-header-group!important;visibility:visible!important;'));
+    document.querySelectorAll('table.mat-table tbody').forEach(el =>
+      save(el, 'display:table-row-group!important;visibility:visible!important;'));
+    document.querySelectorAll('table.mat-table tr').forEach(el =>
+      save(el, 'display:table-row!important;visibility:visible!important;'));
+    document.querySelectorAll('table.mat-table th').forEach(el =>
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;background:#4B5563!important;color:#fff!important;white-space:nowrap!important;-webkit-print-color-adjust:exact!important;'));
+    document.querySelectorAll('table.mat-table td').forEach(el =>
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;line-height:1.15!important;overflow:visible!important;'));
+    document.querySelectorAll('table.mat-table td.row-label').forEach(el =>
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;text-align:left!important;font-weight:bold!important;background:#fafafa!important;color:#1F2937!important;-webkit-print-color-adjust:exact!important;'));
+    document.querySelectorAll('table.mat-table td.row-label.section-header').forEach(el =>
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;background:#4B5563!important;color:#fff!important;text-align:center!important;-webkit-print-color-adjust:exact!important;'));
+    document.querySelectorAll('table.mat-table td input[type="text"]').forEach(el =>
+      save(el, 'font-size:7.5pt!important;color:#1F2937!important;background:#fff!important;border:none!important;width:100%!important;text-align:center!important;padding:0!important;display:block!important;-webkit-appearance:none!important;'));
   }
 
   window.addEventListener('beforeprint', function() {
     stripPlaceholders();
-    injectPrintStyles();
+    applyPrintLayout();
   });
   window.addEventListener('afterprint', function() {
     restorePHs();
-    removePrintStyles();
+    restoreStyles();
   });
 })();
 </script>
