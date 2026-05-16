@@ -540,6 +540,12 @@ body.dark-mode .miscues-textarea {
     display: none !important;
   }
 
+  /* Hide placeholders on print */
+  input::placeholder,
+  textarea::placeholder { color: transparent !important; opacity: 0 !important; }
+  input::-webkit-input-placeholder,
+  textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
+
   /* ── 3. Reset html/body ── */
   html, body, body.dark-mode {
     background: #fff !important;
@@ -946,6 +952,23 @@ body.dark-mode .miscues-textarea {
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* Hide all placeholders on print */
+  input::placeholder,
+  textarea::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+  }
+  input::-webkit-input-placeholder,
+  textarea::-webkit-input-placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+  }
+  input::-moz-placeholder,
+  textarea::-moz-placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
   }
 
   /* Safari collapses flex/grid — reinforce critical layouts */
@@ -1551,6 +1574,13 @@ function saveForIPhone() {
 
   const RENDER_W = 1050;
   let done = 0;
+
+  // Hide placeholders for capture
+  const styleEl = document.createElement('style');
+  styleEl.id = 'capture-no-placeholder';
+  styleEl.textContent = 'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; } input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }';
+  document.head.appendChild(styleEl);
+
   pages.forEach((page, idx) => {
     const oW = page.style.width, oM = page.style.maxWidth, om = page.style.minWidth;
     page.style.width = RENDER_W + 'px';
@@ -1577,6 +1607,8 @@ function saveForIPhone() {
         if (done === pages.length) {
           setStatus('Long-press each image → Save to Photos');
           if (wasDark) document.body.classList.add('dark-mode');
+          const s = document.getElementById('capture-no-placeholder');
+          if (s) s.remove();
         }
       });
     }, idx * 150);
@@ -1600,6 +1632,14 @@ function saveForAndroid() {
   const RENDER_W = 1050;
   let done = 0;
   const restoreDark = () => { if (wasDark) document.body.classList.add('dark-mode'); };
+
+  // Hide placeholders for capture
+  const styleEl = document.createElement('style');
+  styleEl.id = 'capture-no-placeholder';
+  styleEl.textContent = 'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; } input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }';
+  document.head.appendChild(styleEl);
+  const removePlaceholderStyle = () => { const s = document.getElementById('capture-no-placeholder'); if (s) s.remove(); };
+
   pages.forEach((page, idx) => {
     const oW = page.style.width, oM = page.style.maxWidth, om = page.style.minWidth;
     page.style.width = RENDER_W + 'px';
@@ -1623,10 +1663,12 @@ function saveForAndroid() {
           setStatus('Images saved to Downloads.');
           setTimeout(() => setStatus(''), 4000);
           restoreDark();
+          removePlaceholderStyle();
         }
       }).catch(() => {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
         restoreDark();
+        removePlaceholderStyle();
         setStatus('Error rendering page ' + (idx + 1));
       });
     }, idx * 150);
