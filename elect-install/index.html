@@ -1198,16 +1198,7 @@ function openPrintPreview() {
   const origTitle = document.title;
   document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
 
-  const wasDark = document.body.classList.contains('dark-mode');
-  const ab = document.querySelector('.action-bar');
-  const nt = document.querySelector('.notice');
-  if (ab) ab.style.display = 'none';
-  if (nt) nt.style.display = 'none';
-  if (wasDark) document.body.classList.remove('dark-mode');
   window.print();
-  if (wasDark) document.body.classList.add('dark-mode');
-  if (ab) ab.style.display = '';
-  if (nt) nt.style.display = '';
   document.title = origTitle;
 }
 
@@ -1281,9 +1272,17 @@ if (document.readyState === 'loading') {
 window.addEventListener('beforeprint', () => {
   document.body.dataset.wasDark = document.body.classList.contains('dark-mode') ? '1' : '';
   document.body.classList.remove('dark-mode');
+  const ab = document.querySelector('.action-bar');
+  const nt = document.querySelector('.notice');
+  if (ab) ab.dataset.printHidden = ab.style.display; ab && (ab.style.display = 'none');
+  if (nt) nt.dataset.printHidden = nt.style.display; nt && (nt.style.display = 'none');
 });
 window.addEventListener('afterprint', () => {
   if (document.body.dataset.wasDark === '1') document.body.classList.add('dark-mode');
+  const ab = document.querySelector('.action-bar');
+  const nt = document.querySelector('.notice');
+  if (ab) ab.style.display = ab.dataset.printHidden || '';
+  if (nt) nt.style.display = nt.dataset.printHidden || '';
 });
 
 // ===== SERVICE WORKER =====
