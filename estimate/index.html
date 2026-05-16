@@ -44,13 +44,7 @@
   document.head.appendChild(styleEl);
   if (IS_MOBILE) document.documentElement.classList.add('is-mobile-device');
 
-  // On iOS Safari, force viewport width to 1050px immediately so the page
-  // is already laid out at full print width before the print dialog opens.
-  // The mobile CSS media queries still handle the visual appearance on screen.
-  if (IS_IOS_SAFARI) {
-    var vp = document.querySelector('meta[name="viewport"]');
-    if (vp) vp.setAttribute('content', 'width=1050, initial-scale=' + (screen.width / 1050).toFixed(4) + ', viewport-fit=cover');
-  }
+
 })();
 </script>
 
@@ -568,8 +562,6 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .header::after { display: none !important; }
   body::before, body::after, body[class*="seasonal-"]::before, body[class*="seasonal-"]::after { display: none !important; content: none !important; }
   html { margin: 0 !important; padding: 0 !important; zoom: 0.758; }
-  html.mobile-safari { zoom: 1 !important; width: 1050px !important; margin: 0 !important; padding: 0 !important; -webkit-transform: scale(0.758); -webkit-transform-origin: top left; transform: scale(0.758); transform-origin: top left; }
-  html.mobile-safari body { margin-left: 13px !important; }
   body { margin: 0 !important; padding: 0 !important; width: 1050px !important; max-width: none !important; min-height: 0 !important; background: #ffffff !important; background-image: none !important; color: #1F2937 !important; --icon-color-section: #D97706 !important; --cyan: #D97706 !important; }
   .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: visible !important; background: #ffffff !important; border: 1.5pt solid #D97706 !important; box-shadow: none !important; position: static !important; outline: none !important; }
   .content { flex: 1 !important; min-height: 0 !important; overflow: visible !important; padding: 4px 14px !important; background: #ffffff !important; display: flex !important; flex-direction: column !important; gap: 0 !important; justify-content: space-between !important; height: 0 !important; }
@@ -1363,6 +1355,8 @@ function printForm() {
       '  * { animation:none!important;animation-play-state:paused!important;transition:none!important; }',
       '  .doc-title, .company-name { transform:translateZ(0);will-change:auto!important;isolation:auto!important; }',
       '  .header::after { display:none!important;content:none!important; }',
+      '  html { margin:0 auto!important; }',
+      '  body { margin:0 auto!important; width:1050px!important; }',
       '  .page { min-height:0!important; }',
       '  .footer { margin-top:auto!important;padding:2px 14px!important; }',
       '  .footer-text,.footer span { font-size:0.28rem!important; }',
