@@ -1931,8 +1931,53 @@ function saveForAndroid() {
 }
 
 /* ================================================================
-   UTILITY
+   PRINT DEBUG — open Safari Web Inspector, tap PRINT, check console
 ================================================================ */
+(function() {
+  function logPrintState(when) {
+    const p1 = document.getElementById('page1');
+    const p2 = document.getElementById('page2');
+    const split = p2 ? p2.querySelector('.page2-tables-split') : null;
+    const cols  = split ? split.querySelectorAll('.tables-col') : [];
+
+    console.group('[AOG PRINT DEBUG] ' + when);
+    console.log('UA:', navigator.userAgent);
+    console.log('isMobileSafari:', /iPhone|iPad|iPod/.test(navigator.userAgent) && /WebKit/.test(navigator.userAgent) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(navigator.userAgent));
+    if (p1) {
+      const cs = window.getComputedStyle(p1);
+      console.log('#page1 — display:', cs.display, '| h:', p1.offsetHeight, '| pageBreakAfter:', cs.pageBreakAfter, '| breakAfter:', cs.breakAfter);
+    }
+    if (p2) {
+      const cs = window.getComputedStyle(p2);
+      console.log('#page2 — display:', cs.display, '| visibility:', cs.visibility, '| h:', p2.offsetHeight, '| pageBreakBefore:', cs.pageBreakBefore, '| breakBefore:', cs.breakBefore);
+      console.log('#page2 inlineStyle:', p2.getAttribute('style'));
+    }
+    if (split) {
+      const cs = window.getComputedStyle(split);
+      console.log('.page2-tables-split — display:', cs.display, '| flexDir:', cs.flexDirection, '| h:', split.offsetHeight, '| w:', split.offsetWidth);
+    }
+    cols.forEach((col, i) => {
+      const cs = window.getComputedStyle(col);
+      console.log('.tables-col[' + i + '] — display:', cs.display, '| w:', col.offsetWidth, '| h:', col.offsetHeight);
+    });
+    const tables = p2 ? p2.querySelectorAll('table.mat-table') : [];
+    tables.forEach((t, i) => {
+      const cs = window.getComputedStyle(t);
+      console.log('table[' + i + '] — display:', cs.display, '| rows:', t.rows.length, '| h:', t.offsetHeight);
+    });
+    console.groupEnd();
+  }
+
+  // Log on page load (screen state)
+  window.addEventListener('DOMContentLoaded', () => setTimeout(() => logPrintState('SCREEN — DOMContentLoaded'), 500));
+
+  // Log on beforeprint
+  window.addEventListener('beforeprint', () => logPrintState('beforeprint fired'));
+  window.addEventListener('afterprint',  () => logPrintState('afterprint fired'));
+
+  // Also expose as global so you can call AOGDebug() manually in console
+  window.AOGDebug = () => logPrintState('MANUAL CALL');
+})();
 function setStatus(msg) {
   const el = document.getElementById('save-status');
   if (el) el.textContent = msg;
