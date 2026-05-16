@@ -2069,6 +2069,37 @@ function setStatus(msg) {
     restoreStyles();
   });
 })();
+
+/* ================================================================
+   PRINT — FORCE LIGHT MODE
+   Switch to light for print, restore dark after (with fallback timer
+   in case afterprint never fires on Mobile Safari)
+================================================================ */
+(function() {
+  let wasDark = false;
+  let restoreTimer = null;
+
+  function forceLightForPrint() {
+    wasDark = document.body.classList.contains('dark-mode');
+    if (wasDark) {
+      document.body.classList.remove('dark-mode');
+    }
+    // Fallback: restore dark mode after 30s if afterprint never fires
+    clearTimeout(restoreTimer);
+    restoreTimer = setTimeout(restoreDarkAfterPrint, 30000);
+  }
+
+  function restoreDarkAfterPrint() {
+    clearTimeout(restoreTimer);
+    if (wasDark) {
+      document.body.classList.add('dark-mode');
+      wasDark = false;
+    }
+  }
+
+  window.addEventListener('beforeprint', forceLightForPrint);
+  window.addEventListener('afterprint', restoreDarkAfterPrint);
+})();
 </script>
 <script>
   if ('serviceWorker' in navigator) {
