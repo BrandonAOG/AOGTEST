@@ -517,7 +517,7 @@ body.dark-mode .miscues-textarea {
   /* ── 0. Page geometry ── */
   @page {
     size: 8.5in 11in;
-    margin: 0.15in;
+    margin: 0.12in 0.15in;
   }
 
   /* ── 1. Force light mode at CSS-variable level ── */
@@ -682,8 +682,8 @@ body.dark-mode .miscues-textarea {
   .top-fields {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 2pt 8pt !important;
-    margin-bottom: 3pt !important;
+    gap: 0pt 8pt !important;
+    margin-bottom: 2pt !important;
   }
   .field-row {
     display: flex !important;
@@ -692,17 +692,17 @@ body.dark-mode .miscues-textarea {
     font-size: 9pt !important;
     margin-bottom: 0 !important;
     flex-wrap: nowrap !important;
-    line-height: 1.6 !important;
+    line-height: 1.35 !important;
     overflow: visible !important;
-    min-height: 14pt !important;
-    padding-top: 1pt !important;
+    min-height: 12pt !important;
+    padding-top: 0.5pt !important;
   }
   .field-row label {
     font-size: 9pt !important;
     white-space: nowrap !important;
-    line-height: 1.6 !important;
+    line-height: 1.35 !important;
     overflow: visible !important;
-    padding-top: 1pt !important;
+    padding-top: 0.5pt !important;
   }
   .field-row input[type="text"],
   .field-row input[type="date"] {
@@ -713,9 +713,9 @@ body.dark-mode .miscues-textarea {
     border-left: none !important;
     border-right: none !important;
     border-bottom: 0.5pt solid #999 !important;
-    line-height: 1.6 !important;
+    line-height: 1.35 !important;
     padding: 1pt 2pt 0 2pt !important;
-    min-height: 14pt !important;
+    min-height: 12pt !important;
     overflow: visible !important;
     -webkit-appearance: none !important;
     vertical-align: top !important;
@@ -746,10 +746,10 @@ body.dark-mode .miscues-textarea {
     align-items: flex-start !important;
     flex-wrap: nowrap !important;
     gap: 1pt !important;
-    line-height: 1.6 !important;
+    line-height: 1.35 !important;
     overflow: visible !important;
-    min-height: 14pt !important;
-    padding-top: 1pt !important;
+    min-height: 12pt !important;
+    padding-top: 0.5pt !important;
   }
   hr.section-hr {
     margin: 0.5pt 0 !important;
@@ -766,9 +766,9 @@ body.dark-mode .miscues-textarea {
     border-left: none !important;
     border-right: none !important;
     border-bottom: 0.5pt solid #999 !important;
-    line-height: 1.6 !important;
+    line-height: 1.35 !important;
     padding: 1pt 2pt 0 2pt !important;
-    min-height: 14pt !important;
+    min-height: 12pt !important;
     overflow: visible !important;
     -webkit-appearance: none !important;
     vertical-align: top !important;
@@ -1001,8 +1001,8 @@ body.dark-mode .miscues-textarea {
     clip-path: none !important;
     -webkit-appearance: none !important;
     appearance: none !important;
-    line-height: 1.6 !important;
-    min-height: 14pt !important;
+    line-height: 1.35 !important;
+    min-height: 12pt !important;
     height: auto !important;
     padding-top: 1pt !important;
     padding-bottom: 1pt !important;
@@ -1613,8 +1613,19 @@ function clearForm() {
    FILENAME BUILDER
 ================================================================ */
 function buildFileName(ext, page) {
-  const name    = (document.querySelector('.top-fields .field-row:nth-child(1) input[type="text"]')?.value || '').trim();
-  const address = (document.querySelector('.top-fields .field-row:nth-child(3) input[type="text"]')?.value || '').trim();
+  // Find inputs by their sibling label text — robust against layout changes
+  function getFieldVal(labelText) {
+    const labels = document.querySelectorAll('.top-fields .field-row label');
+    for (const lbl of labels) {
+      if (lbl.textContent.trim().replace(/:$/,'').toLowerCase() === labelText.toLowerCase()) {
+        const inp = lbl.parentElement.querySelector('input');
+        return inp ? inp.value.trim() : '';
+      }
+    }
+    return '';
+  }
+  const name    = getFieldVal('Customer Name');
+  const address = getFieldVal('Address');
   const sanitize = s => s.replace(/[^a-zA-Z0-9\s\-]/g, '').replace(/\s+/g, '_').substring(0, 40);
   const parts = [];
   if (name)    parts.push(sanitize(name));
