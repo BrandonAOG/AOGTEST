@@ -1208,6 +1208,7 @@ function buildFilename(ext, pageNum, totalPages) {
 }
 
 // ===== PRINT — simple synchronous, exactly as doc9 had it =====
+let wasDarkAtPrint = false;
 function openPrintPreview() {
   // Set the document title so the browser uses it as the default PDF/print filename
   const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
@@ -1217,6 +1218,8 @@ function openPrintPreview() {
   const origTitle = document.title;
   document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
 
+  wasDarkAtPrint = document.body.classList.contains('dark-mode');
+  if (wasDarkAtPrint) document.body.classList.remove('dark-mode');
   dbgLog('window.print() called — class:['+document.body.className+']','event-print');
   window.print();
   dbgLog('window.print() returned — class:['+document.body.className+']','event-print');
@@ -1292,20 +1295,12 @@ if (document.readyState === 'loading') {
 // ===== BEFORE/AFTER PRINT — strip dark mode so CSS vars render light =====
 window.addEventListener('beforeprint', () => {
   _dbgBefore++; document.getElementById('dbg-before').textContent=_dbgBefore; document.getElementById('dbg-last').textContent='beforeprint'; dbgLog('beforeprint fired — class:['+document.body.className+']','event-before');
-  document.body.dataset.wasDark = document.body.classList.contains('dark-mode') ? '1' : '';
-  document.body.classList.remove('dark-mode');
-  const ab = document.querySelector('.action-bar');
-  const nt = document.querySelector('.notice');
-  if (ab) ab.dataset.printHidden = ab.style.display; ab && (ab.style.display = 'none');
-  if (nt) nt.dataset.printHidden = nt.style.display; nt && (nt.style.display = 'none');
+  // Safari: beforeprint fires after window.print() returns so dark mode already stripped
 });
 window.addEventListener('afterprint', () => {
   _dbgAfter++; document.getElementById('dbg-after').textContent=_dbgAfter; document.getElementById('dbg-last').textContent='afterprint'; dbgLog('afterprint fired — class:['+document.body.className+']','event-after');
-  if (document.body.dataset.wasDark === '1') document.body.classList.add('dark-mode');
-  const ab = document.querySelector('.action-bar');
-  const nt = document.querySelector('.notice');
-  if (ab) ab.style.display = ab.dataset.printHidden || '';
-  if (nt) nt.style.display = nt.dataset.printHidden || '';
+  // Restore dark mode when print dialog is dismissed
+  if (wasDarkAtPrint) document.body.classList.add('dark-mode');
 });
 
 
