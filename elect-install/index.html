@@ -589,7 +589,12 @@ body.dark-mode .notice { color: #7DD3FC; }
   /* ── PAGE 1 ── */
   #page1 *:not(input):not(textarea):not(select) { color: #1F2937 !important; box-shadow: none !important; border-color: #555 !important; }
   #page1 input, #page1 textarea, #page1 select { color: #1F2937 !important; border-color: #555 !important; }
-  #page1 .checklist-title { border-top-color: #1F2937 !important; font-size: 15px !important; }
+  #page1 .checklist-title { border-top-color: #1F2937 !important; font-size: 15px !important; color: #1F2937 !important; }
+  #page1 .section-title { font-size: 10px !important; color: #D97706 !important; border-bottom-color: rgba(217,119,6,0.3) !important; }
+  #page1 .logo-text { color: #D97706 !important; }
+  #page1 .logo-on { color: #D97706 !important; }
+  #page1 .logo-always, #page1 span.logo-always { color: #111111 !important; }
+  #page1 .logo-generators, #page1 span.logo-generators { color: #111111 !important; }
   #page1 .section-title { font-size: 10px !important; }
   #page1 .section-row { font-size: 9px !important; margin-bottom: 2px !important; }
   #page1 .field-row label { font-size: 9px !important; }
@@ -1194,12 +1199,13 @@ function buildFilename(ext, pageNum, totalPages) {
 
 // ===== PRINT =====
 let wasDarkAtPrint = false;
+let origDocTitle = document.title;
 function openPrintPreview() {
   const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
   const customerName = (topInputs[0] ? topInputs[0].value.trim() : '') || 'Customer';
   const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
   function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
-  const origTitle = document.title;
+  origDocTitle = document.title;
   document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
 
   wasDarkAtPrint = document.body.classList.contains('dark-mode');
@@ -1212,7 +1218,7 @@ function openPrintPreview() {
     void document.body.offsetHeight;
   }
   window.print();
-  document.title = origTitle;
+  // Title restored in afterprint so it stays set while dialog is open
 }
 
 // ===== IPHONE =====
@@ -1289,6 +1295,7 @@ window.addEventListener('afterprint', () => {
   const nt = document.getElementById('no-transitions');
   if (nt) nt.remove();
   if (wasDarkAtPrint) document.body.classList.add('dark-mode');
+  document.title = origDocTitle;
 });
 
 // ===== SERVICE WORKER =====
