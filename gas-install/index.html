@@ -58,7 +58,7 @@ body.dark-mode {
     font-size: 16px !important;
   }
   /* But keep table cell inputs small — they're not tap-focused fields */
-  table.mat-table td input[type="text"] {
+  table.mat-table td input[type="number"] {
     font-size: 12px !important;
   }
 }
@@ -447,15 +447,22 @@ table.mat-table td.row-label.section-header {
   background:var(--header-bg); color:var(--header-fg);
   text-align:center; font-size:11px; font-weight:bold;
 }
-table.mat-table td input[type="text"] {
+table.mat-table td input[type="number"] {
   width:100%; border:none; text-align:center;
   font-size:11px; padding:1px; background:transparent;
   color:var(--text); font-family:Arial,sans-serif; min-width:0;
+  -moz-appearance:textfield;
+}
+table.mat-table td input[type="number"]::-webkit-outer-spin-button,
+table.mat-table td input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance:none; margin:0;
 }
 body.dark-mode table.mat-table td {
   border-color:rgba(0,255,200,0.2); background:rgba(15,21,53,0.6); color:#E0F7FF;
 }
-body.dark-mode table.mat-table td input[type="text"] { color:#E0F7FF; }
+body.dark-mode table.mat-table td input[type="number"] { color:#E0F7FF; -moz-appearance:textfield; }
+body.dark-mode table.mat-table td input[type="number"]::-webkit-outer-spin-button,
+body.dark-mode table.mat-table td input[type="number"]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 
 /* ============================================================
    OTHER / NOTES & MISCUES
@@ -931,7 +938,7 @@ body.dark-mode .miscues-textarea {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  table.mat-table td input[type="text"] {
+  table.mat-table td input[type="number"] {
     font-size: 9.5pt !important;
     color: #1F2937 !important;
     background: #ffffff !important;
@@ -1172,7 +1179,7 @@ body.dark-mode .miscues-textarea {
   table.mat-table tbody tr:nth-child(even) td.row-label {
     background: #f0f0f0 !important; -webkit-print-color-adjust: exact !important;
   }
-  table.mat-table td input[type="text"] {
+  table.mat-table td input[type="number"] {
     font-size: 7.5pt !important; color: #1F2937 !important;
     background: #fff !important; border: none !important;
     border-top: none !important; border-bottom: none !important;
@@ -1250,13 +1257,12 @@ body.dark-mode .miscues-textarea {
     </div>
 
     <div class="top-fields">
-      <div class="field-row"><label>Customer Name:</label><input type="text" placeholder="Full name"></div>
-      <div class="field-row"><label>Date:</label><input type="date" id="f-date"></div>
-      <div class="field-row"><label>Address:</label><input type="text" placeholder="Job address"></div>
-      <div class="field-row"><label>Gas Truck:</label><input type="text" placeholder="Truck #"></div>
-      <div class="field-row"><label>Job:</label><input type="text" placeholder="Job number"></div>
-      <div class="field-row"><label>Team Member Names:</label><input type="text" placeholder="Names"></div>
-      <div class="field-row" style="grid-column:1/-1;"><input type="text" style="width:100%;max-width:320px;" placeholder="Additional team members"></div>
+      <div class="field-row"><label>Customer Name:</label><input type="text"></div>
+      <div class="field-row"><label>Date:</label><input type="date"></div>
+      <div class="field-row"><label>Address:</label><input type="text"></div>
+      <div class="field-row"><label>Gas Truck:</label><input type="text"></div>
+      <div class="field-row"><label>Job:</label><input type="text"></div>
+      <div class="field-row"><label>Team Member Names:</label><input type="text"></div>
     </div>
 
     <div class="two-col">
@@ -1440,7 +1446,7 @@ function addRow(tbody, label, numCols, isHeader) {
     for (let i = 0; i < numCols; i++) {
       const td = document.createElement('td');
       const ip = document.createElement('input');
-      ip.type = 'text'; ip.maxLength = 7;
+      ip.type = 'number'; ip.min = '0'; ip.step = '1'; ip.setAttribute('inputmode', 'numeric');
       td.appendChild(ip); tr.appendChild(td);
     }
   }
@@ -2025,7 +2031,7 @@ function setStatus(msg) {
       save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;text-align:left!important;font-weight:bold!important;background:#fafafa!important;color:#1F2937!important;-webkit-print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td.row-label.section-header').forEach(el =>
       save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;background:#4B5563!important;color:#fff!important;text-align:center!important;-webkit-print-color-adjust:exact!important;'));
-    document.querySelectorAll('table.mat-table td input[type="text"]').forEach(el =>
+    document.querySelectorAll('table.mat-table td input[type="number"]').forEach(el =>
       save(el, 'font-size:7.5pt!important;color:#1F2937!important;background:#fff!important;border:none!important;border-top:none!important;border-bottom:none!important;border-left:none!important;border-right:none!important;box-shadow:none!important;outline:none!important;width:100%!important;text-align:center!important;padding:0!important;display:block!important;-webkit-appearance:none!important;'));
   }
 
