@@ -765,20 +765,37 @@ body.dark-mode .notice { color: #7DD3FC; }
 /* ===== DEBUG OVERLAY ===== */
 #debug-overlay {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999;
-  background: rgba(0,0,0,0.92); color: #00ff88; font-family: monospace;
+  background: rgba(0,0,0,0.95); color: #00ff88; font-family: monospace;
   font-size: 11px; padding: 8px 12px; border-top: 2px solid #00ff88;
-  display: none;
+  display: none; max-height: 55vh; flex-direction: column;
 }
-#debug-overlay.visible { display: block; }
-#debug-log { max-height: 120px; overflow-y: auto; margin-top: 4px; }
-#debug-log div { padding: 1px 0; border-bottom: 1px solid #1a1a1a; }
-#debug-log div.event-before { color: #ffa500; }
-#debug-log div.event-after  { color: #00ff88; }
-#debug-log div.event-print  { color: #58a6ff; }
-#debug-log div.event-class  { color: #ff88ff; }
-#debug-status { display: flex; gap: 16px; flex-wrap: wrap; }
-#debug-status span { white-space: nowrap; }
-@media print { #debug-overlay { display: none !important; } }
+#debug-overlay.visible { display: flex; }
+#debug-status {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 12px;
+  padding-bottom: 6px; border-bottom: 1px solid #1a3a1a; flex-shrink: 0;
+}
+#debug-status .ds { display: flex; flex-direction: column; gap: 1px; }
+#debug-status .ds-label { font-size: 9px; color: #4a7a4a; text-transform: uppercase; letter-spacing: 1px; }
+#debug-status .ds-value { font-size: 11px; font-weight: bold; }
+#debug-status .ds-value.light { color: #ffd700; }
+#debug-status .ds-value.dark  { color: #7dd3fc; }
+#debug-status .ds-value.ok    { color: #00ff88; }
+#debug-status .ds-value.warn  { color: #ffa500; }
+#debug-log { flex: 1; overflow-y: auto; margin-top: 6px; }
+#debug-log div { padding: 2px 0; border-bottom: 1px solid #0a1a0a; display: flex; gap: 8px; }
+#debug-log .dl-ts   { color: #4a7a4a; flex-shrink: 0; min-width: 85px; }
+#debug-log .dl-tag  { flex-shrink: 0; min-width: 110px; font-weight: bold; }
+#debug-log .dl-msg  { color: #ccc; word-break: break-all; }
+#debug-log .t-before .dl-tag { color: #ffa500; }
+#debug-log .t-after  .dl-tag { color: #00ff88; }
+#debug-log .t-print  .dl-tag { color: #58a6ff; }
+#debug-log .t-light  .dl-tag { color: #ffd700; }
+#debug-log .t-dark   .dl-tag { color: #7dd3fc; }
+#debug-log .t-style  .dl-tag { color: #ff88ff; }
+#debug-log .t-title  .dl-tag { color: #e879f9; }
+#debug-log .t-bar    .dl-tag { color: #fb923c; }
+#debug-log .t-info   .dl-tag { color: #4a7a4a; }
+@media print { #debug-overlay, #btn-debug { display: none !important; } }
 
 </style>
 </head>
@@ -1220,9 +1237,9 @@ function openPrintPreview() {
 
   wasDarkAtPrint = document.body.classList.contains('dark-mode');
   if (wasDarkAtPrint) document.body.classList.remove('dark-mode');
-  dbgLog('window.print() called — class:['+document.body.className+']','event-print');
+  const _snap1=dbgComputedSnapshot(); dbgLog('PRINT CALLED', 'class:['+document.body.className+'] inp-bg:'+_snap1.inpBg+' panel:'+_snap1.panelVar, 'print');
   window.print();
-  dbgLog('window.print() returned — class:['+document.body.className+']','event-print');
+  const _snap2=dbgComputedSnapshot(); dbgLog('PRINT RETURNED', 'class:['+document.body.className+'] inp-bg:'+_snap2.inpBg, 'print');
   document.title = origTitle;
 }
 
@@ -1294,11 +1311,11 @@ if (document.readyState === 'loading') {
 
 // ===== BEFORE/AFTER PRINT — strip dark mode so CSS vars render light =====
 window.addEventListener('beforeprint', () => {
-  _dbgBefore++; document.getElementById('dbg-before').textContent=_dbgBefore; document.getElementById('dbg-last').textContent='beforeprint'; dbgLog('beforeprint fired — class:['+document.body.className+']','event-before');
+  _dbgBefore++; dbgLog('BEFOREPRINT', 'class:['+document.body.className+'] inp-bg:'+dbgComputedSnapshot().inpBg, 'before');
   // Safari: beforeprint fires after window.print() returns so dark mode already stripped
 });
 window.addEventListener('afterprint', () => {
-  _dbgAfter++; document.getElementById('dbg-after').textContent=_dbgAfter; document.getElementById('dbg-last').textContent='afterprint'; dbgLog('afterprint fired — class:['+document.body.className+']','event-after');
+  _dbgAfter++; dbgLog('AFTERPRINT', 'class:['+document.body.className+'] inp-bg:'+dbgComputedSnapshot().inpBg, 'after');
   // Restore dark mode when print dialog is dismissed
   if (wasDarkAtPrint) document.body.classList.add('dark-mode');
 });
@@ -1306,33 +1323,95 @@ window.addEventListener('afterprint', () => {
 
 // ===== DEBUG =====
 let _dbgBefore = 0, _dbgAfter = 0;
+
+function dbgTs() {
+  const d = new Date();
+  return d.toTimeString().split(' ')[0] + '.' + String(d.getMilliseconds()).padStart(3,'0');
+}
+
+function dbgLog(tag, msg, type) {
+  const log = document.getElementById('debug-log');
+  if (!log) return;
+  const row = document.createElement('div');
+  row.className = 't-' + (type || 'info');
+  row.innerHTML = '<span class="dl-ts">' + dbgTs() + '</span>'
+    + '<span class="dl-tag">' + tag + '</span>'
+    + '<span class="dl-msg">' + msg + '</span>';
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+  dbgRefreshStatus();
+}
+
+function dbgComputedSnapshot() {
+  // Sample first text input background color
+  const inp = document.querySelector('#page1 input[type="text"]');
+  const inpBg = inp ? window.getComputedStyle(inp).backgroundColor : 'n/a';
+  const bodyBg = window.getComputedStyle(document.body).backgroundColor;
+  const panelVar = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim();
+  const ab = document.querySelector('.action-bar');
+  const abDisplay = ab ? window.getComputedStyle(ab).display : 'n/a';
+  return {inpBg, bodyBg, panelVar, abDisplay};
+}
+
+function dbgRefreshStatus() {
+  const isDark = document.body.classList.contains('dark-mode');
+  const snap = dbgComputedSnapshot();
+
+  const modeEl = document.getElementById('ds-mode');
+  if (modeEl) {
+    modeEl.textContent = isDark ? '🌙 DARK' : '☀️ LIGHT';
+    modeEl.className = 'ds-value ' + (isDark ? 'dark' : 'light');
+  }
+  const inpEl = document.getElementById('ds-inp');
+  if (inpEl) { inpEl.textContent = snap.inpBg; inpEl.className = 'ds-value ' + (snap.inpBg.includes('255, 255, 255') ? 'ok' : 'warn'); }
+  const bodyEl = document.getElementById('ds-body');
+  if (bodyEl) { bodyEl.textContent = snap.bodyBg; }
+  const abEl = document.getElementById('ds-ab');
+  if (abEl) { abEl.textContent = snap.abDisplay; abEl.className = 'ds-value ' + (snap.abDisplay === 'none' ? 'ok' : 'warn'); }
+  const panelEl = document.getElementById('ds-panel');
+  if (panelEl) { panelEl.textContent = snap.panelVar || '(none)'; }
+  const titleEl = document.getElementById('ds-title');
+  if (titleEl) { titleEl.textContent = document.title.substring(0,24) + (document.title.length > 24 ? '…' : ''); }
+  const bEl = document.getElementById('dbg-before');
+  if (bEl) bEl.textContent = _dbgBefore;
+  const aEl = document.getElementById('dbg-after');
+  if (aEl) aEl.textContent = _dbgAfter;
+}
+
 function toggleDebug() {
   const el = document.getElementById('debug-overlay');
   el.classList.toggle('visible');
-  dbgLog('debug toggled', 'event-print');
+  dbgRefreshStatus();
+  dbgLog('DEBUG', 'overlay ' + (el.classList.contains('visible') ? 'opened' : 'closed'), 'info');
 }
-function dbgLog(msg, cls) {
-  const log = document.getElementById('debug-log');
-  if (!log) return;
-  const d = document.createElement('div');
-  if (cls) d.className = cls;
-  const t = new Date().toTimeString().split(' ')[0] + '.' + String(new Date().getMilliseconds()).padStart(3,'0');
-  d.textContent = t + '  ' + msg;
-  log.appendChild(d);
-  log.scrollTop = log.scrollHeight;
-  document.getElementById('dbg-class').textContent = document.body.className || '(none)';
-}
-function dbgUpdate() {
-  const el = document.getElementById('dbg-class');
-  if (el) el.textContent = document.body.className || '(none)';
-}
+
+// Watch body class
 new MutationObserver(() => {
-  dbgUpdate();
   const isDark = document.body.classList.contains('dark-mode');
-  const mode = isDark ? '🌙 DARK MODE' : '☀️ LIGHT MODE';
-  const cls = isDark ? 'event-class' : 'event-after';
-  dbgLog('class changed → ' + mode, cls);
+  const snap = dbgComputedSnapshot();
+  dbgLog(
+    isDark ? '🌙 DARK MODE' : '☀️ LIGHT MODE',
+    'inp-bg:' + snap.inpBg + ' | panel-var:' + snap.panelVar,
+    isDark ? 'dark' : 'light'
+  );
 }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+// Watch action bar visibility
+const _abEl = document.querySelector('.action-bar');
+if (_abEl) new MutationObserver(() => {
+  dbgLog('ACTION BAR', 'display=' + window.getComputedStyle(_abEl).display, 'bar');
+}).observe(_abEl, { attributes: true, attributeFilter: ['style'] });
+
+// Watch document title
+let _lastTitle = document.title;
+setInterval(() => {
+  if (document.title !== _lastTitle) {
+    dbgLog('TITLE', '"' + document.title + '"', 'title');
+    _lastTitle = document.title;
+    dbgRefreshStatus();
+  }
+  dbgRefreshStatus();
+}, 300);
 
 // ===== SERVICE WORKER =====
 // Registered last, after everything else is set up.
@@ -1353,10 +1432,15 @@ if ('serviceWorker' in navigator) {
 <!-- DEBUG OVERLAY -->
 <div id="debug-overlay">
   <div id="debug-status">
-    <span>body.class: <b id="dbg-class">—</b></span>
-    <span>beforeprint: <b id="dbg-before" style="color:#ffa500">0</b></span>
-    <span>afterprint: <b id="dbg-after" style="color:#00ff88">0</b></span>
-    <span>last event: <b id="dbg-last">—</b></span>
+    <div class="ds"><span class="ds-label">Mode</span><span class="ds-value" id="ds-mode">—</span></div>
+    <div class="ds"><span class="ds-label">Input BG</span><span class="ds-value" id="ds-inp">—</span></div>
+    <div class="ds"><span class="ds-label">Body BG</span><span class="ds-value" id="ds-body">—</span></div>
+    <div class="ds"><span class="ds-label">Action Bar</span><span class="ds-value" id="ds-ab">—</span></div>
+    <div class="ds"><span class="ds-label">--panel var</span><span class="ds-value" id="ds-panel">—</span></div>
+    <div class="ds"><span class="ds-label">Title</span><span class="ds-value" id="ds-title" style="font-size:9px">—</span></div>
+    <div class="ds"><span class="ds-label">beforeprint</span><span class="ds-value warn" id="dbg-before">0</span></div>
+    <div class="ds"><span class="ds-label">afterprint</span><span class="ds-value ok" id="dbg-after">0</span></div>
+    <div class="ds"><span class="ds-label">Log entries</span><span class="ds-value" id="ds-count">0</span></div>
   </div>
   <div id="debug-log"></div>
 </div>
