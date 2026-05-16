@@ -938,6 +938,12 @@ body.dark-mode .miscues-textarea {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     border: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
+    outline: none !important;
     width: 100% !important;
     text-align: center !important;
     padding: 0 !important;
@@ -1169,6 +1175,9 @@ body.dark-mode .miscues-textarea {
   table.mat-table td input[type="text"] {
     font-size: 7.5pt !important; color: #1F2937 !important;
     background: #fff !important; border: none !important;
+    border-top: none !important; border-bottom: none !important;
+    border-left: none !important; border-right: none !important;
+    box-shadow: none !important; outline: none !important;
     width: 100% !important; text-align: center !important; padding: 0 !important;
     display: block !important;
   }
@@ -1531,6 +1540,23 @@ function applyYNColors() {
 document.addEventListener('DOMContentLoaded', applyYNColors);
 if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
 
+// Force Safari to repaint tables — without this, borders don't render until a reflow
+(function safariTableReflow() {
+  function reflow() {
+    document.querySelectorAll('table.mat-table').forEach(t => {
+      t.style.display = 'none';
+      // reading offsetHeight forces layout
+      void t.offsetHeight;
+      t.style.display = '';
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(reflow, 100));
+  } else {
+    setTimeout(reflow, 100);
+  }
+})();
+
 /* ================================================================
    AUTO-SAVE
 ================================================================ */
@@ -1674,6 +1700,7 @@ function injectCaptureStyles() {
     .action-bar, .notice, #save-status { display:none!important; }
     .page2-tables-split { display:flex!important; flex-direction:row!important; gap:0 6pt!important; width:100%!important; }
     .page2-tables-split .tables-col { flex:1 1 50%!important; min-width:0!important; width:50%!important; display:block!important; }
+    .tables-split { display:flex!important; flex-direction:row!important; gap:0 6pt!important; width:100%!important; }
     .tables-split .tables-col { flex:1 1 50%!important; min-width:0!important; width:50%!important; }
     table.mat-table { font-size:9.5pt!important; width:100%!important; border-collapse:collapse!important; table-layout:fixed!important; }
     table.mat-table th, table.mat-table td { font-size:9.5pt!important; border:0.5pt solid #333!important; padding:0.75pt 1pt!important; overflow:visible!important; }
@@ -1999,7 +2026,7 @@ function setStatus(msg) {
     document.querySelectorAll('table.mat-table td.row-label.section-header').forEach(el =>
       save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;background:#4B5563!important;color:#fff!important;text-align:center!important;-webkit-print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td input[type="text"]').forEach(el =>
-      save(el, 'font-size:7.5pt!important;color:#1F2937!important;background:#fff!important;border:none!important;width:100%!important;text-align:center!important;padding:0!important;display:block!important;-webkit-appearance:none!important;'));
+      save(el, 'font-size:7.5pt!important;color:#1F2937!important;background:#fff!important;border:none!important;border-top:none!important;border-bottom:none!important;border-left:none!important;border-right:none!important;box-shadow:none!important;outline:none!important;width:100%!important;text-align:center!important;padding:0!important;display:block!important;-webkit-appearance:none!important;'));
   }
 
   window.addEventListener('beforeprint', function() {
