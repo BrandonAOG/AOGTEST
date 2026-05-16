@@ -177,6 +177,10 @@ input[type="text"], textarea {
   padding:2px 4px; outline:none; transition:all 0.2s;
   -webkit-appearance:none; appearance:none;
   caret-color:var(--cyan); max-width:100%;
+  line-height:1.6;
+  min-height:20px;
+  box-sizing:border-box;
+  overflow:visible;
 }
 input[type="text"]:focus, textarea:focus {
   border-bottom-color:var(--cyan); background:rgba(217,119,6,0.04);
@@ -467,7 +471,7 @@ body.dark-mode .other-title { border-color:rgba(0,255,200,0.2); }
 .miscues-textarea {
   width:100%; resize:none;
   border:1px solid rgba(217,119,6,0.25); border-radius:3px;
-  padding:6px 8px; font-size:12px; line-height:1.6;
+  padding:6px 8px; font-size:12px; line-height:1.6; overflow:visible;
   color:var(--text); background:var(--panel); outline:none; display:block;
 }
 body.dark-mode .miscues-textarea {
@@ -540,11 +544,24 @@ body.dark-mode .miscues-textarea {
     display: none !important;
   }
 
-  /* Hide placeholders on print */
+  /* Hide all placeholders on print */
   input::placeholder,
-  textarea::placeholder { color: transparent !important; opacity: 0 !important; }
+  textarea::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+  }
   input::-webkit-input-placeholder,
-  textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
+  textarea::-webkit-input-placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+  }
+  input::-moz-placeholder,
+  textarea::-moz-placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+  }
+  *::placeholder { color: transparent !important; opacity: 0 !important; }
+  *::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
 
   /* ── 3. Reset html/body ── */
   html, body, body.dark-mode {
@@ -584,10 +601,10 @@ body.dark-mode .miscues-textarea {
     break-inside: auto !important;
   }
 
-  /* Page 1: prevent breaking inside, force page after */
+  /* Page 1: allow content to flow/break freely, force new page after */
   #page1 {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
     page-break-after: always !important;
     break-after: page !important;
     page-break-before: avoid !important;
@@ -621,55 +638,72 @@ body.dark-mode .miscues-textarea {
   /* ── 6. Header — ultra compact ── */
   .page1-header {
     text-align: center !important;
-    margin-bottom: 1pt !important;
+    margin-bottom: 3pt !important;
   }
   .logo-area {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 4pt !important;
-    margin-bottom: 0.5pt !important;
+    gap: 6pt !important;
+    margin-bottom: 3pt !important;
     flex-wrap: nowrap !important;
   }
   .logo-area img {
-    width: 16.5pt !important;
-    height: 16.5pt !important;
+    width: 28pt !important;
+    height: 28pt !important;
     flex-shrink: 0 !important;
     object-fit: contain !important;
     border-radius: 0 !important;
   }
   .logo-text {
-    font-size: 9.5pt !important;
+    font-size: 13pt !important;
     color: #1F2937 !important;
-    line-height: 1.1 !important;
+    line-height: 1.2 !important;
+    text-align: left !important;
   }
   .logo-text span { color: #D97706 !important; }
+  .logo-text .generators-sub {
+    color: #1F2937 !important;
+    font-size: 13pt !important;
+    letter-spacing: 1.5pt !important;
+  }
   .checklist-title {
-    font-size: 9pt !important;
+    font-size: 11pt !important;
     font-weight: bold !important;
     color: #1F2937 !important;
-    border-top: 0.5pt solid #1F2937 !important;
-    padding-top: 0.5pt !important;
-    margin-bottom: 1pt !important;
+    border-top: 1pt solid #1F2937 !important;
+    padding-top: 3pt !important;
+    margin-bottom: 3pt !important;
+    text-align: center !important;
+    letter-spacing: 0.5pt !important;
   }
 
   /* ── 7. Top fields ── */
   .top-fields {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 0pt 8pt !important;
-    margin-bottom: 1.5pt !important;
+    gap: 2pt 8pt !important;
+    margin-bottom: 3pt !important;
   }
   .field-row {
     display: flex !important;
-    align-items: flex-end !important;
+    align-items: flex-start !important;
     gap: 2pt !important;
     font-size: 9pt !important;
     margin-bottom: 0 !important;
     flex-wrap: nowrap !important;
-    line-height: 1.2 !important;
+    line-height: 1.6 !important;
+    overflow: visible !important;
+    min-height: 14pt !important;
+    padding-top: 1pt !important;
   }
-  .field-row label { font-size: 9pt !important; white-space: nowrap !important; }
+  .field-row label {
+    font-size: 9pt !important;
+    white-space: nowrap !important;
+    line-height: 1.6 !important;
+    overflow: visible !important;
+    padding-top: 1pt !important;
+  }
   .field-row input[type="text"],
   .field-row input[type="date"] {
     font-size: 9pt !important;
@@ -679,7 +713,13 @@ body.dark-mode .miscues-textarea {
     border-left: none !important;
     border-right: none !important;
     border-bottom: 0.5pt solid #999 !important;
-    line-height: 1.2 !important;
+    line-height: 1.6 !important;
+    padding: 1pt 2pt 0 2pt !important;
+    min-height: 14pt !important;
+    overflow: visible !important;
+    -webkit-appearance: none !important;
+    vertical-align: top !important;
+    display: inline-block !important;
   }
 
   /* ── 8. Two-col ── */
@@ -703,10 +743,13 @@ body.dark-mode .miscues-textarea {
     font-size: 9pt !important;
     margin-bottom: 0pt !important;
     display: flex !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     flex-wrap: nowrap !important;
     gap: 1pt !important;
-    line-height: 1.15 !important;
+    line-height: 1.6 !important;
+    overflow: visible !important;
+    min-height: 14pt !important;
+    padding-top: 1pt !important;
   }
   hr.section-hr {
     margin: 0.5pt 0 !important;
@@ -723,6 +766,13 @@ body.dark-mode .miscues-textarea {
     border-left: none !important;
     border-right: none !important;
     border-bottom: 0.5pt solid #999 !important;
+    line-height: 1.6 !important;
+    padding: 1pt 2pt 0 2pt !important;
+    min-height: 14pt !important;
+    overflow: visible !important;
+    -webkit-appearance: none !important;
+    vertical-align: top !important;
+    display: inline-block !important;
   }
   .full-line-input { width: 100% !important; }
 
@@ -774,6 +824,11 @@ body.dark-mode .miscues-textarea {
     border-left: none !important;
     border-right: none !important;
     border-bottom: 0.5pt solid #999 !important;
+    line-height: 1.4 !important;
+    padding: 1pt 2pt !important;
+    min-height: 11pt !important;
+    overflow: visible !important;
+    -webkit-appearance: none !important;
   }
 
   /* ── 12. Table splits ── */
@@ -936,6 +991,23 @@ body.dark-mode .miscues-textarea {
     overflow: hidden !important;
     display: block !important;
     width: 100% !important;
+  }
+
+  /* ── Global input anti-clip: ensure no input text is cut off ── */
+  /* overflow:clip is set by browser UA stylesheet and beats overflow:visible !important */
+  /* clip-path:none is the only reliable way to remove clipping on inputs */
+  input[type="text"], input[type="date"] {
+    overflow: visible !important;
+    clip-path: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    line-height: 1.6 !important;
+    min-height: 14pt !important;
+    height: auto !important;
+    padding-top: 1pt !important;
+    padding-bottom: 1pt !important;
+    vertical-align: top !important;
+    box-sizing: content-box !important;
   }
 
 } /* end @media print */
@@ -1146,7 +1218,7 @@ body.dark-mode .miscues-textarea {
              alt="Always On Generators Logo"
              style="width:56px;height:56px;display:block;object-fit:contain;flex-shrink:0;">
         <div class="logo-text">ALWAYS<span>ON</span><br>
-          <span style="color:var(--text);font-size:10px;letter-spacing:1px;">GENERATORS</span>
+          <span class="generators-sub" style="color:var(--text);font-size:10px;letter-spacing:1px;">GENERATORS</span>
         </div>
       </div>
       <div class="checklist-title">GAS INSTALLATION CHECKLIST</div>
@@ -1549,7 +1621,7 @@ function buildFileName(ext, page) {
   if (address) parts.push(sanitize(address));
   parts.push('Gas_Install');
   if (page != null) parts.push('P' + page);
-  return parts.join('_') + '.' + ext;
+  return (parts.join('_') || 'Gas_Install') + '.' + ext;
 }
 
 /* ================================================================
@@ -1575,16 +1647,15 @@ function saveForIPhone() {
   const RENDER_W = 1050;
   let done = 0;
 
-  // Hide placeholders for capture
-  const styleEl = document.createElement('style');
-  styleEl.id = 'capture-no-placeholder';
-  styleEl.textContent = [
-    'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; }',
-    'input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }',
-    'input::-moz-placeholder, textarea::-moz-placeholder { color: transparent !important; opacity: 0 !important; }',
-    'input:-ms-input-placeholder, textarea:-ms-input-placeholder { color: transparent !important; opacity: 0 !important; }'
-  ].join(' ');
-  document.head.appendChild(styleEl);
+  // Remove placeholder attributes entirely — html2canvas reads the DOM directly,
+  // CSS pseudo-element overrides have no effect. removeAttribute is the only reliable fix.
+  const placeholderEls = document.querySelectorAll('[placeholder]');
+  const savedPlaceholders = Array.from(placeholderEls).map(el => {
+    const val = el.getAttribute('placeholder');
+    el.removeAttribute('placeholder');
+    return { el, val };
+  });
+  const restorePlaceholders = () => savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val));
 
   pages.forEach((page, idx) => {
     const oW = page.style.width, oM = page.style.maxWidth, om = page.style.minWidth;
@@ -1592,11 +1663,15 @@ function saveForIPhone() {
     page.style.maxWidth = RENDER_W + 'px';
     page.style.minWidth = RENDER_W + 'px';
     setTimeout(() => {
-      const captureH = page.offsetHeight + 40;
+      // Use scrollHeight with a generous buffer to prevent bottom clipping
+      // Force reflow then measure — width change makes page taller
+      page.style.height = "auto";
+      const captureH = Math.max(page.scrollHeight, page.offsetHeight) + 120;
       html2canvas(page, {
         scale: 2, useCORS: true, backgroundColor: '#fff',
         logging: false, width: RENDER_W,
-        height: captureH, windowWidth: RENDER_W
+        height: captureH, windowWidth: RENDER_W,
+        windowHeight: captureH
       }).then(canvas => {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
         const wrap = document.createElement('div');
@@ -1611,15 +1686,15 @@ function saveForIPhone() {
         wrap.appendChild(lbl); wrap.appendChild(img); container.appendChild(wrap);
         done++;
         if (done === pages.length) {
+          restorePlaceholders();
           setStatus('Long-press each image → Save to Photos');
           if (wasDark) document.body.classList.add('dark-mode');
-          const s = document.getElementById('capture-no-placeholder');
-          if (s) s.remove();
         }
       });
     }, idx * 150);
   });
   closeBtn.onclick = () => {
+    restorePlaceholders();
     setStatus('');
     if (wasDark) document.body.classList.add('dark-mode');
     document.body.removeChild(overlay);
@@ -1639,17 +1714,15 @@ function saveForAndroid() {
   let done = 0;
   const restoreDark = () => { if (wasDark) document.body.classList.add('dark-mode'); };
 
-  // Hide placeholders for capture
-  const styleEl = document.createElement('style');
-  styleEl.id = 'capture-no-placeholder';
-  styleEl.textContent = [
-    'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; }',
-    'input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }',
-    'input::-moz-placeholder, textarea::-moz-placeholder { color: transparent !important; opacity: 0 !important; }',
-    'input:-ms-input-placeholder, textarea:-ms-input-placeholder { color: transparent !important; opacity: 0 !important; }'
-  ].join(' ');
-  document.head.appendChild(styleEl);
-  const removePlaceholderStyle = () => { const s = document.getElementById('capture-no-placeholder'); if (s) s.remove(); };
+  // Remove placeholder attributes entirely — html2canvas reads the DOM directly,
+  // CSS pseudo-element overrides have no effect. removeAttribute is the only reliable fix.
+  const placeholderEls = document.querySelectorAll('[placeholder]');
+  const savedPlaceholders = Array.from(placeholderEls).map(el => {
+    const val = el.getAttribute('placeholder');
+    el.removeAttribute('placeholder');
+    return { el, val };
+  });
+  const restorePlaceholders = () => savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val));
 
   pages.forEach((page, idx) => {
     const oW = page.style.width, oM = page.style.maxWidth, om = page.style.minWidth;
@@ -1657,11 +1730,15 @@ function saveForAndroid() {
     page.style.maxWidth = RENDER_W + 'px';
     page.style.minWidth = RENDER_W + 'px';
     setTimeout(() => {
-      const captureH = page.offsetHeight + 40;
+      // Use scrollHeight with a generous buffer to prevent bottom clipping
+      // Force reflow then measure — width change makes page taller
+      page.style.height = "auto";
+      const captureH = Math.max(page.scrollHeight, page.offsetHeight) + 120;
       html2canvas(page, {
         scale: 2, useCORS: true, backgroundColor: '#fff',
         logging: false, width: RENDER_W,
-        height: captureH, windowWidth: RENDER_W
+        height: captureH, windowWidth: RENDER_W,
+        windowHeight: captureH
       }).then(canvas => {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
         const a = document.createElement('a');
@@ -1672,15 +1749,15 @@ function saveForAndroid() {
         a.click();
         done++;
         if (done === pages.length) {
+          restorePlaceholders();
           setStatus('Images saved to Downloads.');
           setTimeout(() => setStatus(''), 4000);
           restoreDark();
-          removePlaceholderStyle();
         }
       }).catch(() => {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
+        restorePlaceholders();
         restoreDark();
-        removePlaceholderStyle();
         setStatus('Error rendering page ' + (idx + 1));
       });
     }, idx * 150);
