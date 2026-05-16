@@ -2941,31 +2941,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }, 0);
 
-  // ── MOBILE SAFARI PRINT WIDTH FIX ───────────────────────────
-  // Only runs on iOS Safari — desktop uses CSS zoom via @media print
-  if (window.IS_IOS_SAFARI) {
-    (function() {
-      var metaViewport = document.querySelector('meta[name="viewport"]');
-      var originalContent = metaViewport ? metaViewport.getAttribute('content') : null;
-      window.addEventListener('beforeprint', function() {
-        if (metaViewport) {
-          metaViewport.setAttribute('content', 'width=1050, initial-scale=0.758');
-        }
-        document.documentElement.style.width = '1050px';
-        document.body.style.width = '1050px';
-        document.body.style.minHeight = '0';
-      });
-      window.addEventListener('afterprint', function() {
-        if (metaViewport && originalContent) {
-          metaViewport.setAttribute('content', originalContent);
-        }
-        document.documentElement.style.width = '';
-        document.body.style.width = '';
-        document.body.style.minHeight = '';
-      });
-    })();
-  }
-  // ── END MOBILE SAFARI PRINT WIDTH FIX ───────────────────────
+
 
   // ── PRINT DEBUG ──────────────────────────────────────────────
   (function initPrintDebug() {
