@@ -1024,228 +1024,15 @@ body.dark-mode .miscues-textarea {
 
 } /* end @media print */
 
-/* ============================================================
-   MOBILE SAFARI PRINT FIXES
-   Scoped to touch/mobile devices only — desktop print is
-   handled entirely by the first @media print block above.
+   Mobile Safari: handled via JS-injected <style> at beforeprint.
+   The @media block below is kept as a non-JS fallback only.
    ============================================================ */
 @media print and (max-device-width: 1024px) {
-
-  /* ── Colors ── */
+  /* Fallback — JS injection is the primary mechanism for Mobile Safari */
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-
-  /* ── Hide placeholders ── */
-  input::placeholder, textarea::placeholder,
-  input::-webkit-input-placeholder, textarea::-webkit-input-placeholder,
-  *::placeholder, *::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
-
-  /* ── Font smoothing ── */
-  body { -webkit-font-smoothing: antialiased !important; text-rendering: optimizeLegibility !important; }
-
-  /* ── Page wrapper: MUST be block for page-breaks to fire ── */
-  .page-wrapper {
-    display: block !important;
-    width: 100% !important; max-width: 100% !important;
-    padding: 0 !important; margin: 0 !important;
-  }
-
-  /* ── Form pages: tight padding, no fixed height ── */
-  .form-page {
-    width: 100% !important; max-width: 100% !important;
-    padding: 4pt 6pt !important; margin: 0 !important;
-    box-sizing: border-box !important;
-    height: auto !important; overflow: visible !important;
-  }
-
-  /* ── Page breaks ── */
-  #page1 {
-    page-break-after: always !important; break-after: page !important;
-    -webkit-column-break-after: always !important;
-    page-break-inside: auto !important; break-inside: auto !important;
-  }
-  #page2 {
-    page-break-before: always !important; break-before: page !important;
-    -webkit-column-break-before: always !important;
-    page-break-inside: auto !important; break-inside: auto !important;
-  }
-
-  /* ── Header — compact ── */
-  .page1-header { margin-bottom: 2pt !important; }
-  .logo-area { gap: 4pt !important; margin-bottom: 2pt !important; flex-wrap: nowrap !important; }
-  .logo-area img { width: 22pt !important; height: 22pt !important; }
-  .logo-text { font-size: 10pt !important; }
-  .logo-text .generators-sub { font-size: 10pt !important; color: #1F2937 !important; }
-  .checklist-title { font-size: 9pt !important; text-align: center !important; padding-top: 2pt !important; margin-bottom: 2pt !important; }
-
-  /* ── Top fields: table layout — fr/flex fails in Mobile Safari print ── */
-  .top-fields {
-    display: table !important; width: 100% !important;
-    table-layout: fixed !important; border-collapse: separate !important;
-    border-spacing: 4pt 0 !important; margin-bottom: 2pt !important;
-  }
-  .top-fields .field-row {
-    display: table-cell !important; vertical-align: bottom !important;
-    font-size: 7.5pt !important; line-height: 1.2 !important;
-    min-height: 0 !important; padding-top: 0 !important; padding-bottom: 1pt !important;
-  }
-  .top-fields .field-row label { font-size: 7.5pt !important; white-space: nowrap !important; }
-  .top-fields .field-row input[type="text"],
-  .top-fields .field-row input[type="date"] {
-    font-size: 7.5pt !important; line-height: 1.2 !important;
-    min-height: 0 !important; padding: 0 2pt !important;
-    overflow: visible !important; clip-path: none !important;
-    -webkit-appearance: none !important; box-sizing: content-box !important;
-  }
-
-  /* ── Two-col: table layout ── */
-  .two-col {
-    display: table !important; width: 100% !important;
-    table-layout: fixed !important; border-collapse: separate !important;
-    border-spacing: 4pt 0 !important; margin-bottom: 2pt !important;
-  }
-  .two-col > div { display: table-cell !important; width: 50% !important; vertical-align: top !important; }
-
-  /* ── Sections ── */
-  .section { margin-bottom: 0 !important; }
-  .section-title { font-size: 7.5pt !important; padding-bottom: 0 !important; margin-bottom: 0 !important; }
-  .section-row {
-    font-size: 7.5pt !important; line-height: 1.2 !important;
-    min-height: 0 !important; padding-top: 0 !important; margin-bottom: 0 !important;
-    display: block !important; overflow: visible !important;
-  }
-  hr.section-hr { margin: 1pt 0 !important; }
-
-  /* ── Team Member / Checked By inline inputs — keep short ── */
-  .section-row .inline-input { width: 7ch !important; }
-
-  /* ── Inline inputs ── */
-  .inline-input, .full-line-input {
-    font-size: 7.5pt !important; line-height: 1.2 !important;
-    min-height: 0 !important; padding: 0 2pt !important;
-    overflow: visible !important; clip-path: none !important;
-    -webkit-appearance: none !important; box-sizing: content-box !important;
-  }
-  .full-line-input { width: 100% !important; }
-
-  /* ── Checkboxes & YN pills ── */
-  input[type="checkbox"] {
-    -webkit-appearance: checkbox !important; opacity: 1 !important;
-    visibility: visible !important; width: 7pt !important; height: 7pt !important;
-  }
-  .yn-checkbox-wrap { font-size: 7.5pt !important; padding: 0 1.5pt !important; gap: 0 !important; line-height: 1.1 !important; }
-  .yn-checkbox-wrap.yn-yes.checked { background: #059669 !important; -webkit-print-color-adjust: exact !important; }
-  .yn-checkbox-wrap.yn-no.checked  { background: #DC2626 !important; -webkit-print-color-adjust: exact !important; }
-  .yn-checkbox-wrap.yn-opt.checked { background: #D97706 !important; -webkit-print-color-adjust: exact !important; }
-
-  /* ── Textareas (page 1) ── */
-  #page1 textarea.multiline, .miscues-textarea {
-    font-size: 7.5pt !important; height: 12pt !important;
-    min-height: 12pt !important; max-height: 12pt !important;
-    padding: 0 2pt !important; line-height: 1.2 !important;
-    overflow: hidden !important; resize: none !important;
-    display: block !important; width: 100% !important;
-    background: #fff !important; color: #1F2937 !important;
-    border: 0.5pt solid #bbb !important;
-  }
-
-  /* ── Regulator row ── */
-  .reg-row {
-    font-size: 7pt !important; font-weight: bold !important;
-    padding: 1pt 0 !important; margin-bottom: 2pt !important;
-    border-top: 0.5pt solid #ccc !important; border-bottom: 0.5pt solid #ccc !important;
-    display: block !important; width: 100% !important; line-height: 1.5 !important;
-  }
-  .reg-field { display: inline-flex !important; align-items: center !important; gap: 2pt !important; margin-right: 6pt !important; white-space: nowrap !important; }
-  .reg-field label { font-size: 7pt !important; color: #1F2937 !important; }
-  .reg-field input {
-    font-size: 7pt !important; width: 22pt !important; color: #1F2937 !important;
-    background: transparent !important; border: none !important;
-    border-bottom: 0.5pt solid #999 !important;
-    line-height: 1.2 !important; padding: 0 2pt !important;
-    min-height: 0 !important; overflow: visible !important; clip-path: none !important;
-    -webkit-appearance: none !important;
-  }
-  /* Keep REGULATORS span blue in print too */
-  .reg-field label span { color: #1E40AF !important; -webkit-print-color-adjust: exact !important; }
-
-  /* ── Tables split: table layout — fr/flex fails in Mobile Safari print ── */
-  .tables-split, .page2-tables-split {
-    display: table !important; width: 100% !important;
-    table-layout: fixed !important; border-collapse: separate !important;
-    border-spacing: 4pt 0 !important; margin-bottom: 2pt !important;
-  }
-  .tables-split .tables-col, .page2-tables-split .tables-col {
-    display: table-cell !important; width: 50% !important; vertical-align: top !important;
-  }
-  .grid-section { margin-bottom: 1pt !important; overflow: visible !important; }
-
-  /* ── Material tables — scaled down ── */
-  table.mat-table {
-    font-size: 7.5pt !important; width: 100% !important;
-    table-layout: fixed !important; border-collapse: collapse !important;
-    display: table !important; visibility: visible !important;
-  }
-  table.mat-table col.col-data { width: 16pt !important; }
-  table.mat-table thead { display: table-header-group !important; }
-  table.mat-table tbody { display: table-row-group !important; }
-  table.mat-table tr { display: table-row !important; visibility: visible !important; }
-  table.mat-table th, table.mat-table td {
-    font-size: 7.5pt !important; border: 0.5pt solid #333 !important;
-    padding: 0.5pt 1pt !important; overflow: visible !important;
-    display: table-cell !important; visibility: visible !important; opacity: 1 !important;
-    line-height: 1.15 !important;
-  }
-  table.mat-table th {
-    background: #4B5563 !important; color: #ffffff !important;
-    font-size: 7.5pt !important; white-space: nowrap !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table td.row-label {
-    text-align: left !important; font-weight: bold !important;
-    background: #fafafa !important; color: #1F2937 !important;
-    font-size: 7.5pt !important; white-space: normal !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table td.row-label.section-header {
-    background: #4B5563 !important; color: #ffffff !important;
-    font-size: 7.5pt !important; text-align: center !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table tbody tr:nth-child(even) td.row-label {
-    background: #f0f0f0 !important; -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table td input[type="text"] {
-    font-size: 7.5pt !important; color: #1F2937 !important;
-    background: #ffffff !important; border: none !important;
-    width: 100% !important; text-align: center !important; padding: 0 !important;
-    display: block !important; -webkit-appearance: none !important;
-    overflow: visible !important; visibility: visible !important; opacity: 1 !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-
-  /* ── Page 2 textarea ── */
-  #page2 textarea.multiline {
-    font-size: 8pt !important; height: 40pt !important;
-    min-height: 40pt !important; max-height: 40pt !important;
-    background: #fff !important; color: #1F2937 !important;
-    border: 0.5pt solid #bbb !important; padding: 2pt !important;
-    line-height: 1.3 !important; overflow: hidden !important;
-    display: block !important; width: 100% !important; resize: none !important;
-  }
-  .other-section { padding-top: 2pt !important; }
-  .other-title {
-    font-size: 9pt !important; padding: 2pt 4pt !important;
-    margin-bottom: 2pt !important; background: #4B5563 !important;
-    color: #ffffff !important; -webkit-print-color-adjust: exact !important;
-  }
-
-  /* ── Global input visibility ── */
-  input[type="text"], input[type="date"], textarea {
-    -webkit-appearance: none !important; appearance: none !important;
-    opacity: 1 !important; visibility: visible !important;
-    overflow: visible !important; clip-path: none !important;
-    box-sizing: content-box !important;
-  }
+  .page-wrapper { display: block !important; }
+  #page1 { page-break-after: always !important; break-after: page !important; }
+  #page2 { page-break-before: always !important; break-before: page !important; }
 }
 </style>
 </head>
@@ -1258,7 +1045,7 @@ body.dark-mode .miscues-textarea {
       <button class="btn" onclick="window.location.href='../'">🏠</button>
       <button class="btn" onclick="(function(){ document.title = buildFileName('pdf', null).replace('.pdf',''); const wasDark = document.body.classList.contains('dark-mode'); document.body.classList.remove('dark-mode'); setTimeout(function(){ window.print(); setTimeout(function(){ if(wasDark) document.body.classList.add('dark-mode'); }, 1000); }, 100); })()">📄 PRINT</button>
       <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
-      <button class="btn" id="debug-btn" onclick="toggleDebugOverlay()" style="background:rgba(255,0,0,0.15);border-color:red;color:red;">🐛 DEBUG</button>
+      <button class="btn" onclick="toggleDebugOverlay()" style="background:rgba(255,0,0,0.15);border-color:red;color:red;">🐛 DEBUG</button>
       <button class="btn" onclick="saveForIPhone()">📱 iPHONE</button>
       <button class="btn" onclick="saveForAndroid()">🤖 ANDROID</button>
       <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode">
@@ -1951,19 +1738,158 @@ function setStatus(msg) {
 
 /* ================================================================
    BEFORE/AFTER PRINT — Mobile Safari ONLY
-   Safari's print engine collapses flex/grid on page2 even with
-   CSS rules. Inline styles applied via JS cannot be overridden.
-   We detect Mobile Safari and only run these fixes there.
+   @media print and (max-device-width) is unreliable on iOS Safari —
+   it may not match at print time. Instead we inject a <style> tag
+   directly into <head> at beforeprint and remove it at afterprint.
+   Inline styles on elements are also applied as a belt-and-suspenders.
 ================================================================ */
 (function() {
-  // Detect Mobile Safari — not Chrome on iOS, not desktop Safari
   const ua = navigator.userAgent;
   const isMobileSafari = /iPhone|iPad|iPod/.test(ua) &&
                          /WebKit/.test(ua) &&
                          !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
-  if (!isMobileSafari) return; // Desktop — do nothing, leave CSS in charge
+  if (!isMobileSafari) return;
 
   let savedPH = [];
+  let injectedStyle = null;
+
+  // ── The full mobile print CSS injected as a real <style> tag ──────
+  const MOBILE_PRINT_CSS = `
+@media print {
+  * { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }
+
+  .action-bar, .notice, #save-status { display:none!important; }
+  input::placeholder, textarea::placeholder,
+  *::-webkit-input-placeholder { color:transparent!important; opacity:0!important; }
+
+  html, body { background:#fff!important; color:#1F2937!important;
+    max-width:100%!important; width:100%!important;
+    margin:0!important; padding:0!important;
+    overflow:visible!important; min-height:0!important; font-size:7.5pt!important; }
+
+  .page-wrapper { display:block!important; width:100%!important;
+    max-width:100%!important; padding:0!important; margin:0!important; }
+
+  .form-page { display:block!important; width:100%!important;
+    max-width:100%!important; padding:4pt 6pt!important; margin:0!important;
+    box-sizing:border-box!important; height:auto!important; overflow:visible!important;
+    background:#fff!important; }
+
+  #page1 { page-break-after:always!important; break-after:page!important;
+    -webkit-column-break-after:always!important; }
+  #page2 { page-break-before:always!important; break-before:page!important;
+    -webkit-column-break-before:always!important; }
+
+  .page1-header { margin-bottom:2pt!important; }
+  .logo-area { gap:4pt!important; margin-bottom:2pt!important; flex-wrap:nowrap!important; }
+  .logo-area img { width:22pt!important; height:22pt!important; }
+  .logo-text { font-size:10pt!important; }
+  .checklist-title { font-size:9pt!important; text-align:center!important;
+    padding-top:2pt!important; margin-bottom:2pt!important; }
+
+  .top-fields { display:table!important; width:100%!important;
+    table-layout:fixed!important; border-collapse:separate!important;
+    border-spacing:4pt 0!important; margin-bottom:2pt!important; }
+  .top-fields .field-row { display:table-cell!important; vertical-align:bottom!important;
+    font-size:7.5pt!important; line-height:1.2!important;
+    min-height:0!important; padding:0 0 1pt 0!important; }
+  .top-fields .field-row label { font-size:7.5pt!important; white-space:nowrap!important; }
+  .top-fields .field-row input[type="text"],
+  .top-fields .field-row input[type="date"] { font-size:7.5pt!important;
+    min-height:0!important; padding:0 2pt!important; clip-path:none!important;
+    -webkit-appearance:none!important; }
+
+  .two-col { display:table!important; width:100%!important;
+    table-layout:fixed!important; border-collapse:separate!important;
+    border-spacing:4pt 0!important; margin-bottom:2pt!important; }
+  .two-col > div { display:table-cell!important; width:50%!important; vertical-align:top!important; }
+
+  .section { margin-bottom:0!important; }
+  .section-title { font-size:7.5pt!important; padding-bottom:0!important; margin-bottom:0!important; }
+  .section-row { font-size:7.5pt!important; line-height:1.2!important;
+    min-height:0!important; padding-top:0!important; margin-bottom:0!important;
+    display:block!important; overflow:visible!important; }
+  hr.section-hr { margin:1pt 0!important; }
+  .section-row .inline-input { width:7ch!important; }
+  .inline-input, .full-line-input { font-size:7.5pt!important; line-height:1.2!important;
+    min-height:0!important; padding:0 2pt!important; clip-path:none!important;
+    -webkit-appearance:none!important; }
+  .full-line-input { width:100%!important; }
+
+  input[type="checkbox"] { -webkit-appearance:checkbox!important;
+    width:7pt!important; height:7pt!important; }
+  .yn-checkbox-wrap { font-size:7.5pt!important; padding:0 1.5pt!important;
+    line-height:1.1!important; }
+  .yn-checkbox-wrap.yn-yes.checked { background:#059669!important; }
+  .yn-checkbox-wrap.yn-no.checked  { background:#DC2626!important; }
+  .yn-checkbox-wrap.yn-opt.checked { background:#D97706!important; }
+
+  #page1 textarea.multiline, .miscues-textarea { font-size:7.5pt!important;
+    height:12pt!important; min-height:12pt!important; max-height:12pt!important;
+    padding:0 2pt!important; line-height:1.2!important; overflow:hidden!important;
+    resize:none!important; display:block!important; width:100%!important;
+    background:#fff!important; border:0.5pt solid #bbb!important; }
+
+  .reg-row { font-size:7pt!important; padding:1pt 0!important; margin-bottom:2pt!important;
+    border-top:0.5pt solid #ccc!important; border-bottom:0.5pt solid #ccc!important;
+    display:block!important; width:100%!important; line-height:1.5!important; }
+  .reg-field { display:inline-flex!important; align-items:center!important;
+    gap:2pt!important; margin-right:6pt!important; white-space:nowrap!important; }
+  .reg-field label { font-size:7pt!important; color:#1F2937!important; }
+  .reg-field label span { color:#1E40AF!important; }
+  .reg-field input { font-size:7pt!important; width:22pt!important;
+    background:transparent!important; border:none!important;
+    border-bottom:0.5pt solid #999!important; padding:0 2pt!important;
+    clip-path:none!important; -webkit-appearance:none!important; }
+
+  .tables-split, .page2-tables-split { display:table!important; width:100%!important;
+    table-layout:fixed!important; border-collapse:separate!important;
+    border-spacing:4pt 0!important; margin-bottom:2pt!important; }
+  .tables-split .tables-col, .page2-tables-split .tables-col {
+    display:table-cell!important; width:50%!important; vertical-align:top!important; }
+  .grid-section { margin-bottom:1pt!important; overflow:visible!important; }
+
+  table.mat-table { font-size:7.5pt!important; width:100%!important;
+    table-layout:fixed!important; border-collapse:collapse!important;
+    display:table!important; visibility:visible!important; }
+  table.mat-table col.col-data { width:16pt!important; }
+  table.mat-table thead { display:table-header-group!important; }
+  table.mat-table tbody { display:table-row-group!important; }
+  table.mat-table tr { display:table-row!important; visibility:visible!important; }
+  table.mat-table th, table.mat-table td { font-size:7.5pt!important;
+    border:0.5pt solid #333!important; padding:0.5pt 1pt!important;
+    display:table-cell!important; visibility:visible!important;
+    opacity:1!important; line-height:1.15!important; overflow:visible!important; }
+  table.mat-table th { background:#4B5563!important; color:#fff!important;
+    white-space:nowrap!important; -webkit-print-color-adjust:exact!important; }
+  table.mat-table td.row-label { text-align:left!important; font-weight:bold!important;
+    background:#fafafa!important; color:#1F2937!important;
+    -webkit-print-color-adjust:exact!important; }
+  table.mat-table td.row-label.section-header { background:#4B5563!important;
+    color:#fff!important; text-align:center!important;
+    -webkit-print-color-adjust:exact!important; }
+  table.mat-table tbody tr:nth-child(even) td.row-label { background:#f0f0f0!important;
+    -webkit-print-color-adjust:exact!important; }
+  table.mat-table td input[type="text"] { font-size:7.5pt!important; color:#1F2937!important;
+    background:#fff!important; border:none!important; width:100%!important;
+    text-align:center!important; padding:0!important; display:block!important;
+    -webkit-appearance:none!important; }
+
+  #page2 textarea.multiline { font-size:8pt!important; height:40pt!important;
+    min-height:40pt!important; max-height:40pt!important;
+    background:#fff!important; border:0.5pt solid #bbb!important;
+    padding:2pt!important; line-height:1.3!important; overflow:hidden!important;
+    display:block!important; width:100%!important; resize:none!important; }
+  .other-section { padding-top:2pt!important; }
+  .other-title { font-size:9pt!important; padding:2pt 4pt!important;
+    margin-bottom:2pt!important; background:#4B5563!important; color:#fff!important;
+    -webkit-print-color-adjust:exact!important; }
+
+  input[type="text"], input[type="date"], textarea {
+    -webkit-appearance:none!important; opacity:1!important;
+    visibility:visible!important; overflow:visible!important;
+    clip-path:none!important; }
+}`;
 
   function stripPlaceholders() {
     savedPH = [];
@@ -1977,158 +1903,75 @@ function setStatus(msg) {
     savedPH = [];
   }
 
-  function forcePage2Layout() {
-    // page-wrapper must be block so page-breaks work
-    const pw = document.querySelector('.page-wrapper');
-    if (pw) pw.style.cssText += ';display:block!important;';
-
-    const p2 = document.getElementById('page2');
-    if (!p2) return;
-    p2.style.cssText += ';display:block!important;visibility:visible!important;opacity:1!important;width:100%!important;';
-
-    const split = p2.querySelector('.page2-tables-split');
-    if (split) {
-      split.style.cssText += ';display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;';
-      split.querySelectorAll('.tables-col').forEach(col => {
-        col.style.cssText += ';display:table-cell!important;width:50%!important;vertical-align:top!important;box-sizing:border-box!important;';
-      });
-    }
-
-    p2.querySelectorAll('table.mat-table').forEach(t => {
-      t.style.cssText += ';display:table!important;width:100%!important;visibility:visible!important;border-collapse:collapse!important;table-layout:fixed!important;';
-    });
-    p2.querySelectorAll('table.mat-table thead').forEach(el => { el.style.display = 'table-header-group'; });
-    p2.querySelectorAll('table.mat-table tbody').forEach(el => { el.style.display = 'table-row-group'; });
-    p2.querySelectorAll('table.mat-table tr').forEach(el => { el.style.display = 'table-row'; });
-    p2.querySelectorAll('table.mat-table th, table.mat-table td').forEach(el => {
-      el.style.cssText += ';display:table-cell!important;visibility:visible!important;overflow:visible!important;';
-    });
-
-    const other = p2.querySelector('.other-section');
-    if (other) other.style.cssText += ';display:block!important;width:100%!important;margin-top:2pt!important;';
-
-    // page1 splits — table layout (fr/flex fail in Mobile Safari print)
-    const p1 = document.getElementById('page1');
-    if (p1) {
-      const s1 = p1.querySelector('.tables-split');
-      if (s1) {
-        s1.style.cssText += ';display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;';
-        s1.querySelectorAll('.tables-col').forEach(col => {
-          col.style.cssText += ';display:table-cell!important;width:50%!important;vertical-align:top!important;box-sizing:border-box!important;';
-        });
-      }
-      const tc = p1.querySelector('.two-col');
-      if (tc) {
-        tc.style.cssText += ';display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;';
-        tc.querySelectorAll(':scope > div').forEach(col => {
-          col.style.cssText += ';display:table-cell!important;width:50%!important;vertical-align:top!important;';
-        });
-      }
-    }
+  function injectPrintStyles() {
+    if (injectedStyle) return;
+    injectedStyle = document.createElement('style');
+    injectedStyle.id = 'aog-mobile-print-fix';
+    injectedStyle.textContent = MOBILE_PRINT_CSS;
+    document.head.appendChild(injectedStyle);
   }
 
-  function clearPage2Inline() {
-    const pw = document.querySelector('.page-wrapper');
-    if (pw) pw.removeAttribute('style');
-    const p1 = document.getElementById('page1');
-    if (p1) {
-      [p1.querySelector('.tables-split'), p1.querySelector('.two-col'),
-       ...Array.from(p1.querySelectorAll('.tables-col, table.mat-table, thead, tbody, tr, th, td'))
-      ].forEach(el => { if (el) el.removeAttribute('style'); });
-    }
-    const p2 = document.getElementById('page2');
-    if (!p2) return;
-    [p2,
-     p2.querySelector('.page2-tables-split'),
-     ...Array.from(p2.querySelectorAll('.tables-col, table.mat-table, thead, tbody, tr, th, td, .other-section'))
-    ].forEach(el => { if (el) el.removeAttribute('style'); });
+  function removePrintStyles() {
+    if (injectedStyle) { injectedStyle.remove(); injectedStyle = null; }
   }
 
   window.addEventListener('beforeprint', function() {
     stripPlaceholders();
-    forcePage2Layout();
+    injectPrintStyles();
   });
   window.addEventListener('afterprint', function() {
     restorePHs();
-    clearPage2Inline();
+    removePrintStyles();
   });
 })();
 </script>
 <script>
-/* ================================================================
-   ON-SCREEN DEBUG OVERLAY — tap 🐛 DEBUG to toggle
-================================================================ */
+/* ── Debug overlay ── */
 function toggleDebugOverlay() {
   const existing = document.getElementById('aog-debug-overlay');
   if (existing) { existing.remove(); return; }
-
   const targets = [
-    { label: 'html', el: document.documentElement },
-    { label: 'body', el: document.body },
-    { label: '.page-wrapper', el: document.querySelector('.page-wrapper') },
-    { label: '#page1', el: document.getElementById('page1') },
-    { label: '#page2', el: document.getElementById('page2') },
-    { label: '.two-col (first)', el: document.querySelector('.two-col') },
-    { label: '.tables-split', el: document.querySelector('.tables-split') },
-    { label: '.page2-tables-split', el: document.querySelector('.page2-tables-split') },
-    { label: '.tables-col (first)', el: document.querySelector('.tables-col') },
-    { label: 'table.mat-table (first)', el: document.querySelector('table.mat-table') },
-    { label: '.miscues-textarea', el: document.querySelector('.miscues-textarea') },
-    { label: '#page1 textarea', el: document.querySelector('#page1 textarea.multiline') },
-    { label: '#page2 textarea', el: document.querySelector('#page2 textarea.multiline') },
+    { label:'html', el:document.documentElement },
+    { label:'body', el:document.body },
+    { label:'.page-wrapper', el:document.querySelector('.page-wrapper') },
+    { label:'#page1', el:document.getElementById('page1') },
+    { label:'#page2', el:document.getElementById('page2') },
+    { label:'.two-col (first)', el:document.querySelector('.two-col') },
+    { label:'.tables-split', el:document.querySelector('.tables-split') },
+    { label:'.page2-tables-split', el:document.querySelector('.page2-tables-split') },
+    { label:'.tables-col (first)', el:document.querySelector('.tables-col') },
+    { label:'table.mat-table (first)', el:document.querySelector('table.mat-table') },
   ];
-
   const props = ['display','width','maxWidth','height','minHeight','maxHeight',
-                 'overflow','overflowX','overflowY','position','flexDirection',
-                 'gridTemplateColumns','pageBreakAfter','pageBreakBefore',
-                 'breakAfter','breakBefore','visibility','opacity','boxSizing'];
-
-  let html = `<div id="aog-debug-overlay" style="
-    position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;
-    background:rgba(0,0,0,0.92);color:#0f0;font-family:monospace;
-    font-size:11px;overflow-y:auto;padding:10px;box-sizing:border-box;">
+    'overflow','overflowX','gridTemplateColumns','pageBreakAfter','pageBreakBefore',
+    'breakAfter','breakBefore','visibility','flexDirection'];
+  let html = `<div id="aog-debug-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.93);color:#0f0;font-family:monospace;font-size:11px;overflow-y:auto;padding:10px;box-sizing:border-box;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-    <span style="color:#ff0;font-size:14px;font-weight:bold;">🐛 AOG PRINT DEBUG</span>
-    <button onclick="document.getElementById('aog-debug-overlay').remove()"
-      style="background:#f00;color:#fff;border:none;padding:6px 12px;font-size:13px;cursor:pointer;border-radius:3px;">✕ CLOSE</button>
+    <span style="color:#ff0;font-size:14px;font-weight:bold;">🐛 AOG PRINT DEBUG v6</span>
+    <button onclick="document.getElementById('aog-debug-overlay').remove()" style="background:#f00;color:#fff;border:none;padding:6px 12px;font-size:13px;cursor:pointer;">✕</button>
   </div>
-  <div style="color:#aaa;margin-bottom:8px;">
-    UA: ${navigator.userAgent.substring(0,80)}...<br>
-    Screen: ${window.screen.width}×${window.screen.height} |
-    Inner: ${window.innerWidth}×${window.innerHeight} |
-    DPR: ${window.devicePixelRatio}
-  </div>`;
-
-  targets.forEach(({ label, el }) => {
-    if (!el) { html += `<div style="color:#f88;margin:4px 0;">❌ ${label} — NOT FOUND</div>`; return; }
+  <div style="color:#aaa;margin-bottom:6px;">UA: ${navigator.userAgent.substring(0,90)}<br>Screen:${window.screen.width}×${window.screen.height} Inner:${window.innerWidth}×${window.innerHeight} DPR:${window.devicePixelRatio}</div>`;
+  targets.forEach(({label,el}) => {
+    if (!el) { html+=`<div style="color:#f88;">❌ ${label} NOT FOUND</div>`; return; }
     const cs = window.getComputedStyle(el);
-    html += `<div style="border:1px solid #0f0;margin:6px 0;padding:6px;border-radius:3px;">
-      <div style="color:#ff0;font-weight:bold;margin-bottom:3px;">📦 ${label}</div>
-      <div style="color:#0cf;">offsetW:${el.offsetWidth} offsetH:${el.offsetHeight} scrollH:${el.scrollHeight}</div>`;
-    props.forEach(p => {
-      const val = cs[p];
-      if (val && val !== 'none' && val !== 'normal' && val !== 'auto' && val !== '' && val !== '0px') {
-        const hot = (p.includes('break') || p.includes('Break') || p.includes('overflow') || p.includes('height') || p.includes('display'));
-        html += `<div style="color:${hot?'#f90':'#0f0'};">${p}: <span style="color:#fff;">${val}</span></div>`;
+    html+=`<div style="border:1px solid #0f0;margin:5px 0;padding:5px;border-radius:3px;"><div style="color:#ff0;font-weight:bold;">📦 ${label}</div><div style="color:#0cf;">offsetW:${el.offsetWidth} offsetH:${el.offsetHeight} scrollH:${el.scrollHeight}</div>`;
+    props.forEach(p=>{
+      const v=cs[p];
+      if(v&&v!=='none'&&v!=='normal'&&v!=='auto'&&v!==''&&v!=='0px'){
+        const hot=(p.includes('break')||p.includes('Break')||p.includes('overflow')||p.includes('height')||p.includes('display')||p.includes('grid'));
+        html+=`<div style="color:${hot?'#f90':'#0f0'};">${p}:<span style="color:#fff;">${v}</span></div>`;
       }
     });
-    if (el.getAttribute('style')) html += `<div style="color:#f0f;">inlineStyle: ${el.getAttribute('style')}</div>`;
-    html += `</div>`;
+    if(el.getAttribute('style')) html+=`<div style="color:#f0f;">inline:${el.getAttribute('style')}</div>`;
+    html+=`</div>`;
   });
-
-  html += `<div style="border:1px solid #ff0;margin:6px 0;padding:6px;border-radius:3px;">
-    <div style="color:#ff0;font-weight:bold;margin-bottom:3px;">📄 PAGE BREAK ESTIMATE</div>
-    <div style="color:#0cf;">
-      @page 8.5×11in, margin ~0.12in×0.15in → usable ≈ 756pt = ~1008px at 96dpi<br>
-      #page1 offsetH: ${document.getElementById('page1')?.offsetHeight ?? 'N/A'}px<br>
-      #page2 offsetH: ${document.getElementById('page2')?.offsetHeight ?? 'N/A'}px<br>
-      .page-wrapper scrollH: ${document.querySelector('.page-wrapper')?.scrollHeight ?? 'N/A'}px
-    </div>
-  </div>
-  <div style="color:#aaa;font-size:10px;margin-top:8px;">
-    🟡 Orange = height/overflow/display/break (print culprits) | 🟢 Green = other | 🔵 Cyan = dimensions
-  </div></div>`;
-
+  html+=`<div style="border:1px solid #ff0;margin:5px 0;padding:5px;">
+    <div style="color:#ff0;font-weight:bold;">📄 PAGE BREAK ESTIMATE</div>
+    <div style="color:#0cf;">Usable ≈ 1008px at 96dpi<br>
+    #page1: ${document.getElementById('page1')?.offsetHeight}px (needs &lt;1008)<br>
+    #page2: ${document.getElementById('page2')?.offsetHeight}px<br>
+    injectedStyle present: ${!!document.getElementById('aog-mobile-print-fix')}</div></div>
+  <div style="color:#aaa;font-size:10px;">🟡=culprit props | TIP: tap PRINT then immediately check injectedStyle</div></div>`;
   document.body.insertAdjacentHTML('beforeend', html);
 }
 
