@@ -192,7 +192,7 @@ body.dark-mode textarea:focus {
   border-bottom-color:#00FFC8; background:rgba(26,40,71,0.8);
   box-shadow:0 0 8px rgba(0,255,200,0.2);
 }
-input::placeholder, textarea::placeholder { color:var(--text-dim)!important; opacity:1; }
+input::placeholder, textarea::placeholder { color:var(--text-dim); opacity:1; }
 
 input[type="checkbox"] {
   width:14px; height:14px; cursor:pointer; vertical-align:middle;
@@ -1578,7 +1578,12 @@ function saveForIPhone() {
   // Hide placeholders for capture
   const styleEl = document.createElement('style');
   styleEl.id = 'capture-no-placeholder';
-  styleEl.textContent = 'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; } input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }';
+  styleEl.textContent = [
+    'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; }',
+    'input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }',
+    'input::-moz-placeholder, textarea::-moz-placeholder { color: transparent !important; opacity: 0 !important; }',
+    'input:-ms-input-placeholder, textarea:-ms-input-placeholder { color: transparent !important; opacity: 0 !important; }'
+  ].join(' ');
   document.head.appendChild(styleEl);
 
   pages.forEach((page, idx) => {
@@ -1587,10 +1592,11 @@ function saveForIPhone() {
     page.style.maxWidth = RENDER_W + 'px';
     page.style.minWidth = RENDER_W + 'px';
     setTimeout(() => {
+      const captureH = page.offsetHeight + 40;
       html2canvas(page, {
         scale: 2, useCORS: true, backgroundColor: '#fff',
         logging: false, width: RENDER_W,
-        height: page.scrollHeight, windowWidth: RENDER_W
+        height: captureH, windowWidth: RENDER_W
       }).then(canvas => {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
         const wrap = document.createElement('div');
@@ -1636,7 +1642,12 @@ function saveForAndroid() {
   // Hide placeholders for capture
   const styleEl = document.createElement('style');
   styleEl.id = 'capture-no-placeholder';
-  styleEl.textContent = 'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; } input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }';
+  styleEl.textContent = [
+    'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; }',
+    'input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }',
+    'input::-moz-placeholder, textarea::-moz-placeholder { color: transparent !important; opacity: 0 !important; }',
+    'input:-ms-input-placeholder, textarea:-ms-input-placeholder { color: transparent !important; opacity: 0 !important; }'
+  ].join(' ');
   document.head.appendChild(styleEl);
   const removePlaceholderStyle = () => { const s = document.getElementById('capture-no-placeholder'); if (s) s.remove(); };
 
@@ -1646,10 +1657,11 @@ function saveForAndroid() {
     page.style.maxWidth = RENDER_W + 'px';
     page.style.minWidth = RENDER_W + 'px';
     setTimeout(() => {
+      const captureH = page.offsetHeight + 40;
       html2canvas(page, {
         scale: 2, useCORS: true, backgroundColor: '#fff',
         logging: false, width: RENDER_W,
-        height: page.scrollHeight, windowWidth: RENDER_W
+        height: captureH, windowWidth: RENDER_W
       }).then(canvas => {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
         const a = document.createElement('a');
