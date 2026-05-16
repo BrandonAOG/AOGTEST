@@ -1199,15 +1199,25 @@ function openPrintPreview() {
   document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
 
   const wasDark = document.body.classList.contains('dark-mode');
-  if (wasDark) document.body.classList.remove('dark-mode');
   const ab = document.querySelector('.action-bar');
   const nt = document.querySelector('.notice');
   if (ab) ab.style.display = 'none';
   if (nt) nt.style.display = 'none';
-  window.print();
-  if (ab) ab.style.display = '';
-  if (nt) nt.style.display = '';
-  if (wasDark) document.body.classList.add('dark-mode');
+  if (wasDark) {
+    document.body.style.visibility = 'hidden';
+    document.body.classList.remove('dark-mode');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.body.style.visibility = '';
+      window.print();
+      document.body.classList.add('dark-mode');
+      if (ab) ab.style.display = '';
+      if (nt) nt.style.display = '';
+    }));
+  } else {
+    window.print();
+    if (ab) ab.style.display = '';
+    if (nt) nt.style.display = '';
+  }
   document.title = origTitle;
 }
 
