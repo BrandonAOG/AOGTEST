@@ -1258,6 +1258,7 @@ body.dark-mode .miscues-textarea {
       <button class="btn" onclick="window.location.href='../'">🏠</button>
       <button class="btn" onclick="(function(){ document.title = buildFileName('pdf', null).replace('.pdf',''); const wasDark = document.body.classList.contains('dark-mode'); document.body.classList.remove('dark-mode'); setTimeout(function(){ window.print(); setTimeout(function(){ if(wasDark) document.body.classList.add('dark-mode'); }, 1000); }, 100); })()">📄 PRINT</button>
       <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
+      <button class="btn" id="debug-btn" onclick="toggleDebugOverlay()" style="background:rgba(255,0,0,0.15);border-color:red;color:red;">🐛 DEBUG</button>
       <button class="btn" onclick="saveForIPhone()">📱 iPHONE</button>
       <button class="btn" onclick="saveForAndroid()">🤖 ANDROID</button>
       <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode">
@@ -2054,6 +2055,83 @@ function setStatus(msg) {
 })();
 </script>
 <script>
+/* ================================================================
+   ON-SCREEN DEBUG OVERLAY — tap 🐛 DEBUG to toggle
+================================================================ */
+function toggleDebugOverlay() {
+  const existing = document.getElementById('aog-debug-overlay');
+  if (existing) { existing.remove(); return; }
+
+  const targets = [
+    { label: 'html', el: document.documentElement },
+    { label: 'body', el: document.body },
+    { label: '.page-wrapper', el: document.querySelector('.page-wrapper') },
+    { label: '#page1', el: document.getElementById('page1') },
+    { label: '#page2', el: document.getElementById('page2') },
+    { label: '.two-col (first)', el: document.querySelector('.two-col') },
+    { label: '.tables-split', el: document.querySelector('.tables-split') },
+    { label: '.page2-tables-split', el: document.querySelector('.page2-tables-split') },
+    { label: '.tables-col (first)', el: document.querySelector('.tables-col') },
+    { label: 'table.mat-table (first)', el: document.querySelector('table.mat-table') },
+    { label: '.miscues-textarea', el: document.querySelector('.miscues-textarea') },
+    { label: '#page1 textarea', el: document.querySelector('#page1 textarea.multiline') },
+    { label: '#page2 textarea', el: document.querySelector('#page2 textarea.multiline') },
+  ];
+
+  const props = ['display','width','maxWidth','height','minHeight','maxHeight',
+                 'overflow','overflowX','overflowY','position','flexDirection',
+                 'gridTemplateColumns','pageBreakAfter','pageBreakBefore',
+                 'breakAfter','breakBefore','visibility','opacity','boxSizing'];
+
+  let html = `<div id="aog-debug-overlay" style="
+    position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;
+    background:rgba(0,0,0,0.92);color:#0f0;font-family:monospace;
+    font-size:11px;overflow-y:auto;padding:10px;box-sizing:border-box;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <span style="color:#ff0;font-size:14px;font-weight:bold;">🐛 AOG PRINT DEBUG</span>
+    <button onclick="document.getElementById('aog-debug-overlay').remove()"
+      style="background:#f00;color:#fff;border:none;padding:6px 12px;font-size:13px;cursor:pointer;border-radius:3px;">✕ CLOSE</button>
+  </div>
+  <div style="color:#aaa;margin-bottom:8px;">
+    UA: ${navigator.userAgent.substring(0,80)}...<br>
+    Screen: ${window.screen.width}×${window.screen.height} |
+    Inner: ${window.innerWidth}×${window.innerHeight} |
+    DPR: ${window.devicePixelRatio}
+  </div>`;
+
+  targets.forEach(({ label, el }) => {
+    if (!el) { html += `<div style="color:#f88;margin:4px 0;">❌ ${label} — NOT FOUND</div>`; return; }
+    const cs = window.getComputedStyle(el);
+    html += `<div style="border:1px solid #0f0;margin:6px 0;padding:6px;border-radius:3px;">
+      <div style="color:#ff0;font-weight:bold;margin-bottom:3px;">📦 ${label}</div>
+      <div style="color:#0cf;">offsetW:${el.offsetWidth} offsetH:${el.offsetHeight} scrollH:${el.scrollHeight}</div>`;
+    props.forEach(p => {
+      const val = cs[p];
+      if (val && val !== 'none' && val !== 'normal' && val !== 'auto' && val !== '' && val !== '0px') {
+        const hot = (p.includes('break') || p.includes('Break') || p.includes('overflow') || p.includes('height') || p.includes('display'));
+        html += `<div style="color:${hot?'#f90':'#0f0'};">${p}: <span style="color:#fff;">${val}</span></div>`;
+      }
+    });
+    if (el.getAttribute('style')) html += `<div style="color:#f0f;">inlineStyle: ${el.getAttribute('style')}</div>`;
+    html += `</div>`;
+  });
+
+  html += `<div style="border:1px solid #ff0;margin:6px 0;padding:6px;border-radius:3px;">
+    <div style="color:#ff0;font-weight:bold;margin-bottom:3px;">📄 PAGE BREAK ESTIMATE</div>
+    <div style="color:#0cf;">
+      @page 8.5×11in, margin ~0.12in×0.15in → usable ≈ 756pt = ~1008px at 96dpi<br>
+      #page1 offsetH: ${document.getElementById('page1')?.offsetHeight ?? 'N/A'}px<br>
+      #page2 offsetH: ${document.getElementById('page2')?.offsetHeight ?? 'N/A'}px<br>
+      .page-wrapper scrollH: ${document.querySelector('.page-wrapper')?.scrollHeight ?? 'N/A'}px
+    </div>
+  </div>
+  <div style="color:#aaa;font-size:10px;margin-top:8px;">
+    🟡 Orange = height/overflow/display/break (print culprits) | 🟢 Green = other | 🔵 Cyan = dimensions
+  </div></div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
       navigator.serviceWorker.register('../sw.js', { scope: '../' })
