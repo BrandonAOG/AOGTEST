@@ -621,10 +621,10 @@ body.dark-mode .miscues-textarea {
     break-before: avoid !important;
   }
 
-  /* Page 2: always starts fresh, allow content to flow/break freely */
+  /* Page 2: let it follow naturally after the page break on page1 */
   #page2 {
-    page-break-before: always !important;
-    break-before: page !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
     page-break-after: avoid !important;
     break-after: avoid !important;
     page-break-inside: auto !important;
@@ -1071,7 +1071,7 @@ body.dark-mode .miscues-textarea {
     page-break-inside: auto !important;
   }
   #page2 {
-    page-break-before: always !important; break-before: page !important;
+    page-break-before: avoid !important; break-before: avoid !important;
     page-break-inside: auto !important;
   }
 
@@ -1361,6 +1361,13 @@ body.dark-mode .miscues-textarea {
             <tbody id="pipe-body"></tbody>
           </table>
         </div>
+        <div class="grid-section">
+          <table class="mat-table" id="risers-table">
+            <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
+            <thead><tr><th style="text-align:left;">Risers</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
+            <tbody id="risers-body"></tbody>
+          </table>
+        </div>
       </div>
       <div class="tables-col">
         <div class="grid-section">
@@ -1368,13 +1375,6 @@ body.dark-mode .miscues-textarea {
             <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
             <thead><tr><th style="text-align:left;">Poly Fittings</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
             <tbody id="poly-body"></tbody>
-          </table>
-        </div>
-        <div class="grid-section">
-          <table class="mat-table" id="risers-table">
-            <colgroup><col class="col-label"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"><col class="col-data"></colgroup>
-            <thead><tr><th style="text-align:left;">Risers</th><th>2"</th><th>1¼"</th><th>1"</th><th>¾"</th><th>½"</th></tr></thead>
-            <tbody id="risers-body"></tbody>
           </table>
         </div>
         <div class="grid-section">
@@ -1611,12 +1611,16 @@ if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
     document.body.style.maxWidth = '';
   });
 })();
+const SAVE_KEY = 'aog_gas_install_v1';
 let saveTimer = null;
 
 function collectState() {
-  const d = { inputs: {}, checks: {} };
+  const d = { inputs: {}, numbers: {}, checks: {} };
   document.querySelectorAll('input[type="text"], textarea').forEach((el, i) => {
     d.inputs['i' + i] = el.value;
+  });
+  document.querySelectorAll('input[type="number"]').forEach((el, i) => {
+    d.numbers['n' + i] = el.value;
   });
   document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
     d.checks['c' + i] = el.checked;
@@ -1627,6 +1631,9 @@ function restoreState(d) {
   if (!d) return;
   document.querySelectorAll('input[type="text"], textarea').forEach((el, i) => {
     if (d.inputs && d.inputs['i' + i] !== undefined) el.value = d.inputs['i' + i];
+  });
+  document.querySelectorAll('input[type="number"]').forEach((el, i) => {
+    if (d.numbers && d.numbers['n' + i] !== undefined) el.value = d.numbers['n' + i];
   });
   document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
     if (d.checks && d.checks['c' + i] !== undefined) {
@@ -1643,7 +1650,7 @@ function doSave() {
   setTimeout(() => setStatus(''), 2000);
 }
 document.addEventListener('input', e => {
-  if (e.target.matches('input[type="text"], textarea')) {
+  if (e.target.matches('input[type="text"], textarea, input[type="number"]')) {
     clearTimeout(saveTimer); saveTimer = setTimeout(doSave, 1200);
   }
 });
