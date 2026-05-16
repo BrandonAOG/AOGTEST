@@ -1236,20 +1236,29 @@ function openPrintPreview() {
   document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
 
   wasDarkAtPrint = document.body.classList.contains('dark-mode');
+
+  const doPrint = () => {
+    const _snap1=dbgComputedSnapshot(); dbgLog('PRINT CALLED', 'class:['+document.body.className+'] inp-bg:'+_snap1.inpBg+' panel:'+_snap1.panelVar, 'print');
+    window.print();
+    const _snap2=dbgComputedSnapshot(); dbgLog('PRINT RETURNED', 'class:['+document.body.className+'] inp-bg:'+_snap2.inpBg, 'print');
+    document.title = origTitle;
+  };
+
   if (wasDarkAtPrint) {
-    // Kill all transitions so inputs repaint instantly before print renders
+    // Kill all transitions so inputs repaint instantly
     const noTrans = document.createElement('style');
     noTrans.id = 'no-transitions';
     noTrans.textContent = '* { transition: none !important; animation: none !important; }';
     document.head.appendChild(noTrans);
     document.body.classList.remove('dark-mode');
-    // Force reflow so browser applies new styles before window.print() captures
+    // Multiple reflows to ensure renderer fully commits before print captures
     void document.body.offsetHeight;
+    void document.body.scrollHeight;
+    void document.body.getBoundingClientRect();
+    doPrint();
+  } else {
+    doPrint();
   }
-  const _snap1=dbgComputedSnapshot(); dbgLog('PRINT CALLED', 'class:['+document.body.className+'] inp-bg:'+_snap1.inpBg+' panel:'+_snap1.panelVar, 'print');
-  window.print();
-  const _snap2=dbgComputedSnapshot(); dbgLog('PRINT RETURNED', 'class:['+document.body.className+'] inp-bg:'+_snap2.inpBg, 'print');
-  document.title = origTitle;
 }
 
 // ===== IPHONE =====
