@@ -1236,7 +1236,16 @@ function openPrintPreview() {
   document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
 
   wasDarkAtPrint = document.body.classList.contains('dark-mode');
-  if (wasDarkAtPrint) document.body.classList.remove('dark-mode');
+  if (wasDarkAtPrint) {
+    // Kill all transitions so inputs repaint instantly before print renders
+    const noTrans = document.createElement('style');
+    noTrans.id = 'no-transitions';
+    noTrans.textContent = '* { transition: none !important; animation: none !important; }';
+    document.head.appendChild(noTrans);
+    document.body.classList.remove('dark-mode');
+    // Force reflow so browser applies new styles before window.print() captures
+    void document.body.offsetHeight;
+  }
   const _snap1=dbgComputedSnapshot(); dbgLog('PRINT CALLED', 'class:['+document.body.className+'] inp-bg:'+_snap1.inpBg+' panel:'+_snap1.panelVar, 'print');
   window.print();
   const _snap2=dbgComputedSnapshot(); dbgLog('PRINT RETURNED', 'class:['+document.body.className+'] inp-bg:'+_snap2.inpBg, 'print');
@@ -1316,7 +1325,9 @@ window.addEventListener('beforeprint', () => {
 });
 window.addEventListener('afterprint', () => {
   _dbgAfter++; dbgLog('AFTERPRINT', 'class:['+document.body.className+'] inp-bg:'+dbgComputedSnapshot().inpBg, 'after');
-  // Restore dark mode when print dialog is dismissed
+  // Remove the no-transitions override and restore dark mode
+  const nt = document.getElementById('no-transitions');
+  if (nt) nt.remove();
   if (wasDarkAtPrint) document.body.classList.add('dark-mode');
 });
 
