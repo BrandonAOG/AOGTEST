@@ -1028,22 +1028,30 @@ body.dark-mode .miscues-textarea {
 
   /* Hide all placeholders on print */
   input::placeholder,
-  textarea::placeholder {
-    color: transparent !important;
-    opacity: 0 !important;
-  }
+  textarea::placeholder { color: transparent !important; opacity: 0 !important; }
   input::-webkit-input-placeholder,
-  textarea::-webkit-input-placeholder {
-    color: transparent !important;
-    opacity: 0 !important;
-  }
+  textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
   input::-moz-placeholder,
-  textarea::-moz-placeholder {
-    color: transparent !important;
-    opacity: 0 !important;
+  textarea::-moz-placeholder { color: transparent !important; opacity: 0 !important; }
+  *::placeholder { color: transparent !important; opacity: 0 !important; }
+  *::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
+
+  /* ── Page wrapper: Safari ignores @page margins so we pad here ── */
+  .page-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .form-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 6pt 8pt !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
   }
 
-  /* Safari collapses flex/grid — reinforce critical layouts */
+  /* ── Two-col: Safari needs -webkit- flex prefixes ── */
   .two-col {
     display: -webkit-box !important;
     display: -webkit-flex !important;
@@ -1053,7 +1061,7 @@ body.dark-mode .miscues-textarea {
     flex-direction: row !important;
     -webkit-flex-wrap: nowrap !important;
     flex-wrap: nowrap !important;
-    gap: 0 8pt !important;
+    gap: 0 6pt !important;
   }
   .two-col > div {
     -webkit-box-flex: 1 !important;
@@ -1062,20 +1070,73 @@ body.dark-mode .miscues-textarea {
     min-width: 0 !important;
     width: 50% !important;
   }
+
+  /* ── Top fields ── */
   .top-fields {
     display: -webkit-box !important;
     display: -webkit-flex !important;
     display: flex !important;
     -webkit-flex-wrap: wrap !important;
     flex-wrap: wrap !important;
-    gap: 0.5pt 10pt !important;
+    gap: 0pt 10pt !important;
+    margin-bottom: 2pt !important;
   }
   .top-fields .field-row {
     -webkit-box-flex: 0 !important;
     -webkit-flex: 0 0 48% !important;
     flex: 0 0 48% !important;
     min-width: 0 !important;
+    line-height: 1.35 !important;
+    min-height: 12pt !important;
+    padding-top: 0.5pt !important;
+    font-size: 9pt !important;
   }
+  .top-fields .field-row input[type="text"],
+  .top-fields .field-row input[type="date"] {
+    font-size: 9pt !important;
+    line-height: 1.35 !important;
+    min-height: 12pt !important;
+    padding: 1pt 2pt 0 2pt !important;
+    overflow: visible !important;
+    clip-path: none !important;
+    -webkit-appearance: none !important;
+    box-sizing: content-box !important;
+  }
+
+  /* ── Section rows ── */
+  .section-row {
+    font-size: 9pt !important;
+    line-height: 1.35 !important;
+    min-height: 12pt !important;
+    padding-top: 0.5pt !important;
+    display: -webkit-box !important;
+    display: -webkit-flex !important;
+    display: flex !important;
+    -webkit-flex-wrap: nowrap !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-start !important;
+    overflow: visible !important;
+  }
+  .section-title {
+    font-size: 9pt !important;
+    padding-bottom: 0.25pt !important;
+    margin-bottom: 0.5pt !important;
+  }
+  .section { margin-bottom: 0.5pt !important; }
+
+  /* ── Inline inputs ── */
+  .inline-input, .full-line-input {
+    font-size: 9pt !important;
+    line-height: 1.35 !important;
+    min-height: 12pt !important;
+    padding: 1pt 2pt 0 2pt !important;
+    overflow: visible !important;
+    clip-path: none !important;
+    -webkit-appearance: none !important;
+    box-sizing: content-box !important;
+  }
+
+  /* ── Tables split ── */
   .tables-split {
     display: -webkit-box !important;
     display: -webkit-flex !important;
@@ -1092,11 +1153,68 @@ body.dark-mode .miscues-textarea {
     width: 50% !important;
   }
 
-  /* Safari page break — use both old and new syntax */
+  /* ── Table sizing ── */
+  table.mat-table {
+    font-size: 9.5pt !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    display: table !important;
+    visibility: visible !important;
+  }
+  table.mat-table col.col-data { width: 20.5pt !important; }
+  table.mat-table th,
+  table.mat-table td {
+    font-size: 9.5pt !important;
+    border: 0.5pt solid #333 !important;
+    padding: 0.75pt 1pt !important;
+    overflow: visible !important;
+    display: table-cell !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  table.mat-table th {
+    background: #4B5563 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table td.row-label {
+    background: #fafafa !important;
+    font-size: 9.5pt !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table td.row-label.section-header {
+    background: #4B5563 !important;
+    color: #ffffff !important;
+    font-size: 9.5pt !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table tbody tr:nth-child(even) td.row-label {
+    background: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table, table.mat-table thead, table.mat-table tbody,
+  table.mat-table tr, table.mat-table th, table.mat-table td {
+    overflow: visible !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  table.mat-table td input[type="text"] {
+    font-size: 9.5pt !important;
+    overflow: visible !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
+    -webkit-appearance: none !important;
+  }
+
+  /* ── Page breaks ── */
   #page1 {
     -webkit-column-break-after: always !important;
     page-break-after: always !important;
     break-after: page !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
   }
   #page2 {
     -webkit-column-break-before: always !important;
@@ -1104,14 +1222,13 @@ body.dark-mode .miscues-textarea {
     break-before: page !important;
   }
 
-  /* Force font smoothing for print */
+  /* ── Font smoothing ── */
   body {
     -webkit-font-smoothing: antialiased !important;
     text-rendering: optimizeLegibility !important;
   }
 
-  /* Safari sometimes ignores input/textarea values in print —
-     ensure text is visible and not clipped */
+  /* ── Input visibility ── */
   input[type="text"],
   input[type="date"],
   textarea {
@@ -1120,61 +1237,37 @@ body.dark-mode .miscues-textarea {
     opacity: 1 !important;
     visibility: visible !important;
     overflow: visible !important;
+    clip-path: none !important;
+    line-height: 1.35 !important;
+    min-height: 12pt !important;
+    padding-top: 1pt !important;
+    box-sizing: content-box !important;
   }
 
-  /* Prevent Safari from hiding checkbox state */
+  /* ── Checkboxes ── */
   input[type="checkbox"] {
     -webkit-appearance: checkbox !important;
     opacity: 1 !important;
     visibility: visible !important;
+    width: 8.5pt !important;
+    height: 8.5pt !important;
   }
 
-  /* Safari YN pill background colors */
-  .yn-checkbox-wrap.yn-yes.checked {
-    background: #059669 !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  .yn-checkbox-wrap.yn-no.checked {
-    background: #DC2626 !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  .yn-checkbox-wrap.yn-opt.checked {
-    background: #D97706 !important;
-    -webkit-print-color-adjust: exact !important;
-  }
+  /* ── YN pill colors ── */
+  .yn-checkbox-wrap.yn-yes.checked { background: #059669 !important; -webkit-print-color-adjust: exact !important; }
+  .yn-checkbox-wrap.yn-no.checked  { background: #DC2626 !important; -webkit-print-color-adjust: exact !important; }
+  .yn-checkbox-wrap.yn-opt.checked { background: #D97706 !important; -webkit-print-color-adjust: exact !important; }
 
-  /* Table header backgrounds — Safari needs explicit forcing */
-  table.mat-table th,
-  table.mat-table td.row-label.section-header {
-    background: #4B5563 !important;
-    color: #ffffff !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table td.row-label {
-    background: #fafafa !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table tbody tr:nth-child(even) td.row-label {
-    background: #f0f0f0 !important;
-    -webkit-print-color-adjust: exact !important;
-  }
+  /* ── Header ── */
+  .logo-area img { width: 28pt !important; height: 28pt !important; }
+  .logo-text { font-size: 13pt !important; }
+  .logo-text .generators-sub { font-size: 13pt !important; color: #1F2937 !important; }
+  .checklist-title { font-size: 11pt !important; text-align: center !important; }
 
-  /* Safari-specific: force all table structural elements visible.
-     Safari's print engine can ghost cells when overflow:hidden is set
-     on a fixed-layout table — clearing overflow and forcing display fixes it. */
-  table.mat-table, table.mat-table thead, table.mat-table tbody,
-  table.mat-table tr, table.mat-table th, table.mat-table td {
-    overflow: visible !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  table.mat-table td input[type="text"] {
-    overflow: visible !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: block !important;
-    -webkit-appearance: none !important;
-  }
+  /* ── Reg row ── */
+  .reg-row { font-size: 8.5pt !important; line-height: 1.35 !important; }
+  .reg-field label { font-size: 8.5pt !important; }
+  .reg-field input { font-size: 8.5pt !important; min-height: 11pt !important; overflow: visible !important; clip-path: none !important; }
 }
 </style>
 </head>
