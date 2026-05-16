@@ -1031,249 +1031,225 @@ body.dark-mode .miscues-textarea {
    ============================================================ */
 @media print and (max-device-width: 1024px) {
 
-  /* Force Safari to use exact colors (backgrounds, borders) */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
+  /* ── Colors ── */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
-  /* Hide all placeholders on print */
-  input::placeholder,
-  textarea::placeholder { color: transparent !important; opacity: 0 !important; }
-  input::-webkit-input-placeholder,
-  textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
-  input::-moz-placeholder,
-  textarea::-moz-placeholder { color: transparent !important; opacity: 0 !important; }
-  *::placeholder { color: transparent !important; opacity: 0 !important; }
-  *::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
+  /* ── Hide placeholders ── */
+  input::placeholder, textarea::placeholder,
+  input::-webkit-input-placeholder, textarea::-webkit-input-placeholder,
+  *::placeholder, *::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
 
-  /* ── Page wrapper: must be block so pages stack for page-break ── */
+  /* ── Font smoothing ── */
+  body { -webkit-font-smoothing: antialiased !important; text-rendering: optimizeLegibility !important; }
+
+  /* ── Page wrapper: MUST be block for page-breaks to fire ── */
   .page-wrapper {
     display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    width: 100% !important; max-width: 100% !important;
+    padding: 0 !important; margin: 0 !important;
   }
+
+  /* ── Form pages: tight padding, no fixed height ── */
   .form-page {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 6pt 8pt !important;
-    margin: 0 !important;
+    width: 100% !important; max-width: 100% !important;
+    padding: 4pt 6pt !important; margin: 0 !important;
     box-sizing: border-box !important;
-  }
-
-  /* ── Two-col: Mobile Safari can't resolve fr units in print.
-     Use table-based layout with fixed 50% widths instead. ── */
-  .two-col {
-    display: table !important;
-    width: 100% !important;
-    table-layout: fixed !important;
-    border-collapse: separate !important;
-    border-spacing: 6pt 0 !important;
-  }
-  .two-col > div {
-    display: table-cell !important;
-    width: 50% !important;
-    vertical-align: top !important;
-  }
-
-  /* ── Top fields ── */
-  .top-fields {
-    display: -webkit-box !important;
-    display: -webkit-flex !important;
-    display: flex !important;
-    -webkit-flex-wrap: wrap !important;
-    flex-wrap: wrap !important;
-    gap: 0pt 10pt !important;
-    margin-bottom: 2pt !important;
-  }
-  .top-fields .field-row {
-    -webkit-box-flex: 0 !important;
-    -webkit-flex: 0 0 48% !important;
-    flex: 0 0 48% !important;
-    min-width: 0 !important;
-    line-height: 1.35 !important;
-    min-height: 12pt !important;
-    padding-top: 0.5pt !important;
-    font-size: 9pt !important;
-  }
-  .top-fields .field-row input[type="text"],
-  .top-fields .field-row input[type="date"] {
-    font-size: 9pt !important;
-    line-height: 1.35 !important;
-    min-height: 12pt !important;
-    padding: 1pt 2pt 0 2pt !important;
-    overflow: visible !important;
-    clip-path: none !important;
-    -webkit-appearance: none !important;
-    box-sizing: content-box !important;
-  }
-
-  /* ── Section rows ── */
-  .section-row {
-    font-size: 9pt !important;
-    line-height: 1.35 !important;
-    min-height: 12pt !important;
-    padding-top: 0.5pt !important;
-    display: -webkit-box !important;
-    display: -webkit-flex !important;
-    display: flex !important;
-    -webkit-flex-wrap: nowrap !important;
-    flex-wrap: nowrap !important;
-    align-items: flex-start !important;
-    overflow: visible !important;
-  }
-  .section-title {
-    font-size: 9pt !important;
-    padding-bottom: 0.25pt !important;
-    margin-bottom: 0.5pt !important;
-  }
-  .section { margin-bottom: 0.5pt !important; }
-
-  /* ── Inline inputs ── */
-  .inline-input, .full-line-input {
-    font-size: 9pt !important;
-    line-height: 1.35 !important;
-    min-height: 12pt !important;
-    padding: 1pt 2pt 0 2pt !important;
-    overflow: visible !important;
-    clip-path: none !important;
-    -webkit-appearance: none !important;
-    box-sizing: content-box !important;
-  }
-
-  /* ── Tables split (page 1 & 2): table layout — fr units fail in Mobile Safari print ── */
-  .tables-split {
-    display: table !important;
-    width: 100% !important;
-    table-layout: fixed !important;
-    border-collapse: separate !important;
-    border-spacing: 6pt 0 !important;
-  }
-  .tables-split .tables-col {
-    display: table-cell !important;
-    width: 50% !important;
-    vertical-align: top !important;
-  }
-
-  /* ── Table sizing ── */
-  table.mat-table {
-    font-size: 9.5pt !important;
-    width: 100% !important;
-    table-layout: fixed !important;
-    border-collapse: collapse !important;
-    display: table !important;
-    visibility: visible !important;
-  }
-  table.mat-table col.col-data { width: 20.5pt !important; }
-  table.mat-table th,
-  table.mat-table td {
-    font-size: 9.5pt !important;
-    border: 0.5pt solid #333 !important;
-    padding: 0.75pt 1pt !important;
-    overflow: visible !important;
-    display: table-cell !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  table.mat-table th {
-    background: #4B5563 !important;
-    color: #ffffff !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table td.row-label {
-    background: #fafafa !important;
-    font-size: 9.5pt !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table td.row-label.section-header {
-    background: #4B5563 !important;
-    color: #ffffff !important;
-    font-size: 9.5pt !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table tbody tr:nth-child(even) td.row-label {
-    background: #f0f0f0 !important;
-    -webkit-print-color-adjust: exact !important;
-  }
-  table.mat-table, table.mat-table thead, table.mat-table tbody,
-  table.mat-table tr, table.mat-table th, table.mat-table td {
-    overflow: visible !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  table.mat-table td input[type="text"] {
-    font-size: 9.5pt !important;
-    overflow: visible !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: block !important;
-    -webkit-appearance: none !important;
+    height: auto !important; overflow: visible !important;
   }
 
   /* ── Page breaks ── */
   #page1 {
+    page-break-after: always !important; break-after: page !important;
     -webkit-column-break-after: always !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    page-break-inside: auto !important;
-    break-inside: auto !important;
+    page-break-inside: auto !important; break-inside: auto !important;
   }
   #page2 {
+    page-break-before: always !important; break-before: page !important;
     -webkit-column-break-before: always !important;
-    page-break-before: always !important;
-    break-before: page !important;
-    page-break-inside: auto !important;
-    break-inside: auto !important;
+    page-break-inside: auto !important; break-inside: auto !important;
   }
 
-  /* ── Font smoothing ── */
-  body {
-    -webkit-font-smoothing: antialiased !important;
-    text-rendering: optimizeLegibility !important;
+  /* ── Header — compact ── */
+  .page1-header { margin-bottom: 2pt !important; }
+  .logo-area { gap: 4pt !important; margin-bottom: 2pt !important; flex-wrap: nowrap !important; }
+  .logo-area img { width: 22pt !important; height: 22pt !important; }
+  .logo-text { font-size: 10pt !important; }
+  .logo-text .generators-sub { font-size: 10pt !important; color: #1F2937 !important; }
+  .checklist-title { font-size: 9pt !important; text-align: center !important; padding-top: 2pt !important; margin-bottom: 2pt !important; }
+
+  /* ── Top fields: table layout — fr/flex fails in Mobile Safari print ── */
+  .top-fields {
+    display: table !important; width: 100% !important;
+    table-layout: fixed !important; border-collapse: separate !important;
+    border-spacing: 4pt 0 !important; margin-bottom: 2pt !important;
+  }
+  .top-fields .field-row {
+    display: table-cell !important; vertical-align: bottom !important;
+    font-size: 7.5pt !important; line-height: 1.2 !important;
+    min-height: 0 !important; padding-top: 0 !important;
+    padding-bottom: 1pt !important;
+  }
+  .top-fields .field-row label { font-size: 7.5pt !important; white-space: nowrap !important; }
+  .top-fields .field-row input[type="text"],
+  .top-fields .field-row input[type="date"] {
+    font-size: 7.5pt !important; line-height: 1.2 !important;
+    min-height: 0 !important; padding: 0 2pt !important;
+    overflow: visible !important; clip-path: none !important;
+    -webkit-appearance: none !important; box-sizing: content-box !important;
   }
 
-  /* ── Input visibility ── */
-  input[type="text"],
-  input[type="date"],
-  textarea {
-    -webkit-appearance: none !important;
-    appearance: none !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    overflow: visible !important;
-    clip-path: none !important;
-    line-height: 1.35 !important;
-    min-height: 12pt !important;
-    padding-top: 1pt !important;
-    box-sizing: content-box !important;
+  /* ── Two-col: table layout ── */
+  .two-col {
+    display: table !important; width: 100% !important;
+    table-layout: fixed !important; border-collapse: separate !important;
+    border-spacing: 4pt 0 !important; margin-bottom: 2pt !important;
   }
+  .two-col > div { display: table-cell !important; width: 50% !important; vertical-align: top !important; }
 
-  /* ── Checkboxes ── */
+  /* ── Sections ── */
+  .section { margin-bottom: 0 !important; }
+  .section-title { font-size: 7.5pt !important; padding-bottom: 0 !important; margin-bottom: 0 !important; }
+  .section-row {
+    font-size: 7.5pt !important; line-height: 1.2 !important;
+    min-height: 0 !important; padding-top: 0 !important; margin-bottom: 0 !important;
+    display: block !important; overflow: visible !important;
+  }
+  hr.section-hr { margin: 1pt 0 !important; }
+
+  /* ── Inline inputs ── */
+  .inline-input, .full-line-input {
+    font-size: 7.5pt !important; line-height: 1.2 !important;
+    min-height: 0 !important; padding: 0 2pt !important;
+    overflow: visible !important; clip-path: none !important;
+    -webkit-appearance: none !important; box-sizing: content-box !important;
+  }
+  .full-line-input { width: 100% !important; }
+
+  /* ── Checkboxes & YN pills ── */
   input[type="checkbox"] {
-    -webkit-appearance: checkbox !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    width: 8.5pt !important;
-    height: 8.5pt !important;
+    -webkit-appearance: checkbox !important; opacity: 1 !important;
+    visibility: visible !important; width: 7pt !important; height: 7pt !important;
   }
-
-  /* ── YN pill colors ── */
+  .yn-checkbox-wrap { font-size: 7.5pt !important; padding: 0 1.5pt !important; gap: 0 !important; line-height: 1.1 !important; }
   .yn-checkbox-wrap.yn-yes.checked { background: #059669 !important; -webkit-print-color-adjust: exact !important; }
   .yn-checkbox-wrap.yn-no.checked  { background: #DC2626 !important; -webkit-print-color-adjust: exact !important; }
   .yn-checkbox-wrap.yn-opt.checked { background: #D97706 !important; -webkit-print-color-adjust: exact !important; }
 
-  /* ── Header ── */
-  .logo-area img { width: 28pt !important; height: 28pt !important; }
-  .logo-text { font-size: 13pt !important; }
-  .logo-text .generators-sub { font-size: 13pt !important; color: #1F2937 !important; }
-  .checklist-title { font-size: 11pt !important; text-align: center !important; }
+  /* ── Textareas (page 1) ── */
+  #page1 textarea.multiline, .miscues-textarea {
+    font-size: 7.5pt !important; height: 12pt !important;
+    min-height: 12pt !important; max-height: 12pt !important;
+    padding: 0 2pt !important; line-height: 1.2 !important;
+    overflow: hidden !important; resize: none !important;
+    display: block !important; width: 100% !important;
+    background: #fff !important; color: #1F2937 !important;
+    border: 0.5pt solid #bbb !important;
+  }
 
-  /* ── Reg row ── */
-  .reg-row { font-size: 8.5pt !important; line-height: 1.35 !important; }
-  .reg-field label { font-size: 8.5pt !important; }
-  .reg-field input { font-size: 8.5pt !important; min-height: 11pt !important; overflow: visible !important; clip-path: none !important; }
+  /* ── Regulator row — BLUE, full-width, own row ── */
+  .reg-row {
+    display: block !important; width: 100% !important;
+    font-size: 7pt !important; font-weight: bold !important;
+    padding: 2pt 4pt !important; margin-bottom: 2pt !important;
+    gap: 0 !important;
+    background: #1E40AF !important; color: #ffffff !important;
+    border: none !important; border-radius: 1pt !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+    line-height: 1.5 !important; overflow: visible !important;
+  }
+  .reg-field {
+    display: inline-flex !important; align-items: center !important;
+    gap: 2pt !important; margin-right: 8pt !important;
+    white-space: nowrap !important;
+  }
+  .reg-field label { font-size: 7pt !important; color: #ffffff !important; }
+  .reg-field input {
+    font-size: 7pt !important; width: 22pt !important;
+    color: #ffffff !important; background: rgba(255,255,255,0.2) !important;
+    border: none !important; border-bottom: 0.5pt solid rgba(255,255,255,0.6) !important;
+    line-height: 1.2 !important; padding: 0 2pt !important;
+    min-height: 0 !important; overflow: visible !important; clip-path: none !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* ── Tables split: table layout — fr/flex fails in Mobile Safari print ── */
+  .tables-split, .page2-tables-split {
+    display: table !important; width: 100% !important;
+    table-layout: fixed !important; border-collapse: separate !important;
+    border-spacing: 4pt 0 !important; margin-bottom: 2pt !important;
+  }
+  .tables-split .tables-col, .page2-tables-split .tables-col {
+    display: table-cell !important; width: 50% !important; vertical-align: top !important;
+  }
+  .grid-section { margin-bottom: 1pt !important; overflow: visible !important; }
+
+  /* ── Material tables — scaled down ── */
+  table.mat-table {
+    font-size: 7.5pt !important; width: 100% !important;
+    table-layout: fixed !important; border-collapse: collapse !important;
+    display: table !important; visibility: visible !important;
+  }
+  table.mat-table col.col-data { width: 16pt !important; }
+  table.mat-table thead { display: table-header-group !important; }
+  table.mat-table tbody { display: table-row-group !important; }
+  table.mat-table tr { display: table-row !important; visibility: visible !important; }
+  table.mat-table th, table.mat-table td {
+    font-size: 7.5pt !important; border: 0.5pt solid #333 !important;
+    padding: 0.5pt 1pt !important; overflow: visible !important;
+    display: table-cell !important; visibility: visible !important; opacity: 1 !important;
+    line-height: 1.15 !important;
+  }
+  table.mat-table th {
+    background: #4B5563 !important; color: #ffffff !important;
+    font-size: 7.5pt !important; white-space: nowrap !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table td.row-label {
+    text-align: left !important; font-weight: bold !important;
+    background: #fafafa !important; color: #1F2937 !important;
+    font-size: 7.5pt !important; white-space: normal !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table td.row-label.section-header {
+    background: #4B5563 !important; color: #ffffff !important;
+    font-size: 7.5pt !important; text-align: center !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table tbody tr:nth-child(even) td.row-label {
+    background: #f0f0f0 !important; -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table td input[type="text"] {
+    font-size: 7.5pt !important; color: #1F2937 !important;
+    background: #ffffff !important; border: none !important;
+    width: 100% !important; text-align: center !important; padding: 0 !important;
+    display: block !important; -webkit-appearance: none !important;
+    overflow: visible !important; visibility: visible !important; opacity: 1 !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* ── Page 2 textarea ── */
+  #page2 textarea.multiline {
+    font-size: 8pt !important; height: 40pt !important;
+    min-height: 40pt !important; max-height: 40pt !important;
+    background: #fff !important; color: #1F2937 !important;
+    border: 0.5pt solid #bbb !important; padding: 2pt !important;
+    line-height: 1.3 !important; overflow: hidden !important;
+    display: block !important; width: 100% !important; resize: none !important;
+  }
+  .other-section { padding-top: 2pt !important; }
+  .other-title {
+    font-size: 9pt !important; padding: 2pt 4pt !important;
+    margin-bottom: 2pt !important; background: #4B5563 !important;
+    color: #ffffff !important; -webkit-print-color-adjust: exact !important;
+  }
+
+  /* ── Global input visibility ── */
+  input[type="text"], input[type="date"], textarea {
+    -webkit-appearance: none !important; appearance: none !important;
+    opacity: 1 !important; visibility: visible !important;
+    overflow: visible !important; clip-path: none !important;
+    box-sizing: content-box !important;
+  }
 }
 </style>
 </head>
@@ -2005,7 +1981,7 @@ function setStatus(msg) {
   }
 
   function forcePage2Layout() {
-    // page-wrapper must be block (not flex) so page-breaks work
+    // page-wrapper must be block so page-breaks work
     const pw = document.querySelector('.page-wrapper');
     if (pw) pw.style.cssText += ';display:block!important;';
 
@@ -2013,10 +1989,10 @@ function setStatus(msg) {
     if (!p2) return;
     p2.style.cssText += ';display:block!important;visibility:visible!important;opacity:1!important;width:100%!important;';
 
+    // page2 tables split — table layout (fr/flex fail in Mobile Safari print)
     const split = p2.querySelector('.page2-tables-split');
     if (split) {
-      // Use table layout — Mobile Safari cannot resolve fr/flex in print
-      split.style.cssText += ';display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:6pt 0!important;';
+      split.style.cssText += ';display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;';
       split.querySelectorAll('.tables-col').forEach(col => {
         col.style.cssText += ';display:table-cell!important;width:50%!important;vertical-align:top!important;box-sizing:border-box!important;';
       });
@@ -2033,12 +2009,46 @@ function setStatus(msg) {
     });
 
     const other = p2.querySelector('.other-section');
-    if (other) other.style.cssText += ';display:block!important;width:100%!important;margin-top:4pt!important;';
+    if (other) other.style.cssText += ';display:block!important;width:100%!important;margin-top:2pt!important;';
+
+    // page1 table split — same treatment
+    const p1 = document.getElementById('page1');
+    if (p1) {
+      const s1 = p1.querySelector('.tables-split');
+      if (s1) {
+        s1.style.cssText += ';display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;';
+        s1.querySelectorAll('.tables-col').forEach(col => {
+          col.style.cssText += ';display:table-cell!important;width:50%!important;vertical-align:top!important;box-sizing:border-box!important;';
+        });
+      }
+      const tc = p1.querySelector('.two-col');
+      if (tc) {
+        tc.style.cssText += ';display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:4pt 0!important;';
+        tc.querySelectorAll(':scope > div').forEach(col => {
+          col.style.cssText += ';display:table-cell!important;width:50%!important;vertical-align:top!important;';
+        });
+      }
+      // Blue regulator row
+      const reg = p1.querySelector('.reg-row');
+      if (reg) {
+        reg.style.cssText += ';display:block!important;width:100%!important;background:#1E40AF!important;color:#ffffff!important;padding:2pt 4pt!important;margin-bottom:2pt!important;border:none!important;border-radius:1pt!important;-webkit-print-color-adjust:exact!important;';
+        reg.querySelectorAll('label').forEach(l => { l.style.color = '#ffffff'; });
+        reg.querySelectorAll('input').forEach(i => {
+          i.style.cssText += ';color:#ffffff!important;background:rgba(255,255,255,0.2)!important;border:none!important;border-bottom:0.5pt solid rgba(255,255,255,0.6)!important;';
+        });
+      }
+    }
   }
 
   function clearPage2Inline() {
     const pw = document.querySelector('.page-wrapper');
     if (pw) pw.removeAttribute('style');
+    const p1 = document.getElementById('page1');
+    if (p1) {
+      [p1.querySelector('.tables-split'), p1.querySelector('.two-col'), p1.querySelector('.reg-row'),
+       ...Array.from(p1.querySelectorAll('.tables-col, table.mat-table, thead, tbody, tr, th, td, label, input'))
+      ].forEach(el => { if (el) el.removeAttribute('style'); });
+    }
     const p2 = document.getElementById('page2');
     if (!p2) return;
     [p2,
