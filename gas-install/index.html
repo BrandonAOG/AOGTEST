@@ -609,8 +609,6 @@ body.dark-mode .miscues-textarea {
     break-after: page !important;
     page-break-before: avoid !important;
     break-before: avoid !important;
-    max-height: 9.76in !important;
-    overflow: hidden !important;
   }
 
   /* Page 2: always starts fresh, allow content to flow/break freely */
@@ -840,12 +838,24 @@ body.dark-mode .miscues-textarea {
     gap: 0 4pt !important;
     width: 100% !important;
   }
+  /* ── Tables split (page 2) ── */
   .page2-tables-split {
+    display: -webkit-box !important;
+    display: -webkit-flex !important;
+    display: flex !important;
+    -webkit-flex-direction: row !important;
+    flex-direction: row !important;
+    gap: 0 6pt !important;
+    width: 100% !important;
     margin-bottom: 3pt !important;
   }
-  .tables-col {
-    display: block !important;
+  .page2-tables-split .tables-col {
+    -webkit-box-flex: 1 !important;
+    -webkit-flex: 1 1 50% !important;
+    flex: 1 1 50% !important;
     min-width: 0 !important;
+    width: 50% !important;
+    display: block !important;
   }
   .grid-section {
     margin-bottom: 1pt !important;
@@ -1016,11 +1026,10 @@ body.dark-mode .miscues-textarea {
 
 /* ============================================================
    MOBILE SAFARI PRINT FIXES
-   Safari on iOS ignores many @media print rules and renders
-   the screen layout instead. These overrides force correct
-   print behavior via -webkit- prefixes and explicit sizing.
+   Scoped to touch/mobile devices only — desktop print is
+   handled entirely by the first @media print block above.
    ============================================================ */
-@media print {
+@media print and (max-device-width: 1024px) {
 
   /* Force Safari to use exact colors (backgrounds, borders) */
   * {
@@ -1217,8 +1226,6 @@ body.dark-mode .miscues-textarea {
     break-after: page !important;
     page-break-inside: auto !important;
     break-inside: auto !important;
-    max-height: 9.76in !important;
-    overflow: hidden !important;
   }
   #page2 {
     -webkit-column-break-before: always !important;
@@ -1755,7 +1762,8 @@ function injectCaptureStyles() {
     input[type="text"], input[type="date"] { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding:1pt 2pt 0 2pt!important; overflow:visible!important; background:transparent!important; color:#1F2937!important; }
     textarea { font-size:9pt!important; line-height:1.35!important; overflow:visible!important; background:transparent!important; color:#1F2937!important; }
     .action-bar, .notice, #save-status { display:none!important; }
-    .tables-split { display:flex!important; flex-direction:row!important; gap:0 6pt!important; }
+    .page2-tables-split { display:flex!important; flex-direction:row!important; gap:0 6pt!important; width:100%!important; }
+    .page2-tables-split .tables-col { flex:1 1 50%!important; min-width:0!important; width:50%!important; display:block!important; }
     .tables-split .tables-col { flex:1 1 50%!important; min-width:0!important; width:50%!important; }
     table.mat-table { font-size:9.5pt!important; width:100%!important; border-collapse:collapse!important; table-layout:fixed!important; }
     table.mat-table th, table.mat-table td { font-size:9.5pt!important; border:0.5pt solid #333!important; padding:0.75pt 1pt!important; overflow:visible!important; }
@@ -1929,6 +1937,80 @@ function setStatus(msg) {
   const el = document.getElementById('save-status');
   if (el) el.textContent = msg;
 }
+
+/* ================================================================
+   BEFORE/AFTER PRINT — Mobile Safari ONLY
+   Safari's print engine collapses flex/grid on page2 even with
+   CSS rules. Inline styles applied via JS cannot be overridden.
+   We detect Mobile Safari and only run these fixes there.
+================================================================ */
+(function() {
+  // Detect Mobile Safari — not Chrome on iOS, not desktop Safari
+  const ua = navigator.userAgent;
+  const isMobileSafari = /iPhone|iPad|iPod/.test(ua) &&
+                         /WebKit/.test(ua) &&
+                         !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+  if (!isMobileSafari) return; // Desktop — do nothing, leave CSS in charge
+
+  let savedPH = [];
+
+  function stripPlaceholders() {
+    savedPH = [];
+    document.querySelectorAll('[placeholder]').forEach(el => {
+      savedPH.push({ el, val: el.getAttribute('placeholder') });
+      el.removeAttribute('placeholder');
+    });
+  }
+  function restorePHs() {
+    savedPH.forEach(({ el, val }) => el.setAttribute('placeholder', val));
+    savedPH = [];
+  }
+
+  function forcePage2Layout() {
+    const p2 = document.getElementById('page2');
+    if (!p2) return;
+    p2.style.cssText += ';display:block!important;visibility:visible!important;opacity:1!important;width:100%!important;';
+
+    const split = p2.querySelector('.page2-tables-split');
+    if (split) {
+      split.style.cssText += ';display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;width:100%!important;gap:0!important;';
+      split.querySelectorAll('.tables-col').forEach(col => {
+        col.style.cssText += ';flex:1 1 50%!important;width:50%!important;min-width:0!important;display:block!important;vertical-align:top!important;padding-right:3pt!important;box-sizing:border-box!important;';
+      });
+    }
+
+    p2.querySelectorAll('table.mat-table').forEach(t => {
+      t.style.cssText += ';display:table!important;width:100%!important;visibility:visible!important;border-collapse:collapse!important;table-layout:fixed!important;';
+    });
+    p2.querySelectorAll('table.mat-table thead').forEach(el => { el.style.display = 'table-header-group'; });
+    p2.querySelectorAll('table.mat-table tbody').forEach(el => { el.style.display = 'table-row-group'; });
+    p2.querySelectorAll('table.mat-table tr').forEach(el => { el.style.display = 'table-row'; });
+    p2.querySelectorAll('table.mat-table th, table.mat-table td').forEach(el => {
+      el.style.cssText += ';display:table-cell!important;visibility:visible!important;overflow:visible!important;';
+    });
+
+    const other = p2.querySelector('.other-section');
+    if (other) other.style.cssText += ';display:block!important;width:100%!important;margin-top:4pt!important;';
+  }
+
+  function clearPage2Inline() {
+    const p2 = document.getElementById('page2');
+    if (!p2) return;
+    [p2,
+     p2.querySelector('.page2-tables-split'),
+     ...Array.from(p2.querySelectorAll('.tables-col, table.mat-table, thead, tbody, tr, th, td, .other-section'))
+    ].forEach(el => { if (el) el.removeAttribute('style'); });
+  }
+
+  window.addEventListener('beforeprint', function() {
+    stripPlaceholders();
+    forcePage2Layout();
+  });
+  window.addEventListener('afterprint', function() {
+    restorePHs();
+    clearPage2Inline();
+  });
+})();
 </script>
 <script>
   if ('serviceWorker' in navigator) {
