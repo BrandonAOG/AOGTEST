@@ -761,6 +761,25 @@ body.dark-mode .notice { color: #7DD3FC; }
   #page2 .footer-field input.short { width: 32px !important; }
   #page2 .footer-field input.wide  { width: 65px !important; }
 }
+
+/* ===== DEBUG OVERLAY ===== */
+#debug-overlay {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999;
+  background: rgba(0,0,0,0.92); color: #00ff88; font-family: monospace;
+  font-size: 11px; padding: 8px 12px; border-top: 2px solid #00ff88;
+  display: none;
+}
+#debug-overlay.visible { display: block; }
+#debug-log { max-height: 120px; overflow-y: auto; margin-top: 4px; }
+#debug-log div { padding: 1px 0; border-bottom: 1px solid #1a1a1a; }
+#debug-log div.event-before { color: #ffa500; }
+#debug-log div.event-after  { color: #00ff88; }
+#debug-log div.event-print  { color: #58a6ff; }
+#debug-log div.event-class  { color: #ff88ff; }
+#debug-status { display: flex; gap: 16px; flex-wrap: wrap; }
+#debug-status span { white-space: nowrap; }
+@media print { #debug-overlay { display: none !important; } }
+
 </style>
 </head>
 <body>
@@ -1198,7 +1217,9 @@ function openPrintPreview() {
   const origTitle = document.title;
   document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
 
+  dbgLog('window.print() called — class:['+document.body.className+']','event-print');
   window.print();
+  dbgLog('window.print() returned — class:['+document.body.className+']','event-print');
   document.title = origTitle;
 }
 
@@ -1270,6 +1291,7 @@ if (document.readyState === 'loading') {
 
 // ===== BEFORE/AFTER PRINT — strip dark mode so CSS vars render light =====
 window.addEventListener('beforeprint', () => {
+  _dbgBefore++; document.getElementById('dbg-before').textContent=_dbgBefore; document.getElementById('dbg-last').textContent='beforeprint'; dbgLog('beforeprint fired — class:['+document.body.className+']','event-before');
   document.body.dataset.wasDark = document.body.classList.contains('dark-mode') ? '1' : '';
   document.body.classList.remove('dark-mode');
   const ab = document.querySelector('.action-bar');
@@ -1278,12 +1300,41 @@ window.addEventListener('beforeprint', () => {
   if (nt) nt.dataset.printHidden = nt.style.display; nt && (nt.style.display = 'none');
 });
 window.addEventListener('afterprint', () => {
+  _dbgAfter++; document.getElementById('dbg-after').textContent=_dbgAfter; document.getElementById('dbg-last').textContent='afterprint'; dbgLog('afterprint fired — class:['+document.body.className+']','event-after');
   if (document.body.dataset.wasDark === '1') document.body.classList.add('dark-mode');
   const ab = document.querySelector('.action-bar');
   const nt = document.querySelector('.notice');
   if (ab) ab.style.display = ab.dataset.printHidden || '';
   if (nt) nt.style.display = nt.dataset.printHidden || '';
 });
+
+
+// ===== DEBUG =====
+let _dbgBefore = 0, _dbgAfter = 0;
+function toggleDebug() {
+  const el = document.getElementById('debug-overlay');
+  el.classList.toggle('visible');
+  dbgLog('debug toggled', 'event-print');
+}
+function dbgLog(msg, cls) {
+  const log = document.getElementById('debug-log');
+  if (!log) return;
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  const t = new Date().toTimeString().split(' ')[0] + '.' + String(new Date().getMilliseconds()).padStart(3,'0');
+  d.textContent = t + '  ' + msg;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+  document.getElementById('dbg-class').textContent = document.body.className || '(none)';
+}
+function dbgUpdate() {
+  const el = document.getElementById('dbg-class');
+  if (el) el.textContent = document.body.className || '(none)';
+}
+new MutationObserver(() => {
+  dbgUpdate();
+  dbgLog('class changed → [' + document.body.className + ']', 'event-class');
+}).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
 // ===== SERVICE WORKER =====
 // Registered last, after everything else is set up.
@@ -1297,5 +1348,20 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<!-- DEBUG BUTTON -->
+<button id="btn-debug" onclick="toggleDebug()" style="position:fixed;bottom:16px;right:16px;z-index:99998;background:rgba(0,0,0,0.85);border:1px solid #00ff88;color:#00ff88;font-family:monospace;font-size:11px;padding:6px 10px;border-radius:4px;cursor:pointer;">🐛</button>
+
+<!-- DEBUG OVERLAY -->
+<div id="debug-overlay">
+  <div id="debug-status">
+    <span>body.class: <b id="dbg-class">—</b></span>
+    <span>beforeprint: <b id="dbg-before" style="color:#ffa500">0</b></span>
+    <span>afterprint: <b id="dbg-after" style="color:#00ff88">0</b></span>
+    <span>last event: <b id="dbg-last">—</b></span>
+  </div>
+  <div id="debug-log"></div>
+</div>
+
 </body>
 </html>
