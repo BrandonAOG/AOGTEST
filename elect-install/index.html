@@ -323,8 +323,8 @@ body.dark-mode .footer-field label { color: #E0F7FF; }
 .checklist-title { font-weight: bold; font-size: 18px; border-top: 2px solid var(--text); padding-top: 10px; margin-bottom: 16px; color: var(--text); font-family: Arial, sans-serif; }
 body.dark-mode .checklist-title { border-top-color: #00FFC8; color: #00FFC8; }
 .logo-text { font-family: 'Arial Black', sans-serif; font-size: 16px; line-height: 1; color: #D97706; white-space: nowrap; }
-.logo-text span { color: var(--text); }
-body.dark-mode .logo-text span { color: #E0F7FF; }
+.logo-text span { color: #D97706; }
+body.dark-mode .logo-text span { color: #00FFC8; }
 .top-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-bottom: 12px; width: 100%; }
 @media (max-width: 600px) { .top-fields { grid-template-columns: 1fr; gap: 6px; } }
 .field-row { display: flex; align-items: flex-end; gap: 6px; width: 100%; min-width: 0; font-family: Arial, sans-serif; }
@@ -334,7 +334,7 @@ body.dark-mode .field-row label { color: #E0F7FF; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; width: 100%; }
 @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; gap: 8px; } }
 .section { margin-bottom: 14px; width: 100%; }
-.section-title { font-weight: bold; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; color: var(--text); font-family: Arial, sans-serif; padding-bottom: 4px; border-bottom: 1px solid rgba(217,119,6,0.2); }
+.section-title { font-weight: bold; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; color: #D97706; font-family: Arial, sans-serif; padding-bottom: 4px; border-bottom: 1px solid rgba(217,119,6,0.2); }
 body.dark-mode .section-title { color: #00FFC8; border-bottom-color: rgba(0,255,200,0.2); }
 .section-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin-bottom: 8px; font-size: 13px; line-height: 1.6; width: 100%; font-family: Arial, sans-serif; }
 @media (max-width: 480px) { .section-row { font-size: 12px; gap: 4px 6px; margin-bottom: 6px; } }
@@ -470,11 +470,17 @@ body.dark-mode .notice { color: #7DD3FC; }
   .form-page:last-child { page-break-after: auto !important; break-after: auto !important; }
 
   /* ── NUCLEAR: force every element white — catches all hardcoded dark-mode colours ── */
-  .form-page * {
+  /* Exclude form fields so the input-specific rule below can apply the inset shadow trick */
+  .form-page *:not(input):not(textarea):not(select) {
     background-color: #ffffff !important;
     background-image: none !important;
     color: #1F2937 !important;
     box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  .form-page input, .form-page textarea, .form-page select {
+    background-image: none !important;
+    color: #1F2937 !important;
     text-shadow: none !important;
   }
 
@@ -498,6 +504,13 @@ body.dark-mode .notice { color: #7DD3FC; }
     opacity: 1 !important;
     box-shadow: none !important;
     -webkit-box-shadow: none !important;
+    /* Force white background on mobile browsers that inject system grey */
+    color-scheme: light !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    /* Override any UA/autofill grey via inset box-shadow trick */
+    -webkit-box-shadow: inset 0 0 0 1000px #ffffff !important;
+    box-shadow: inset 0 0 0 1000px #ffffff !important;
   }
   /* Restore intentional non-white backgrounds */
   #page1 .ts-header                       { background-color: #f0f0f0 !important; }
@@ -618,7 +631,7 @@ body.dark-mode .notice { color: #7DD3FC; }
   input::placeholder, textarea::placeholder { color: transparent !important; }
   .form-page * { box-shadow: none !important; }
   .logo-text { color: #D97706 !important; }
-  .logo-text span { color: #1F2937 !important; }
+  .logo-text span { color: #D97706 !important; }
 }
 
 /* ===== MOBILE-ONLY PRINT RULES (max-width: 767px) =====
