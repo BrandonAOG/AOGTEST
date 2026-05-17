@@ -1441,12 +1441,29 @@ function openPrintPreview() {
   document.title = origTitle;
 }
 
+// ===== CAPTURE HELPER: swap mobile accordion <=> real tables =====
+function showRealTablesForCapture() {
+  const style = document.createElement('style');
+  style.id = 'capture-override';
+  style.textContent = [
+    '#page2 .grid-section { display: block !important; }',
+    '#page2 .footer-fields { display: block !important; }',
+    '#mobile-p2-accordions { display: none !important; }'
+  ].join('\n');
+  document.head.appendChild(style);
+}
+function hideRealTablesAfterCapture() {
+  const style = document.getElementById('capture-override');
+  if (style) style.remove();
+}
+
 // ===== IPHONE =====
 function saveForIPhone() {
   setStatus('Rendering pages, please wait…');
   const pages = document.querySelectorAll('.form-page');
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
+  showRealTablesForCapture();
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;overflow-y:auto;';
   const closeBtn = document.createElement('button');
@@ -1468,10 +1485,10 @@ function saveForIPhone() {
       img.alt = fname;
       wrapper.appendChild(lbl); wrapper.appendChild(fnlbl); wrapper.appendChild(img); container.appendChild(wrapper);
       completed++;
-      if (completed === pages.length) { setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
+      if (completed === pages.length) { hideRealTablesAfterCapture(); setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
     });
   });
-  closeBtn.onclick = () => { setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
+  closeBtn.onclick = () => { hideRealTablesAfterCapture(); setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
 }
 
 // ===== ANDROID =====
@@ -1480,6 +1497,7 @@ function saveForAndroid() {
   const pages = document.querySelectorAll('.form-page');
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
+  showRealTablesForCapture();
   let completed = 0;
   pages.forEach((page, idx) => {
     html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
@@ -1487,7 +1505,7 @@ function saveForAndroid() {
       link.download = buildFilename('jpg', idx + 1, pages.length);
       link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
       completed++;
-      if (completed === pages.length) { setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
+      if (completed === pages.length) { hideRealTablesAfterCapture(); setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
     });
   });
 }
