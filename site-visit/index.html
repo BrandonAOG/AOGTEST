@@ -235,11 +235,33 @@ body.dark-mode select:focus {
 }
 
 input[type="checkbox"] {
-  width: 14px; height: 14px; cursor: pointer; vertical-align: middle;
-  margin: 2px 4px 2px 0; accent-color: var(--cyan); flex-shrink: 0;
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; min-width: 14px;
+  border: 2px solid #D97706; border-radius: 2px;
+  background: #fff; cursor: pointer;
+  vertical-align: middle; margin: 2px 4px 2px 0;
+  flex-shrink: 0; position: relative; display: inline-block;
+  overflow: visible;
+  transition: background 0.15s, border-color 0.15s;
+}
+input[type="checkbox"]:checked {
+  background: #D97706; border-color: #D97706;
+}
+input[type="checkbox"]:checked::after {
+  content: '';
+  display: block;
+  position: absolute;
+  left: 2px; top: -1px;
+  width: 5px; height: 9px;
+  border: 2px solid #000;
+  border-top: none; border-left: none;
+  transform: rotate(45deg);
+  -webkit-transform: rotate(45deg);
 }
 @media (max-width: 480px) { input[type="checkbox"] { width: 12px; height: 12px; margin: 1px 3px 1px 0; } }
-body.dark-mode input[type="checkbox"] { accent-color: #00FFC8; }
+body.dark-mode input[type="checkbox"] { border-color: #00FFC8; }
+body.dark-mode input[type="checkbox"]:checked { background: #00FFC8; border-color: #00FFC8; }
+body.dark-mode input[type="checkbox"]:checked::after { border-color: #000; }
 
 textarea {
   resize: vertical; border: 1px solid rgba(217,119,6,0.2);
@@ -262,10 +284,10 @@ body.dark-mode textarea:focus { border-color: #00FFC8; box-shadow: 0 0 8px rgba(
 .yn-checkbox-wrap.yn-no  { border-color: #bbb; }
 .yn-checkbox-wrap.yn-yes.checked { background: #059669; border-color: #047857; color: #fff; }
 .yn-checkbox-wrap.yn-no.checked  { background: #DC2626; border-color: #b91c1c; color: #fff; }
-.yn-checkbox-wrap.yn-yes.checked input, .yn-checkbox-wrap.yn-no.checked input { accent-color: #fff; }
 .yn-checkbox-wrap.yn-opt { border-color: #bbb; }
 .yn-checkbox-wrap.yn-opt.checked { background: #D97706; border-color: #b45309; color: #fff; }
-.yn-checkbox-wrap.yn-opt.checked input { accent-color: #fff; }
+/* Safari: checkmark color inside colored pill */
+.yn-checkbox-wrap.checked input[type="checkbox"]:checked::after { border-color: #000; }
 body.dark-mode .yn-checkbox-wrap { border-color: rgba(0,255,200,0.3); }
 body.dark-mode .yn-checkbox-wrap.checked { border-color: rgba(0,255,200,0.5); }
 
@@ -615,8 +637,24 @@ body.dark-mode .notice { color: #7DD3FC; }
   #page1 .yn-checkbox-wrap.yn-no.checked    { background: #DC2626 !important; border-color: #b91c1c !important; }
   #page1 .yn-checkbox-wrap.yn-opt.checked   { background: #D97706 !important; border-color: #b45309 !important; }
   #page1 input[type="checkbox"] {
-    width: 13px !important; height: 13px !important;
-    accent-color: #000 !important; margin: 1px 3px 1px 0 !important;
+    -webkit-appearance: none !important; appearance: none !important;
+    width: 13px !important; height: 13px !important; min-width: 13px !important;
+    border: 1.5px solid #D97706 !important; border-radius: 2px !important;
+    background: #fff !important; position: relative !important; display: inline-block !important;
+    vertical-align: middle !important; margin: 1px 3px 1px 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  #page1 input[type="checkbox"]:checked {
+    background: #D97706 !important; border-color: #D97706 !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  #page1 input[type="checkbox"]:checked::after {
+    content: '' !important; display: block !important; position: absolute !important;
+    left: 1px !important; top: -2px !important;
+    width: 4px !important; height: 7px !important;
+    border: 2px solid #000 !important; border-top: none !important; border-left: none !important;
+    transform: rotate(45deg) !important; -webkit-transform: rotate(45deg) !important;
   }
 
   #page2 {
@@ -1274,12 +1312,58 @@ function applyYNColors() {
     sync();
   });
 }
-document.addEventListener('DOMContentLoaded', () => { applyYNColors(); setupThemeToggle(); });
+
+// ===== AUTOSAVE TO localStorage =====
+const SAVE_KEY = 'aog_permitting_form_v1';
+
+function saveFormData() {
+  try {
+    const data = {};
+    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
+      data['f_' + i] = el.value;
+    });
+    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
+      data['c_' + i] = el.checked ? '1' : '0';
+    });
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch(e) {}
+}
+
+function restoreFormData() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
+      if (data['f_' + i] !== undefined) el.value = data['f_' + i];
+    });
+    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
+      if (data['c_' + i] !== undefined) {
+        el.checked = data['c_' + i] === '1';
+        const wrap = el.parentElement;
+        if (wrap && wrap.classList.contains('yn-checkbox-wrap')) {
+          wrap.classList.toggle('checked', el.checked);
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+function attachAutosave() {
+  document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach(el => {
+    el.addEventListener('input', saveFormData);
+  });
+  document.querySelectorAll('input[type="checkbox"]').forEach(el => {
+    el.addEventListener('change', saveFormData);
+  });
+}
+document.addEventListener('DOMContentLoaded', () => { restoreFormData(); applyYNColors(); setupThemeToggle(); attachAutosave(); });
 if (document.readyState !== 'loading') setTimeout(() => { applyYNColors(); setupThemeToggle(); }, 50);
 
 // ===== CLEAR =====
 function clearForm() {
   if (!confirm("Clear all fields? This cannot be undone.")) return;
+  try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
   document.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = "");
   document.querySelectorAll('input[type="checkbox"]').forEach(el => {
     el.checked = false;
@@ -1549,7 +1633,7 @@ function initMobileAccordions() {
   }
 }
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initMobileAccordions);
+  document.addEventListener('DOMContentLoaded', () => { initMobileAccordions(); setTimeout(attachAutosave, 100); });
 } else {
   setTimeout(initMobileAccordions, 0);
 }
