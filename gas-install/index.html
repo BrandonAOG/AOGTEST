@@ -1826,6 +1826,9 @@ function injectCaptureStyles() {
     .section { margin-bottom:0.5pt!important; }
     .inline-input, .full-line-input { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding:1pt 2pt 0 2pt!important; overflow:visible!important; background:transparent!important; border-top:none!important; border-left:none!important; border-right:none!important; border-bottom:0.5pt solid #999!important; }
     input[type="text"], input[type="date"] { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding:1pt 2pt 0 2pt!important; overflow:visible!important; background:transparent!important; color:#1F2937!important; }
+    .full-line-input { width:100%!important; box-sizing:border-box!important; }
+    .field-row input[type="text"], .field-row input[type="date"] { flex:1 1 auto!important; width:auto!important; min-width:0!important; box-sizing:border-box!important; }
+    .section-row .inline-input:not(.xshort) { flex:1 1 auto!important; width:auto!important; min-width:40px!important; box-sizing:border-box!important; }
     textarea { font-size:9pt!important; line-height:1.35!important; overflow:visible!important; background:transparent!important; color:#1F2937!important; }
     .action-bar, .notice, #save-status { display:none!important; }
     .page2-tables-split { display:flex!important; flex-direction:row!important; gap:0 6pt!important; width:100%!important; }
@@ -1890,6 +1893,18 @@ function forceDesktopLayout() {
   // form-page
   document.querySelectorAll('.form-page').forEach(el => {
     setInline(el, { padding: '16px', boxSizing: 'border-box' });
+  });
+  // full-line-inputs stretch to 100%
+  document.querySelectorAll('.full-line-input').forEach(el => {
+    setInline(el, { width: '100%', boxSizing: 'border-box' });
+  });
+  // field-row inputs stretch to fill remaining space
+  document.querySelectorAll('.field-row input[type="text"], .field-row input[type="date"]').forEach(el => {
+    setInline(el, { flex: '1 1 auto', width: '100%', minWidth: '0', boxSizing: 'border-box' });
+  });
+  // inline-inputs that aren't xshort stretch to fill
+  document.querySelectorAll('.section-row .inline-input:not(.xshort)').forEach(el => {
+    setInline(el, { flex: '1 1 auto', width: '100%', minWidth: '40px', boxSizing: 'border-box' });
   });
   return () => saved.forEach(({ el, prev, props }) => {
     props.forEach(k => {
