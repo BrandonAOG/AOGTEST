@@ -1445,7 +1445,7 @@ function buildTSBlock(num) {
 function addTransferSwitch() {
   tsCount++;
   document.getElementById("ts-container").appendChild(buildTSBlock(tsCount));
-  renumberTS(); applyYNColors();
+  renumberTS(); applyYNColors(); attachAutosave(); saveFormData();
 }
 function removeTS(btn) { btn.closest(".ts-block").remove(); renumberTS(); }
 function renumberTS() {
@@ -1490,6 +1490,7 @@ const ynObserver = new MutationObserver(() => applyYNColors());
 // ===== CLEAR =====
 function clearForm() {
   if (!confirm("Clear all fields? This cannot be undone.")) return;
+  try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
   document.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = "");
   document.querySelectorAll('input[type="checkbox"]').forEach(el => {
     el.checked = false;
@@ -1617,9 +1618,59 @@ function setStatus(msg) {
 }
 
 // ===== INIT =====
+
+// ===== AUTOSAVE TO localStorage =====
+const SAVE_KEY = 'aog_elec_form_v1';
+
+function saveFormData() {
+  try {
+    const data = {};
+    // Text inputs and textareas — keyed by index among all saveable fields
+    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
+      data['f_' + i] = el.value;
+    });
+    // Checkboxes
+    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
+      data['c_' + i] = el.checked ? '1' : '0';
+    });
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch(e) {}
+}
+
+function restoreFormData() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
+      if (data['f_' + i] !== undefined) el.value = data['f_' + i];
+    });
+    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
+      if (data['c_' + i] !== undefined) {
+        el.checked = data['c_' + i] === '1';
+        const w = el.parentElement;
+        if (w && w.classList.contains('yn-checkbox-wrap')) {
+          w.classList.toggle('checked', el.checked);
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+function attachAutosave() {
+  document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach(el => {
+    el.addEventListener('input', saveFormData);
+  });
+  document.querySelectorAll('input[type="checkbox"]').forEach(el => {
+    el.addEventListener('change', saveFormData);
+  });
+}
+
 function initApp() {
   applyYNColors();
   setupThemeToggle();
+  restoreFormData();
+  attachAutosave();
   const container = document.getElementById('ts-container');
   if (container) ynObserver.observe(container, { childList: true, subtree: true });
 }
@@ -1868,7 +1919,7 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initMobileAccordions);
 } else {
   // DOM already ready; run on next tick so JS-built tables exist
-  setTimeout(initMobileAccordions, 0);
+  setTimeout(() => { initMobileAccordions(); attachAutosave(); restoreFormData(); }, 0);
 }
 
 // ===== SERVICE WORKER =====
