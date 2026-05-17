@@ -1013,6 +1013,7 @@ body.dark-mode .notice { color: #7DD3FC; }
     </svg>
   </button>
 </div>
+<div id="save-status" style="position:fixed;top:44px;left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;"></div>
 
 <div class="page-wrapper">
 
@@ -1491,7 +1492,12 @@ function saveForAndroid() {
   });
 }
 
-function setStatus(msg) { document.getElementById('save-status').textContent = msg; }
+function setStatus(msg) {
+  const el = document.getElementById('save-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
 
 // ===== INIT =====
 function initApp() {
