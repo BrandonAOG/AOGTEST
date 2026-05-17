@@ -362,6 +362,10 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
 @media (max-width: 360px) {
   .action-bar .ab-btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; }
 }
+
+@media print {
+  .action-bar { display: none !important; }
+}
 </style>
 </head>
 <body>
@@ -556,19 +560,16 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
 function toggleTheme(){
   const html=document.documentElement;
   const dark=html.getAttribute('data-theme')==='dark';
-  const btn=document.getElementById('themeBtn'); if(btn) btn.textContent=dark?'☀️':'🌙';
   html.setAttribute('data-theme',dark?'light':'dark');
+  const btn=document.getElementById('themeBtn');
+  if(btn) btn.textContent=dark?'☀️':'🌙';
   try{localStorage.setItem('aog_spec_theme',dark?'light':'dark');}catch(e){}
-  document.getElementById('theme-icon-sun').style.display=dark?'none':'block';
-  document.getElementById('theme-icon-moon').style.display=dark?'block':'none';
-  document.getElementById('theme-label-text').textContent=dark?'DARK':'LIGHT';
 }
-// init icon on load
+// init button emoji on load
 (function(){
   const dark=document.documentElement.getAttribute('data-theme')==='dark';
-  document.getElementById('theme-icon-sun').style.display=dark?'block':'none';
-  document.getElementById('theme-icon-moon').style.display=dark?'none':'block';
-  document.getElementById('theme-label-text').textContent=dark?'LIGHT':'DARK';
+  const btn=document.getElementById('themeBtn');
+  if(btn) btn.textContent=dark?'🌙':'☀️';
 })();
 
 // ── STATE ──────────────────────────────────────────────────────────────
