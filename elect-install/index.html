@@ -379,7 +379,7 @@ body.dark-mode .footer-fields { border-top-color: rgba(0,255,200,0.15); }
 .footer-field { display: flex; align-items: flex-end; gap: 4px; white-space: nowrap; flex-shrink: 0; min-width: fit-content; }
 .footer-field label { font-weight: bold; font-size: 10px; white-space: nowrap; color: var(--text); flex-shrink: 0; font-family: Arial, sans-serif; }
 body.dark-mode .footer-field label { color: #E0F7FF; }
-.footer-field input[type="text"] { width: 90px; min-width: 60px; }
+.footer-field input[type="text"] { width: 90px; min-width: 60px; height: 20px; line-height: 20px; box-sizing: border-box; overflow: visible; }
 .footer-field input.wide  { width: 130px; min-width: 100px; }
 .footer-field input.short { width: 60px;  min-width: 45px; }
 
@@ -1146,6 +1146,10 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   .ft-cell { display: flex !important; align-items: center !important; justify-content: center !important; gap: 1px !important; }
   .ft-label { font-size: 7px !important; color: #555 !important; }
 }
+
+@media print {
+  .action-bar { display: none !important; }
+}
 </style>
 </head>
 <body>
@@ -1641,8 +1645,10 @@ function showRealTablesForCapture() {
     '#page2 .grid-section { display: block !important; }',
     '#page2 .footer-fields { display: block !important; }',
     '#mobile-p2-accordions { display: none !important; }',
-    'table.mat-table td { overflow: visible !important; }',
-    'table.mat-table td input[type="text"] { overflow: visible !important; }'
+    'table.mat-table td { overflow: visible !important; vertical-align: middle !important; }',
+    'table.mat-table td input[type="text"] { overflow: visible !important; height: 18px !important; line-height: 18px !important; display: block !important; }',
+    '.footer-field input[type="text"] { height: 20px !important; line-height: 20px !important; overflow: visible !important; box-sizing: border-box !important; }',
+    '.footer-fields { overflow: visible !important; }'
   ].join('\n');
   document.head.appendChild(style);
 }
