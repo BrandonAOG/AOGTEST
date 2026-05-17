@@ -588,6 +588,14 @@ body.dark-mode .miscues-textarea {
     overflow: visible !important;
     min-height: 0 !important;
     font-size: 9pt !important;
+    -webkit-text-size-adjust: none !important;
+    text-size-adjust: none !important;
+  }
+
+  /* Force Safari to respect font-size on all inputs */
+  input[type="text"], input[type="date"], textarea {
+    -webkit-text-size-adjust: none !important;
+    text-size-adjust: none !important;
   }
 
   /* ── 4. Page wrapper ── */
@@ -1612,6 +1620,9 @@ if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
     // Ensure body is full width
     document.body.style.width = '1050px';
     document.body.style.maxWidth = '1050px';
+    // Force Safari to respect font-size on inputs (prevents auto text size adjustment)
+    document.body.style.webkitTextSizeAdjust = 'none';
+    document.body.style.textSizeAdjust = 'none';
   });
 
   window.addEventListener('afterprint', function() {
@@ -1621,6 +1632,8 @@ if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
     }
     document.body.style.width = '';
     document.body.style.maxWidth = '';
+    document.body.style.webkitTextSizeAdjust = '';
+    document.body.style.textSizeAdjust = '';
   });
 })();
 const SAVE_KEY = 'aog_gas_install_v1';
@@ -2052,11 +2065,11 @@ function setStatus(msg) {
 
     // ── inline inputs — shorten team member fields ──
     document.querySelectorAll('.section-row .inline-input').forEach(el =>
-      save(el, 'width:7ch!important;font-size:7pt!important;line-height:1.2!important;min-height:0!important;padding:0 2pt!important;clip-path:none!important;-webkit-appearance:none!important;'));
+      save(el, 'width:7ch!important;font-size:9pt!important;line-height:1.2!important;min-height:0!important;padding:0 2pt!important;clip-path:none!important;-webkit-appearance:none!important;'));
 
     // ── full-line inputs ──
     document.querySelectorAll('.full-line-input').forEach(el =>
-      save(el, 'font-size:7pt!important;width:100%!important;'));
+      save(el, 'font-size:9pt!important;width:100%!important;'));
 
     // ── reg-field inputs ──
     document.querySelectorAll('.reg-title').forEach(el =>
