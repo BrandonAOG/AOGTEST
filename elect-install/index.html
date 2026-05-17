@@ -933,18 +933,49 @@ body.dark-mode .notice { color: #7DD3FC; }
     flex-shrink: 0;
   }
   .mob-acc-header.has-data .mob-filled-dot { display: inline-block; }
-}
 
-/* ===================================================================
-   PRINT — always show real tables, never show mobile accordion
-   =================================================================== */
-@media print {
-  /* Force real tables visible regardless of screen width */
-  #page2 .grid-section { display: block !important; }
-  #page2 .footer-fields { display: block !important; }
+  /* ── Sub-accordion: per-fitting row inside Fittings/Wireway/Polaris ── */
+  .mob-sub-accordion {
+    border-bottom: 1px solid var(--border);
+  }
+  .mob-sub-accordion:last-child { border-bottom: none; }
 
-  /* Always hide the mobile accordion UI in print */
-  #mobile-p2-accordions { display: none !important; }
+  .mob-section-heading--toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 12px 4px;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+  body.dark-mode .mob-section-heading--toggle { color: #00FFC8; }
+
+  .mob-sub-arrow {
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    width: 12px;
+    text-align: center;
+  }
+  body.dark-mode .mob-sub-arrow { color: #7DD3FC; }
+
+  .mob-sub-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #059669;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  .mob-sub-body {
+    display: none;
+    padding: 0 0 8px 20px;
+  }
+  .mob-sub-body.open { display: block; }
 }
 
 /* ===================================================================
@@ -1453,30 +1484,12 @@ function openPrintPreview() {
   document.title = origTitle;
 }
 
-// ===== CAPTURE HELPER: swap mobile accordion ↔ real tables =====
-function showRealTablesForCapture() {
-  // Temporarily force real tables visible and hide accordion UI
-  const style = document.createElement('style');
-  style.id = 'capture-override';
-  style.textContent = [
-    '#page2 .grid-section { display: block !important; }',
-    '#page2 .footer-fields { display: block !important; }',
-    '#mobile-p2-accordions { display: none !important; }'
-  ].join('\n');
-  document.head.appendChild(style);
-}
-function hideRealTablesAfterCapture() {
-  const style = document.getElementById('capture-override');
-  if (style) style.remove();
-}
-
 // ===== IPHONE =====
 function saveForIPhone() {
   setStatus('Rendering pages, please wait…');
   const pages = document.querySelectorAll('.form-page');
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
-  showRealTablesForCapture();
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;overflow-y:auto;';
   const closeBtn = document.createElement('button');
@@ -1498,10 +1511,10 @@ function saveForIPhone() {
       img.alt = fname;
       wrapper.appendChild(lbl); wrapper.appendChild(fnlbl); wrapper.appendChild(img); container.appendChild(wrapper);
       completed++;
-      if (completed === pages.length) { hideRealTablesAfterCapture(); setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
+      if (completed === pages.length) { setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
     });
   });
-  closeBtn.onclick = () => { hideRealTablesAfterCapture(); setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
+  closeBtn.onclick = () => { setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
 }
 
 // ===== ANDROID =====
@@ -1510,7 +1523,6 @@ function saveForAndroid() {
   const pages = document.querySelectorAll('.form-page');
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
-  showRealTablesForCapture();
   let completed = 0;
   pages.forEach((page, idx) => {
     html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
@@ -1518,7 +1530,7 @@ function saveForAndroid() {
       link.download = buildFilename('jpg', idx + 1, pages.length);
       link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
       completed++;
-      if (completed === pages.length) { hideRealTablesAfterCapture(); setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
+      if (completed === pages.length) { setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
     });
   });
 }
@@ -1590,8 +1602,8 @@ function buildMobileAccordions() {
   }
 
   // --- Multi-row table (Fittings, Wireway, Polaris) ---
-  // Each row of the real table = a sub-section with heading
-  // Each cell in that row = a card row
+  // Each row = a collapsible sub-accordion (collapsed by default).
+  // Tap the fitting name to expand its sizes.
   function addMultiRowTableAccordion(title, badge, tableId) {
     makeAccordion(title, badge, (body, headerBtn) => {
       const table = document.getElementById(tableId);
@@ -1603,10 +1615,32 @@ function buildMobileAccordions() {
         const rowLabel = tr.querySelector('td.row-label')?.textContent.trim() || '';
         const realInputs = Array.from(tr.querySelectorAll('input'));
 
-        const heading = document.createElement('div');
-        heading.className = 'mob-section-heading';
-        heading.textContent = rowLabel;
-        body.appendChild(heading);
+        // Sub-accordion wrapper
+        const subWrap = document.createElement('div');
+        subWrap.className = 'mob-sub-accordion';
+
+        // Clickable heading row (collapsed by default)
+        const subHeader = document.createElement('div');
+        subHeader.className = 'mob-section-heading mob-section-heading--toggle';
+
+        const subArrow = document.createElement('span');
+        subArrow.className = 'mob-sub-arrow';
+        subArrow.textContent = '\u25B6';
+
+        const subTitle = document.createElement('span');
+        subTitle.textContent = rowLabel;
+
+        const subDot = document.createElement('span');
+        subDot.className = 'mob-sub-dot';
+        subDot.style.display = 'none';
+
+        subHeader.appendChild(subArrow);
+        subHeader.appendChild(subTitle);
+        subHeader.appendChild(subDot);
+
+        // Sizes container, hidden by default
+        const subBody = document.createElement('div');
+        subBody.className = 'mob-sub-body';
 
         colHeaders.forEach((colName, i) => {
           const row = document.createElement('div');
@@ -1614,20 +1648,22 @@ function buildMobileAccordions() {
 
           const lbl = document.createElement('div');
           lbl.className = 'mob-card-label';
-          lbl.innerHTML = `${colName}`;
+          lbl.textContent = colName;
 
           const inp = document.createElement('input');
           inp.type = 'text';
           inp.inputMode = 'numeric';
           inp.pattern = '[0-9]*';
           inp.className = 'mob-card-input';
-          inp.placeholder = '—';
+          inp.placeholder = '\u2014';
 
           const realInput = realInputs[i];
           if (realInput) {
             inp.value = realInput.value;
             inp.addEventListener('input', () => {
               realInput.value = inp.value;
+              const hasRow = Array.from(subBody.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
+              subDot.style.display = hasRow ? 'inline-block' : 'none';
               const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
               headerBtn.classList.toggle('has-data', hasAny);
             });
@@ -1635,8 +1671,17 @@ function buildMobileAccordions() {
 
           row.appendChild(lbl);
           row.appendChild(inp);
-          body.appendChild(row);
+          subBody.appendChild(row);
         });
+
+        subHeader.addEventListener('click', () => {
+          const open = subBody.classList.toggle('open');
+          subArrow.textContent = open ? '\u25BC' : '\u25B6';
+        });
+
+        subWrap.appendChild(subHeader);
+        subWrap.appendChild(subBody);
+        body.appendChild(subWrap);
       });
     });
   }
