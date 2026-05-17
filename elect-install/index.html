@@ -107,24 +107,39 @@ body.dark-mode {
   z-index: 99999;
   width: 100%;
   background: var(--panel); padding: 4px 8px;
-  display: flex; justify-content: center; gap: 6px; flex-wrap: nowrap; align-items: center;
+  display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border-bright);
   transition: background-color 0.3s ease; box-sizing: border-box;
 }
 
 .action-bar .btn {
-  padding: 6px 10px;
+  padding: 6px 8px;
   font-size: 10px;
   flex: 1;
   min-width: 0;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .action-bar .theme-toggle-btn {
   flex-shrink: 0;
 }
-@media (max-width: 768px) { .action-bar { padding: 4px 12px; gap: 8px; } }
+
+/* Shrink button text on small phones */
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; gap: 3px; }
+  .action-bar .btn { padding: 6px 4px; font-size: 9px; }
+}
+
+/* Very small screens — hide emoji, keep text */
+@media (max-width: 360px) {
+  .action-bar .btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; }
+}
+
+@media (max-width: 768px) { .action-bar { padding: 4px 6px; gap: 4px; } }
 
 @media screen {
 body.dark-mode .action-bar {
@@ -1405,6 +1420,18 @@ function setupThemeToggle() {
   }
 }
 applyTheme(getInitialTheme());
+
+// Keep page-wrapper clear of action bar on any screen size
+function adjustTopPadding() {
+  const bar = document.getElementById('action-bar');
+  const wrapper = document.querySelector('.page-wrapper');
+  const status = document.getElementById('save-status');
+  if (bar && wrapper) wrapper.style.paddingTop = bar.offsetHeight + 'px';
+  if (bar && status) status.style.top = bar.offsetHeight + 'px';
+}
+window.addEventListener('resize', adjustTopPadding);
+window.addEventListener('load', adjustTopPadding);
+setTimeout(adjustTopPadding, 100);
 
 // ===== BUILD TABLES =====
 const fittings = [
