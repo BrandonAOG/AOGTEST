@@ -94,21 +94,25 @@ body {
 @media screen {
 body.dark-mode {
   background: linear-gradient(135deg, #0A0E27 0%, #0F1535 25%, #0A1628 50%, #0F1535 75%, #0A0E27 100%);
-  background-attachment: fixed;
   background-size: 400% 400%;
 }
 }
 
-/* ===== ACTION BAR — scrolls with page ===== */
+/* ===== ACTION BAR — fixed at top, always visible ===== */
 .action-bar {
-  position: static !important; width: 100%;
-  background: var(--panel); padding: 12px 16px;
-  display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--panel); padding: 4px 16px;
+  display: flex; justify-content: center; gap: 12px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border-bright);
-  transition: all 0.3s ease; max-width: 1050px; box-sizing: border-box;
+  transition: background-color 0.3s ease; box-sizing: border-box;
 }
-@media (max-width: 768px) { .action-bar { padding: 10px 12px; gap: 8px; } }
+@media (max-width: 768px) { .action-bar { padding: 4px 12px; gap: 8px; } }
 
 @media screen {
 body.dark-mode .action-bar {
@@ -163,7 +167,7 @@ body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg)
 @media (max-width: 640px) { #save-status { font-size: 9px; } }
 body.dark-mode #save-status { color: #7DD3FC; }
 
-.page-wrapper { width: 100%; max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 0; padding: 0; }
+.page-wrapper { width: 100%; max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 0; padding: 0; padding-top: 44px; }
 
 .form-page {
   width: 100%; max-width: 1050px; background: var(--panel);
@@ -978,29 +982,24 @@ body.dark-mode .notice { color: #7DD3FC; }
 <body>
 
 <!-- ACTION BAR -->
-<div class="action-bar" style="position:static!important;top:auto!important;">
-  <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:100%;">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;">
-      <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
-      <button class="btn" id="btn-pdf" onclick="openPrintPreview()">📄 PDF</button>
-      <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
-      <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPhone</button>
-      <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 Android</button>
-      <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
-        <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5"/>
-          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-        <svg class="theme-icon theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-      </button>
-    </div>
-    <div id="save-status"></div>
-  </div>
+<div class="action-bar" id="action-bar">
+  <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
+  <button class="btn" id="btn-pdf" onclick="openPrintPreview()">📄 PDF</button>
+  <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
+  <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPhone</button>
+  <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 Android</button>
+  <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
+    <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg class="theme-icon theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
 </div>
 
 <div class="page-wrapper">
@@ -1223,10 +1222,6 @@ body.dark-mode .notice { color: #7DD3FC; }
 
 <script>
 // ===== FORCE ACTION BAR TO SCROLL WITH PAGE =====
-(function() {
-  var bar = document.querySelector('.action-bar');
-  if (bar) { bar.style.setProperty('position', 'static', 'important'); bar.style.setProperty('top', 'auto', 'important'); }
-})();
 
 // ===== THEME =====
 const THEME_KEY = 'aog_forms_theme_preference';
