@@ -26,7 +26,7 @@ body{font-family:var(--font-body);background:linear-gradient(135deg,#0A0E27 0%,#
 body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background-image:linear-gradient(rgba(251,191,36,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,.04) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:1;animation:gridMove 40s linear infinite}
 @keyframes gridMove{0%{background-position:0 0}100%{background-position:50px 50px}}
 body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at 20% 30%,rgba(251,191,36,.07) 0%,transparent 40%),radial-gradient(circle at 80% 70%,rgba(249,115,22,.07) 0%,transparent 40%);pointer-events:none;z-index:1}
-.container{position:relative;z-index:10;max-width:1100px;margin:0 auto;padding:40px 24px 60px}
+.container{position:relative;z-index:10;max-width:1100px;margin:0 auto;padding:40px 24px 60px;padding-top:60px}
 
 /* HEADER */
 .header{text-align:center;margin-bottom:36px;padding:32px 20px 24px;position:relative}
@@ -296,8 +296,7 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backgr
 .footer-version span{color:var(--blue-electric)}
 
 /* ── Home button ── */
-.home-btn{position:fixed;top:14px;left:14px;z-index:9999;width:40px;height:40px;background:rgba(15,21,53,.9);border:1px solid rgba(251,191,36,.4);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all .2s;text-decoration:none;color:var(--text)}
-.home-btn:hover{background:rgba(251,191,36,.15);border-color:var(--yellow-bright);box-shadow:0 0 12px rgba(251,191,36,.3)}
+
 /* Offline banner — matches hub style */
 #offline-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;padding:10px 20px;background:linear-gradient(90deg,rgba(10,14,39,.97),rgba(15,21,53,.97));border-bottom:2px solid var(--orange);text-align:center;font-family:var(--font-mono);font-size:.72rem;letter-spacing:3px;color:var(--orange-bright);text-transform:uppercase;text-shadow:0 0 8px rgba(249,115,22,.5);animation:bannerPulse 2s ease-in-out infinite}
 #offline-banner.visible{display:block}
@@ -305,10 +304,83 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backgr
 #offline-banner::before{content:'⚠ ';color:var(--yellow-bright)}
 #offline-banner::after{content:' ⚠';color:var(--yellow-bright)}
 @media(max-width:600px){.container{padding:18px 13px 40px}.company-name{font-size:1.5rem}.panel-body{padding:18px 16px}.btu-card-value{font-size:1.35rem}}
+
+/* ===== ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: rgba(10,14,39,0.97);
+  padding: 4px 8px;
+  display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  border-bottom: 1px solid rgba(251,191,36,0.35);
+  box-sizing: border-box;
+}
+.action-bar .ab-btn {
+  padding: 6px 10px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
+  border-radius: 0; cursor: pointer; color: #FBBF24; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center;
+  justify-content: center; gap: 4px;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis;
+  transition: all 0.15s ease;
+}
+.action-bar .ab-btn:hover { border-color: #FBBF24; box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+.action-bar .ab-btn:active { transform: translateY(1px); }
+
+.theme-toggle-btn {
+  position: relative; width: 36px; height: 36px; padding: 6px;
+  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; color: #FBBF24; transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; flex-shrink: 0;
+}
+.theme-toggle-btn:hover { border-color: #FBBF24; box-shadow: 0 0 12px rgba(251,191,36,0.3); }
+.theme-icon {
+  width: 18px; height: 18px; transition: all 0.3s ease; position: absolute;
+  fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  stroke: #FBBF24;
+}
+.theme-icon.theme-icon-moon { opacity: 0; }
+body.light-mode .theme-icon { opacity: 0; transform: rotate(-180deg); }
+body.light-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg); }
+
+/* Light mode overrides */
+body.light-mode {
+  background: #FFFFFF !important;
+  animation: none !important;
+  color: #1F2937 !important;
+}
+body.light-mode::before, body.light-mode::after { opacity: 0 !important; }
+body.light-mode .action-bar { background: #FFFFFF; border-bottom-color: rgba(217,119,6,0.35); }
+body.light-mode .action-bar .ab-btn { color: #D97706; border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.05); }
+body.light-mode .theme-toggle-btn { color: #D97706; border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.05); }
+body.light-mode .theme-icon { stroke: #D97706; }
+body.light-mode .panel { background: #FAFAFA; border-color: rgba(217,119,6,0.25); color: #1F2937; }
+body.light-mode .container { color: #1F2937; }
+
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; gap: 3px; }
+  .action-bar .ab-btn { padding: 6px 6px; font-size: 9px; }
+}
+@media (max-width: 360px) {
+  .action-bar .ab-btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; }
+}
 </style>
 </head>
 <body>
-<a class="home-btn" href="../" title="Back to Hub">🏠</a>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">
+    <svg class="theme-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
 <div class="container">
 
 <!-- HEADER -->
@@ -1595,5 +1667,37 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
+
+<script>
+// ===== THEME TOGGLE =====
+const THEME_KEY = 'aog_gas_theme';
+function applyTheme(t) {
+  if (t === 'light') document.body.classList.add('light-mode');
+  else document.body.classList.remove('light-mode');
+  try { localStorage.setItem(THEME_KEY, t); } catch(e) {}
+}
+function toggleTheme() {
+  applyTheme(document.body.classList.contains('light-mode') ? 'dark' : 'light');
+}
+(function() {
+  const saved = localStorage.getItem(THEME_KEY);
+  const preferLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  applyTheme(saved || (preferLight ? 'light' : 'dark'));
+})();
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.addEventListener('click', toggleTheme);
+
+  // Dynamic top padding
+  function adjustPadding() {
+    const bar = document.getElementById('action-bar');
+    const container = document.querySelector('.container');
+    if (bar && container) container.style.paddingTop = (bar.offsetHeight + 16) + 'px';
+  }
+  window.addEventListener('resize', adjustPadding);
+  adjustPadding();
+  setTimeout(adjustPadding, 100);
+});
+</script>
 </body>
 </html>
