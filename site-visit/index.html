@@ -1458,6 +1458,8 @@ function saveForIPhone() {
   overlay.appendChild(closeBtn); overlay.appendChild(container); document.body.appendChild(overlay);
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
+  showRealTablesForCapture();
+  const restoreLayout = forceDesktopLayout();
   let completed = 0;
   pages.forEach((page, idx) => {
     const wrapper = document.createElement('div'); wrapper.style.cssText = 'text-align:center;';
@@ -1471,12 +1473,14 @@ function saveForIPhone() {
       img.alt = `Form page ${idx+1}`;
       wrapper.appendChild(lbl); wrapper.appendChild(img); container.appendChild(wrapper);
       if (++completed === pages.length) {
+        hideRealTablesAfterCapture(); restoreLayout();
         setStatus('Images ready. Long-press to save to Photos.');
         if (wasDark) document.body.classList.add('dark-mode');
       }
     });
   });
   closeBtn.onclick = () => {
+    hideRealTablesAfterCapture(); restoreLayout();
     setStatus('');
     if (wasDark) document.body.classList.add('dark-mode');
     document.body.removeChild(overlay);
@@ -1534,24 +1538,6 @@ window.addEventListener('load', adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
 
 // ===== CAPTURE HELPER =====
-function showRealTablesForCapture() {
-  const style = document.createElement('style');
-  style.id = 'capture-override';
-  style.textContent = [
-    '#page2 .grid-section { display: block !important; }',
-    '#page2 .footer-fields { display: block !important; }',
-    '#mobile-p2-accordions { display: none !important; }',
-    'table.mat-table td { overflow: visible !important; vertical-align: middle !important; }',
-    'table.mat-table td input[type="text"] { overflow: visible !important; height: 18px !important; line-height: 18px !important; display: block !important; }',
-    '.footer-field input[type="text"] { height: 24px !important; line-height: 24px !important; overflow: visible !important; box-sizing: border-box !important; }',
-    '.footer-fields { overflow: visible !important; }'
-  ].join('\n');
-  document.head.appendChild(style);
-}
-function hideRealTablesAfterCapture() {
-  const style = document.getElementById('capture-override');
-  if (style) style.remove();
-}
 
 // ===== MOBILE ACCORDION =====
 function buildMobileAccordions() {
