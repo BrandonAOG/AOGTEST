@@ -74,7 +74,7 @@ body.dark-mode {
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { width: 100%; height: 100%; overflow-x: hidden; }
+html { width: 100%; height: 100%; overflow-x: clip; }
 
 body {
   font-family: Arial, sans-serif;
@@ -86,7 +86,7 @@ body {
   padding: 0;
   padding-bottom: env(safe-area-inset-bottom, 24px);
   -webkit-text-size-adjust: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
   transition: background-color 0.3s ease, color 0.3s ease;
   min-height: 100vh;
 }
@@ -99,9 +99,9 @@ body.dark-mode {
 }
 }
 
-/* ===== STICKY ACTION BAR ===== */
+/* ===== ACTION BAR — scrolls with page ===== */
 .action-bar {
-  position: static; width: 100%;
+  position: static !important; width: 100%;
   background: var(--panel); padding: 12px 16px;
   display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
@@ -978,7 +978,7 @@ body.dark-mode .notice { color: #7DD3FC; }
 <body>
 
 <!-- ACTION BAR -->
-<div class="action-bar">
+<div class="action-bar" style="position:static!important;top:auto!important;">
   <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:100%;">
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;">
       <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
@@ -1222,6 +1222,12 @@ body.dark-mode .notice { color: #7DD3FC; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
+// ===== FORCE ACTION BAR TO SCROLL WITH PAGE =====
+(function() {
+  var bar = document.querySelector('.action-bar');
+  if (bar) { bar.style.setProperty('position', 'static', 'important'); bar.style.setProperty('top', 'auto', 'important'); }
+})();
+
 // ===== THEME =====
 const THEME_KEY = 'aog_forms_theme_preference';
 function getInitialTheme() {
