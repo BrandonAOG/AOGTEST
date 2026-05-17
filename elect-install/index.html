@@ -1555,6 +1555,9 @@ const ynObserver = new MutationObserver(() => applyYNColors());
 function clearForm() {
   if (!confirm("Clear all fields? This cannot be undone.")) return;
   try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+  // Remove all extra transfer switches, keep only the first
+  document.querySelectorAll('.ts-block:not(:first-child)').forEach(el => el.remove());
+  renumberTS();
   document.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = "");
   document.querySelectorAll('input[type="checkbox"]').forEach(el => {
     el.checked = false;
