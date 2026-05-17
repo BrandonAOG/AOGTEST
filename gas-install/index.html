@@ -1817,8 +1817,8 @@ function injectCaptureStyles() {
   el.id = 'capture-print-styles';
   el.textContent = `
     .form-page { background:#fff!important; color:#1F2937!important; padding:16px!important; box-sizing:border-box!important; }
-    .two-col { display:flex!important; flex-direction:row!important; flex-wrap:nowrap!important; gap:0 6pt!important; }
-    .two-col > div { flex:1 1 50%!important; min-width:0!important; width:50%!important; }
+    .two-col { display:grid!important; grid-template-columns:1fr 1fr!important; gap:0 6pt!important; width:100%!important; box-sizing:border-box!important; }
+    .two-col > div { min-width:0!important; overflow:visible!important; box-sizing:border-box!important; }
     .top-fields { display:flex!important; flex-wrap:wrap!important; gap:0 10pt!important; margin-bottom:2pt!important; }
     .top-fields .field-row { flex:0 0 48%!important; min-width:0!important; font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding-top:0.5pt!important; }
     .section-row { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding-top:0.5pt!important; display:flex!important; flex-wrap:nowrap!important; align-items:flex-start!important; overflow:visible!important; }
@@ -1856,6 +1856,50 @@ function removeCaptureStyles() {
   if (el) el.remove();
 }
 
+
+function forceDesktopLayout() {
+  const saved = [];
+  function setInline(el, styles) {
+    const prev = {};
+    for (const [k, v] of Object.entries(styles)) {
+      prev[k] = el.style[k];
+      el.style.setProperty(k.replace(/([A-Z])/g, '-$1').toLowerCase(), v, 'important');
+    }
+    saved.push({ el, prev, props: Object.keys(styles) });
+  }
+  // top-fields — table layout (matches print CSS)
+  document.querySelectorAll('.top-fields').forEach(el => {
+    setInline(el, { display: 'table', width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', marginBottom: '2pt' });
+  });
+  // top-fields-row — table-row
+  document.querySelectorAll('.top-fields-row').forEach(el => {
+    setInline(el, { display: 'table-row' });
+  });
+  // top-fields field-row cells
+  document.querySelectorAll('.top-fields-row .field-row').forEach(el => {
+    setInline(el, { display: 'table-cell', width: '50%', verticalAlign: 'bottom', fontSize: '9pt', lineHeight: '1.2', whiteSpace: 'nowrap', padding: '0 4pt 1pt 0' });
+  });
+  // two-col — table layout (matches print CSS exactly)
+  document.querySelectorAll('.two-col').forEach(el => {
+    setInline(el, { display: 'table', width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: '4pt 0', marginBottom: '2pt' });
+  });
+  // two-col children — table-cell at exactly 50%
+  document.querySelectorAll('.two-col > div').forEach(el => {
+    setInline(el, { display: 'table-cell', width: '50%', verticalAlign: 'top' });
+  });
+  // form-page
+  document.querySelectorAll('.form-page').forEach(el => {
+    setInline(el, { padding: '16px', boxSizing: 'border-box' });
+  });
+  return () => saved.forEach(({ el, prev, props }) => {
+    props.forEach(k => {
+      const cssProp = k.replace(/([A-Z])/g, '-$1').toLowerCase();
+      el.style.removeProperty(cssProp);
+      if (prev[k]) el.style[k] = prev[k];
+    });
+  });
+}
+
 /* ================================================================
    SAVE — iPHONE
 ================================================================ */
@@ -1881,6 +1925,7 @@ function saveForIPhone() {
 
   // Inject print-like styles so html2canvas matches print output
   injectCaptureStyles();
+  const restoreLayout = forceDesktopLayout();
 
   // Remove placeholder attributes entirely
   const placeholderEls = document.querySelectorAll('[placeholder]');
@@ -1889,7 +1934,7 @@ function saveForIPhone() {
     el.removeAttribute('placeholder');
     return { el, val };
   });
-  const restorePlaceholders = () => savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val));
+  const restorePlaceholders = () => { savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val)); restoreLayout(); };
 
   pages.forEach((page, idx) => {
     const oW = page.style.width, oM = page.style.maxWidth, om = page.style.minWidth;
