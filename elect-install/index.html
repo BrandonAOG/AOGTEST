@@ -1746,11 +1746,38 @@ if (document.readyState === 'loading') {
 
 // ===== BEFORE/AFTER PRINT =====
 window.addEventListener('beforeprint', () => {
-  // Safari: fires after window.print() returns, dark mode already stripped manually
+  // Inject compact style for page1 when multiple transfer switches are present
+  const tsCount = document.querySelectorAll('.ts-block').length;
+  if (tsCount > 1) {
+    const s = document.createElement('style');
+    s.id = 'multi-ts-print';
+    s.textContent = `
+      #page1 .section-row { font-size: 8px !important; margin-bottom: 1px !important; }
+      #page1 .field-row label { font-size: 8px !important; }
+      #page1 .field-row input[type="text"] { font-size: 8px !important; }
+      #page1 .inline-input { font-size: 8px !important; }
+      #page1 .section { margin-bottom: 4px !important; }
+      #page1 .section-title { font-size: 9px !important; margin-bottom: 2px !important; }
+      #page1 .ts-block { margin-bottom: 2px !important; border-color: #bbb !important; }
+      #page1 .ts-header { padding: 2px 4px !important; }
+      #page1 .ts-header-left { font-size: 8px !important; }
+      #page1 .ts-body { padding: 2px 4px !important; }
+      #page1 .ts-body .section-row { font-size: 8px !important; margin-bottom: 1px !important; }
+      #page1 .yn-checkbox-wrap { font-size: 7px !important; padding: 0px 2px !important; min-height: 0 !important; min-width: 0 !important; }
+      #page1 input[type="checkbox"] { width: 8px !important; height: 8px !important; min-width: 8px !important; }
+      #page1 .two-col { gap: 4px 8px !important; }
+      #page1 hr.section-hr { margin: 2px 0 !important; }
+      #page1 .top-fields { margin-bottom: 4px !important; gap: 1px 6px !important; }
+      #page1 .textarea-field { min-height: 20px !important; font-size: 8px !important; }
+    `;
+    document.head.appendChild(s);
+  }
 });
 window.addEventListener('afterprint', () => {
   const nt = document.getElementById('no-transitions');
   if (nt) nt.remove();
+  const mts = document.getElementById('multi-ts-print');
+  if (mts) mts.remove();
   if (wasDarkAtPrint) document.body.classList.add('dark-mode');
 });
 
