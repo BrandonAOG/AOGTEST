@@ -946,6 +946,51 @@ body.dark-mode .notice { color: #7DD3FC; }
     flex-shrink: 0;
   }
   .mob-acc-header.has-data .mob-filled-dot { display: inline-block; }
+
+  /* ── Sub-accordion: per-fitting row inside Fittings/Wireway/Polaris ── */
+  .mob-sub-accordion {
+    border-bottom: 1px solid var(--border);
+  }
+  .mob-sub-accordion:last-child { border-bottom: none; }
+
+  .mob-section-heading--toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 12px 4px;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+  body.dark-mode .mob-section-heading--toggle { color: #00FFC8; }
+
+  .mob-sub-arrow {
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    width: 12px;
+    text-align: center;
+  }
+  body.dark-mode .mob-sub-arrow { color: #7DD3FC; }
+
+  .mob-sub-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #059669;
+    flex-shrink: 0;
+    margin-left: auto;
+    display: none;
+  }
+
+  .mob-sub-body {
+    display: none;
+    padding: 0 0 8px 20px;
+  }
+  .mob-sub-body.open { display: block; }
+
 }
 
 /* ===================================================================
@@ -1644,10 +1689,31 @@ function buildMobileAccordions() {
         const rowLabel = tr.querySelector('td.row-label')?.textContent.trim() || '';
         const realInputs = Array.from(tr.querySelectorAll('input'));
 
-        const heading = document.createElement('div');
-        heading.className = 'mob-section-heading';
-        heading.textContent = rowLabel;
-        body.appendChild(heading);
+        // Sub-accordion wrapper
+        const subWrap = document.createElement('div');
+        subWrap.className = 'mob-sub-accordion';
+
+        // Clickable heading — collapsed by default
+        const subHeader = document.createElement('div');
+        subHeader.className = 'mob-section-heading mob-section-heading--toggle';
+
+        const subArrow = document.createElement('span');
+        subArrow.className = 'mob-sub-arrow';
+        subArrow.textContent = '\u25B6';
+
+        const subTitle = document.createElement('span');
+        subTitle.textContent = rowLabel;
+
+        const subDot = document.createElement('span');
+        subDot.className = 'mob-sub-dot';
+
+        subHeader.appendChild(subArrow);
+        subHeader.appendChild(subTitle);
+        subHeader.appendChild(subDot);
+
+        // Sizes container — hidden by default
+        const subBody = document.createElement('div');
+        subBody.className = 'mob-sub-body';
 
         colHeaders.forEach((colName, i) => {
           const row = document.createElement('div');
@@ -1655,20 +1721,22 @@ function buildMobileAccordions() {
 
           const lbl = document.createElement('div');
           lbl.className = 'mob-card-label';
-          lbl.innerHTML = `${colName}`;
+          lbl.textContent = colName;
 
           const inp = document.createElement('input');
           inp.type = 'text';
           inp.inputMode = 'numeric';
           inp.pattern = '[0-9]*';
           inp.className = 'mob-card-input';
-          inp.placeholder = '—';
+          inp.placeholder = '\u2014';
 
           const realInput = realInputs[i];
           if (realInput) {
             inp.value = realInput.value;
             inp.addEventListener('input', () => {
               realInput.value = inp.value;
+              const hasRow = Array.from(subBody.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
+              subDot.style.display = hasRow ? 'inline-block' : 'none';
               const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
               headerBtn.classList.toggle('has-data', hasAny);
             });
@@ -1676,8 +1744,17 @@ function buildMobileAccordions() {
 
           row.appendChild(lbl);
           row.appendChild(inp);
-          body.appendChild(row);
+          subBody.appendChild(row);
         });
+
+        subHeader.addEventListener('click', () => {
+          const open = subBody.classList.toggle('open');
+          subArrow.textContent = open ? '\u25BC' : '\u25B6';
+        });
+
+        subWrap.appendChild(subHeader);
+        subWrap.appendChild(subBody);
+        body.appendChild(subWrap);
       });
     });
   }
