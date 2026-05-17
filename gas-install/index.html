@@ -2071,6 +2071,19 @@ function setStatus(msg) {
     document.querySelectorAll('.full-line-input').forEach(el =>
       save(el, 'font-size:9pt!important;width:100%!important;'));
 
+    // ── force font-size via setProperty on all inputs/textareas (Safari ignores cssText) ──
+    document.querySelectorAll('input[type="text"], input[type="date"]').forEach(el => {
+      if (!el.closest('table.mat-table')) {
+        el.style.setProperty('font-size', '9pt', 'important');
+      }
+    });
+    document.querySelectorAll('#page1 textarea.multiline, .miscues-textarea').forEach(el => {
+      el.style.setProperty('font-size', '5pt', 'important');
+    });
+    document.querySelectorAll('#page2 textarea.multiline').forEach(el => {
+      el.style.setProperty('font-size', '5pt', 'important');
+    });
+
     // ── reg-field inputs ──
     document.querySelectorAll('.reg-title').forEach(el =>
       save(el, 'display:block!important;width:100%!important;font-size:9.5pt!important;font-weight:bold!important;margin-bottom:1pt!important;'));
