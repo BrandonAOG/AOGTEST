@@ -243,16 +243,28 @@ body.dark-mode textarea:focus { border-color: #00FFC8; box-shadow: 0 0 8px rgba(
   padding: 2px 6px 2px 3px; border-radius: 3px; font-size: 10px; font-weight: bold;
   border: 1px solid transparent; transition: background 0.15s, border-color 0.15s;
   vertical-align: middle; user-select: none; white-space: nowrap; flex-shrink: 0; font-family: Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  min-height: 32px; min-width: 44px; justify-content: center;
+}
+/* Hide the raw checkbox — the whole wrap is the tap target */
+.yn-checkbox-wrap input[type="checkbox"] {
+  position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
 }
 @media (max-width: 480px) { .yn-checkbox-wrap { font-size: 9px; padding: 1px 4px 1px 2px; } }
 .yn-checkbox-wrap.yn-yes { border-color: #bbb; }
 .yn-checkbox-wrap.yn-no { border-color: #bbb; }
 .yn-checkbox-wrap.yn-yes.checked { background: #059669; border-color: #047857; color: #fff; }
 .yn-checkbox-wrap.yn-no.checked { background: #DC2626; border-color: #b91c1c; color: #fff; }
-.yn-checkbox-wrap.yn-yes.checked input, .yn-checkbox-wrap.yn-no.checked input { accent-color: #fff; }
 .yn-checkbox-wrap.yn-opt { border-color: #bbb; }
 .yn-checkbox-wrap.yn-opt.checked { background: #D97706; border-color: #b45309; color: #fff; }
-.yn-checkbox-wrap.yn-opt.checked input { accent-color: #fff; }
+/* Checkmark indicator via ::before on checked wraps */
+.yn-checkbox-wrap.checked::before {
+  content: '✓';
+  font-size: 11px;
+  font-weight: bold;
+  margin-right: 2px;
+  color: #fff;
+}
 body.dark-mode .yn-checkbox-wrap { border-color: rgba(0,255,200,0.3); }
 body.dark-mode .yn-checkbox-wrap.checked { border-color: rgba(0,255,200,0.5); }
 
@@ -1168,7 +1180,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
           <div class="section-row"><label>Grounds and Neutrals Separated:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row"><label>Transfer Switch(es) Made Up:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row"><label>Generator Made Up:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Generator Electrical Run:</label><input type="checkbox"> Surface Mount <input type="checkbox"> U.G. <input type="checkbox"> Attic</div>
+          <div class="section-row" data-multi="true"><label>Generator Electrical Run:</label><input type="checkbox"> Surface Mount <input type="checkbox"> U.G. <input type="checkbox"> Attic</div>
           <div class="section-row"><label>Generator Set to NG or LQ in Controller &amp; In Generator:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row"><label>60A Load Shed Installed &amp; Programmed:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row"><label>100A Load Shed Installed &amp; Programmed:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
@@ -1480,8 +1492,24 @@ function applyYNColors() {
     cb.parentNode.insertBefore(wrap, cb); wrap.appendChild(cb);
     if (textNode) { wrap.appendChild(document.createTextNode(' ' + label)); textNode.remove(); }
     function syncState() { wrap.classList.toggle('checked', cb.checked); }
-    cb.addEventListener('change', syncState);
-    wrap.addEventListener('click', (e) => { if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); } });
+    function exclusiveCheck() {
+      if (!cb.checked) return;
+      const row = cb.closest('.section-row, .ts-body > div');
+      if (!row || row.dataset.multi === 'true') return;
+      row.querySelectorAll('.yn-checkbox-wrap input[type="checkbox"]').forEach(other => {
+        if (other !== cb && other.checked) {
+          other.checked = false;
+          const w = other.parentElement;
+          if (w) w.classList.remove('checked');
+        }
+      });
+    }
+    cb.addEventListener('change', () => { exclusiveCheck(); syncState(); saveFormData(); });
+    wrap.addEventListener('click', (e) => {
+      e.preventDefault();
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event('change'));
+    });
     syncState();
   });
 }
@@ -1667,9 +1695,9 @@ function attachAutosave() {
 }
 
 function initApp() {
+  restoreFormData();
   applyYNColors();
   setupThemeToggle();
-  restoreFormData();
   attachAutosave();
   const container = document.getElementById('ts-container');
   if (container) ynObserver.observe(container, { childList: true, subtree: true });
