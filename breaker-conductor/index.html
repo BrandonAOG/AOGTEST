@@ -129,26 +129,59 @@ select:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 2px rgba(2
 @media(max-width:480px){.selects-grid{grid-template-columns:1fr 1fr;}.metrics{grid-template-columns:1fr 1fr;}.metric-value{font-size:1.3rem;}}
 @media(max-width:340px){.selects-grid{grid-template-columns:1fr;}.metrics{grid-template-columns:1fr;}}
 
-/* ── Home button ── */
-.home-btn{position:fixed;top:14px;left:14px;z-index:9999;width:40px;height:40px;background:rgba(15,21,53,.9);border:1px solid rgba(251,191,36,.4);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all .2s;text-decoration:none;color:var(--text)}
-.home-btn:hover{background:rgba(251,191,36,.15);border-color:var(--yellow-bright);box-shadow:0 0 12px rgba(251,191,36,.3)}
+/* ===== FIXED ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--bg-card, #0F1535);
+  padding: 4px 8px;
+  display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid var(--border, rgba(251,191,36,0.25));
+  box-sizing: border-box;
+}
+[data-theme="light"] .action-bar {
+  background: #fff;
+  border-bottom-color: rgba(217,119,6,0.3);
+}
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
+  border-radius: 0; cursor: pointer; color: var(--orange, #FBBF24); text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
+}
+[data-theme="light"] .action-bar .ab-btn { color: #D97706; border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.05); }
+.action-bar .ab-btn:hover { border-color: var(--orange-bright, #FBBF24); box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--orange, #FBBF24); font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+[data-theme="light"] .action-bar .theme-toggle-ab { color: #D97706; border-color: rgba(217,119,6,0.4); }
+.action-bar .theme-toggle-ab:hover { border-color: var(--orange-bright, #FBBF24); box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; gap: 3px; }
+  .action-bar .ab-btn { padding: 6px 4px; font-size: 9px; }
+}
+@media (max-width: 360px) {
+  .action-bar .ab-btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; }
+}
 </style>
 </head>
 <body>
-<a class="home-btn" href="../" title="Back to Hub">🏠</a>
-<div class="page">
-
-  <!-- HOME -->
-  <div style="margin-bottom:12px;">
-    </div>
-
-  <!-- THEME TOGGLE -->
-  <div class="theme-toggle-wrap">
-    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">
-      <span class="theme-icon" id="themeIcon">&#9728;&#65039;</span>
-      <span id="themeLabel">Light Mode</span>
-    </button>
-  </div>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+</div>
+<div class="page" id="page">
 
   <!-- HEADER -->
   <div class="header">
@@ -700,6 +733,9 @@ function toggleTheme(){
   var el=document.documentElement;
   var dark=el.getAttribute('data-theme')==='dark';
   el.setAttribute('data-theme',dark?'light':'dark');
+  var btn=document.getElementById('themeBtn');
+  if(btn) btn.textContent=dark?'🌙':'☀️';
+  try{localStorage.setItem('aog_breaker_theme',dark?'light':'dark');}catch(e){}
   document.getElementById('themeIcon').textContent =dark?'\ud83c\udf19':'\u2600\ufe0f';
   document.getElementById('themeLabel').textContent=dark?'Dark Mode':'Light Mode';
 }
@@ -736,6 +772,24 @@ if('serviceWorker' in navigator){
       .catch(function(err){console.warn('[AOG SW] Registration failed:',err);});
   });
 }
+</script>
+<script>
+(function(){
+  try{
+    var t=localStorage.getItem('aog_breaker_theme');
+    if(t) document.documentElement.setAttribute('data-theme',t);
+    var btn=document.getElementById('themeBtn');
+    if(btn) btn.textContent=(document.documentElement.getAttribute('data-theme')==='dark')?'🌙':'☀️';
+  }catch(e){}
+})();
+function adjustTopPadding(){
+  var bar=document.getElementById('action-bar');
+  var page=document.getElementById('page');
+  if(bar&&page) page.style.marginTop=bar.offsetHeight+'px';
+}
+window.addEventListener('resize',adjustTopPadding);
+window.addEventListener('load',adjustTopPadding);
+setTimeout(adjustTopPadding,100);
 </script>
 </body>
 </html>
