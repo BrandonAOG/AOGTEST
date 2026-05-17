@@ -246,25 +246,15 @@ body.dark-mode textarea:focus { border-color: #00FFC8; box-shadow: 0 0 8px rgba(
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
   min-height: 32px; min-width: 44px; justify-content: center;
 }
-/* Hide the raw checkbox — the whole wrap is the tap target */
-.yn-checkbox-wrap input[type="checkbox"] {
-  position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
-}
 @media (max-width: 480px) { .yn-checkbox-wrap { font-size: 9px; padding: 1px 4px 1px 2px; } }
 .yn-checkbox-wrap.yn-yes { border-color: #bbb; }
 .yn-checkbox-wrap.yn-no { border-color: #bbb; }
 .yn-checkbox-wrap.yn-yes.checked { background: #059669; border-color: #047857; color: #fff; }
 .yn-checkbox-wrap.yn-no.checked { background: #DC2626; border-color: #b91c1c; color: #fff; }
+.yn-checkbox-wrap.yn-yes.checked input, .yn-checkbox-wrap.yn-no.checked input { accent-color: #fff; }
 .yn-checkbox-wrap.yn-opt { border-color: #bbb; }
 .yn-checkbox-wrap.yn-opt.checked { background: #D97706; border-color: #b45309; color: #fff; }
-/* Checkmark indicator via ::before on checked wraps */
-.yn-checkbox-wrap.checked::before {
-  content: '✓';
-  font-size: 11px;
-  font-weight: bold;
-  margin-right: 2px;
-  color: #fff;
-}
+.yn-checkbox-wrap.yn-opt.checked input { accent-color: #fff; }
 body.dark-mode .yn-checkbox-wrap { border-color: rgba(0,255,200,0.3); }
 body.dark-mode .yn-checkbox-wrap.checked { border-color: rgba(0,255,200,0.5); }
 
@@ -1506,6 +1496,7 @@ function applyYNColors() {
     }
     cb.addEventListener('change', () => { exclusiveCheck(); syncState(); saveFormData(); });
     wrap.addEventListener('click', (e) => {
+      if (e.target === cb) return; // let native checkbox handle its own click
       e.preventDefault();
       cb.checked = !cb.checked;
       cb.dispatchEvent(new Event('change'));
