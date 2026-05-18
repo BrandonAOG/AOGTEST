@@ -43,8 +43,6 @@
   styleEl.textContent = PRINT_CSS;
   document.head.appendChild(styleEl);
   if (IS_MOBILE) document.documentElement.classList.add('is-mobile-device');
-
-
 })();
 </script>
 
@@ -93,7 +91,6 @@ html.dark-mode-pending body {
   --icon-color-primary: #00FFC8; --icon-color-section: #00FFC8; --icon-color-gps: #10B981;
 }
 }
-
 
 .btn-gold { transition: all 0.3s ease; }
 
@@ -150,10 +147,10 @@ body.dark-mode .page {
 .header {
   background: var(--panel); padding: 8px 32px;
   display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border-bright);
+  flex-wrap: nowrap; gap: 10px; border-bottom: 1px solid var(--border-bright);
   position: relative; overflow: hidden; min-height: 68px;
   page-break-after: avoid; break-after: avoid; margin: 0; flex-shrink: 0;
-  transition: all 0.3s ease; width: 100%; box-sizing: border-box;
+  transition: background-color 0.3s ease, border-color 0.3s ease; width: 100%; box-sizing: border-box;
   z-index: 1;
 }
 
@@ -206,7 +203,8 @@ body.dark-mode .company-name {
 .doc-title {
   font-family: var(--font-display); font-size: 1.1rem; color: var(--cyan);
   letter-spacing: 4px; text-shadow: 0 0 12px rgba(217,119,6,0.2);
-  font-weight: 500; text-align: right; white-space: nowrap; transition: all 0.3s ease;
+  font-weight: 500; text-align: right; white-space: nowrap; flex-shrink: 1; min-width: 0;
+  transition: color 0.3s ease, text-shadow 0.3s ease;
 }
 
 body.dark-mode .doc-title { color: #00FFC8 !important; text-shadow: 0 0 12px #00FFC8, 0 0 20px rgba(0,255,200,0.5), 0 0 30px rgba(0,255,200,0.3) !important; letter-spacing: 5px; }
@@ -393,7 +391,7 @@ body.dark-mode .check-item:has(input:checked) span { color: #00FFC8; text-shadow
 .yn-group { display: inline-flex; border: 1px solid rgba(217,119,6,0.3); overflow: hidden; flex-shrink: 0; background: var(--panel); transition: all 0.3s ease; height: 22px; align-self: center; }
 body.dark-mode .yn-group { background: rgba(15,21,53,0.8); border-color: rgba(0,255,200,0.15); }
 .yn-group input[type="radio"] { display: none; }
-.yn-group .yn-label { padding: 0 10px; font-family: var(--font-display); font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; cursor: pointer; color: var(--text-muted); background: transparent; border: none; min-height: 22px; height: 22px; display: flex; align-items: center; justify-content: center; white-space: nowrap; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: all 0.15s; }
+.yn-group .yn-label { padding: 0 10px; font-family: var(--font-display); font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; cursor: pointer; color: var(--text-muted); background: transparent; border: none; min-height: 22px; height: 22px; display: flex; align-items: center; white-space: nowrap; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: all 0.15s; }
 body.dark-mode .yn-group .yn-label { color: #7DD3FC; border-color: rgba(0,255,200,0.1); background: transparent; }
 .yn-group .yn-label:first-of-type { border-right: 1px solid rgba(217,119,6,0.2); }
 body.dark-mode .yn-group .yn-label:first-of-type { border-right-color: rgba(0,255,200,0.1); }
@@ -511,13 +509,13 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 body.mobile-safari { -webkit-print-color-adjust: exact; }
 
 @media print {
-  @page { size: 8.5in 11in; margin: 0.05in 0.05in 0.05in 0.12in; }
+  @page { size: 8.5in 11in; margin: 0.05in 0.05in 0.05in 0.05in; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; animation-play-state: paused !important; transition: none !important; }
   .toolbar, #theme-toggle-btn, #offline-banner, #address-suggestions, #gps-status, #gps-btn { display: none !important; }
   .header::after { display: none !important; }
   body::before, body::after, body[class*="seasonal-"]::before, body[class*="seasonal-"]::after { display: none !important; content: none !important; }
-  html { margin: 0 !important; padding: 0 !important; zoom: 0.758; }
-  body { margin: 0 !important; padding: 0 !important; width: 1050px !important; max-width: none !important; min-height: 0 !important; background: #ffffff !important; background-image: none !important; color: #1F2937 !important; --icon-color-section: #D97706 !important; --cyan: #D97706 !important; }
+  html { zoom: 0.758; margin: 0 !important; padding: 0 !important; }
+  body { margin: 0 auto !important; padding: 0 !important; width: 1050px !important; max-width: none !important; background: #ffffff !important; background-image: none !important; color: #1F2937 !important; --icon-color-section: #D97706 !important; --cyan: #D97706 !important; }
   .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: visible !important; background: #ffffff !important; border: 1.5pt solid #D97706 !important; box-shadow: none !important; position: static !important; outline: none !important; }
   .content { flex: 1 !important; min-height: 0 !important; overflow: visible !important; padding: 4px 14px !important; background: #ffffff !important; display: flex !important; flex-direction: column !important; gap: 0 !important; justify-content: space-between !important; height: 0 !important; }
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none !important; }
@@ -564,7 +562,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   #gas_notes  { min-height: 40px !important; height: 40px !important; max-height: 40px !important; }
   #ready_notes{ min-height: 38px !important; height: 38px !important; max-height: 38px !important; width: 100% !important; box-sizing: border-box !important; }
   .yn-group { display: inline-flex !important; border: 1px solid #D97706 !important; background: #ffffff !important; box-shadow: none !important; }
-  .yn-group .yn-label { min-height: 27px !important; height: 27px !important; padding: 0 11px !important; color: #6B7280 !important; background: transparent !important; font-size: 0.67rem !important; display: flex !important; align-items: center !important; justify-content: center !important; line-height: 1 !important; }
+  .yn-group .yn-label { min-height: 27px !important; height: 27px !important; padding: 0 11px !important; color: #6B7280 !important; background: transparent !important; font-size: 0.67rem !important; line-height: 27px !important; }
   .yn-group .yn-label:first-of-type { border-right: 1px solid #D97706 !important; }
   .yn-group .yn-y:checked + .yn-label-y { background: #34d399 !important; color: #064e3b !important; text-shadow: none !important; box-shadow: none !important; }
   .yn-group .yn-n:checked + .yn-label-n { background: #fca5a5 !important; color: #7f1d1d !important; text-shadow: none !important; box-shadow: none !important; }
@@ -651,7 +649,6 @@ body.dark-mode .action-bar .ab-btn { color: #00FFC8; border-color: rgba(0,255,20
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
 body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.2); color: #00FFC8; }
-@media print { .action-bar { display: none !important; } }
 @media (max-width: 480px) {
   .action-bar { padding: 4px 4px; gap: 3px; }
   .action-bar .ab-btn { padding: 6px 4px; font-size: 9px; }
@@ -708,7 +705,6 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
       <div class="company-name">Always On<br>Generators</div>
     </div>
     <div class="doc-title">Installation Estimate</div>
-
   </div>
 
 
@@ -808,7 +804,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
             <input type="radio" name="seal_window" id="sw_n" value="N" class="yn-n"><label class="yn-label yn-label-n" for="sw_n">N</label>
           </div>
         </div>
-        <div class="inline-row" style="align-items:flex-end;">
+        <div class="inline-row">
           <span class="inline-label">Elec. Run Footage</span>
           <input type="number" id="elec_run_ft" name="elec_run_ft" class="short" placeholder="ft" inputmode="numeric" autocomplete="off" aria-label="Electrical run footage">
           <div class="check-group" role="group" aria-label="Run type">
@@ -821,7 +817,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
             <label class="check-item"><input type="checkbox" name="wiring" value="aluminum"><span>Al</span></label>
             <label class="check-item"><input type="checkbox" name="wiring" value="copper"><span>Cu</span></label>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;justify-content:flex-end;align-self:stretch;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
             <span class="inline-label" style="margin:0;">Bore</span>
             <div class="yn-group" role="group" aria-label="Bore required">
               <input type="radio" name="bore_gen" id="bore_gen_y" value="Y" class="yn-y"><label class="yn-label yn-label-y" for="bore_gen_y">Y</label>
@@ -950,15 +946,15 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
           </div>
           <div class="field-block" style="margin-top:10px;"><textarea id="gas_notes" name="gas_notes" placeholder="List other gas appliances or notes…" aria-label="Gas appliance notes"></textarea></div>
         </div>
-        <div class="grid-4" style="margin-bottom:0;justify-items:start;">
+        <div class="grid-4" style="margin-bottom:0;">
           <div class="field-block"><label for="fuel_underground" style="margin-bottom:-20px;font-size:0.75rem;">Underground (ft)</label><input type="number" id="fuel_underground" name="fuel_underground" inputmode="numeric" autocomplete="off" aria-label="Underground fuel run in feet"></div>
           <div class="field-block"><label for="fuel_aboveground" style="margin-bottom:-20px;font-size:0.75rem;">Above Ground (ft)</label><input type="number" id="fuel_aboveground" name="fuel_aboveground" inputmode="numeric" autocomplete="off" aria-label="Above ground fuel run in feet"></div>
           <div class="field-block"><label for="fuel_attic" style="margin-bottom:-20px;font-size:0.75rem;">Attic (ft)</label><input type="number" id="fuel_attic" name="fuel_attic" inputmode="numeric" autocomplete="off" aria-label="Attic fuel run in feet"></div>
-          <div class="field-block" style="display:flex;flex-direction:column;align-items:flex-start;padding-bottom:2px;text-align:left;">
-            <span style="font-family:var(--font-display);font-size:0.58rem;font-weight:500;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);display:block;margin-bottom:4px;">Bore</span>
-            <div class="yn-group" role="group" aria-label="Fuel bore required" style="width:fit-content;margin:0;">
-              <input type="radio" name="bore_fuel" id="bf_y" value="Y" class="yn-y"><label class="yn-label yn-label-y" for="bf_y">Y</label>
-              <input type="radio" name="bore_fuel" id="bf_n" value="N" class="yn-n"><label class="yn-label yn-label-n" for="bf_n">N</label>
+          <div class="field-block" style="display:flex;flex-direction:column;gap:14px;">
+            <label style="font-size:0.65rem;margin-bottom:-8px;margin-left:4px;">Bore</label>
+            <div class="yn-group" role="group" aria-label="Fuel bore required" style="width:fit-content;min-width:0;flex-shrink:1;">
+              <input type="radio" name="bore_fuel" id="bf_y" value="Y" class="yn-y"><label class="yn-label yn-label-y" for="bf_y" style="font-size:0.65rem;padding:0 10px;">Y</label>
+              <input type="radio" name="bore_fuel" id="bf_n" value="N" class="yn-n"><label class="yn-label yn-label-n" for="bf_n" style="font-size:0.65rem;padding:0 10px;">N</label>
             </div>
           </div>
         </div>
@@ -1318,7 +1314,7 @@ function printForm() {
     '  .section-header svg, .section-header svg * { stroke:#D97706!important; }',
     '  .col-label { color:#D97706!important;background:#f5f5f5!important;text-shadow:none!important; }',
     '  .yn-group { background:white!important;border-color:#D97706!important; }',
-    '  .yn-group .yn-label { color:#6B7280!important;background:white!important;text-shadow:none!important;display:flex!important;align-items:center!important;justify-content:center!important;line-height:1!important; }',
+    '  .yn-group .yn-label { color:#6B7280!important;background:white!important;text-shadow:none!important; }',
     '  .check-item input[type="radio"],.check-item input[type="checkbox"] { accent-color:#D97706!important; }',
     '  .footer-text { color:#9CA3AF!important; }',
     '  .toolbar,button,.theme-toggle-btn { display:none!important; }',
@@ -1349,14 +1345,12 @@ function printForm() {
       '  * { animation:none!important;animation-play-state:paused!important;transition:none!important; }',
       '  .doc-title, .company-name { transform:translateZ(0);will-change:auto!important;isolation:auto!important; }',
       '  .header::after { display:none!important;content:none!important; }',
-      '  html { margin:0 auto!important; }',
-      '  body { margin:0 auto!important; width:1050px!important; }',
       '  .page { min-height:0!important; }',
       '  .footer { margin-top:auto!important;padding:2px 14px!important; }',
-      '  .footer-text,.footer span { font-size:0.55rem!important; }',
+      '  .footer-text,.footer span { font-size:0.28rem!important; }',
       '  .field-row,.inline-row { min-height:29.7px!important; }',
       '  input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"] { min-height:29.7px!important;height:29.7px!important; }',
-      '  .yn-group,.yn-group .yn-label { height:25.7px!important;min-height:25.7px!important;line-height:1!important;display:flex!important;align-items:center!important;justify-content:center!important; }',
+      '  .yn-group,.yn-group .yn-label { height:25.7px!important;min-height:25.7px!important;line-height:25.7px!important; }',
       '  .check-item { height:24.7px!important;min-height:24.7px!important; }',
       '  #gen_notes  { height:37.7px!important;min-height:37.7px!important;max-height:37.7px!important; }',
       '  #pad_notes  { height:29.7px!important;min-height:29.7px!important;max-height:29.7px!important; }',
