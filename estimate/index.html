@@ -103,7 +103,6 @@ body {
   width: 100%; max-width: 1050px; margin: 0 auto;
   min-height: 100vh; padding: 0;
   padding-bottom: env(safe-area-inset-bottom, 24px);
-  padding-top: env(safe-area-inset-top, 0px);
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -609,6 +608,16 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   body[class*="seasonal-"] .col-label svg, body[class*="seasonal-"] .col-label svg * { stroke: #D97706 !important; color: #D97706 !important; }
   .confirm-modal-backdrop { display: none !important; }
   #seasonal-canvas { display: none !important; }
+
+  /* iPad print fix — scoped to mobile-safari class (set by JS, iOS only).
+     Desktop never has this class so desktop print is completely unaffected.
+     iPhone viewport is ~390px, iPad is ~768px+. The existing html zoom: 0.758
+     was tuned for iPhone. On iPad the wider viewport needs a lower value.
+     We override zoom on .page (the content wrapper) which takes precedence. */
+  html.mobile-safari .page,
+  body.mobile-safari .page {
+    zoom: 0.55 !important;
+  }
 }
 
 
@@ -657,23 +666,6 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 @media (max-width: 360px) {
   .action-bar .ab-btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; }
 }
-
-
-/* Neutralize desktop html zoom on iOS — body.mobile-safari .page handles it instead */
-@media print {
-  html.mobile-safari { zoom: 1 !important; }
-}
-
-/* ===== iOS PRINT FIX (iPhone + iPad) ========================================
-   body.mobile-safari set by existing JS — desktop never affected.
-   =========================================================================== */
-@media print {
-  body.mobile-safari .page { zoom: 0.830; }
-}
-@media print and (min-width: 600px) {
-  body.mobile-safari .page { zoom: 0.580 !important; }
-}
-
 </style>
 </head>
 
