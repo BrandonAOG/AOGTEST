@@ -101,12 +101,13 @@ body.dark-mode {
 /* ===== ACTION BAR — fixed at top, always visible ===== */
 .action-bar {
   position: fixed !important;
-  top: env(safe-area-inset-top, 0px) !important;
+  top: 0 !important;
   left: 0 !important;
   right: 0 !important;
   z-index: 99999;
   width: 100%;
   background: var(--panel); padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border-bright);
@@ -194,7 +195,7 @@ body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg)
 @media (max-width: 640px) { #save-status { font-size: 9px; } }
 body.dark-mode #save-status { color: #7DD3FC; }
 
-.page-wrapper { width: 100%; max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 0; padding: 0; padding-top: calc(44px + env(safe-area-inset-top, 0px)); }
+.page-wrapper { width: 100%; max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 0; padding: 0; padding-top: 44px; }
 
 .form-page {
   width: 100%; max-width: 1050px; background: var(--panel);
@@ -1108,59 +1109,7 @@ body.dark-mode .notice { color: #7DD3FC; }
   #page2 .footer-field input.wide  { width: 65px !important; }
 }
 
-/* ===== iOS PRINT FIX (iPhone + iPad) ===========================================
-   body.mobile-safari is added by JS detection below — desktop never gets this.
-   iPhone: zoom on .page-wrapper keeps existing behaviour.
-   iPad:   lower zoom value + cancel #page2-inner desktop scale.
-   ======================================================================== */
-@media print {
-  /* iPhone — same scale that worked before */
-  body.mobile-safari .page-wrapper {
-    zoom: 0.830;
-  }
-  /* Cancel desktop #page2-inner upscale on all iOS */
-  body.mobile-safari #page2-inner {
-    transform: none !important;
-    width: 100% !important;
-  }
-  /* Tighten page2 cells on all iOS */
-  body.mobile-safari #page2 .grid-section { margin-bottom: 2px !important; }
-  body.mobile-safari #page2 table.mat-table th,
-  body.mobile-safari #page2 table.mat-table td {
-    padding: 1px 1px !important;
-    font-size: 9px !important;
-    line-height: 1.1 !important;
-  }
-  body.mobile-safari #page2 table.mat-table td.row-label {
-    font-size: 9px !important;
-    padding: 1px 2px !important;
-  }
-  body.mobile-safari #page2 table.mat-table td input[type="text"] { font-size: 8px !important; }
-  body.mobile-safari #page2 #fittings-table td.row-label { width: 100px !important; }
-  body.mobile-safari #page2 #wireway-table  td.row-label { width: 70px !important; }
-  body.mobile-safari #page2 #polaris-table  td.row-label { width: 70px !important; }
-  body.mobile-safari #page2 .footer-fields {
-    margin-top: 3px !important;
-    padding-top: 3px !important;
-    font-size: 10px !important;
-  }
-  body.mobile-safari #page2 .footer-row { gap: 1px 8px !important; margin-bottom: 2px !important; }
-  body.mobile-safari #page2 .footer-field label { font-size: 10px !important; }
-  body.mobile-safari #page2 .footer-field input[type="text"] {
-    font-size: 10px !important;
-    height: 9px !important;
-    width: 45px !important;
-  }
-  body.mobile-safari #page2 .footer-field input.short { width: 32px !important; }
-  body.mobile-safari #page2 .footer-field input.wide  { width: 65px !important; }
-}
 
-/* iPad override — wider viewport needs lower zoom */
-@media print and (min-width: 600px) {
-  body.mobile-safari .page-wrapper {
-    zoom: 0.580 !important;
-  }
-}
 
 
 /* ===== FT. LABEL IN WIRE TABLE CELLS ===== */
@@ -1203,6 +1152,28 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 @media print {
   .action-bar { display: none !important; }
 }
+
+/* ===== iPAD PRINT FIX =====
+   Forces same compact layout as iPhone print.
+   Scoped to iPad viewport range only — never affects desktop or iPhone. */
+@media print and (min-width: 768px) and (max-width: 1366px) {
+  html, body {
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+  }
+  .form-page, .page {
+    width: 8.1in !important;
+    max-width: 8.1in !important;
+    margin: 0 auto !important;
+    padding: 0.15in !important;
+    box-sizing: border-box !important;
+    font-size: 9pt !important;
+  }
+  .page-wrapper {
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -1229,7 +1200,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
     </svg>
   </button>
 </div>
-<div id="save-status" style="position:fixed;top:calc(44px + env(safe-area-inset-top, 0px));left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;"></div>
+<div id="save-status" style="position:fixed;top:44px;left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;"></div>
 
 <div class="page-wrapper">
 
@@ -2155,21 +2126,5 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
-<script>
-/* iOS device detection — adds mobile-safari class to body on all iOS browsers */
-(function () {
-  var ua = navigator.userAgent;
-  if (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) {
-    document.documentElement.classList.add('mobile-safari');
-    if (document.body) {
-      document.body.classList.add('mobile-safari');
-    } else {
-      document.addEventListener('DOMContentLoaded', function () {
-        document.body.classList.add('mobile-safari');
-      });
-    }
-  }
-})();
-</script>
 </body>
 </html>
