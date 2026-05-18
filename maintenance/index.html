@@ -249,11 +249,50 @@ body.dark-mode .header::after {
 .header-logo { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 
 .logo-img {
-  width: 40px; 
+  width: 40px;
   height: 40px;
   flex-shrink: 0;
   object-fit: contain;
-  filter: drop-shadow(0 0 8px rgba(217,119,6,0.4)) brightness(1.1);
+  filter:
+    drop-shadow(0 0 12px rgba(217,119,6,0.6))
+    drop-shadow(0 0 24px rgba(217,119,6,0.4))
+    brightness(1.1);
+  animation: logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 12px rgba(217,119,6,0.6))
+      drop-shadow(0 0 24px rgba(217,119,6,0.4))
+      brightness(1.1);
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 18px rgba(217,119,6,0.8))
+      drop-shadow(0 0 36px rgba(217,119,6,0.6))
+      brightness(1.2);
+  }
+}
+body.dark-mode .logo-img {
+  filter:
+    drop-shadow(0 0 12px rgba(0,255,200,0.6))
+    drop-shadow(0 0 24px rgba(0,255,200,0.4))
+    brightness(1.1);
+  animation: logoPulseDark 3s ease-in-out infinite;
+}
+@keyframes logoPulseDark {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 12px rgba(0,255,200,0.6))
+      drop-shadow(0 0 24px rgba(0,255,200,0.4))
+      brightness(1.1);
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 18px rgba(0,255,200,0.8))
+      drop-shadow(0 0 36px rgba(0,255,200,0.6))
+      brightness(1.2);
+  }
 }
 
 .company-name {
@@ -1335,14 +1374,6 @@ body.dark-mode::-webkit-scrollbar-thumb:hover {
 
 } /* end mobile-safari @media print */
 
-/* ── iPad print fix — iPad viewport is wider than iPhone so zoom: 0.830
-   produces too many pages. Override with a lower value for iPad widths. ── */
-@media print and (min-width: 600px) {
-  body.mobile-safari .page {
-    zoom: 0.620 !important;
-  }
-}
-
 /* ── Home button ── */
 
 
@@ -1379,6 +1410,28 @@ body.dark-mode .action-bar {
 
 @media print {
   .action-bar { display: none !important; }
+}
+
+/* ===== iPAD PRINT FIX =====
+   Forces same compact layout as iPhone print.
+   Scoped to iPad viewport range only — never affects desktop or iPhone. */
+@media print and (min-width: 768px) and (max-width: 1366px) {
+  html, body {
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+  }
+  .form-page, .page {
+    width: 8.1in !important;
+    max-width: 8.1in !important;
+    margin: 0 auto !important;
+    padding: 0.15in !important;
+    box-sizing: border-box !important;
+    font-size: 9pt !important;
+  }
+  .page-wrapper {
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+  }
 }
 </style>
 </head>
