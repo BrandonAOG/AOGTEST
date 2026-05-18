@@ -1486,6 +1486,8 @@ fittings.forEach(name => {
   });
   document.getElementById("polaris-body").appendChild(tr);
 });
+// Re-attach autosave to JS-built table inputs
+if (typeof attachAutosave === 'function') setTimeout(attachAutosave, 100);
 
 // ===== TRANSFER SWITCH =====
 let tsCount = 0;
@@ -1649,7 +1651,13 @@ function showRealTablesForCapture() {
     'table.mat-table td { overflow: visible !important; vertical-align: middle !important; }',
     'table.mat-table td input[type="text"] { overflow: visible !important; height: 18px !important; line-height: 18px !important; display: block !important; }',
     '.footer-field input[type="text"] { height: 24px !important; line-height: 24px !important; overflow: visible !important; box-sizing: border-box !important; }',
-    '.footer-fields { overflow: visible !important; }'
+    '.footer-fields { overflow: visible !important; }',
+    '.top-fields { grid-template-columns: 1fr 1fr !important; gap: 6px 12px !important; }',
+    '.two-col { grid-template-columns: 1fr 1fr !important; gap: 8px 16px !important; }',
+    '.form-page { padding: 24px !important; }',
+    '.logo-area { flex-wrap: nowrap !important; }',
+    '.section-row { font-size: 13px !important; flex-wrap: wrap !important; }',
+    '.inline-input { font-size: 13px !important; width: 100px !important; }'
   ].join('\n');
   document.head.appendChild(style);
 }
@@ -1659,12 +1667,46 @@ function hideRealTablesAfterCapture() {
 }
 
 // ===== IPHONE =====
+function forceDesktopLayout() {
+  const saved = [];
+  function setInline(el, styles) {
+    const prev = {};
+    for (const [k, v] of Object.entries(styles)) {
+      prev[k] = el.style[k];
+      el.style.setProperty(k.replace(/([A-Z])/g, '-$1').toLowerCase(), v, 'important');
+    }
+    saved.push({ el, prev, props: Object.keys(styles) });
+  }
+  // table text inputs — bump font 14px for capture
+  document.querySelectorAll('table.mat-table td input[type="text"]').forEach(el => {
+    setInline(el, { fontSize: '14px', height: 'auto', lineHeight: '1.6', padding: '2px 0', overflow: 'visible', display: 'block', boxSizing: 'border-box' });
+  });
+  document.querySelectorAll('table.mat-table td').forEach(el => {
+    setInline(el, { overflow: 'visible', height: 'auto' });
+  });
+  // footer field inputs — bump font 14px for capture
+  document.querySelectorAll('.footer-field input[type="text"]').forEach(el => {
+    setInline(el, { fontSize: '14px', height: 'auto', lineHeight: '1.6', overflow: 'visible', boxSizing: 'border-box' });
+  });
+  document.querySelectorAll('.footer-field').forEach(el => {
+    setInline(el, { alignItems: 'center', overflow: 'visible' });
+  });
+  return () => saved.forEach(({ el, prev, props }) => {
+    props.forEach(k => {
+      const cssProp = k.replace(/([A-Z])/g, '-$1').toLowerCase();
+      el.style.removeProperty(cssProp);
+      if (prev[k]) el.style[k] = prev[k];
+    });
+  });
+}
+
 function saveForIPhone() {
   setStatus('Rendering pages, please wait…');
   const pages = document.querySelectorAll('.form-page');
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
   showRealTablesForCapture();
+  const restoreLayout = forceDesktopLayout();
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;overflow-y:auto;';
   const closeBtn = document.createElement('button');
@@ -1686,10 +1728,10 @@ function saveForIPhone() {
       img.alt = fname;
       wrapper.appendChild(lbl); wrapper.appendChild(fnlbl); wrapper.appendChild(img); container.appendChild(wrapper);
       completed++;
-      if (completed === pages.length) { hideRealTablesAfterCapture(); setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
+      if (completed === pages.length) { hideRealTablesAfterCapture(); restoreLayout(); setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
     });
   });
-  closeBtn.onclick = () => { hideRealTablesAfterCapture(); setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
+  closeBtn.onclick = () => { hideRealTablesAfterCapture(); restoreLayout(); setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
 }
 
 // ===== ANDROID =====
@@ -1699,6 +1741,7 @@ function saveForAndroid() {
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
   showRealTablesForCapture();
+  const restoreLayout = forceDesktopLayout();
   let completed = 0;
   pages.forEach((page, idx) => {
     html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
@@ -1706,7 +1749,7 @@ function saveForAndroid() {
       link.download = buildFilename('jpg', idx + 1, pages.length);
       link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
       completed++;
-      if (completed === pages.length) { hideRealTablesAfterCapture(); setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
+      if (completed === pages.length) { hideRealTablesAfterCapture(); restoreLayout(); setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
     });
   });
 }
