@@ -608,17 +608,16 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   body[class*="seasonal-"] .col-label svg, body[class*="seasonal-"] .col-label svg * { stroke: #D97706 !important; color: #D97706 !important; }
   .confirm-modal-backdrop { display: none !important; }
   #seasonal-canvas { display: none !important; }
-
-  /* iPad print fix — scoped to mobile-safari class (set by JS, iOS only).
-     Desktop never has this class so desktop print is completely unaffected.
-     iPhone viewport is ~390px, iPad is ~768px+. The existing html zoom: 0.758
-     was tuned for iPhone. On iPad the wider viewport needs a lower value.
-     We override zoom on .page (the content wrapper) which takes precedence. */
-  html.mobile-safari .page,
-  body.mobile-safari .page {
+}
+/* iPad print fix — body.mobile-safari is iOS only (set by existing JS).
+   min-width: 800px ensures iPhone (~390px viewport) is never affected. */
+@media print and (min-width: 800px) {
+  html.mobile-safari,
+  body.mobile-safari {
     zoom: 0.55 !important;
   }
 }
+
 
 
 /* ===== ACTION BAR (matches breaker.html) ===== */
