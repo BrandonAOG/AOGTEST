@@ -532,7 +532,6 @@ body.dark-mode .notice { color: #7DD3FC; }
     width: 100% !important; max-width: 100% !important;
     background: #fff !important; color: #1F2937 !important;
     overflow: visible !important;
-    zoom: 0.830;
   }
 
   /* Kill dark-mode gradient background on body */
@@ -809,48 +808,6 @@ body.dark-mode .notice { color: #7DD3FC; }
   .logo-always { color: #111111 !important; }
   .logo-generators { color: #111111 !important; }
   .logo-area img { filter: none !important; animation: none !important; }
-}
-
-/* iPad print fix — Safari on iPad renders at a wider viewport than iPhone,
-   causing extra pages. Override zoom down to match phone output. */
-@media print and (min-width: 600px) {
-  html { zoom: 0.620 !important; }
-  /* Cancel the desktop scale on page2-inner — the html zoom above handles it.
-     Without this, scale(1.081) + zoom: 0.620 compound and push content right. */
-  #page2-inner {
-    transform: none !important;
-    width: 100% !important;
-  }
-  /* Tighten page2 table cells same as phone so content fits one page */
-  #page2 .grid-section { margin-bottom: 2px !important; }
-  #page2 table.mat-table th,
-  #page2 table.mat-table td {
-    padding: 1px 1px !important;
-    font-size: 9px !important;
-    line-height: 1.1 !important;
-  }
-  #page2 table.mat-table td.row-label {
-    font-size: 9px !important;
-    padding: 1px 2px !important;
-  }
-  #page2 table.mat-table td input[type="text"] { font-size: 8px !important; }
-  #page2 #fittings-table td.row-label { width: 100px !important; }
-  #page2 #wireway-table  td.row-label { width: 70px !important; }
-  #page2 #polaris-table  td.row-label { width: 70px !important; }
-  #page2 .footer-fields {
-    margin-top: 3px !important;
-    padding-top: 3px !important;
-    font-size: 10px !important;
-  }
-  #page2 .footer-row { gap: 1px 8px !important; margin-bottom: 2px !important; }
-  #page2 .footer-field label { font-size: 10px !important; }
-  #page2 .footer-field input[type="text"] {
-    font-size: 10px !important;
-    height: 9px !important;
-    width: 45px !important;
-  }
-  #page2 .footer-field input.short { width: 32px !important; }
-  #page2 .footer-field input.wide  { width: 65px !important; }
 }
 
 /* ===== MOBILE-ONLY PRINT RULES (max-width: 767px) =====
@@ -1151,7 +1108,59 @@ body.dark-mode .notice { color: #7DD3FC; }
   #page2 .footer-field input.wide  { width: 65px !important; }
 }
 
+/* ===== iOS PRINT FIX (iPhone + iPad) ===========================================
+   body.mobile-safari is added by JS detection below — desktop never gets this.
+   iPhone: zoom on .page-wrapper keeps existing behaviour.
+   iPad:   lower zoom value + cancel #page2-inner desktop scale.
+   ======================================================================== */
+@media print {
+  /* iPhone — same scale that worked before */
+  body.mobile-safari .page-wrapper {
+    zoom: 0.830;
+  }
+  /* Cancel desktop #page2-inner upscale on all iOS */
+  body.mobile-safari #page2-inner {
+    transform: none !important;
+    width: 100% !important;
+  }
+  /* Tighten page2 cells on all iOS */
+  body.mobile-safari #page2 .grid-section { margin-bottom: 2px !important; }
+  body.mobile-safari #page2 table.mat-table th,
+  body.mobile-safari #page2 table.mat-table td {
+    padding: 1px 1px !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+  }
+  body.mobile-safari #page2 table.mat-table td.row-label {
+    font-size: 9px !important;
+    padding: 1px 2px !important;
+  }
+  body.mobile-safari #page2 table.mat-table td input[type="text"] { font-size: 8px !important; }
+  body.mobile-safari #page2 #fittings-table td.row-label { width: 100px !important; }
+  body.mobile-safari #page2 #wireway-table  td.row-label { width: 70px !important; }
+  body.mobile-safari #page2 #polaris-table  td.row-label { width: 70px !important; }
+  body.mobile-safari #page2 .footer-fields {
+    margin-top: 3px !important;
+    padding-top: 3px !important;
+    font-size: 10px !important;
+  }
+  body.mobile-safari #page2 .footer-row { gap: 1px 8px !important; margin-bottom: 2px !important; }
+  body.mobile-safari #page2 .footer-field label { font-size: 10px !important; }
+  body.mobile-safari #page2 .footer-field input[type="text"] {
+    font-size: 10px !important;
+    height: 9px !important;
+    width: 45px !important;
+  }
+  body.mobile-safari #page2 .footer-field input.short { width: 32px !important; }
+  body.mobile-safari #page2 .footer-field input.wide  { width: 65px !important; }
+}
 
+/* iPad override — wider viewport needs lower zoom */
+@media print and (min-width: 600px) {
+  body.mobile-safari .page-wrapper {
+    zoom: 0.580 !important;
+  }
+}
 
 
 /* ===== FT. LABEL IN WIRE TABLE CELLS ===== */
@@ -2146,5 +2155,21 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+<script>
+/* iOS device detection — adds mobile-safari class to body on all iOS browsers */
+(function () {
+  var ua = navigator.userAgent;
+  if (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) {
+    document.documentElement.classList.add('mobile-safari');
+    if (document.body) {
+      document.body.classList.add('mobile-safari');
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        document.body.classList.add('mobile-safari');
+      });
+    }
+  }
+})();
+</script>
 </body>
 </html>
