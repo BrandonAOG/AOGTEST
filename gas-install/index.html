@@ -99,11 +99,12 @@ body.dark-mode {
    ============================================================ */
 .action-bar {
   position: fixed !important;
-  top: env(safe-area-inset-top, 0px) !important; left: 0 !important; right: 0 !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
   z-index: 99999;
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border-bright);
@@ -169,7 +170,6 @@ body.dark-mode .theme-icon.theme-icon-moon { opacity:1; transform:rotate(0deg); 
 .page-wrapper {
   width: 100%; max-width: 1050px; margin: 0 auto;
   display: flex; flex-direction: column;
-  padding-top: calc(44px + env(safe-area-inset-top, 0px));
 }
 .form-page {
   width: 100%; background: var(--panel);
@@ -640,7 +640,6 @@ body.dark-mode .miscues-textarea {
     font-size: 9pt !important;
     -webkit-text-size-adjust: none !important;
     text-size-adjust: none !important;
-    zoom: 0.830;
   }
 
   /* Force Safari to respect font-size on all inputs */
@@ -1317,14 +1316,30 @@ body.dark-mode .miscues-textarea {
   }
 }
 
-/* iPad print fix — Safari on iPad renders at a wider viewport than iPhone,
-   causing extra pages. Override zoom down to match phone output. */
-@media print and (min-width: 600px) {
-  html { zoom: 0.620 !important; }
-}
-
 @media print {
   .action-bar { display: none !important; }
+}
+
+/* ===== iPAD PRINT FIX =====
+   Forces same compact layout as iPhone print.
+   Scoped to iPad viewport range only — never affects desktop or iPhone. */
+@media print and (min-width: 768px) and (max-width: 1366px) {
+  html, body {
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+  }
+  .form-page, .page {
+    width: 8.1in !important;
+    max-width: 8.1in !important;
+    margin: 0 auto !important;
+    padding: 0.15in !important;
+    box-sizing: border-box !important;
+    font-size: 9pt !important;
+  }
+  .page-wrapper {
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+  }
 }
 </style>
 </head>
