@@ -241,6 +241,7 @@ body.offline { padding-top: 50px; }
 .toolbar {
   background: var(--panel); border-bottom: 1px solid var(--border);
   padding: 4px 8px; display: flex; gap: 4px; align-items: center;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
   flex-wrap: wrap; flex-shrink: 0; transition: all 0.3s ease;
   position: relative; z-index: 1;
 }
@@ -655,6 +656,28 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 }
 @media (max-width: 360px) {
   .action-bar .ab-btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; }
+}
+
+/* ===== iPAD PRINT FIX =====
+   Forces same compact layout as iPhone print.
+   Scoped to iPad viewport range only — never affects desktop or iPhone. */
+@media print and (min-width: 768px) and (max-width: 1366px) {
+  html, body {
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+  }
+  .form-page, .page {
+    width: 8.1in !important;
+    max-width: 8.1in !important;
+    margin: 0 auto !important;
+    padding: 0.15in !important;
+    box-sizing: border-box !important;
+    font-size: 9pt !important;
+  }
+  .page-wrapper {
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+  }
 }
 </style>
 </head>
