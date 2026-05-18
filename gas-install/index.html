@@ -490,10 +490,9 @@ table.mat-table td.row-label.section-header {
 }
 table.mat-table td input[type="number"] {
   width:100%; border:none; text-align:center;
-  font-size:11.5px; padding:0; background:transparent;
+  font-size:11.5px; padding:1px; background:transparent;
   color:var(--text); font-family:Arial,sans-serif; min-width:0;
   -moz-appearance:textfield;
-  height:20px; line-height:20px; box-sizing:border-box; overflow:visible; display:block;
 }
 table.mat-table td input[type="number"]::-webkit-outer-spin-button,
 table.mat-table td input[type="number"]::-webkit-inner-spin-button {
@@ -1840,7 +1839,7 @@ function injectCaptureStyles() {
     table.mat-table { font-size:9.5pt!important; width:100%!important; border-collapse:collapse!important; table-layout:fixed!important; }
     table.mat-table th, table.mat-table td { font-size:9.5pt!important; border:0.5pt solid #333!important; padding:0.75pt 1pt!important; overflow:visible!important; }
     table.mat-table th { background:#4B5563!important; color:#fff!important; }
-    table.mat-table td { overflow:visible!important; vertical-align:middle!important; }
+    table.mat-table td { overflow:visible!important; vertical-align:middle!important; height:auto!important; padding:3px!important; }
     table.mat-table td input[type="number"] { height:auto!important; line-height:1.2!important; overflow:visible!important; display:block!important; box-sizing:border-box!important; padding:0!important; font-size:9pt!important; }
     table.mat-table td.row-label { background:#fafafa!important; font-weight:bold!important; text-align:left!important; }
     table.mat-table td.row-label.section-header { background:#4B5563!important; color:#fff!important; }
@@ -1909,6 +1908,13 @@ function forceDesktopLayout() {
   // inline-inputs that aren't xshort stretch to fill
   document.querySelectorAll('.section-row .inline-input:not(.xshort)').forEach(el => {
     setInline(el, { flex: '1 1 auto', width: '100%', minWidth: '40px', boxSizing: 'border-box' });
+  });
+  // table number inputs — force height:auto so html2canvas doesn't clip
+  document.querySelectorAll('table.mat-table td input[type="number"]').forEach(el => {
+    setInline(el, { height: 'auto', lineHeight: '1.6', padding: '3px 0', overflow: 'visible', display: 'block', boxSizing: 'border-box' });
+  });
+  document.querySelectorAll('table.mat-table td').forEach(el => {
+    setInline(el, { overflow: 'visible', height: 'auto', padding: '3px' });
   });
   return () => saved.forEach(({ el, prev, props }) => {
     props.forEach(k => {
