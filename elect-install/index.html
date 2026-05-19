@@ -334,6 +334,9 @@ body.dark-mode table.mat-table td.row-label { background: rgba(36,52,88,0.6); co
 }
 
 #fittings-table td.row-label { font-size: 10px; min-width: 130px; }
+#fittings-table tr.repeat-header th { background: #374151; color: #fff; font-size: 9px; padding: 3px 2px; text-align: center; border: 1px solid #4B5563; }
+#fittings-table tr.repeat-header th.row-label { background: #374151; }
+body.dark-mode #fittings-table tr.repeat-header th { background: #1E3A5F; color: #00FFC8; border-color: rgba(0,255,200,0.2); }
 #wireway-table  td.row-label { font-size: 10px; min-width: 110px; }
 #polaris-table  td.row-label { font-size: 10px; min-width: 110px; }
 @media screen {
@@ -1038,6 +1041,8 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 }
 
 @media print {
+  .repeat-header { display: none !important; }
+  .no-print { display: none !important; }
   .action-bar { display: none !important; }
 }
 
@@ -1373,7 +1378,21 @@ const fittings = [
 ];
 const fittingSizes = ['5"','4"','3-1/2"','3"','2-1/2"','2"','1-1/2"','1-1/4"','1"','¾"','½"'];
 
-fittings.forEach(name => {
+fittings.forEach((name, idx) => {
+  // Every 5 rows insert a repeat header (screen only, not print)
+  if (idx > 0 && idx % 5 === 0) {
+    const repeatHeader = document.createElement("tr");
+    repeatHeader.className = "repeat-header no-print";
+    const emptyTh = document.createElement("th");
+    emptyTh.className = "row-label";
+    repeatHeader.appendChild(emptyTh);
+    fittingSizes.forEach(size => {
+      const th = document.createElement("th");
+      th.textContent = size;
+      repeatHeader.appendChild(th);
+    });
+    document.getElementById("fittings-body").appendChild(repeatHeader);
+  }
   const tr = document.createElement("tr");
   const lbl = document.createElement("td");
   lbl.className = "row-label"; lbl.textContent = name;
