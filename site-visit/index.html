@@ -1471,6 +1471,48 @@ function clearForm() {
 }
 
 // ===== PRINT =====
+function getPrintDevice() {
+  const ua = navigator.userAgent;
+  const w  = window.screen.width;
+  const h  = window.screen.height;
+  const isIpad   = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const isMobile = /iPhone|Android|Mobile/.test(ua) && !isIpad;
+  if (isMobile) return 'mobile';
+  if (isIpad)   return 'ipad';
+  return 'desktop';
+}
+
+const MOBILE_PRINT_CSS = `
+  @page { size: 8.5in 11in; margin: 0.15in; }
+  #page1 { border: 1.5px solid #D97706 !important; padding: 0.12in !important; box-sizing: border-box !important; overflow: hidden !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #page1 .logo-area { gap: 8px !important; margin-bottom: 6px !important; }
+  #page1 .logo-area img { width: 36px !important; height: 36px !important; }
+  #page1 .logo-text { font-size: 20px !important; }
+  .logo-text .logo-generators { font-size: 13px !important; }
+  #page1 .checklist-title { font-size: 14px !important; padding-top: 6px !important; margin-bottom: 6px !important; letter-spacing: 1px !important; }
+  #page1 .permit-section { margin-bottom: 4px !important; }
+  #page1 .permit-section-header { font-size: 9px !important; margin: 4px 0 2px !important; padding-bottom: 1px !important; }
+  #page1 .permit-row { font-size: 8px !important; line-height: 1.2 !important; padding: 1px 0 !important; gap: 2px 5px !important; margin-bottom: 0 !important; }
+  #page1 .permit-row label { font-size: 8px !important; }
+  #page1 .permit-input { font-size: 8px !important; height: auto !important; line-height: 1.4 !important; padding: 0 2px !important; }
+  #page1 .permit-input.short  { width: 60px !important; }
+  #page1 .permit-input.medium { width: 100px !important; }
+  #page1 .permit-input.flex-grow { flex: 1 1 100px !important; min-width: 60px !important; }
+  #page1 .permit-input.w-full { width: 100% !important; }
+  #page1 .permit-textarea { font-size: 8px !important; min-height: 18px !important; height: 22px !important; padding: 2px 4px !important; }
+  #page1 .permit-note { font-size: 7px !important; margin: 1px 0 2px !important; padding: 1px 0 1px 6px !important; }
+  #page1 .yn-checkbox-wrap { font-size: 7px !important; padding: 1px 4px 1px 2px !important; }
+  #page1 input[type="checkbox"] { width: 8px !important; height: 8px !important; min-width: 8px !important; }
+  #page2-inner { width: 5.8in !important; transform: scale(1.38) !important; transform-origin: top left !important; }
+  #page2 .grid-section { margin-bottom: 2px !important; overflow: visible !important; }
+  #page2 table.mat-table th, #page2 table.mat-table td { padding: 1px 1px !important; line-height: 1.1 !important; }
+  #page2 .footer-fields { margin-top: 4px !important; padding-top: 4px !important; }
+  #page2 .footer-row { gap: 1px 6px !important; margin-bottom: 2px !important; }
+  #page2 .footer-field { gap: 1px !important; }
+`;
+
+const IPAD_PRINT_CSS = ``;
+
 function openPrintPreview() {
   setStatus('Opening print preview…');
   const wasDark = document.body.classList.contains('dark-mode');
@@ -1479,7 +1521,24 @@ function openPrintPreview() {
   const note = document.querySelector('.notice');
   if (bar)  bar.style.display  = 'none';
   if (note) note.style.display = 'none';
+
+  const device = getPrintDevice();
+  let injected = null;
+  if (device === 'mobile' && MOBILE_PRINT_CSS) {
+    injected = document.createElement('style');
+    injected.id = 'device-print-css';
+    injected.textContent = MOBILE_PRINT_CSS;
+    document.head.appendChild(injected);
+  } else if (device === 'ipad' && IPAD_PRINT_CSS) {
+    injected = document.createElement('style');
+    injected.id = 'device-print-css';
+    injected.textContent = IPAD_PRINT_CSS;
+    document.head.appendChild(injected);
+  }
+
   window.print();
+
+  if (injected) injected.remove();
   if (bar)  bar.style.display  = '';
   if (note) note.style.display = '';
   if (wasDark) document.body.classList.add('dark-mode');
