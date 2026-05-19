@@ -981,6 +981,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPHONE</button>
   <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 ANDROID</button>
+  <button class="btn" onclick="showDebug()">🐛 DBG</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/>
@@ -1485,6 +1486,29 @@ function getPrintDevice() {
   return 'desktop';
 }
 
+function showDebug() {
+  const device = getPrintDevice();
+  const ua = navigator.userAgent;
+  const cssMap = { mobile: MOBILE_PRINT_CSS, ipad: IPAD_PRINT_CSS, desktop: '(base @media print only)' };
+  const css = cssMap[device] || '(none)';
+  const existing = document.getElementById('debug-overlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'debug-overlay';
+  overlay.style.cssText = 'position:fixed;top:50px;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);color:#00FFC8;font-family:monospace;font-size:11px;padding:12px;overflow-y:auto;z-index:999999;white-space:pre-wrap;word-break:break-all;';
+  overlay.innerHTML = `<strong style="font-size:13px;color:#FBBF24;">🐛 PRINT DEBUG</strong>  <span style="float:right;cursor:pointer;color:#f87171;" onclick="document.getElementById('debug-overlay').remove()">✕ CLOSE</span>
+
+<strong>Device detected:</strong> ${device}
+<strong>Screen:</strong> ${window.screen.width}×${window.screen.height}
+<strong>Window:</strong> ${window.innerWidth}×${window.innerHeight}
+<strong>Touch points:</strong> ${navigator.maxTouchPoints}
+<strong>UA:</strong> ${ua}
+
+<strong>CSS to be injected:</strong>
+${css}`;
+  document.body.appendChild(overlay);
+}
+
 const MOBILE_PRINT_CSS = `
   @page { size: 8.5in 11in; margin: 0.15in; }
 
@@ -1554,6 +1578,8 @@ function openPrintPreview() {
     injected.textContent = IPAD_PRINT_CSS;
     document.head.appendChild(injected);
   }
+
+  alert('🐛 Device: ' + device + '\nCSS injected: ' + (injected ? 'YES' : 'NO') + '\nUA: ' + navigator.userAgent.substring(0, 80));
 
   window.print();
 
