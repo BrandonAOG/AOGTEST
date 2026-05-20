@@ -917,6 +917,15 @@ body.dark-mode .notice { color: #7DD3FC; }
      Tuned to use the whole page without spilling to a second sheet. The
      Other/Special notes box prints at full screen height, so the rest of the
      page is tightened to make room. ---- */
+  /* Lock page 1 to a single sheet's printable height. Without an explicit cap,
+     iOS Safari's first layout pass rounds the page-1 height up and shows "3
+     pages" until a pinch-zoom forces a recalc. The content already fits, so this
+     cap just removes the ambiguity — it does not clip anything. 11in sheet minus
+     two 0.15in margins ≈ 10.7in of printable height. */
+  #page1 {
+    max-height: 10.7in !important;
+    overflow: hidden !important;
+  }
   #page1 .checklist-title { font-size: 12px !important; padding-top: 4px !important; margin-bottom: 4px !important; }
   #page1 .permit-section { margin-bottom: 3px !important; }
   #page1 .permit-section-header { font-size: 11px !important; margin: 2px 0 1px !important; }
