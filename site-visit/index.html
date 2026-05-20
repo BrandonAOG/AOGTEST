@@ -857,51 +857,37 @@ body.dark-mode .notice { color: #7DD3FC; }
 }
 /* end @media print */
 
-/* ===== DESKTOP PRINT — locks in values with !important for desktop ===== */
-@media print {
-  body:not(.mobile-print) .form-page { page-break-after: always !important; break-after: page !important; }
-  body:not(.mobile-print) .form-page:last-child { page-break-after: auto !important; break-after: auto !important; }
-  body:not(.mobile-print) #page1 { border: 1.5px solid #D97706 !important; padding: 0.15in !important; box-sizing: border-box !important; }
-  body:not(.mobile-print) #page1 .logo-text { font-size: 24px !important; }
-  body:not(.mobile-print) .logo-text .logo-generators { font-size: 16px !important; }
-  body:not(.mobile-print) #page1 .checklist-title { font-size: 16px !important; }
-  body:not(.mobile-print) #page1 .permit-section-header { font-size: 11px !important; }
-  body:not(.mobile-print) #page1 .permit-row { font-size: 10px !important; padding: 2px 0 !important; }
-  body:not(.mobile-print) #page1 .permit-row label { font-size: 10px !important; }
-  body:not(.mobile-print) #page1 .permit-input { font-size: 10px !important; height: auto !important; line-height: 1.4 !important; }
-  body:not(.mobile-print) #page1 .permit-textarea { font-size: 10px !important; min-height: 60px !important; height: auto !important; resize: none !important; }
-  body:not(.mobile-print) #page1 .permit-section { margin-bottom: 4px !important; }
-  body:not(.mobile-print) #page1 .permit-divider { display: none !important; }
-  body:not(.mobile-print) #page1 .permit-section-header { margin: 2px 0 2px !important; }
-  body:not(.mobile-print) #page1 .permit-row { padding: 1px 0 !important; }
-  body:not(.mobile-print) #page1 .permit-note { font-size: 9px !important; }
-  body:not(.mobile-print) #page1 .yn-checkbox-wrap { font-size: 8px !important; }
-  body:not(.mobile-print) #page1 input[type="checkbox"] { width: 12px !important; height: 12px !important; }
-  body:not(.mobile-print) #page2 { page-break-before: always !important; break-before: page !important; }
-  body:not(.mobile-print) #page2 table.mat-table th,
-  body:not(.mobile-print) #page2 table.mat-table td { font-size: 11px !important; padding: 2px !important; line-height: 1.2 !important; border: 1px solid #333 !important; }
-  body:not(.mobile-print) #page2 table.mat-table th { background: #4B5563 !important; color: #fff !important; }
-  body:not(.mobile-print) #page2 table.mat-table td { background: #fff !important; color: #1F2937 !important; }
-  body:not(.mobile-print) #page2 table.mat-table td.row-label { background: #f0f0f0 !important; font-size: 11px !important; }
-  body:not(.mobile-print) #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td.row-label { width: 68px !important; }
-  body:not(.mobile-print) #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) th,
-  body:not(.mobile-print) #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td { font-size: 9px !important; }
-  body:not(.mobile-print) #page2 #fittings-table td.row-label { width: 100px !important; }
-  body:not(.mobile-print) #page2 #wireway-table td.row-label { width: 85px !important; }
-  body:not(.mobile-print) #page2 #wireway-table th,
-  body:not(.mobile-print) #page2 #wireway-table td { font-size: 9px !important; }
-  body:not(.mobile-print) #page2 #polaris-table td.row-label { width: 85px !important; }
-  body:not(.mobile-print) #page2 #polaris-table th,
-  body:not(.mobile-print) #page2 #polaris-table td { font-size: 10px !important; }
-  body:not(.mobile-print) #page2 table.mat-table td input[type="text"] { font-size: 11px !important; height: auto !important; line-height: 1.2 !important; }
-  body:not(.mobile-print) #page2 .footer-fields { margin-top: 14px !important; padding-top: 10px !important; font-size: 10px !important; }
-  body:not(.mobile-print) #page2 .footer-row { gap: 1px 6px !important; margin-bottom: 4px !important; }
-  body:not(.mobile-print) #page2 .footer-field label { font-size: 10px !important; }
-  body:not(.mobile-print) #page2 .footer-field input[type="text"] { font-size: 10px !important; width: 60px !important; }
-  body:not(.mobile-print) #page2 .footer-field input.short { width: 40px !important; }
-  body:not(.mobile-print) #page2 .footer-field input.wide { width: 90px !important; }
-  body:not(.mobile-print) input[type="text"], body:not(.mobile-print) textarea, body:not(.mobile-print) select { background: #ffffff !important; color: #1F2937 !important; height: auto !important; line-height: 1.4 !important; box-shadow: none !important; }
-  body:not(.mobile-print) input::placeholder, body:not(.mobile-print) textarea::placeholder { color: transparent !important; }
+/* ===== MOBILE PRINT — Safari honors @media print + max-width natively.
+   This block (copied from the proven-working sibling page) tightens page 2
+   so it fits on phones. No body.mobile-print class, no JS injection. ===== */
+@media print and (max-width: 767px) {
+
+  @page { size: 8.5in 11in; margin: 0.15in; }
+
+  #page2 .grid-section { margin-bottom: 2px !important; }
+
+  #page2 table.mat-table th,
+  #page2 table.mat-table td {
+    padding: 1px 1px !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+  }
+  #page2 table.mat-table th { font-size: 10px !important; }
+  #page2 table.mat-table td.row-label { font-size: 11px !important; padding: 1px 2px !important; }
+  #page2 table.mat-table td input[type="text"] { font-size: 9px !important; }
+  #page2 #fittings-table td.row-label { width: 125px !important; }
+  #page2 #wireway-table  td.row-label { width: 70px !important; }
+  #page2 #polaris-table  td.row-label { width: 70px !important; }
+
+  #page2 .footer-fields { margin-top: 1.3px !important; padding-top: 1.3px !important; font-size: 10.9px !important; }
+  #page2 .footer-row { gap: 1px 8px !important; margin-bottom: 2px !important; }
+  #page2 .footer-field label { font-size: 10.9px !important; }
+  #page2 .footer-field input[type="text"] {
+    font-size: 10.9px !important; height: auto !important; line-height: 1.0 !important;
+    vertical-align: bottom !important; padding-bottom: 1px !important; width: 45px !important;
+  }
+  #page2 .footer-field input.short { width: 32px !important; }
+  #page2 .footer-field input.wide  { width: 65px !important; }
 }
 
 
@@ -1047,144 +1033,9 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 
 }
 
-/* Mobile-only zoom — applied on screen so Safari carries it into print */
-@media screen and (max-width: 768px) {
-  body.mobile-print .page-wrapper { zoom: 0.87; }
-  /* Force exactly two sheets: page 1, then page 2. */
-  body.mobile-print .form-page { page-break-after: auto !important; break-after: auto !important; }
-  body.mobile-print #page1 { page-break-after: always !important; break-after: page !important; }
-  body.mobile-print #page2 { page-break-before: always !important; break-before: page !important; page-break-after: auto !important; break-after: auto !important; }
-  body.mobile-print #page1 .permit-section,
-  body.mobile-print #page2 .grid-section,
-  body.mobile-print #page2 table.mat-table,
-  body.mobile-print #page2 tr,
-  body.mobile-print #page2 .footer-fields { page-break-inside: avoid !important; break-inside: avoid !important; }
-  body.mobile-print #page1 .logo-text { font-size: 10px !important; }
-  body.mobile-print .logo-text .logo-generators { font-size: 9px !important; }
-  body.mobile-print #page1 .checklist-title { font-size: 9px !important; }
-  body.mobile-print #page1 .permit-section-header { font-size: 6px !important; }
-  body.mobile-print #page1 .permit-row { font-size: 5px !important; line-height: 1.2 !important; padding: 1px 0 !important; margin-bottom: 0 !important; }
-  body.mobile-print #page1 .permit-row label { font-size: 5px !important; }
-  body.mobile-print #page1 .permit-input { font-size: 5px !important; height: auto !important; }
-  body.mobile-print #page1 .permit-note { font-size: 5px !important; }
-  body.mobile-print #page1 .yn-checkbox-wrap { font-size: 5px !important; }
-  body.mobile-print #page1 input[type="checkbox"] { width: 5px !important; height: 5px !important; }
-  body.mobile-print #page1 .permit-section { margin-bottom: 3px !important; }
-  body.mobile-print #page1 .permit-textarea { font-size: 5px !important; height: 20px !important; min-height: 0 !important; }
+/* Keep debug overlay out of any print output */
+@media print { #debug-overlay { display: none !important; } }
 
-  /* PAGE 2 — must ride the same screen path Safari carries into print.
-     Without these, page 2 prints at full screen size and overflows to extra sheets. */
-  body.mobile-print #mobile-p2-accordions { display: none !important; }
-  body.mobile-print #page2 .repeat-header { display: none !important; }
-  body.mobile-print #page2 .grid-section { margin-bottom: 2px !important; overflow: visible !important; }
-  body.mobile-print #page2 table.mat-table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
-  body.mobile-print #page2 table.mat-table th,
-  body.mobile-print #page2 table.mat-table td {
-    font-size: 4px !important; line-height: 1.05 !important; padding: 0.5px !important;
-    border: 0.4px solid #555 !important; text-align: center !important; word-break: break-word !important; overflow: hidden !important;
-  }
-  body.mobile-print #page2 table.mat-table td.row-label {
-    text-align: left !important; font-weight: bold !important; white-space: normal !important;
-    width: auto !important; padding: 0.5px 1.5px !important;
-  }
-  body.mobile-print #page2 table.mat-table td input[type="text"] {
-    font-size: 4px !important; height: auto !important; line-height: 1.05 !important;
-    width: 100% !important; min-width: 0 !important; text-align: center !important;
-    border: none !important; padding: 0 !important; background: transparent !important;
-  }
-  body.mobile-print #page2 .ft-cell { gap: 0 !important; }
-  body.mobile-print #page2 .ft-label { font-size: 3px !important; }
-  body.mobile-print #page2 .footer-fields { margin-top: 4px !important; padding-top: 3px !important; }
-  body.mobile-print #page2 .footer-row { display: flex !important; flex-wrap: wrap !important; gap: 1px 6px !important; margin-bottom: 2px !important; }
-  body.mobile-print #page2 .footer-field { display: flex !important; align-items: center !important; gap: 2px !important; }
-  body.mobile-print #page2 .footer-field label { font-size: 5px !important; font-weight: bold !important; white-space: nowrap !important; }
-  body.mobile-print #page2 .footer-field input[type="text"] {
-    font-size: 5px !important; height: auto !important; width: 40px !important;
-    border: none !important; border-bottom: 0.5px solid #555 !important; border-radius: 0 !important;
-    background: transparent !important; padding: 0 2px !important;
-  }
-  body.mobile-print #page2 .footer-field input.short { width: 28px !important; }
-  body.mobile-print #page2 .footer-field input.wide { width: 60px !important; }
-}
-
-/* ===== MOBILE PRINT — body.mobile-print scoped, last in stylesheet so wins ===== */
-@media print {
-  #debug-overlay { display: none !important; }
-  body.mobile-print #page1 { border: 1.5px solid #D97706 !important; padding: 0.05in 0.12in 0.12in 0.12in !important; box-sizing: border-box !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body.mobile-print #page1 .logo-area { gap: 8px !important; margin-bottom: 6px !important; }
-  body.mobile-print #page1 .logo-area img { width: 36px !important; height: 36px !important; }
-  body.mobile-print #page1 .logo-text { font-size: 11px !important; }
-  body.mobile-print .logo-text .logo-generators { font-size: 10px !important; }
-  body.mobile-print #page1 .checklist-title { font-size: 10px !important; padding-top: 6px !important; margin-bottom: 6px !important; letter-spacing: 1px !important; }
-  body.mobile-print #page1 .permit-section { margin-bottom: 4px !important; }
-  body.mobile-print #page1 .permit-section-header { font-size: 5px !important; margin: 4px 0 2px !important; padding-bottom: 1px !important; }
-  body.mobile-print #page1 .permit-row { font-size: 4px !important; line-height: 1.2 !important; padding: 1px 0 !important; gap: 2px 5px !important; margin-bottom: 0 !important; }
-  body.mobile-print #page1 .permit-row label { font-size: 4px !important; }
-  body.mobile-print #page1 .permit-input { font-size: 4px !important; height: auto !important; line-height: 1.4 !important; padding: 0 2px !important; }
-  body.mobile-print #page1 .permit-input.short { width: 60px !important; }
-  body.mobile-print #page1 .permit-input.medium { width: 100px !important; }
-  body.mobile-print #page1 .permit-input.flex-grow { flex: 1 1 100px !important; min-width: 60px !important; }
-  body.mobile-print #page1 .permit-input.w-full { width: 100% !important; }
-  body.mobile-print #page1 .permit-textarea { font-size: 4px !important; min-height: 0 !important; height: 20px !important; padding: 2px 4px !important; }
-  body.mobile-print #page1 .permit-note { font-size: 3px !important; margin: 1px 0 2px !important; padding: 1px 0 1px 6px !important; }
-  body.mobile-print #page1 .yn-checkbox-wrap { font-size: 3px !important; padding: 1px 4px 1px 2px !important; }
-  body.mobile-print #page1 input[type="checkbox"] { width: 4px !important; height: 4px !important; min-width: 4px !important; }
-
-  /* ---- PAGE-BREAK CONTROL: force exactly two pages ---- */
-  /* Page 1 occupies one sheet and breaks once, before page 2. */
-  body.mobile-print .form-page { page-break-after: auto !important; break-after: auto !important; }
-  body.mobile-print #page1 { page-break-after: always !important; break-after: page !important; page-break-inside: avoid !important; }
-  body.mobile-print #page2 { page-break-before: always !important; break-before: page !important; page-break-after: auto !important; break-after: auto !important; }
-  /* Keep every section/table/row from splitting across sheets. */
-  body.mobile-print #page1 .permit-section { page-break-inside: avoid !important; break-inside: avoid !important; }
-  body.mobile-print #page2 .grid-section,
-  body.mobile-print #page2 table.mat-table,
-  body.mobile-print #page2 tr,
-  body.mobile-print #page2 .footer-fields { page-break-inside: avoid !important; break-inside: avoid !important; }
-  /* Hide the screen-only repeat headers so they don't add height in print. */
-  body.mobile-print #page2 .repeat-header { display: none !important; }
-  /* Mobile accordion UI must never print. */
-  body.mobile-print #mobile-p2-accordions { display: none !important; }
-
-  /* ---- PAGE 2 TABLE COMPRESSION (mobile-print) ---- */
-  body.mobile-print #page2 { border: 1.5px solid #D97706 !important; padding: 0.08in 0.1in !important; box-sizing: border-box !important; }
-  body.mobile-print #page2 .grid-section { margin-bottom: 3px !important; overflow: visible !important; }
-  body.mobile-print #page2 table.mat-table {
-    width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  body.mobile-print #page2 table.mat-table th,
-  body.mobile-print #page2 table.mat-table td {
-    font-size: 3.2px !important; line-height: 1.05 !important; padding: 0.5px 0.5px !important;
-    border: 0.4px solid #444 !important; text-align: center !important; word-break: break-word !important;
-    overflow: hidden !important;
-  }
-  body.mobile-print #page2 table.mat-table th { background: #4B5563 !important; color: #fff !important; }
-  body.mobile-print #page2 table.mat-table td { background: #fff !important; color: #1F2937 !important; }
-  body.mobile-print #page2 table.mat-table td.row-label {
-    background: #f0f0f0 !important; text-align: left !important; font-weight: bold !important;
-    white-space: normal !important; width: auto !important; padding: 0.5px 1.5px !important;
-  }
-  body.mobile-print #page2 table.mat-table td input[type="text"] {
-    font-size: 3.2px !important; height: auto !important; line-height: 1.05 !important;
-    width: 100% !important; min-width: 0 !important; text-align: center !important;
-    border: none !important; padding: 0 !important; background: transparent !important; color: #1F2937 !important;
-  }
-  body.mobile-print #page2 .ft-cell { gap: 0 !important; }
-  body.mobile-print #page2 .ft-label { font-size: 2.4px !important; }
-  /* Footer hardware/extras */
-  body.mobile-print #page2 .footer-fields { margin-top: 4px !important; padding-top: 3px !important; }
-  body.mobile-print #page2 .footer-row { display: flex !important; flex-wrap: wrap !important; gap: 1px 6px !important; margin-bottom: 2px !important; }
-  body.mobile-print #page2 .footer-field { display: flex !important; align-items: center !important; gap: 2px !important; }
-  body.mobile-print #page2 .footer-field label { font-size: 4px !important; font-weight: bold !important; white-space: nowrap !important; }
-  body.mobile-print #page2 .footer-field input[type="text"] {
-    font-size: 4px !important; height: auto !important; width: 40px !important;
-    border: none !important; border-bottom: 0.5px solid #444 !important; border-radius: 0 !important;
-    background: transparent !important; padding: 0 2px !important; color: #1F2937 !important;
-  }
-  body.mobile-print #page2 .footer-field input.short { width: 28px !important; }
-  body.mobile-print #page2 .footer-field input.wide { width: 60px !important; }
-}
 
 </style>
 </head>
@@ -1810,9 +1661,9 @@ const MOBILE_PRINT_CSS = `
 const IPAD_PRINT_CSS = ``;
 
 function openPrintPreview() {
-  // Native browser print on all devices. On iOS this opens Safari's own print
-  // preview dialog directly. (Note: iOS Safari controls pagination itself and
-  // does not honor the print CSS, so page count is Safari's call.)
+  // Native browser print on all devices. iOS Safari opens its own print preview
+  // and honors the @media print + @media print and (max-width:767px) rules
+  // (the same proven approach as the sibling page that prints correctly).
   const bar  = document.querySelector('.action-bar');
   const note = document.querySelector('.notice');
   const status = document.getElementById('save-status');
