@@ -920,7 +920,7 @@ body.dark-mode .notice { color: #7DD3FC; }
    so it fits on phones. No body.mobile-print class, no JS injection. ===== */
 @page { size: 8.5in 11in; margin: 0.15in; }
 
-@media print and (max-width: 767px), body.printing.mobile-printing {
+@media print and (max-width: 1200px), body.printing.mobile-printing {
 
   /* ---- PAGE 1: sized to fill one sheet at comfortable, readable proportions.
      Tuned to use the whole page without spilling to a second sheet. The
@@ -992,7 +992,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 /* ===== MOBILE TABLE VIEW — SCREEN ONLY (max-width: 767px) =====
    Shows real tables directly on mobile with compact styling.
    ============================================================ */
-@media screen and (max-width: 767px) {
+@media screen and (max-width: 1200px) {
 
   /* Show real tables and footer on mobile */
   #page2 .grid-section { display: block !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; margin-bottom: 10px !important; }
@@ -1720,7 +1720,7 @@ function getPrintDevice() {
   // Width-based fallback: a narrow viewport means the user is filling out the
   // mobile layout, so they need the mobile-print styling regardless of UA.
   // This fixes desktop-devtools mobile emulation and any UA that doesn't match.
-  const narrow = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
+  const narrow = window.matchMedia && window.matchMedia('screen and (max-width: 1200px)').matches;
   if (isMobileUA || (narrow && !isIpad)) return 'mobile';
   if (isIpad)   return 'ipad';
   return 'desktop';
@@ -1839,7 +1839,7 @@ function openPrintPreview() {
   // Apply print styles directly to the DOM so Safari's preview renderer sees
   // the correct layout — not the screen layout. body.printing triggers the same
   // rules as @media print; body.printing.mobile-printing adds the mobile overrides.
-  const isMobilePrint = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
+  const isMobilePrint = window.matchMedia && window.matchMedia('screen and (max-width: 1200px)').matches;
   document.body.classList.add('printing');
   if (isMobilePrint) document.body.classList.add('mobile-printing');
 
@@ -2319,7 +2319,7 @@ function buildMobileAccordions() {
 }
 
 function initMobileAccordions() {
-  if (window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches) {
+  if (window.matchMedia && window.matchMedia('screen and (max-width: 1200px)').matches) {
     buildMobileAccordions();
   }
 }
