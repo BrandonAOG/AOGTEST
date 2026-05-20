@@ -1127,7 +1127,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover {
   /* ── FOOTER ── */
   .footer {
   display: flex !important;
-  margin-top: auto !important;
+  margin-top: 4px !important;
   margin-bottom: 0.5px !important;
   padding: 4px 2px !important;
   border-top: 1px solid #D97706 !important;
@@ -2036,9 +2036,19 @@ function openPrintPreview() {
     stamp(document.documentElement, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
     stamp(document.body,            { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
 
+    // action-bar is position:fixed — Safari prints fixed elements even when
+    // display:none via JS. Must also zero out position, height, padding, border.
+    document.querySelectorAll('.action-bar, .toolbar, #action-bar').forEach(el => stamp(el, {
+      display: 'none', position: 'static', height: '0', 'min-height': '0',
+      padding: '0', margin: '0', border: 'none', 'box-shadow': 'none', overflow: 'hidden'
+    }));
+
+    document.querySelectorAll('.page, #page').forEach(el => stamp(el, {
+      background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light',
+      'min-height': '0', height: 'auto'
+    }));
     document.querySelectorAll(
-      '.page, .section, .section-header, .form-row, .form-group, ' +
-      '.header, .footer, .content, #page'
+      '.section, .section-header, .form-row, .form-group, .header, .footer, .content'
     ).forEach(el => stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' }));
 
     document.querySelectorAll(
