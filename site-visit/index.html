@@ -1787,13 +1787,28 @@ function openPrintPreview() {
   if (note)   note.style.display   = 'none';
   if (status) status.style.display = 'none';
 
-  window.print();
+  function restore() {
+    if (bar)    bar.style.display    = '';
+    if (note)   note.style.display   = '';
+    if (status) status.style.display = '';
+    if (wasDark) document.body.classList.add('dark-mode');
+  }
 
-  // Restore UI after the print dialog returns.
-  if (bar)    bar.style.display    = '';
-  if (note)   note.style.display   = '';
-  if (status) status.style.display = '';
-  if (wasDark) document.body.classList.add('dark-mode');
+  // iOS Safari measures page count BEFORE the above layout changes have reflowed,
+  // so it shows a stale (too-tall) count like 3 pages until a pinch-zoom forces a
+  // recalc. Force a synchronous reflow now, then wait two animation frames so the
+  // layout is fully settled before opening the print dialog.
+  void document.body.offsetHeight;            // force reflow
+  const wrapper = document.querySelector('.page-wrapper');
+  if (wrapper) void wrapper.offsetHeight;     // force reflow of the printed content
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.print();
+      // Restore UI shortly after the dialog has taken its snapshot.
+      setTimeout(restore, 300);
+    });
+  });
 }
 
 // Build a true multi-page PDF from canvas renders of each .form-page.
