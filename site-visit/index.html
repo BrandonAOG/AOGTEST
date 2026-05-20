@@ -1049,14 +1049,18 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 
 }
 
+/* Mobile-only zoom — applied on screen so Safari carries it into print */
+@media screen and (max-width: 768px) {
+  body.mobile-print .page-wrapper { zoom: 0.87; }
+}
+
+/* Hide debug overlay during print */
+@media print {
+  #debug-overlay { display: none !important; }
+}
+
 /* ===== MOBILE PRINT — body.mobile-print scoped, last in stylesheet so wins ===== */
 @media print {
-  body.mobile-print { background: #ffffff !important; }
-  body.mobile-print + * { } /* force cascade reset */
-  body.mobile-print .page-wrapper { zoom: 0.87; }
-
-  @page { size: 8.5in 11in; margin: 0.05in 0.15in 0.15in 0.15in; }
-
   body.mobile-print #page1 { border: 1.5px solid #D97706 !important; padding: 0.05in 0.12in 0.12in 0.12in !important; box-sizing: border-box !important; overflow: hidden !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body.mobile-print #page1 .logo-area { gap: 8px !important; margin-bottom: 6px !important; }
   body.mobile-print #page1 .logo-area img { width: 36px !important; height: 36px !important; }
@@ -1605,15 +1609,45 @@ function showPrintDebugLog(log) {
 function showDebug() {
   const log = [];
   const device = getPrintDevice();
+  const checks = [
+    ['.page-wrapper', 'zoom'],
+    ['#page1 .logo-text', 'fontSize'],
+    ['#page1 .checklist-title', 'fontSize'],
+    ['#page1 .permit-section-header', 'fontSize'],
+    ['#page1 .permit-row', 'fontSize'],
+    ['#page1 .permit-input', 'fontSize'],
+    ['#page1 .permit-note', 'fontSize'],
+    ['#page1 .yn-checkbox-wrap', 'fontSize'],
+    ['#page1 input[type="checkbox"]', 'width'],
+  ];
+
+  function snapshot(label) {
+    log.push(`\n<strong style="color:#FBBF24">${label}</strong>`);
+    checks.forEach(([sel, prop]) => {
+      try {
+        const el = document.querySelector(sel);
+        const val = el ? window.getComputedStyle(el)[prop] : 'NOT FOUND';
+        log.push(`  ${sel} → ${prop}: <strong>${val}</strong>`);
+      } catch(e) { log.push(`  ${sel} → ERROR`); }
+    });
+  }
+
   log.push(`<strong>Device:</strong> ${device}`);
-  log.push(`<strong>Screen:</strong> ${window.screen.width}×${window.screen.height}`);
-  log.push(`<strong>Window:</strong> ${window.innerWidth}×${window.innerHeight}`);
-  log.push(`<strong>Touch points:</strong> ${navigator.maxTouchPoints}`);
   log.push(`<strong>UA:</strong> ${navigator.userAgent}`);
-  log.push(`<strong>Dark mode:</strong> ${document.body.classList.contains('dark-mode')}`);
-  log.push(`<strong>mobile-print class:</strong> ${document.body.classList.contains('mobile-print')}`);
-  const cssMap = { mobile: MOBILE_PRINT_CSS, ipad: IPAD_PRINT_CSS, desktop: '(base @media print only — no injection)' };
-  log.push(`\n<strong>CSS that would be injected:</strong>\n${cssMap[device]}`);
+  log.push(`<strong>mobile-print on body:</strong> ${document.body.classList.contains('mobile-print')}`);
+
+  snapshot('BEFORE mobile-print class');
+
+  document.body.classList.add('mobile-print');
+  log.push(`\n<em>→ mobile-print class added</em>`);
+
+  snapshot('AFTER mobile-print class');
+
+  document.body.classList.remove('mobile-print');
+  log.push(`\n<em>→ mobile-print class removed</em>`);
+
+  snapshot('AFTER removal (should match BEFORE)');
+
   showPrintDebugLog(log);
 }
 
