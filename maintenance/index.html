@@ -16,6 +16,7 @@
 <meta name="apple-mobile-web-app-title" content="AOG Forms">
 <style>
 :root {
+  color-scheme: light;
   --cyan: #D97706;
   --cyan-dim: #B45309;
   --cyan-dark: #92400E;
@@ -43,6 +44,7 @@
 }
 
 body.dark-mode {
+  color-scheme: dark;
   --bg: #0A0E27;
   --bg2: #0F1535;
   --bg3: #1A2847;
@@ -1055,6 +1057,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover {
   *, *::before, *::after {
     animation: none !important;
     transition: none !important;
+    color-scheme: light !important;
   }
 
   input::placeholder, textarea::placeholder {
@@ -1441,7 +1444,7 @@ body.dark-mode .action-bar {
 <body>
 <div class="action-bar" id="action-bar">
   <a class="btn" href="../" style="text-decoration:none;">🏠 HOME</a>
-  <button class="btn" onclick="printForm()">📄 PDF</button>
+  <button class="btn" onclick="openPrintPreview()">📄 PDF</button>
   <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPHONE</button>
   <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 ANDROID</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
@@ -1495,7 +1498,7 @@ body.dark-mode .action-bar {
   </div>
 
   <div class="toolbar">
-    <button class="btn" onclick="printForm()" title="Print or save as PDF">📄 PDF</button>
+    <button class="btn" onclick="openPrintPreview()" title="Print or save as PDF">📄 PDF</button>
     <button class="btn" onclick="saveForIPhone()" title="Save as image for iPhone">📱 iPhone</button>
     <button class="btn" onclick="saveForAndroid()" title="Save as image for Android">🤖 Android</button>
     <button class="btn" onclick="clearForm()" title="Clear all fields">🗑 CLEAR</button>
@@ -2004,41 +2007,105 @@ function clearForm() {
   localStorage.removeItem(DRAFT_KEY);
 }
 
-function printForm() {
+function openPrintPreview() {
+  const bar    = document.querySelector('.toolbar');
+  const status = document.getElementById('save-status');
   const wasDark = document.body.classList.contains('dark-mode');
 
-  const printStyle = document.createElement('style');
-  printStyle.id = 'force-print-light';
-  printStyle.textContent = `
-    *, *::before, *::after {
-      background: white !important;
-      color: #1F2937 !important;
-      box-shadow: none !important;
-      text-shadow: none !important;
-      border-color: rgba(217,119,6,0.4) !important;
-      animation: none !important;
-      transition: none !important;
-    }
-    .page { border: 1.5px solid #D97706 !important; min-height: 0 !important; }
-    .company-name, .doc-title { color: #D97706 !important; }
-    .section-header { background: #f5f5f5 !important; color: #D97706 !important; }
-    .footer-text { color: #9CA3AF !important; }
-    .footer { padding-bottom: 4px !important; }
-    .content { flex-grow: 0 !important; }
-    .toolbar, button, .theme-toggle-btn, .home-btn { display: none !important; }
-  `;
-  document.head.appendChild(printStyle);
-
   if (wasDark) document.body.classList.remove('dark-mode');
+  document.documentElement.style.setProperty('background', '#ffffff', 'important');
+  document.body.style.setProperty('background', '#ffffff', 'important');
+  document.documentElement.style.setProperty('color-scheme', 'light', 'important');
+  document.body.style.setProperty('color-scheme', 'light', 'important');
 
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => {
-      const el = document.getElementById('force-print-light');
-      if (el) el.remove();
-      if (wasDark) document.body.classList.add('dark-mode');
-    }, 1000);
-  }, 250);
+  if (bar)    bar.style.display    = 'none';
+  if (status) status.style.display = 'none';
+
+  const origMaxWidth = document.body.style.maxWidth;
+  const origWidth    = document.body.style.width;
+  document.body.style.maxWidth = '100%';
+  document.body.style.width    = '100%';
+
+  const _saved = [];
+  function stamp(el, props) {
+    _saved.push([el, el.getAttribute('style') || null]);
+    for (const [k, v] of Object.entries(props)) el.style.setProperty(k, v, 'important');
+  }
+
+  function forceLightMode() {
+    stamp(document.documentElement, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
+    stamp(document.body,            { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
+
+    document.querySelectorAll(
+      '.page, .section, .section-header, .form-row, .form-group, ' +
+      '.header, .footer, .content, #page'
+    ).forEach(el => stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' }));
+
+    document.querySelectorAll(
+      'input[type="text"], input[type="email"], input[type="tel"], ' +
+      'input[type="date"], input[type="number"], textarea, select'
+    ).forEach(el => stamp(el, {
+      background: '#ffffff', 'background-color': '#ffffff',
+      color: '#1F2937', '-webkit-text-fill-color': '#1F2937',
+      'box-shadow': 'none', '-webkit-appearance': 'none', 'color-scheme': 'light'
+    }));
+
+    document.querySelectorAll('input[type="checkbox"]').forEach(el => stamp(el, {
+      background: el.checked ? '#D97706' : '#ffffff',
+      'background-color': el.checked ? '#D97706' : '#ffffff',
+      '-webkit-appearance': 'none', 'color-scheme': 'light'
+    }));
+
+    document.querySelectorAll('table th').forEach(el => stamp(el, {
+      background: '#4B5563', 'background-color': '#4B5563',
+      color: '#ffffff', '-webkit-text-fill-color': '#ffffff', 'color-scheme': 'light'
+    }));
+
+    document.querySelectorAll('table td').forEach(el => {
+      const bg = el.classList.contains('row-label') ? '#f0f0f0' : '#ffffff';
+      stamp(el, {
+        background: bg, 'background-color': bg,
+        color: '#1F2937', '-webkit-text-fill-color': '#1F2937', 'color-scheme': 'light'
+      });
+    });
+  }
+
+  function restoreAll() {
+    _saved.forEach(([el, orig]) => {
+      if (orig !== null) { el.setAttribute('style', orig); }
+      else               { el.removeAttribute('style'); }
+    });
+    _saved.length = 0;
+  }
+
+  let restored = false;
+  function restore() {
+    if (restored) return;
+    restored = true;
+    restoreAll();
+    if (bar)    bar.style.display = '';
+    if (status) status.style.display = '';
+    if (wasDark) document.body.classList.add('dark-mode');
+    document.body.style.maxWidth = origMaxWidth;
+    document.body.style.width    = origWidth;
+    window.removeEventListener('afterprint', restore);
+    if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
+  }
+  window.addEventListener('afterprint', restore);
+  const mql = window.matchMedia ? window.matchMedia('print') : null;
+  function onMqlChange(e) { if (!e.matches) restore(); }
+  if (mql && mql.addEventListener) mql.addEventListener('change', onMqlChange);
+
+  void document.body.offsetHeight;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      forceLightMode();
+      void document.body.offsetHeight;
+      setTimeout(() => {
+        window.print();
+      }, 1500);
+    });
+  });
 }
 
 
