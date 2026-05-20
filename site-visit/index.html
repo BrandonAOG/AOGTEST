@@ -1206,6 +1206,50 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 /* Keep debug overlay out of any print output */
 @media print { #debug-overlay { display: none !important; } }
 
+/* ===== PLATFORM-SPECIFIC PRINT FIXES ===== */
+
+/* UNIVERSAL — kill all animations/transitions before the print renderer snapshots */
+@media print {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* iOS — transforms can shift elements off-page; text-size-adjust prevents Safari
+   from bumping font sizes when it recalculates layout for paper */
+@media print {
+  html.ios * {
+    transform: none !important;
+    -webkit-text-size-adjust: 100% !important;
+  }
+}
+
+/* macOS Safari — zoom resets prevent double-scaling when the page already
+   uses a CSS zoom for layout; Safari on macOS respects this on .page */
+@media print {
+  html.macos .page {
+    zoom: 1 !important;
+  }
+}
+
+/* Windows Desktop — explicit break rules stop Chrome/Edge from splitting a
+   .page card across two sheets */
+@media print {
+  html.windows .page {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Android — forces the WebView print renderer to output actual background
+   colors/images rather than stripping them for "ink saving" */
+@media print {
+  html.android * {
+    -webkit-print-color-adjust: exact !important;
+  }
+}
+
 
 </style>
 </head>
