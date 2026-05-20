@@ -1948,10 +1948,11 @@ function openPrintPreview() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       window.print();
-      // Do NOT remove body.printing here — Chrome's print renderer captures the
-      // DOM asynchronously after window.print() returns, so removing the class
-      // here means it's already gone by the time the preview renders.
-      // restore() fires on afterprint and cleans up when the dialog actually closes.
+      // Mobile Safari blocks on window.print() so the class is already active
+      // the whole time the dialog is open — safe to remove immediately after return.
+      // Desktop browsers render asynchronously, so we leave the class on and let
+      // restore() (afterprint) remove it once the dialog actually closes.
+      if (isMobilePrint) document.body.classList.remove('printing', 'mobile-printing');
       document.body.style.maxWidth = origMaxWidth;
       document.body.style.width    = origWidth;
     });
