@@ -1051,8 +1051,9 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 
 /* ===== MOBILE PRINT — body.mobile-print scoped, last in stylesheet so wins ===== */
 @media print {
-  body.mobile-print { background: #ffffff !important; zoom: 0.87; }
+  body.mobile-print { background: #ffffff !important; }
   body.mobile-print + * { } /* force cascade reset */
+  body.mobile-print .page-wrapper { zoom: 0.87; }
 
   @page { size: 8.5in 11in; margin: 0.05in 0.15in 0.15in 0.15in; }
 
@@ -1670,6 +1671,7 @@ function openPrintPreview() {
   log.push(`\n<strong>STEP 3.5 — Computed styles snapshot</strong>`);
   const snap = [
     ['body', 'zoom'],
+    ['.page-wrapper', 'zoom'],
     ['#page1 .logo-text', 'fontSize'],
     ['#page1 .checklist-title', 'fontSize'],
     ['#page1 .permit-section-header', 'fontSize'],
