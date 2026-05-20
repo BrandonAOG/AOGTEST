@@ -636,9 +636,18 @@ body.dark-mode .notice { color: #7DD3FC; }
 
   @page { size: 8.5in 11in; margin: 0.2in; }
 
-  html, body {
+  html {
     margin: 0; padding: 0;
     width: 100%; max-width: 100%;
+    /* Safari iOS: prevent the screen layout width (1050px) from being used
+       as the print canvas — force it to match the @page paper width instead */
+    -webkit-text-size-adjust: none;
+  }
+
+  html, body {
+    margin: 0; padding: 0;
+    width: 100% !important; max-width: 100% !important;
+    min-width: 0 !important;
     background: #ffffff; color: #1F2937;
     overflow: visible; -webkit-text-size-adjust: 100%;
   }
@@ -914,17 +923,17 @@ body.dark-mode .notice { color: #7DD3FC; }
   @page { size: 8.5in 11in; margin: 0.15in; }
 
   /* ---- PAGE 1: sized to fill one sheet at comfortable, readable proportions.
-     Trimmed slightly so iOS Safari's first measurement lands on one sheet (it
-     was rounding up and showing "3 pages" until a pinch-zoom). ---- */
-  #page1 .checklist-title { font-size: 12px !important; padding-top: 3px !important; margin-bottom: 3px !important; }
-  #page1 .permit-section { margin-bottom: 2px !important; }
-  #page1 .permit-section-header { font-size: 11px !important; margin: 1px 0 1px !important; }
-  #page1 .permit-row { font-size: 10px !important; padding: 0.5px 0 !important; margin-bottom: 0 !important; gap: 1px 7px !important; line-height: 1.15 !important; }
+     Tuned to use the whole page without spilling to a second sheet. The
+     Other/Special notes box prints at full screen height, so the rest of the
+     page is tightened to make room. ---- */
+  #page1 .checklist-title { font-size: 12px !important; padding-top: 4px !important; margin-bottom: 4px !important; }
+  #page1 .permit-section { margin-bottom: 3px !important; }
+  #page1 .permit-section-header { font-size: 11px !important; margin: 2px 0 1px !important; }
+  #page1 .permit-row { font-size: 10px !important; padding: 1px 0 !important; margin-bottom: 0 !important; gap: 1px 7px !important; line-height: 1.2 !important; }
   #page1 .permit-row label { font-size: 10px !important; }
-  #page1 .permit-input { font-size: 10px !important; padding: 1px 4px !important; line-height: 1.25 !important; }
-  #page1 .permit-note { font-size: 8.5px !important; margin: 1px 0 !important; padding: 1px 0 1px 7px !important; line-height: 1.15 !important; }
-  #page1 .permit-textarea:not(.other-special-notes) { font-size: 10px !important; min-height: 24px !important; height: 24px !important; padding: 2px 5px !important; }
-  #page1 .other-special-notes { min-height: 82px !important; height: 82px !important; }
+  #page1 .permit-input { font-size: 10px !important; padding: 1px 4px !important; line-height: 1.3 !important; }
+  #page1 .permit-note { font-size: 8.5px !important; margin: 1px 0 !important; padding: 1px 0 1px 7px !important; line-height: 1.2 !important; }
+  #page1 .permit-textarea:not(.other-special-notes) { font-size: 10px !important; min-height: 26px !important; height: 26px !important; padding: 2px 5px !important; }
   #page1 .yn-checkbox-wrap { font-size: 8px !important; padding: 1px 4px 1px 3px !important; }
   /* Keep only the notes box from splitting across a page; applying this to every
      section caused a tall section to be shoved down, leaving a white gap. */
@@ -1812,6 +1821,15 @@ function openPrintPreview() {
   // so it shows a stale (too-tall) count like 3 pages until a pinch-zoom forces a
   // recalc. Force a synchronous reflow now, then wait two animation frames so the
   // layout is fully settled before opening the print dialog.
+  //
+  // Additionally: Safari on iOS uses the *screen* layout width (body max-width:1050px)
+  // as the print canvas, making the preview appear tiny/zoomed-out. Temporarily
+  // clear max-width so the @page paper width is the sole layout reference.
+  const origMaxWidth = document.body.style.maxWidth;
+  const origWidth    = document.body.style.width;
+  document.body.style.maxWidth = '100%';
+  document.body.style.width    = '100%';
+
   void document.body.offsetHeight;            // force reflow
   const wrapper = document.querySelector('.page-wrapper');
   if (wrapper) void wrapper.offsetHeight;     // force reflow of the printed content
@@ -1819,6 +1837,8 @@ function openPrintPreview() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       window.print();
+      document.body.style.maxWidth = origMaxWidth;
+      document.body.style.width    = origWidth;
     });
   });
 }
