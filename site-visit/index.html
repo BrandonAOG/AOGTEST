@@ -1810,26 +1810,25 @@ const MOBILE_PRINT_CSS = `
 const IPAD_PRINT_CSS = ``;
 
 function openPrintPreview() {
-  const device = getPrintDevice();
-  // Desktop browsers print CSS correctly — keep the native path there.
-  if (device === 'desktop') {
-    const bar  = document.querySelector('.action-bar');
-    const note = document.querySelector('.notice');
-    const wasDark = document.body.classList.contains('dark-mode');
-    if (wasDark) document.body.classList.remove('dark-mode');
-    if (bar)  bar.style.display  = 'none';
-    if (note) note.style.display = 'none';
-    window.print();
-    if (bar)  bar.style.display  = '';
-    if (note) note.style.display = '';
-    if (wasDark) document.body.classList.add('dark-mode');
-    return;
-  }
-  // Mobile / iPad: Safari ignores @media print sizing and paginates unpredictably,
-  // so we render each .form-page to a canvas at fixed desktop width and assemble a
-  // real PDF ourselves. This is the same proven capture path the iPhone/Android
-  // image buttons use.
-  generatePDF();
+  // Native browser print on all devices. On iOS this opens Safari's own print
+  // preview dialog directly. (Note: iOS Safari controls pagination itself and
+  // does not honor the print CSS, so page count is Safari's call.)
+  const bar  = document.querySelector('.action-bar');
+  const note = document.querySelector('.notice');
+  const status = document.getElementById('save-status');
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+  if (bar)    bar.style.display    = 'none';
+  if (note)   note.style.display   = 'none';
+  if (status) status.style.display = 'none';
+
+  window.print();
+
+  // Restore UI after the print dialog returns.
+  if (bar)    bar.style.display    = '';
+  if (note)   note.style.display   = '';
+  if (status) status.style.display = '';
+  if (wasDark) document.body.classList.add('dark-mode');
 }
 
 // Build a true multi-page PDF from canvas renders of each .form-page.
@@ -1846,10 +1845,13 @@ function generatePDF() {
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕ Close';
   closeBtn.style.cssText = 'background:#DC2626;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer;';
+  const shareBtn = document.createElement('button');
+  shareBtn.textContent = '🖨 Print / Share';
+  shareBtn.style.cssText = 'background:#D97706;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer;display:none;';
   const dlBtn = document.createElement('a');
   dlBtn.textContent = '⬇ Download PDF';
   dlBtn.style.cssText = 'background:#059669;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer;text-decoration:none;display:none;';
-  topBar.appendChild(dlBtn); topBar.appendChild(closeBtn);
+  topBar.appendChild(shareBtn); topBar.appendChild(dlBtn); topBar.appendChild(closeBtn);
   const statusEl = document.createElement('div');
   statusEl.style.cssText = 'color:#7DD3FC;font-size:13px;margin:4px 0 10px;text-align:center;width:100%;max-width:620px;';
   statusEl.textContent = 'Preparing…';
@@ -1931,7 +1933,29 @@ function generatePDF() {
           dlBtn.href = url;
           dlBtn.setAttribute('download', 'AlwaysOn_Generators_Permitting_Info.pdf');
           dlBtn.style.display = 'inline-block';
-          ostat('Done. Tap "Download PDF" to save, or long-press an image to save to Photos.');
+
+          // Native iOS share sheet (includes Print, Save to Files, AirDrop).
+          // Must be triggered by a user tap, so it lives on this button.
+          const pdfFile = (typeof File !== 'undefined')
+            ? new File([blob], 'AlwaysOn_Generators_Permitting_Info.pdf', { type: 'application/pdf' })
+            : null;
+          const canShareFile = pdfFile && navigator.canShare && navigator.canShare({ files: [pdfFile] });
+          if (canShareFile) {
+            shareBtn.style.display = 'inline-block';
+            shareBtn.onclick = async () => {
+              try {
+                await navigator.share({ files: [pdfFile], title: 'Permitting Info Request' });
+              } catch (e) { /* user cancelled or unsupported — download still available */ }
+            };
+            ostat('Done. Tap "Print / Share" for the print/save menu, or "Download PDF".');
+          } else {
+            // No Web Share for files — opening the PDF lets the user use the
+            // browser's own share/print menu instead.
+            shareBtn.style.display = 'inline-block';
+            shareBtn.textContent = '🖨 Open PDF to Print';
+            shareBtn.onclick = () => { window.open(url, '_blank'); };
+            ostat('Done. Tap "Open PDF to Print" for the print menu, or "Download PDF".');
+          }
         } catch (perr) {
           ostat('Pages rendered below. (PDF build failed: ' + (perr && perr.message ? perr.message : 'unknown') + ') Long-press an image to save it.');
         }
