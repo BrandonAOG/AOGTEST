@@ -1412,7 +1412,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
       <div class="footer-row">
         <div class="footer-field"><label>Shallow Strut (length):</label><input type="text" class="wide" inputmode="numeric"></div>
         <div class="footer-field"><label>Deep Strut (length):</label><input type="text" class="wide" inputmode="numeric"></div>
-        <div class="footer-field" style="flex:1;"><label>Other:</label><input type="text" style="width:100%;min-width:120px;"></div>
+        <div class="footer-field" style="flex:1;"><label>Other:</label><input type="text" class="allow-text" style="width:100%;min-width:120px;"></div>
       </div>
       <div class="footer-row">
         <div class="footer-field"><label>100A Disconnects (Qty):</label><input type="text" class="short" inputmode="numeric"></div>
@@ -1462,6 +1462,32 @@ function setupThemeToggle() {
 applyTheme(getInitialTheme());
 
 // ===== BUILD TABLES =====
+// Restrict an input to numbers only (digits + one optional decimal point).
+// Blocks letters/symbols on input and on paste; leaves the value usable for
+// quantities and lengths like "12" or "2.5".
+function makeNumericOnly(inp) {
+  if (inp._numericOnly) return; // already applied
+  inp.setAttribute('inputmode', 'decimal');
+  inp._numericOnly = true;
+  const clean = (v) => {
+    // keep digits and at most one dot
+    let s = v.replace(/[^0-9.]/g, '');
+    const firstDot = s.indexOf('.');
+    if (firstDot !== -1) {
+      s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, '');
+    }
+    return s;
+  };
+  inp.addEventListener('input', () => {
+    const cleaned = clean(inp.value);
+    if (cleaned !== inp.value) {
+      const pos = inp.selectionStart;
+      inp.value = cleaned;
+      try { inp.setSelectionRange(pos - 1, pos - 1); } catch (e) {}
+    }
+  });
+}
+
 const fittings = [
   "PVC Pipe","Weatherproof Seals","Weatherproof Lock Rings","Fiber Bushings",
   "Lock Rings","Male Adapters","Female Adapters","Couplings","Box Adapters",
@@ -1491,6 +1517,7 @@ fittings.forEach((name, idx) => {
   fittingSizes.forEach(() => {
     const td = document.createElement("td");
     const inp = document.createElement("input"); inp.type = "text";
+    makeNumericOnly(inp);
     td.appendChild(inp); tr.appendChild(td);
   });
   document.getElementById("fittings-body").appendChild(tr);
@@ -1503,6 +1530,7 @@ fittings.forEach((name, idx) => {
   ["2'","3'","4'","5'","6'"].forEach(() => {
     const td = document.createElement("td");
     const inp = document.createElement("input"); inp.type = "text";
+    makeNumericOnly(inp);
     td.appendChild(inp); tr.appendChild(td);
   });
   document.getElementById("wireway-body").appendChild(tr);
@@ -1515,13 +1543,32 @@ fittings.forEach((name, idx) => {
   ["Straights","2-Port","3-Port","4-Port","5-Port"].forEach(() => {
     const td = document.createElement("td");
     const inp = document.createElement("input"); inp.type = "text";
+    makeNumericOnly(inp);
     td.appendChild(inp); tr.appendChild(td);
   });
   document.getElementById("polaris-body").appendChild(tr);
 });
 // Dynamic table inputs now exist — assign their stable keys, attach autosave,
 // and restore any saved values into them. All three calls are idempotent.
-if (typeof attachAutosave === 'function') setTimeout(() => { ensureStableKeys(); attachAutosave(); restoreFormData(); }, 100);
+// Also restrict the footer quantity fields (everything except "Other:") and the
+// page-2 wire tables to numbers only.
+function applyNumericOnlyToPage2() {
+  // Footer fields: all except the .allow-text "Other:" field.
+  document.querySelectorAll('#page2 .footer-field input[type="text"]:not(.allow-text)').forEach(makeNumericOnly);
+  // CU/AL/THHN wire tables (the .mat-table tables that aren't fittings/wireway/polaris).
+  document.querySelectorAll('#page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td input[type="text"]').forEach(makeNumericOnly);
+  // Mobile accordion mirror inputs: all are numeric quantities EXCEPT the footer
+  // "Other" field. Identify "Other" by its row label and skip it.
+  document.querySelectorAll('.mob-card-input').forEach(mirror => {
+    if (mirror._numericOnly) return;
+    const row = mirror.closest('.mob-footer-row, .mob-card-row');
+    const labelEl = row && row.querySelector('.mob-footer-label, .mob-card-label');
+    const labelText = labelEl ? labelEl.textContent.trim().toLowerCase() : '';
+    if (labelText === 'other') return; // keep the Other field as free text
+    makeNumericOnly(mirror);
+  });
+}
+if (typeof attachAutosave === 'function') setTimeout(() => { ensureStableKeys(); attachAutosave(); restoreFormData(); applyNumericOnlyToPage2(); }, 100);
 
 // ===== YES/NO COLORS =====
 function applyYNColors() {
@@ -2218,6 +2265,8 @@ function initFormAndAccordions() {
   restoreFormData();
   attachAutosave();
   initMobileAccordions();
+  // After accordions exist, restrict numeric fields (real inputs + mirrors).
+  if (typeof applyNumericOnlyToPage2 === 'function') applyNumericOnlyToPage2();
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initFormAndAccordions);
