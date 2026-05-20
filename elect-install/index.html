@@ -724,17 +724,15 @@ body.dark-mode .notice { color: #7DD3FC; }
     break-before: page !important;
   }
 
-  /* Remove transform: scale() — Safari computes page breaks on the *untransformed*
-     dimensions, so a CSS transform collapses both pages into one.
-     Use zoom instead: WebKit/Safari includes zoom in layout flow, so pagination
-     is calculated correctly and each page scales within its own sheet. */
+  /* transform: scale() was here originally but caused macOS Safari to compute
+     page breaks on untransformed dimensions, collapsing both pages into one.
+     Removing it entirely — tables are already width:100% so no scaling needed. */
   #page2-inner {
     display: block !important;
     width: 100% !important;
     transform: none !important;
     -webkit-transform: none !important;
     transform-origin: initial !important;
-    zoom: 1.081;
   }
 
   #page2 .grid-section { margin-bottom: 3px !important; overflow: visible !important; }
@@ -963,9 +961,6 @@ body.dark-mode .notice { color: #7DD3FC; }
 @media print and (max-width: 767px) {
 
   @page { size: 8.5in 11in; margin: 0.15in; }
-
-  /* Cancel the desktop zoom — mobile tables must not scale up */
-  #page2-inner { zoom: 1 !important; }
 
   /* Tighten grid sections so everything fits */
   #page2 .grid-section { margin-bottom: 2px !important; }
