@@ -1558,8 +1558,6 @@ function clearForm() {
 // ===== PRINT =====
 function getPrintDevice() {
   const ua = navigator.userAgent;
-  const w  = window.screen.width;
-  const h  = window.screen.height;
   const isIpad   = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const isMobile = /iPhone|Android|Mobile/.test(ua) && !isIpad;
   if (isMobile) return 'mobile';
@@ -1567,27 +1565,29 @@ function getPrintDevice() {
   return 'desktop';
 }
 
-function showDebug() {
-  const device = getPrintDevice();
-  const ua = navigator.userAgent;
-  const cssMap = { mobile: MOBILE_PRINT_CSS, ipad: IPAD_PRINT_CSS, desktop: '(base @media print only)' };
-  const css = cssMap[device] || '(none)';
+function showPrintDebugLog(log) {
   const existing = document.getElementById('debug-overlay');
-  if (existing) { existing.remove(); return; }
+  if (existing) existing.remove();
   const overlay = document.createElement('div');
   overlay.id = 'debug-overlay';
-  overlay.style.cssText = 'position:fixed;top:50px;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);color:#00FFC8;font-family:monospace;font-size:11px;padding:12px;overflow-y:auto;z-index:999999;white-space:pre-wrap;word-break:break-all;';
-  overlay.innerHTML = `<strong style="font-size:13px;color:#FBBF24;">🐛 PRINT DEBUG</strong>  <span style="float:right;cursor:pointer;color:#f87171;" onclick="document.getElementById('debug-overlay').remove()">✕ CLOSE</span>
-
-<strong>Device detected:</strong> ${device}
-<strong>Screen:</strong> ${window.screen.width}×${window.screen.height}
-<strong>Window:</strong> ${window.innerWidth}×${window.innerHeight}
-<strong>Touch points:</strong> ${navigator.maxTouchPoints}
-<strong>UA:</strong> ${ua}
-
-<strong>CSS to be injected:</strong>
-${css}`;
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);color:#00FFC8;font-family:monospace;font-size:11px;padding:12px;overflow-y:auto;z-index:999999;white-space:pre-wrap;word-break:break-all;';
+  overlay.innerHTML = `<strong style="font-size:13px;color:#FBBF24;">🐛 PRINT PROCESS LOG</strong>  <span style="float:right;cursor:pointer;color:#f87171;font-size:14px;" onclick="document.getElementById('debug-overlay').remove()">✕ CLOSE</span>\n\n${log.join('\n')}`;
   document.body.appendChild(overlay);
+}
+
+function showDebug() {
+  const log = [];
+  const device = getPrintDevice();
+  log.push(`<strong>Device:</strong> ${device}`);
+  log.push(`<strong>Screen:</strong> ${window.screen.width}×${window.screen.height}`);
+  log.push(`<strong>Window:</strong> ${window.innerWidth}×${window.innerHeight}`);
+  log.push(`<strong>Touch points:</strong> ${navigator.maxTouchPoints}`);
+  log.push(`<strong>UA:</strong> ${navigator.userAgent}`);
+  log.push(`<strong>Dark mode:</strong> ${document.body.classList.contains('dark-mode')}`);
+  log.push(`<strong>mobile-print class:</strong> ${document.body.classList.contains('mobile-print')}`);
+  const cssMap = { mobile: MOBILE_PRINT_CSS, ipad: IPAD_PRINT_CSS, desktop: '(base @media print only — no injection)' };
+  log.push(`\n<strong>CSS that would be injected:</strong>\n${cssMap[device]}`);
+  showPrintDebugLog(log);
 }
 
 const MOBILE_PRINT_CSS = `
@@ -1625,15 +1625,27 @@ const MOBILE_PRINT_CSS = `
 const IPAD_PRINT_CSS = ``;
 
 function openPrintPreview() {
+  const log = [];
+  log.push(`<strong>STEP 1 — Start</strong>`);
+  log.push(`Device: ${getPrintDevice()}`);
+  log.push(`Dark mode before: ${document.body.classList.contains('dark-mode')}`);
+
   setStatus('Opening print preview…');
   const wasDark = document.body.classList.contains('dark-mode');
-  if (wasDark) document.body.classList.remove('dark-mode');
+  if (wasDark) { document.body.classList.remove('dark-mode'); log.push(`Dark mode removed ✓`); }
   const bar  = document.querySelector('.action-bar');
   const note = document.querySelector('.notice');
   if (bar)  bar.style.display  = 'none';
   if (note) note.style.display = 'none';
+  log.push(`Action bar hidden ✓`);
 
+  log.push(`\n<strong>STEP 2 — Device detection</strong>`);
   const device = getPrintDevice();
+  log.push(`Detected: ${device}`);
+  log.push(`UA: ${navigator.userAgent}`);
+  log.push(`Screen: ${window.screen.width}×${window.screen.height} | Window: ${window.innerWidth}×${window.innerHeight} | Touch: ${navigator.maxTouchPoints}`);
+
+  log.push(`\n<strong>STEP 3 — CSS injection</strong>`);
   let injected = null;
   if (device === 'mobile' && MOBILE_PRINT_CSS) {
     injected = document.createElement('style');
@@ -1641,25 +1653,38 @@ function openPrintPreview() {
     injected.textContent = MOBILE_PRINT_CSS;
     document.head.appendChild(injected);
     document.body.classList.add('mobile-print');
+    log.push(`mobile-print class added ✓`);
+    log.push(`Style injected into <head> ✓`);
+    log.push(`Style tag id: ${injected.id}`);
+    log.push(`mobile-print on body: ${document.body.classList.contains('mobile-print')}`);
   } else if (device === 'ipad' && IPAD_PRINT_CSS) {
     injected = document.createElement('style');
     injected.id = 'device-print-css';
     injected.textContent = IPAD_PRINT_CSS;
     document.head.appendChild(injected);
     document.body.classList.add('ipad-print');
+    log.push(`ipad-print class added ✓`);
+    log.push(`Style injected ✓`);
+  } else {
+    log.push(`No injection — desktop base @media print used`);
   }
 
-  alert('🐛 Device: ' + device + '\nCSS injected: ' + (injected ? 'YES' : 'NO') + '\nUA: ' + navigator.userAgent.substring(0, 80));
+  log.push(`\n<strong>STEP 4 — window.print() called</strong>`);
 
   window.print();
 
+  log.push(`window.print() returned ✓`);
+  log.push(`\n<strong>STEP 5 — Cleanup</strong>`);
   document.body.classList.remove('mobile-print', 'ipad-print');
-
-  if (injected) injected.remove();
+  log.push(`mobile-print class removed ✓`);
+  if (injected) { injected.remove(); log.push(`Injected style removed ✓`); }
   if (bar)  bar.style.display  = '';
   if (note) note.style.display = '';
-  if (wasDark) document.body.classList.add('dark-mode');
+  if (wasDark) { document.body.classList.add('dark-mode'); log.push(`Dark mode restored ✓`); }
   setStatus('');
+
+  log.push(`\n<strong>DONE</strong>`);
+  showPrintDebugLog(log);
 }
 
 
