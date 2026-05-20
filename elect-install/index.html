@@ -601,6 +601,7 @@ body.dark-mode .notice { color: #7DD3FC; }
     box-shadow: none !important;
     border: none !important;
     overflow: visible !important;
+    -webkit-page-break-after: always !important;
     page-break-after: always !important;
     break-after: page !important;
     height: auto !important;
@@ -611,7 +612,11 @@ body.dark-mode .notice { color: #7DD3FC; }
     box-sizing: border-box !important;
   }
 
-  .form-page:last-child { page-break-after: auto !important; break-after: auto !important; }
+  .form-page:last-child {
+    -webkit-page-break-after: auto !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
 
   /* ── NUCLEAR: force every element white — catches all hardcoded dark-mode colours ── */
   /* Exclude form fields so the input-specific rule below can apply the inset shadow trick */
@@ -712,17 +717,29 @@ body.dark-mode .notice { color: #7DD3FC; }
   }
   .yn-checkbox-wrap.checked input[type="checkbox"]:checked::after { border-color: #000 !important; }
 
-  /* ── PAGE 2 ── */
-  #page2 { page-break-before: always !important; break-before: page !important; }
+  /* ── PAGE 1 — force it to occupy a full print page so Safari breaks before page 2 ── */
+  #page1 {
+    min-height: 10.4in !important;
+  }
 
-  /* Scale page2-inner to fill the print page on desktop.
-     On mobile Safari this wrapper is ignored — the proven-working
-     doc9 base CSS handles mobile layout without it. */
+  /* ── PAGE 2 ── */
+  #page2 {
+    -webkit-page-break-before: always !important;
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Remove transform: scale() — Safari computes page breaks on the *untransformed*
+     dimensions, so a CSS transform collapses both pages into one.
+     Use zoom instead: WebKit/Safari includes zoom in layout flow, so pagination
+     is calculated correctly and each page scales within its own sheet. */
   #page2-inner {
     display: block !important;
-    width: 7.4in !important;
-    transform-origin: top left !important;
-    transform: scale(1.081) !important;
+    width: 100% !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    transform-origin: initial !important;
+    zoom: 1.081;
   }
 
   #page2 .grid-section { margin-bottom: 3px !important; overflow: visible !important; }
