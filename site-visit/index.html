@@ -1787,12 +1787,26 @@ function openPrintPreview() {
   if (note)   note.style.display   = 'none';
   if (status) status.style.display = 'none';
 
+  let restored = false;
   function restore() {
+    if (restored) return;
+    restored = true;
     if (bar)    bar.style.display    = '';
     if (note)   note.style.display   = '';
     if (status) status.style.display = '';
     if (wasDark) document.body.classList.add('dark-mode');
+    window.removeEventListener('afterprint', restore);
+    if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
   }
+
+  // Only restore the dark background once the print preview/dialog actually
+  // CLOSES — not on a timer — so it stays white the entire time the preview is
+  // open. afterprint fires when the user exits the dialog.
+  window.addEventListener('afterprint', restore);
+  // Backup signal: the print media query flips back to non-matching on close.
+  const mql = window.matchMedia ? window.matchMedia('print') : null;
+  function onMqlChange(e) { if (!e.matches) restore(); }
+  if (mql && mql.addEventListener) mql.addEventListener('change', onMqlChange);
 
   // iOS Safari measures page count BEFORE the above layout changes have reflowed,
   // so it shows a stale (too-tall) count like 3 pages until a pinch-zoom forces a
@@ -1805,8 +1819,6 @@ function openPrintPreview() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       window.print();
-      // Restore UI shortly after the dialog has taken its snapshot.
-      setTimeout(restore, 300);
     });
   });
 }
