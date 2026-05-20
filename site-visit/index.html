@@ -12,6 +12,26 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AOG Forms">
 
+<!-- Platform detection: runs before CSS so html.ios / .macos / .windows / .android
+     classes are present when the stylesheet evaluates @media print selectors. -->
+<script>
+(function(){
+  var ua  = navigator.userAgent;
+  var html = document.documentElement;
+  var isIpad    = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  var isIphone  = /iPhone/.test(ua);
+  var isAndroid = /Android/.test(ua);
+  var isWindows = /Windows/.test(ua);
+  // macOS Safari: Macintosh in UA, not touch-based iPad masquerading as desktop
+  var isMacOS   = /Macintosh/.test(ua) && !isIpad;
+
+  if (isIpad || isIphone) html.classList.add('ios');
+  if (isMacOS)            html.classList.add('macos');
+  if (isWindows)          html.classList.add('windows');
+  if (isAndroid)          html.classList.add('android');
+})();
+</script>
+
 <style>
 :root {
   --cyan: #D97706;
@@ -1234,12 +1254,31 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 }
 
 /* Windows Desktop — explicit break rules stop Chrome/Edge from splitting a
-   .page card across two sheets */
+   .page card across two sheets; top margin offsets Chrome's default header
+   band so Page 1 content doesn't start behind it */
 @media print {
   html.windows .page {
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  html.windows #page1 {
+    margin-top: 1.25in;
+  }
+  html.windows #page1 .permit-section {
+    margin-bottom: 12px; /* base 10px + 2px */
+  }
+
+  /* +3.5px total font-size bump across all Page 1 text elements (1.5 + 2) */
+  html.windows #page1 .logo-text               { font-size: 15.5px; }  /* 12 + 3.5 */
+  html.windows #page1 .checklist-title          { font-size: 15.5px; }  /* 12 + 3.5 */
+  html.windows #page1 .permit-section-header    { font-size: 14.5px; }  /* 11 + 3.5 */
+  html.windows #page1 .permit-row               { font-size: 13.5px; }  /* 10 + 3.5 */
+  html.windows #page1 .permit-row label         { font-size: 13.5px; }  /* 10 + 3.5 */
+  html.windows #page1 .permit-input             { font-size: 13.5px; }  /* 10 + 3.5 */
+  html.windows #page1 .permit-textarea:not(.other-special-notes) { font-size: 13.5px; } /* 10 + 3.5 */
+  html.windows #page1 .other-special-notes      { font-size: 15.5px !important; } /* 12 + 3.5 */
+  html.windows #page1 .permit-note              { font-size: 12.5px; }  /*  9 + 3.5 */
+  html.windows #page1 .yn-checkbox-wrap         { font-size: 11.5px; }  /*  8 + 3.5 */
 }
 
 /* Android — forces the WebView print renderer to output actual background
