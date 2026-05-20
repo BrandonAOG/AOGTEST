@@ -1049,7 +1049,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 
 /* Mobile-only zoom — applied on screen so Safari carries it into print */
 @media screen and (max-width: 768px) {
-  body.mobile-print .page-wrapper { zoom: 1.12; }
+  body.mobile-print .page-wrapper { zoom: 0.87; }
   body.mobile-print #page1 .logo-text { font-size: 10px !important; }
   body.mobile-print .logo-text .logo-generators { font-size: 9px !important; }
   body.mobile-print #page1 .checklist-title { font-size: 9px !important; }
@@ -1505,8 +1505,9 @@ fittings.forEach((name, idx) => {
   });
   document.getElementById("polaris-body").appendChild(tr);
 });
-// Re-attach autosave to JS-built table inputs
-if (typeof attachAutosave === 'function') setTimeout(() => { attachAutosave(); restoreFormData(); }, 100);
+// Dynamic table inputs now exist — assign their stable keys, attach autosave,
+// and restore any saved values into them. All three calls are idempotent.
+if (typeof attachAutosave === 'function') setTimeout(() => { ensureStableKeys(); attachAutosave(); restoreFormData(); }, 100);
 
 // ===== YES/NO COLORS =====
 function applyYNColors() {
@@ -1534,16 +1535,41 @@ function applyYNColors() {
 }
 
 // ===== AUTOSAVE TO localStorage =====
+// NOTE: Keys are stable, position-independent identifiers (data-skey) assigned to
+// every REAL form field. The mobile accordion mirror inputs (.mob-card-input) are
+// excluded entirely — they sync into the real inputs on their own. This prevents
+// the old index-drift bug where dynamically injected inputs shifted f_0..f_N and
+// caused saved/restored/printed values to land on the wrong fields.
 const SAVE_KEY = 'aog_permitting_info_v1';
+
+// Selector for the real, savable fields (excludes accordion mirrors).
+const REAL_TEXT_SEL = 'input[type="text"]:not(.mob-card-input), input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea:not(.mob-card-input)';
+const REAL_CHECK_SEL = 'input[type="checkbox"]';
+
+// Assign a stable key to every real field, computed once over the real-field set.
+// Safe to call repeatedly: fields that already have a key keep it, and newly built
+// table inputs get appended keys without disturbing existing ones.
+function ensureStableKeys() {
+  let ti = 0, ci = 0;
+  document.querySelectorAll(REAL_TEXT_SEL).forEach(el => {
+    if (!el.dataset.skey) el.dataset.skey = 'f_' + ti;
+    ti++;
+  });
+  document.querySelectorAll(REAL_CHECK_SEL).forEach(el => {
+    if (!el.dataset.ckey) el.dataset.ckey = 'c_' + ci;
+    ci++;
+  });
+}
 
 function saveFormData() {
   try {
+    ensureStableKeys();
     const data = {};
-    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
-      data['f_' + i] = el.value;
+    document.querySelectorAll(REAL_TEXT_SEL).forEach(el => {
+      data[el.dataset.skey] = el.value;
     });
-    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
-      data['c_' + i] = el.checked ? '1' : '0';
+    document.querySelectorAll(REAL_CHECK_SEL).forEach(el => {
+      data[el.dataset.ckey] = el.checked ? '1' : '0';
     });
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch(e) {}
@@ -1551,15 +1577,22 @@ function saveFormData() {
 
 function restoreFormData() {
   try {
+    ensureStableKeys();
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
     const data = JSON.parse(raw);
-    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
-      if (data['f_' + i] !== undefined) el.value = data['f_' + i];
+    document.querySelectorAll(REAL_TEXT_SEL).forEach(el => {
+      const k = el.dataset.skey;
+      if (k && data[k] !== undefined) {
+        el.value = data[k];
+        // Mirror back into any visible accordion input bound to this field.
+        if (el._mobMirror) el._mobMirror.value = data[k];
+      }
     });
-    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
-      if (data['c_' + i] !== undefined) {
-        el.checked = data['c_' + i] === '1';
+    document.querySelectorAll(REAL_CHECK_SEL).forEach(el => {
+      const k = el.dataset.ckey;
+      if (k && data[k] !== undefined) {
+        el.checked = data[k] === '1';
         const wrap = el.parentElement;
         if (wrap && wrap.classList.contains('yn-checkbox-wrap')) {
           wrap.classList.toggle('checked', el.checked);
@@ -1570,14 +1603,19 @@ function restoreFormData() {
 }
 
 function attachAutosave() {
-  document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach(el => {
+  ensureStableKeys();
+  document.querySelectorAll(REAL_TEXT_SEL).forEach(el => {
+    if (el._autosaveBound) return;
+    el._autosaveBound = true;
     el.addEventListener('input', saveFormData);
   });
-  document.querySelectorAll('input[type="checkbox"]').forEach(el => {
+  document.querySelectorAll(REAL_CHECK_SEL).forEach(el => {
+    if (el._autosaveBound) return;
+    el._autosaveBound = true;
     el.addEventListener('change', saveFormData);
   });
 }
-document.addEventListener('DOMContentLoaded', () => { restoreFormData(); applyYNColors(); setupThemeToggle(); attachAutosave(); });
+document.addEventListener('DOMContentLoaded', () => { applyYNColors(); restoreFormData(); setupThemeToggle(); attachAutosave(); });
 if (document.readyState !== 'loading') setTimeout(() => { applyYNColors(); setupThemeToggle(); }, 50);
 
 // ===== CLEAR =====
@@ -1590,14 +1628,21 @@ function clearForm() {
     const wrap = el.parentElement;
     if (wrap && wrap.classList.contains('yn-checkbox-wrap')) wrap.classList.remove('checked');
   });
+  // Reset accordion header "has-data" indicators and dots.
+  document.querySelectorAll('.mob-acc-header.has-data').forEach(h => h.classList.remove('has-data'));
+  document.querySelectorAll('.mob-sub-dot').forEach(d => d.style.display = 'none');
 }
 
 // ===== PRINT =====
 function getPrintDevice() {
   const ua = navigator.userAgent;
   const isIpad   = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  const isMobile = /iPhone|Android|Mobile/.test(ua) && !isIpad;
-  if (isMobile) return 'mobile';
+  const isMobileUA = /iPhone|Android|Mobile/.test(ua) && !isIpad;
+  // Width-based fallback: a narrow viewport means the user is filling out the
+  // mobile layout, so they need the mobile-print styling regardless of UA.
+  // This fixes desktop-devtools mobile emulation and any UA that doesn't match.
+  const narrow = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
+  if (isMobileUA || (narrow && !isIpad)) return 'mobile';
   if (isIpad)   return 'ipad';
   return 'desktop';
 }
@@ -1972,9 +2017,11 @@ function buildMobileAccordions() {
           inp.className = 'mob-card-input'; inp.placeholder = '\u2014';
           const realInput = realInputs[i];
           if (realInput) {
+            realInput._mobMirror = inp;
             inp.value = realInput.value;
             inp.addEventListener('input', () => {
               realInput.value = inp.value;
+              if (typeof saveFormData === 'function') saveFormData();
               const hasRow = Array.from(subBody.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
               subDot.style.display = hasRow ? 'inline-block' : 'none';
               const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
@@ -2011,9 +2058,11 @@ function buildMobileAccordions() {
         ftSuffix.style.cssText = 'font-size:11px;color:var(--text-muted);flex-shrink:0;font-family:Arial,sans-serif;';
         const realInput = realInputs[i];
         if (realInput) {
+          realInput._mobMirror = inp;
           inp.value = realInput.value;
           inp.addEventListener('input', () => {
             realInput.value = inp.value;
+            if (typeof saveFormData === 'function') saveFormData();
             const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
             headerBtn.classList.toggle('has-data', hasAny);
           });
@@ -2040,9 +2089,11 @@ function buildMobileAccordions() {
         const inp = document.createElement('input');
         inp.type = 'text'; inp.inputMode = realInput.inputMode || 'text';
         inp.className = 'mob-card-input mob-footer-input'; inp.placeholder = '\u2014';
+        realInput._mobMirror = inp;
         inp.value = realInput.value;
         inp.addEventListener('input', () => {
           realInput.value = inp.value;
+          if (typeof saveFormData === 'function') saveFormData();
           const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
           headerBtn.classList.toggle('has-data', hasAny);
         });
@@ -2072,15 +2123,18 @@ function initMobileAccordions() {
     buildMobileAccordions();
   }
 }
-function initMobileAccordions() {
-  if (window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches) {
-    buildMobileAccordions();
-  }
+// Ensure real inputs hold restored values BEFORE accordions mirror from them,
+// then attach autosave (idempotent), then build the mobile UI.
+function initFormAndAccordions() {
+  ensureStableKeys();
+  restoreFormData();
+  attachAutosave();
+  initMobileAccordions();
 }
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initMobileAccordions);
+  document.addEventListener('DOMContentLoaded', initFormAndAccordions);
 } else {
-  setTimeout(() => { initMobileAccordions(); attachAutosave(); }, 0);
+  setTimeout(initFormAndAccordions, 0);
 }
 
 </script>
