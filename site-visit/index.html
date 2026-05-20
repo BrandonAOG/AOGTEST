@@ -912,6 +912,14 @@ body.dark-mode .notice { color: #7DD3FC; }
   .logo-text .logo-always { color: #111; }
   .logo-text .logo-generators { color: #111; font-size: 8px; }
   #page1 .logo-on, #page1 span.logo-on { color: #D97706; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /* Kill logo animation & filter so desktop print engines don't blank the image */
+  .logo-area img {
+    filter: none !important;
+    -webkit-filter: none !important;
+    animation: none !important;
+    -webkit-animation: none !important;
+  }
 }
 /* end @media print */
 
@@ -920,7 +928,7 @@ body.dark-mode .notice { color: #7DD3FC; }
    so it fits on phones. No body.mobile-print class, no JS injection. ===== */
 @page { size: 8.5in 11in; margin: 0.15in; }
 
-@media print and (max-width: 1200px), body.printing.mobile-printing {
+@media print and (max-width: 767px), body.printing.mobile-printing {
 
   /* ---- PAGE 1: sized to fill one sheet at comfortable, readable proportions.
      Tuned to use the whole page without spilling to a second sheet. The
@@ -967,6 +975,83 @@ body.dark-mode .notice { color: #7DD3FC; }
 }
 
 
+/* =======================================================================
+   DESKTOP PRINT TIGHTENING
+   @media print and (min-width:768px) fires on desktop (paper = 8.5in = 816px)
+   but NOT on mobile Safari, which uses the phone viewport width (~390px) for
+   print media queries — so this block never touches mobile output.
+
+   body.printing:not(.mobile-printing) mirrors the same rules as regular CSS
+   selectors so that when openPrintPreview() adds the class right before
+   window.print(), Chrome / Firefox / desktop-Safari's print renderer already
+   sees a tightly-laid-out DOM and captures it faithfully.
+   On mobile, body.mobile-printing is ALSO added, so :not(.mobile-printing)
+   correctly excludes mobile from these selectors.
+   ======================================================================= */
+
+@media print and (min-width: 768px) {
+
+  /* PAGE 1 — tighten to match mobile Safari output */
+  #page1 .checklist-title          { font-size: 12px !important; padding-top: 3.75px !important; margin-bottom: 3.75px !important; }
+  #page1 .permit-section           { margin-bottom: 2.75px !important; }
+  #page1 .permit-section-header    { font-size: 11px !important; margin: 1.75px 0 1px !important; }
+  #page1 .permit-row               { font-size: 10px !important; padding: 0.75px 0 !important; margin-bottom: 0 !important; gap: 1px 7px !important; line-height: 1.1875 !important; }
+  #page1 .permit-row label         { font-size: 10px !important; }
+  #page1 .permit-input             { font-size: 10px !important; padding: 0.75px 4px !important; line-height: 1.275 !important; }
+  #page1 .permit-note              { font-size: 8.5px !important; margin: 0.75px 0 !important; padding: 0.75px 0 1px 7px !important; line-height: 1.1875 !important; }
+  #page1 .permit-textarea:not(.other-special-notes) { font-size: 10px !important; min-height: 25.5px !important; height: 25.5px !important; padding: 1.75px 5px !important; }
+  #page1 .yn-checkbox-wrap         { font-size: 8px !important; padding: 1px 4px 1px 3px !important; }
+  #page1 .other-special-notes      { page-break-inside: avoid !important; break-inside: avoid !important; }
+  #page1 input[type="checkbox"]    { width: 10px !important; height: 10px !important; min-width: 10px !important; }
+
+  /* PAGE 2 — match mobile table density */
+  #page2 .grid-section { margin-bottom: 1.5px !important; }
+  #page2 table.mat-table th,
+  #page2 table.mat-table td        { padding: 0.75px 1px !important; line-height: 1.15 !important; }
+  #page2 table.mat-table th        { font-size: 10px !important; }
+  #page2 table.mat-table td.row-label { padding: 0.75px 2px !important; }
+  #page2 .footer-fields            { margin-top: 0.975px !important; padding-top: 0.975px !important; font-size: 10.9px !important; }
+  #page2 .footer-row               { gap: 1px 8px !important; margin-bottom: 1.5px !important; }
+  #page2 .footer-field label       { font-size: 10.9px !important; }
+  #page2 .footer-field input[type="text"] {
+    font-size: 10.9px !important; height: auto !important; line-height: 1.0 !important;
+    vertical-align: bottom !important; padding-bottom: 1px !important; width: 45px !important;
+  }
+  #page2 .footer-field input.short { width: 32px !important; }
+  #page2 .footer-field input.wide  { width: 65px !important; }
+}
+
+/* -- body.printing:not(.mobile-printing) pre-capture selectors (desktop only) -- */
+
+body.printing:not(.mobile-printing) .page-wrapper {
+  padding: 0 !important;
+}
+body.printing:not(.mobile-printing) .logo-area img {
+  filter: none !important; -webkit-filter: none !important;
+  animation: none !important; -webkit-animation: none !important;
+}
+
+body.printing:not(.mobile-printing) #page1 .checklist-title          { font-size: 12px !important; padding-top: 3.75px !important; margin-bottom: 3.75px !important; }
+body.printing:not(.mobile-printing) #page1 .permit-section           { margin-bottom: 2.75px !important; }
+body.printing:not(.mobile-printing) #page1 .permit-section-header    { font-size: 11px !important; margin: 1.75px 0 1px !important; }
+body.printing:not(.mobile-printing) #page1 .permit-row               { font-size: 10px !important; padding: 0.75px 0 !important; margin-bottom: 0 !important; gap: 1px 7px !important; line-height: 1.1875 !important; }
+body.printing:not(.mobile-printing) #page1 .permit-row label         { font-size: 10px !important; }
+body.printing:not(.mobile-printing) #page1 .permit-input             { font-size: 10px !important; padding: 0.75px 4px !important; line-height: 1.275 !important; }
+body.printing:not(.mobile-printing) #page1 .permit-note              { font-size: 8.5px !important; margin: 0.75px 0 !important; padding: 0.75px 0 1px 7px !important; line-height: 1.1875 !important; }
+body.printing:not(.mobile-printing) #page1 .permit-textarea:not(.other-special-notes) { font-size: 10px !important; min-height: 25.5px !important; height: 25.5px !important; padding: 1.75px 5px !important; }
+body.printing:not(.mobile-printing) #page1 .yn-checkbox-wrap         { font-size: 8px !important; padding: 1px 4px 1px 3px !important; }
+body.printing:not(.mobile-printing) #page1 input[type="checkbox"]    { width: 10px !important; height: 10px !important; min-width: 10px !important; }
+
+body.printing:not(.mobile-printing) #page2 .grid-section             { margin-bottom: 1.5px !important; }
+body.printing:not(.mobile-printing) #page2 .footer-fields            { margin-top: 0.975px !important; padding-top: 0.975px !important; }
+body.printing:not(.mobile-printing) #page2 .footer-row               { gap: 1px 8px !important; margin-bottom: 1.5px !important; }
+body.printing:not(.mobile-printing) #page2 .footer-field label       { font-size: 10.9px !important; }
+body.printing:not(.mobile-printing) #page2 .footer-field input[type="text"] {
+  font-size: 10.9px !important; height: auto !important; padding-bottom: 1px !important; width: 45px !important;
+}
+body.printing:not(.mobile-printing) #page2 .footer-field input.short { width: 32px !important; }
+body.printing:not(.mobile-printing) #page2 .footer-field input.wide  { width: 65px !important; }
+/* end desktop print tightening */
 
 
 
@@ -992,7 +1077,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 /* ===== MOBILE TABLE VIEW — SCREEN ONLY (max-width: 767px) =====
    Shows real tables directly on mobile with compact styling.
    ============================================================ */
-@media screen and (max-width: 1200px) {
+@media screen and (max-width: 767px) {
 
   /* Show real tables and footer on mobile */
   #page2 .grid-section { display: block !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; margin-bottom: 10px !important; }
@@ -1720,7 +1805,7 @@ function getPrintDevice() {
   // Width-based fallback: a narrow viewport means the user is filling out the
   // mobile layout, so they need the mobile-print styling regardless of UA.
   // This fixes desktop-devtools mobile emulation and any UA that doesn't match.
-  const narrow = window.matchMedia && window.matchMedia('screen and (max-width: 1200px)').matches;
+  const narrow = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
   if (isMobileUA || (narrow && !isIpad)) return 'mobile';
   if (isIpad)   return 'ipad';
   return 'desktop';
@@ -1839,7 +1924,7 @@ function openPrintPreview() {
   // Apply print styles directly to the DOM so Safari's preview renderer sees
   // the correct layout — not the screen layout. body.printing triggers the same
   // rules as @media print; body.printing.mobile-printing adds the mobile overrides.
-  const isMobilePrint = window.matchMedia && window.matchMedia('screen and (max-width: 1200px)').matches;
+  const isMobilePrint = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
   document.body.classList.add('printing');
   if (isMobilePrint) document.body.classList.add('mobile-printing');
 
@@ -2319,7 +2404,7 @@ function buildMobileAccordions() {
 }
 
 function initMobileAccordions() {
-  if (window.matchMedia && window.matchMedia('screen and (max-width: 1200px)').matches) {
+  if (window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches) {
     buildMobileAccordions();
   }
 }
