@@ -1518,6 +1518,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 <p class="notice">📱 iPhone: press &amp; hold images to save &nbsp;|&nbsp; 🤖 Android: images download to gallery</p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 // ===== THEME =====
 const THEME_KEY = 'aog_forms_theme_preference';
@@ -1808,97 +1809,103 @@ const MOBILE_PRINT_CSS = `
 const IPAD_PRINT_CSS = ``;
 
 function openPrintPreview() {
-  const log = [];
-  log.push(`<strong>STEP 1 — Start</strong>`);
-  log.push(`Device: ${getPrintDevice()}`);
-  log.push(`Dark mode before: ${document.body.classList.contains('dark-mode')}`);
-
-  setStatus('Opening print preview…');
-  const wasDark = document.body.classList.contains('dark-mode');
-  if (wasDark) { document.body.classList.remove('dark-mode'); log.push(`Dark mode removed ✓`); }
-  const bar  = document.querySelector('.action-bar');
-  const note = document.querySelector('.notice');
-  if (bar)  bar.style.display  = 'none';
-  if (note) note.style.display = 'none';
-  log.push(`Action bar hidden ✓`);
-
-  log.push(`\n<strong>STEP 2 — Device detection</strong>`);
   const device = getPrintDevice();
-  log.push(`Detected: ${device}`);
-  log.push(`UA: ${navigator.userAgent}`);
-  log.push(`Screen: ${window.screen.width}×${window.screen.height} | Window: ${window.innerWidth}×${window.innerHeight} | Touch: ${navigator.maxTouchPoints}`);
+  // Desktop browsers print CSS correctly — keep the native path there.
+  if (device === 'desktop') {
+    const bar  = document.querySelector('.action-bar');
+    const note = document.querySelector('.notice');
+    const wasDark = document.body.classList.contains('dark-mode');
+    if (wasDark) document.body.classList.remove('dark-mode');
+    if (bar)  bar.style.display  = 'none';
+    if (note) note.style.display = 'none';
+    window.print();
+    if (bar)  bar.style.display  = '';
+    if (note) note.style.display = '';
+    if (wasDark) document.body.classList.add('dark-mode');
+    return;
+  }
+  // Mobile / iPad: Safari ignores @media print sizing and paginates unpredictably,
+  // so we render each .form-page to a canvas at fixed desktop width and assemble a
+  // real PDF ourselves. This is the same proven capture path the iPhone/Android
+  // image buttons use.
+  generatePDF();
+}
 
-  log.push(`\n<strong>STEP 3 — CSS injection</strong>`);
-  let injected = null;
-  if (device === 'mobile' && MOBILE_PRINT_CSS) {
-    injected = document.createElement('style');
-    injected.id = 'device-print-css';
-    injected.textContent = MOBILE_PRINT_CSS;
-    document.head.appendChild(injected);
-    document.body.classList.add('mobile-print');
-    log.push(`mobile-print class added ✓`);
-    log.push(`Style injected into <head> ✓`);
-    log.push(`Style tag id: ${injected.id}`);
-    log.push(`mobile-print on body: ${document.body.classList.contains('mobile-print')}`);
-  } else if (device === 'ipad' && IPAD_PRINT_CSS) {
-    injected = document.createElement('style');
-    injected.id = 'device-print-css';
-    injected.textContent = IPAD_PRINT_CSS;
-    document.head.appendChild(injected);
-    document.body.classList.add('ipad-print');
-    log.push(`ipad-print class added ✓`);
-    log.push(`Style injected ✓`);
-  } else {
-    log.push(`No injection — desktop base @media print used`);
+// Build a true multi-page PDF from canvas renders of each .form-page.
+function generatePDF() {
+  const jspdfNS = window.jspdf || window.jsPDF;
+  const JsPDF = jspdfNS && (jspdfNS.jsPDF || jspdfNS);
+  if (typeof html2canvas !== 'function' || !JsPDF) {
+    setStatus('PDF tools still loading — try again in a moment.');
+    setTimeout(() => setStatus(''), 3000);
+    return;
   }
 
-  log.push(`\n<strong>STEP 3.5 — Computed styles snapshot</strong>`);
-  const snap = [
-    ['body', 'zoom'],
-    ['.page-wrapper', 'zoom'],
-    ['#page1 .logo-text', 'fontSize'],
-    ['#page1 .checklist-title', 'fontSize'],
-    ['#page1 .permit-section-header', 'fontSize'],
-    ['#page1 .permit-row', 'fontSize'],
-    ['#page1 .permit-input', 'fontSize'],
-    ['#page1 .permit-note', 'fontSize'],
-    ['#page1 .yn-checkbox-wrap', 'fontSize'],
-    ['#page1 input[type="checkbox"]', 'width'],
-    ['#page2 table.mat-table th', 'fontSize'],
-    ['#page2 table.mat-table td', 'fontSize'],
-    ['#page2 #fittings-table td', 'fontSize'],
-    ['#page2 .footer-field label', 'fontSize'],
-    ['#page2', 'pageBreakBefore'],
-    ['#page1', 'pageBreakAfter'],
-  ];
-  snap.forEach(([sel, prop]) => {
+  setStatus('Building PDF, please wait…');
+  const pages = Array.from(document.querySelectorAll('.form-page'));
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+
+  // Use the existing capture overrides so tables/inputs render fully and legibly.
+  showRealTablesForCapture();
+  const restoreLayout = forceDesktopLayout();
+
+  // US Letter portrait, points (72pt/in): 612 x 792.
+  const pdf = new JsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+
+  function cleanup() {
+    hideRealTablesAfterCapture();
+    restoreLayout();
+    if (wasDark) document.body.classList.add('dark-mode');
+  }
+
+  // Render pages sequentially so html2canvas doesn't fight over layout.
+  (async () => {
     try {
-      const el = document.querySelector(sel);
-      if (el) {
-        const val = window.getComputedStyle(el)[prop];
-        log.push(`  ${sel} → ${prop}: <strong style="color:#FBBF24">${val}</strong>`);
-      } else {
-        log.push(`  ${sel} → NOT FOUND`);
+      for (let i = 0; i < pages.length; i++) {
+        setStatus(`Building PDF… page ${i + 1} of ${pages.length}`);
+        const canvas = await html2canvas(pages[i], {
+          scale: 2, useCORS: true, backgroundColor: '#fff',
+          logging: false, width: 1050, windowWidth: 1050
+        });
+        const imgData = canvas.toDataURL('image/jpeg', 0.9);
+        // Scale image to fit the full page width, preserving aspect ratio.
+        const imgW = pageW;
+        const imgH = canvas.height * (pageW / canvas.width);
+        if (i > 0) pdf.addPage();
+        // If a page is taller than one sheet, fit it to height instead so it
+        // never spills onto an extra sheet.
+        if (imgH > pageH) {
+          const fitH = pageH;
+          const fitW = canvas.width * (pageH / canvas.height);
+          pdf.addImage(imgData, 'JPEG', (pageW - fitW) / 2, 0, fitW, fitH);
+        } else {
+          pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH);
+        }
       }
-    } catch(e) { log.push(`  ${sel} → ERROR: ${e.message}`); }
-  });
-
-  log.push(`\n<strong>STEP 4 — window.print() called</strong>`);
-
-  window.print();
-
-  log.push(`window.print() returned ✓`);
-  log.push(`\n<strong>STEP 5 — Cleanup</strong>`);
-  document.body.classList.remove('mobile-print', 'ipad-print');
-  log.push(`mobile-print class removed ✓`);
-  if (injected) { injected.remove(); log.push(`Injected style removed ✓`); }
-  if (bar)  bar.style.display  = '';
-  if (note) note.style.display = '';
-  if (wasDark) { document.body.classList.add('dark-mode'); log.push(`Dark mode restored ✓`); }
-  setStatus('');
-
-  log.push(`\n<strong>DONE</strong>`);
-  showPrintDebugLog(log);
+      cleanup();
+      const fname = 'AlwaysOn_Generators_Permitting_Info.pdf';
+      // On iOS, open in a new tab/blob so the user can use the share sheet / save to Files.
+      const isiOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+                    (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+      if (isiOS) {
+        const blob = pdf.output('blob');
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setStatus('PDF opened — tap the share icon to Save to Files or Print.');
+      } else {
+        pdf.save(fname);
+        setStatus('PDF saved to your downloads.');
+      }
+      setTimeout(() => setStatus(''), 6000);
+    } catch (err) {
+      cleanup();
+      setStatus('PDF error: ' + (err && err.message ? err.message : 'unknown'));
+      setTimeout(() => setStatus(''), 6000);
+    }
+  })();
 }
 
 
