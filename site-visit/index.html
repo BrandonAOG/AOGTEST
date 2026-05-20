@@ -991,6 +991,10 @@ body.dark-mode .notice { color: #7DD3FC; }
 
 @media print and (min-width: 768px) {
 
+  /* Top padding — match iPhone Safari spacing on both pages */
+  #page1 { padding-top: 0.15in !important; }
+  #page2 { padding-top: 0.15in !important; box-sizing: border-box !important; }
+
   /* PAGE 1 — tighten to match mobile Safari output */
   #page1 .checklist-title          { font-size: 12px !important; padding-top: 3.75px !important; margin-bottom: 3.75px !important; }
   #page1 .permit-section           { margin-bottom: 2.75px !important; }
@@ -1895,6 +1899,8 @@ function openPrintPreview() {
     if (status) status.style.display = '';
     if (wasDark) document.body.classList.add('dark-mode');
     document.body.classList.remove('printing', 'mobile-printing');
+    // Restore the wrapper's top padding that we cleared before printing.
+    if (wrapper) wrapper.style.paddingTop = origWrapperPaddingTop;
     window.removeEventListener('afterprint', restore);
     if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
   }
@@ -1932,10 +1938,20 @@ function openPrintPreview() {
   const wrapper = document.querySelector('.page-wrapper');
   if (wrapper) void wrapper.offsetHeight;     // force reflow of the printed content
 
+  // On desktop the wrapper has a JS-set inline paddingTop equal to the action-bar
+  // height. Inline styles beat @media print rules without !important, so it shows
+  // up as a blank gap at the top of every printed page. Clear it before printing
+  // and restore it once the dialog closes (via afterprint → restore()).
+  const origWrapperPaddingTop = wrapper ? wrapper.style.paddingTop : '';
+  if (wrapper && !isMobilePrint) wrapper.style.paddingTop = '0';
+
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       window.print();
-      document.body.classList.remove('printing', 'mobile-printing');
+      // Do NOT remove body.printing here — Chrome's print renderer captures the
+      // DOM asynchronously after window.print() returns, so removing the class
+      // here means it's already gone by the time the preview renders.
+      // restore() fires on afterprint and cleans up when the dialog actually closes.
       document.body.style.maxWidth = origMaxWidth;
       document.body.style.width    = origWidth;
     });
