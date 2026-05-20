@@ -562,6 +562,28 @@ body.dark-mode .notice { color: #7DD3FC; }
     color-adjust: exact !important;
   }
 
+  /* Force light-mode CSS variables — Safari fires the print renderer before JS
+     can strip the dark-mode class, so the navy --bg/--panel values leak in as a
+     dark bar unless we override the variables themselves here. */
+  html, body, body.dark-mode {
+    --bg: #FFFFFF !important;
+    --bg2: #FFFFFF !important;
+    --bg3: #F8F8F8 !important;
+    --bg4: #F0F0F0 !important;
+    --panel: #FFFFFF !important;
+    --panel2: #FAFAFA !important;
+    --border: rgba(217,119,6,0.25) !important;
+    --border-bright: rgba(217,119,6,0.5) !important;
+    --text: #1F2937 !important;
+    --text-muted: #6B7280 !important;
+    --text-dim: #9CA3AF !important;
+    --cyan: #D97706 !important;
+    --cyan-dim: #B45309 !important;
+    --cyan-dark: #92400E !important;
+    --glow: none !important;
+    --glow-amber: none !important;
+  }
+
   /* Force light mode — never print in dark */
   body, body.dark-mode {
     background: #ffffff !important;
@@ -874,26 +896,18 @@ body.dark-mode .notice { color: #7DD3FC; }
 
   @page { size: 8.5in 11in; margin: 0.15in; }
 
-  /* ---- PAGE 1: compress to fit one sheet (matches the working sibling page's
-     density: ~9-10px fonts, tight margins). Without this, page 1 overflows
-     onto a second sheet on phones. ---- */
-  /* Proportional shrink as a safety net so the whole page fits one sheet even
-     if content runs long. Origin top-left so it stays anchored. */
-  #page1 {
-    transform: scale(0.75) !important;
-    transform-origin: top left !important;
-    width: 133% !important;
-  }
-  #page1 .checklist-title { font-size: 14px !important; padding-top: 6px !important; margin-bottom: 4px !important; }
-  #page1 .permit-section { margin-bottom: 4px !important; }
-  #page1 .permit-section-header { font-size: 10px !important; margin: 2px 0 1px !important; }
-  #page1 .permit-row { font-size: 9px !important; padding: 1px 0 !important; margin-bottom: 0 !important; gap: 1px 6px !important; line-height: 1.15 !important; }
-  #page1 .permit-row label { font-size: 9px !important; }
-  #page1 .permit-input { font-size: 9px !important; padding: 0 3px !important; line-height: 1.3 !important; }
-  #page1 .permit-note { font-size: 8px !important; margin: 1px 0 !important; padding: 1px 0 1px 6px !important; line-height: 1.2 !important; }
-  #page1 .permit-textarea { font-size: 9px !important; min-height: 26px !important; height: 26px !important; padding: 2px 4px !important; }
-  #page1 .yn-checkbox-wrap { font-size: 7px !important; padding: 1px 3px 1px 2px !important; }
-  #page1 input[type="checkbox"] { width: 9px !important; height: 9px !important; min-width: 9px !important; }
+  /* ---- PAGE 1: sized to fill one sheet at comfortable, readable proportions.
+     Tuned to use the whole page without spilling to a second sheet. ---- */
+  #page1 .checklist-title { font-size: 16px !important; padding-top: 6px !important; margin-bottom: 6px !important; }
+  #page1 .permit-section { margin-bottom: 6px !important; }
+  #page1 .permit-section-header { font-size: 11px !important; margin: 4px 0 2px !important; }
+  #page1 .permit-row { font-size: 10px !important; padding: 2px 0 !important; margin-bottom: 0 !important; gap: 2px 7px !important; line-height: 1.25 !important; }
+  #page1 .permit-row label { font-size: 10px !important; }
+  #page1 .permit-input { font-size: 10px !important; padding: 1px 4px !important; line-height: 1.35 !important; }
+  #page1 .permit-note { font-size: 8.5px !important; margin: 1px 0 !important; padding: 1px 0 1px 7px !important; line-height: 1.25 !important; }
+  #page1 .permit-textarea { font-size: 10px !important; min-height: 30px !important; height: 30px !important; padding: 2px 5px !important; }
+  #page1 .yn-checkbox-wrap { font-size: 8px !important; padding: 1px 4px 1px 3px !important; }
+  #page1 input[type="checkbox"] { width: 10px !important; height: 10px !important; min-width: 10px !important; }
 
   #page2 .grid-section { margin-bottom: 2px !important; }
 
