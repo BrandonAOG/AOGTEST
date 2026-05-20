@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#D97706">
+<title>Always On Generators – Permitting Info Request</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="AOG Checklist">
-<link rel="manifest" href="../manifest.json">
-<link rel="apple-touch-icon" href="../icons/icon-192.png">
-<title>Always On Generators – Electrical Installation Forms</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
 
 <style>
 :root {
@@ -74,7 +74,7 @@ body.dark-mode {
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { width: 100%; height: 100%; overflow-x: clip; }
+html { width: 100%; height: 100%; overflow-x: hidden; }
 
 body {
   font-family: Arial, sans-serif;
@@ -86,24 +86,21 @@ body {
   padding: 0;
   padding-bottom: env(safe-area-inset-bottom, 24px);
   -webkit-text-size-adjust: 100%;
-  overflow-x: clip;
+  overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
   min-height: 100vh;
 }
 
-@media screen {
 body.dark-mode {
   background: linear-gradient(135deg, #0A0E27 0%, #0F1535 25%, #0A1628 50%, #0F1535 75%, #0A0E27 100%);
+  background-attachment: fixed;
   background-size: 400% 400%;
 }
-}
 
-/* ===== ACTION BAR — fixed at top, always visible ===== */
+/* ===== STICKY ACTION BAR ===== */
 .action-bar {
   position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
   z-index: 99999;
   width: 100%;
   background: var(--panel); padding: 4px 8px;
@@ -113,56 +110,37 @@ body.dark-mode {
   border-bottom: 1px solid var(--border-bright);
   transition: background-color 0.3s ease; box-sizing: border-box;
 }
+@media (max-width: 480px) { .action-bar { padding: 4px 4px; gap: 3px; } }
+@media (max-width: 360px) { .action-bar { padding: 4px 2px; gap: 2px; } }
 
-.action-bar .btn {
-  padding: 6px 8px;
-  font-size: 10px;
-  flex: 1;
-  min-width: 0;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.action-bar .theme-toggle-btn {
-  flex-shrink: 0;
-}
-
-/* Shrink button text on small phones */
-@media (max-width: 480px) {
-  .action-bar { padding: 4px 4px; gap: 3px; }
-  .action-bar .btn { padding: 6px 4px; font-size: 9px; }
-}
-
-/* Very small screens — hide emoji, keep text */
-@media (max-width: 360px) {
-  .action-bar .btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; }
-}
-
-@media (max-width: 768px) { .action-bar { padding: 4px 6px; gap: 4px; } }
-
-@media screen {
 body.dark-mode .action-bar {
   background: linear-gradient(90deg, rgba(15,21,53,0.9) 0%, rgba(26,40,71,0.8) 50%, rgba(15,21,53,0.9) 100%);
   border-bottom-color: rgba(0,255,200,0.25);
   box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(0,255,200,0.08);
 }
-}
 
 .btn {
-  padding: 9px 18px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
   border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.05);
   border-radius: 0; cursor: pointer; transition: all 0.15s ease;
   font-family: Arial, sans-serif; color: var(--cyan); text-transform: uppercase;
   clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-  white-space: nowrap; flex-shrink: 0;
+  white-space: nowrap; flex: 1; min-width: 0; text-align: center;
+  display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden; text-overflow: ellipsis;
 }
-@media (max-width: 640px) { .btn { padding: 8px 14px; font-size: 9px; } }
-body.dark-mode .btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.25); color: #00FFC8; text-shadow: 0 0 4px rgba(0,255,200,0.3); }
+@media (max-width: 480px) { .btn { padding: 6px 4px; font-size: 9px; } }
+@media (max-width: 360px) { .btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; } }
+body.dark-mode .btn {
+  background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.25);
+  color: #00FFC8; text-shadow: 0 0 4px rgba(0,255,200,0.3);
+}
 .btn:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow); transform: translateY(-1px); }
-body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00FFC8; box-shadow: 0 0 12px rgba(0,255,200,0.25); text-shadow: 0 0 8px rgba(0,255,200,0.6); }
+body.dark-mode .btn:hover {
+  background: rgba(0,255,200,0.12); border-color: #00FFC8;
+  box-shadow: 0 0 12px rgba(0,255,200,0.25); text-shadow: 0 0 8px rgba(0,255,200,0.6);
+}
 .btn:active { transform: translateY(0); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
@@ -174,9 +152,16 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
   flex-shrink: 0; z-index: 100;
 }
-body.dark-mode .theme-toggle-btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.2); color: #00FFC8; }
-.theme-toggle-btn:hover { border-color: var(--cyan); background: rgba(217,119,6,0.1); box-shadow: var(--glow); transform: scale(1.08); }
-body.dark-mode .theme-toggle-btn:hover { background: rgba(0,255,200,0.12); border-color: #00FFC8; transform: scale(1.1); }
+body.dark-mode .theme-toggle-btn {
+  background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.2); color: #00FFC8;
+}
+.theme-toggle-btn:hover {
+  border-color: var(--cyan); background: rgba(217,119,6,0.1);
+  box-shadow: var(--glow); transform: scale(1.08);
+}
+body.dark-mode .theme-toggle-btn:hover {
+  background: rgba(0,255,200,0.12); border-color: #00FFC8; transform: scale(1.1);
+}
 .theme-toggle-btn:active { transform: scale(0.95); }
 
 .theme-icon {
@@ -189,59 +174,67 @@ body.dark-mode .theme-icon { opacity: 0; transform: rotate(-180deg); }
 body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg); }
 
 #save-status {
-  color: var(--text-muted); font-size: 10px; min-height: 16px;
+  color: var(--text-muted); font-size: 11px; min-height: 16px;
   text-align: center; transition: color 0.3s ease; width: 100%; font-family: Arial, sans-serif;
 }
-@media (max-width: 640px) { #save-status { font-size: 9px; } }
+@media (max-width: 640px) { #save-status { font-size: 10px; } }
 body.dark-mode #save-status { color: #7DD3FC; }
 
-.page-wrapper { width: 100%; max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 0; padding: 0; padding-top: 44px; }
+.page-wrapper {
+  width: 100%; max-width: 1050px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 0; padding: 0;
+}
 
 .form-page {
   width: 100%; max-width: 1050px; background: var(--panel);
   padding: 24px; box-sizing: border-box; transition: all 0.3s ease;
   font-family: Arial, sans-serif; display: flex; flex-direction: column;
+  border: 1.5px solid #D97706;
 }
 @media (max-width: 768px) { .form-page { padding: 16px; } }
 @media (max-width: 480px) { .form-page { padding: 12px; } }
-@media screen {
 body.dark-mode .form-page {
   background: linear-gradient(135deg, rgba(15,21,53,0.95) 0%, rgba(10,14,39,0.98) 100%);
   box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15);
-}
+  border-color: #00FFC8;
 }
 
 input[type="text"], input[type="email"], input[type="tel"],
 input[type="date"], input[type="number"], textarea, select {
   font-family: Arial, sans-serif; font-size: 11px; color: var(--text);
-  background: var(--panel); border: none; border-bottom: 1px solid rgba(217,119,6,0.25);
+  background: var(--panel); border: none;
+  border-bottom: 1px solid rgba(217,119,6,0.25);
   padding: 2px 4px; outline: none; width: 100%;
   transition: all 0.2s; -webkit-appearance: none; appearance: none;
   caret-color: var(--cyan); max-width: 100%;
 }
-@media (max-width: 480px) { input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea, select { font-size: 10px; padding: 2px 3px; } }
-@media screen {
-body.dark-mode input[type="text"], body.dark-mode input[type="email"], body.dark-mode input[type="tel"],
-body.dark-mode input[type="date"], body.dark-mode input[type="number"], body.dark-mode textarea, body.dark-mode select {
+@media (max-width: 480px) {
+  input[type="text"], input[type="email"], input[type="tel"],
+  input[type="date"], input[type="number"], textarea, select {
+    font-size: 10px; padding: 2px 3px;
+  }
+}
+body.dark-mode input[type="text"], body.dark-mode input[type="email"],
+body.dark-mode input[type="tel"], body.dark-mode input[type="date"],
+body.dark-mode input[type="number"], body.dark-mode textarea, body.dark-mode select {
   background: rgba(10,14,39,0.6); border-bottom-color: rgba(0,255,200,0.2);
   color: #E0F7FF; caret-color: #00FFC8; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
 }
-}
 input::placeholder, textarea::placeholder { color: var(--text-dim) !important; opacity: 1; }
-body.dark-mode input::placeholder, body.dark-mode textarea::placeholder { color: rgba(125,211,252,0.4) !important; }
-
+body.dark-mode input::placeholder, body.dark-mode textarea::placeholder {
+  color: rgba(125,211,252,0.4) !important;
+}
 input[type="text"]:focus, input[type="email"]:focus, input[type="tel"]:focus,
 input[type="date"]:focus, input[type="number"]:focus, textarea:focus, select:focus {
   border-bottom-color: var(--cyan); background: rgba(217,119,6,0.04);
   box-shadow: 0 2px 0 0 rgba(217,119,6,0.3);
 }
-@media screen {
 body.dark-mode input[type="text"]:focus, body.dark-mode input[type="email"]:focus,
 body.dark-mode input[type="tel"]:focus, body.dark-mode input[type="date"]:focus,
-body.dark-mode input[type="number"]:focus, body.dark-mode textarea:focus, body.dark-mode select:focus {
+body.dark-mode input[type="number"]:focus, body.dark-mode textarea:focus,
+body.dark-mode select:focus {
   border-bottom-color: #00FFC8; background: rgba(26,40,71,0.8);
   box-shadow: inset 0 0 12px rgba(0,255,200,0.1), 0 0 12px rgba(0,255,200,0.2);
-}
 }
 
 input[type="checkbox"] {
@@ -273,7 +266,10 @@ body.dark-mode input[type="checkbox"] { border-color: #00FFC8; }
 body.dark-mode input[type="checkbox"]:checked { background: #00FFC8; border-color: #00FFC8; }
 body.dark-mode input[type="checkbox"]:checked::after { border-color: #000; }
 
-textarea { resize: vertical; border: 1px solid rgba(217,119,6,0.2); padding: 6px; min-height: 40px; font-family: Arial, sans-serif; }
+textarea {
+  resize: vertical; border: 1px solid rgba(217,119,6,0.2);
+  padding: 6px; min-height: 40px; font-family: Arial, sans-serif;
+}
 body.dark-mode textarea { border-color: rgba(0,255,200,0.15); }
 textarea:focus { border-color: var(--cyan); box-shadow: 0 0 8px rgba(217,119,6,0.1); }
 body.dark-mode textarea:focus { border-color: #00FFC8; box-shadow: 0 0 8px rgba(0,255,200,0.2); }
@@ -283,26 +279,24 @@ body.dark-mode textarea:focus { border-color: #00FFC8; box-shadow: 0 0 8px rgba(
   display: inline-flex; align-items: center; gap: 3px; cursor: pointer;
   padding: 2px 6px 2px 3px; border-radius: 3px; font-size: 10px; font-weight: bold;
   border: 1px solid transparent; transition: background 0.15s, border-color 0.15s;
-  vertical-align: middle; user-select: none; white-space: nowrap; flex-shrink: 0; font-family: Arial, sans-serif;
-  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-  min-height: 32px; min-width: 44px; justify-content: center;
+  vertical-align: middle; user-select: none; white-space: nowrap;
+  flex-shrink: 0; font-family: Arial, sans-serif;
 }
 @media (max-width: 480px) { .yn-checkbox-wrap { font-size: 9px; padding: 1px 4px 1px 2px; } }
 .yn-checkbox-wrap.yn-yes { border-color: #bbb; }
-.yn-checkbox-wrap.yn-no { border-color: #bbb; }
+.yn-checkbox-wrap.yn-no  { border-color: #bbb; }
 .yn-checkbox-wrap.yn-yes.checked { background: #059669; border-color: #047857; color: #fff; }
-.yn-checkbox-wrap.yn-no.checked { background: #DC2626; border-color: #b91c1c; color: #fff; }
+.yn-checkbox-wrap.yn-no.checked  { background: #DC2626; border-color: #b91c1c; color: #fff; }
 .yn-checkbox-wrap.yn-opt { border-color: #bbb; }
 .yn-checkbox-wrap.yn-opt.checked { background: #D97706; border-color: #b45309; color: #fff; }
-
-/* Safari: invert the native checkbox to white when inside a colored checked pill */
-/* yn-checkbox-wrap checked — white checkmark via ::after already set above */
 .yn-checkbox-wrap.checked input[type="checkbox"]:checked::after { border-color: #000; }
 body.dark-mode .yn-checkbox-wrap { border-color: rgba(0,255,200,0.3); }
 body.dark-mode .yn-checkbox-wrap.checked { border-color: rgba(0,255,200,0.5); }
 
-/* ===== GRID & TABLE — PAGE 2 ===== */
-.grid-section { margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* ===== GRID & TABLE — PAGE 2 SCREEN ===== */
+.grid-section {
+  margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
 
 table.mat-table {
   border-collapse: collapse; width: 100%; min-width: 100%;
@@ -314,13 +308,22 @@ table.mat-table th, table.mat-table td {
   border: 1px solid #555; padding: 3px 3px; text-align: center;
   height: auto; min-height: 20px; word-break: break-word; font-family: Arial, sans-serif;
 }
-@media (max-width: 480px) { table.mat-table th, table.mat-table td { padding: 2px 2px; min-height: 18px; } }
+@media (max-width: 480px) {
+  table.mat-table th, table.mat-table td { padding: 2px 2px; min-height: 18px; }
+}
 
-table.mat-table th { background: #4B5563; color: #FFFFFF; font-weight: bold; font-size: 9px; }
+table.mat-table th {
+  background: #4B5563;
+  color: #FFFFFF;
+  font-weight: bold;
+  font-size: 9px;
+}
 @media (max-width: 480px) { table.mat-table th { font-size: 8px; } }
-@media screen {
 body.dark-mode table.mat-table th { background: #1E3A5F; color: #00FFC8; }
-body.dark-mode table.mat-table td { border-color: rgba(0,255,200,0.2); background: rgba(15,21,53,0.6); color: #E0F7FF; }
+body.dark-mode table.mat-table td {
+  border-color: rgba(0,255,200,0.2);
+  background: rgba(15,21,53,0.6);
+  color: #E0F7FF;
 }
 
 table.mat-table td.row-label {
@@ -328,74 +331,70 @@ table.mat-table td.row-label {
   font-size: 9px; min-width: 100px; font-family: Arial, sans-serif;
   white-space: normal; word-break: break-word; line-height: 1.3;
 }
-@media (max-width: 480px) { table.mat-table td.row-label { font-size: 8px; min-width: 80px; } }
-@media screen {
-body.dark-mode table.mat-table td.row-label { background: rgba(36,52,88,0.6); color: #E0F7FF; }
+@media (max-width: 480px) {
+  table.mat-table td.row-label { font-size: 8px; min-width: 80px; }
+}
+body.dark-mode table.mat-table td.row-label {
+  background: rgba(36,52,88,0.6); color: #E0F7FF;
 }
 
-#fittings-table td.row-label { font-size: 10px; min-width: 130px; }
-#fittings-table tr.repeat-header th { background: #374151; color: #fff; font-size: 9px; padding: 3px 2px; text-align: center; border: 1px solid #4B5563; }
-#fittings-table tr.repeat-header th.row-label { background: #374151; }
-body.dark-mode #fittings-table tr.repeat-header th { background: #1E3A5F; color: #00FFC8; border-color: rgba(0,255,200,0.2); }
+#fittings-table td.row-label { font-size: 10px; min-width: 0; }
 #wireway-table  td.row-label { font-size: 10px; min-width: 110px; }
 #polaris-table  td.row-label { font-size: 10px; min-width: 110px; }
-@media screen {
+
 body.dark-mode #fittings-table td.row-label,
 body.dark-mode #wireway-table  td.row-label,
-body.dark-mode #polaris-table  td.row-label { background: rgba(36,52,88,0.6); color: #E0F7FF; }
+body.dark-mode #polaris-table  td.row-label {
+  background: rgba(36,52,88,0.6); color: #E0F7FF;
 }
 
-table.mat-table td {
-  vertical-align: middle;
-  overflow: visible;
-}
 table.mat-table td input[type="text"] {
   width: 100%; height: 18px; border: none; border-bottom: none;
-  text-align: center; font-size: 9px; padding: 0;
-  line-height: 18px; vertical-align: middle;
-  background: transparent; color: var(--text); font-family: Arial, sans-serif;
-  display: block; box-sizing: border-box;
+  text-align: center; font-size: 10px; padding: 0;
+  line-height: 18px; background: transparent; color: var(--text); font-family: Arial, sans-serif;
+  display: block; box-sizing: border-box; overflow: visible;
 }
-@media (max-width: 480px) { table.mat-table td input[type="text"] { font-size: 8px; } }
-@media screen {
+@media (max-width: 480px) { table.mat-table td input[type="text"] { font-size: 9px; } }
 body.dark-mode table.mat-table td input[type="text"] { color: #E0F7FF; }
-}
-
-/* ===== REMOVE BUTTON ===== */
-.ts-remove-btn { background: #DC2626; color: #fff; border: none; border-radius: 3px; font-size: 9px; padding: 4px 8px; cursor: pointer; font-family: Arial, sans-serif; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
-.ts-remove-btn:hover { background: #b91c1c; }
-
-/* ===== ADD BUTTON ===== */
-.add-ts-btn {
-  display: inline-flex; align-items: center; gap: 5px; background: #059669; color: #fff;
-  border: none; border-radius: 3px; font-size: 11px; font-weight: bold; padding: 6px 12px;
-  cursor: pointer; font-family: Arial, sans-serif; margin-top: 4px; margin-bottom: 8px;
-  transition: background 0.15s; white-space: nowrap; flex-shrink: 0;
-}
-.add-ts-btn:hover { background: #047857; }
-body.dark-mode .add-ts-btn { background: #10B981; }
-body.dark-mode .add-ts-btn:hover { background: #059669; }
 
 /* ===== FOOTER FIELDS ===== */
-.footer-fields { margin-top: 20px; padding-top: 10px; border-top: 1px solid rgba(217,119,6,0.2); font-size: 11px; width: 100%; overflow-x: hidden; font-family: Arial, sans-serif; }
+.footer-fields {
+  margin-top: 20px; padding-top: 10px;
+  border-top: 1px solid rgba(217,119,6,0.2);
+  font-size: 11px; width: 100%; overflow-x: hidden; font-family: Arial, sans-serif;
+}
 body.dark-mode .footer-fields { border-top-color: rgba(0,255,200,0.15); }
-.footer-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 8px; width: 100%; }
-.footer-field { display: flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0; min-width: fit-content; }
-.footer-field label { font-weight: bold; font-size: 10px; white-space: nowrap; color: var(--text); flex-shrink: 0; font-family: Arial, sans-serif; }
+@media (max-width: 480px) { .footer-fields { font-size: 10px; } }
+
+.footer-row {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  align-items: flex-end; margin-bottom: 8px; width: 100%;
+}
+@media (max-width: 768px) { .footer-row { gap: 8px; } }
+@media (max-width: 480px) { .footer-row { gap: 6px; margin-bottom: 6px; } }
+
+.footer-field {
+  display: flex; align-items: center; gap: 4px;
+  white-space: nowrap; flex-shrink: 0; min-width: fit-content;
+}
+.footer-field label {
+  font-weight: bold; font-size: 10px; white-space: nowrap;
+  color: var(--text); flex-shrink: 0; font-family: Arial, sans-serif;
+}
+@media (max-width: 480px) { .footer-field label { font-size: 9px; } }
 body.dark-mode .footer-field label { color: #E0F7FF; }
 .footer-field input[type="text"] { width: 90px; min-width: 60px; height: 24px; line-height: 24px; box-sizing: border-box; overflow: visible; }
+@media (max-width: 480px) { .footer-field input[type="text"] { width: 70px; } }
 .footer-field input.wide  { width: 130px; min-width: 100px; }
+@media (max-width: 480px) { .footer-field input.wide  { width: 100px; } }
 .footer-field input.short { width: 60px;  min-width: 45px; }
+@media (max-width: 480px) { .footer-field input.short { width: 50px; } }
 
-/* ===== PAGE 1 ===== */
+/* ===== PAGE 1 PERMITTING STYLES ===== */
 .page1-header { text-align: center; margin-bottom: 14px; }
-.logo-area {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 16px; justify-content: center; flex-wrap: wrap;
-}
+
+
 .logo-area img {
-  width: 42px;
-  height: 42px;
   object-fit: contain;
   filter:
     drop-shadow(0 0 12px rgba(217,119,6,0.6))
@@ -438,62 +437,122 @@ body.dark-mode .logo-area img {
       brightness(1.2);
   }
 }
-.checklist-title { font-weight: bold; font-size: 18px; border-top: 2px solid var(--text); padding-top: 10px; margin-bottom: 16px; color: var(--text); font-family: Arial, sans-serif; }
-body.dark-mode .checklist-title { border-top-color: #00FFC8; color: #00FFC8; }
-.logo-text { font-family: 'Arial Black', sans-serif; font-size: 16px; line-height: 1; color: #D97706; white-space: nowrap; }
-.logo-text span { color: #D97706; }
-.logo-always { color: #111111 !important; }
-.logo-generators { color: #111111 !important; }
-body.dark-mode .logo-always { color: #ffffff !important; }
-body.dark-mode .logo-generators { color: #ffffff !important; }
-.logo-text span.logo-on { color: #D97706 !important; }
-.top-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-bottom: 12px; width: 100%; }
-@media (max-width: 600px) { .top-fields { grid-template-columns: 1fr; gap: 6px; } }
-.field-row { display: flex; align-items: flex-end; gap: 6px; width: 100%; min-width: 0; font-family: Arial, sans-serif; }
-.field-row label { font-weight: bold; white-space: nowrap; font-size: 12px; color: var(--text); flex-shrink: 0; font-family: Arial, sans-serif; }
-body.dark-mode .field-row label { color: #E0F7FF; }
-.field-row input[type="text"] { flex: 1; min-width: 0; font-size: 14px; padding: 4px 4px; }
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; width: 100%; }
-@media (max-width: 700px) { .two-col { grid-template-columns: 1fr; gap: 8px; } }
-.section { margin-bottom: 14px; width: 100%; }
-.section-title { font-weight: bold; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; color: #D97706; font-family: Arial, sans-serif; padding-bottom: 4px; border-bottom: 1px solid rgba(217,119,6,0.2); }
-body.dark-mode .section-title { color: #00FFC8; border-bottom-color: rgba(0,255,200,0.2); }
-.section-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin-bottom: 8px; font-size: 13px; line-height: 1.6; width: 100%; font-family: Arial, sans-serif; }
-@media (max-width: 480px) { .section-row { font-size: 12px; gap: 4px 6px; margin-bottom: 6px; } }
-.section-row label { color: var(--text); flex-shrink: 0; font-family: Arial, sans-serif; }
-body.dark-mode .section-row label { color: #E0F7FF; }
-.inline-input { display: inline-block; border: none; border-bottom: 1.5px solid var(--text); outline: none; font-size: 13px; font-family: Arial, sans-serif; background: transparent; padding: 2px 4px; width: 100px; color: var(--text); flex-shrink: 0; max-width: 100%; min-height: 28px; }
-body.dark-mode .inline-input { border-bottom-color: #00FFC8; color: #E0F7FF; }
-.inline-input.short { width: 70px; }
-.inline-input.xshort { width: 56px; }
-.inline-input.long { width: 160px; }
-.textarea-field { width: 100%; border: 1px solid rgba(217,119,6,0.2); resize: vertical; font-family: Arial, sans-serif; font-size: 13px; padding: 8px; min-height: 60px; outline: none; background: var(--panel); color: var(--text); transition: all 0.3s ease; max-width: 100%; border-radius: 3px; }
-body.dark-mode .textarea-field { border-color: rgba(0,255,200,0.15); background: rgba(10,14,39,0.6); color: #E0F7FF; }
-.textarea-field:focus { border-color: var(--cyan); }
-body.dark-mode .textarea-field:focus { border-color: #00FFC8; }
-hr.section-hr { border: none; border-top: 1px solid rgba(217,119,6,0.15); margin: 10px 0; }
-body.dark-mode hr.section-hr { border-top-color: rgba(0,255,200,0.15); }
 
-/* ===== TRANSFER SWITCH ===== */
-.ts-container { margin-bottom: 0; width: 100%; }
-.ts-block { border: 1px solid rgba(217,119,6,0.2); border-radius: 4px; margin-bottom: 10px; overflow: hidden; transition: all 0.3s ease; width: 100%; }
-body.dark-mode .ts-block { border-color: rgba(0,255,200,0.15); background: rgba(26,40,71,0.5); }
-.ts-header { display: flex; align-items: center; justify-content: space-between; background: #f0f0f0; padding: 10px 12px; cursor: pointer; user-select: none; transition: background 0.3s ease; gap: 8px; flex-wrap: wrap; font-family: Arial, sans-serif; }
-body.dark-mode .ts-header { background: rgba(36,52,88,0.7); }
-.ts-header-left { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 13px; text-transform: uppercase; color: var(--text); flex-shrink: 0; min-width: 0; font-family: Arial, sans-serif; }
-body.dark-mode .ts-header-left { color: #00FFC8; }
-.ts-toggle { font-size: 13px; color: var(--text-muted); transition: transform 0.2s; flex-shrink: 0; }
-body.dark-mode .ts-toggle { color: #7DD3FC; }
-.ts-toggle.collapsed { transform: rotate(-90deg); }
-.ts-body { padding: 10px 12px 8px; background: var(--panel); width: 100%; overflow-x: hidden; font-family: Arial, sans-serif; }
-body.dark-mode .ts-body { background: transparent; }
-.ts-body.hidden { display: none; }
-.notice { text-align: center; font-size: 11px; color: var(--text-muted); margin: 20px 16px 40px; max-width: 100%; font-family: Arial, sans-serif; }
+.logo-area {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 16px; justify-content: center; flex-wrap: wrap;
+}
+@media (max-width: 480px) { .logo-area { gap: 8px; margin-bottom: 12px; } }
+
+.checklist-title {
+  font-weight: bold; font-size: 22px;
+  border-top: 2px solid var(--text); padding-top: 12px;
+  margin-bottom: 18px; color: var(--text);
+  font-family: Arial, sans-serif; letter-spacing: 1px;
+}
+@media (max-width: 768px) { .checklist-title { font-size: 18px; margin-bottom: 14px; } }
+@media (max-width: 480px) { .checklist-title { font-size: 16px; margin-bottom: 12px; } }
+body.dark-mode .checklist-title { border-top-color: #00FFC8; color: #00FFC8; }
+
+.logo-text {
+  font-family: 'Arial Black', sans-serif; font-size: 16px;
+  line-height: 1; color: #111; white-space: nowrap;
+}
+@media (max-width: 480px) { .logo-text { font-size: 12px; } }
+.logo-text .logo-on { color: #D97706; }
+.logo-text .logo-generators { color: #111; font-size: 10px; font-family: Arial, sans-serif; letter-spacing: 1px; }
+body.dark-mode .logo-text { color: #fff; }
+body.dark-mode .logo-text .logo-on { color: #D97706; }
+body.dark-mode .logo-text .logo-generators { color: #fff; }
+
+.permit-section { margin-bottom: 14px; width: 100%; }
+
+.permit-row {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 6px 10px; margin-bottom: 10px;
+  font-size: 12px; line-height: 1.6; width: 100%; font-family: Arial, sans-serif;
+}
+@media (max-width: 480px) { .permit-row { font-size: 11px; gap: 4px 6px; margin-bottom: 8px; } }
+.permit-row label { white-space: nowrap; color: var(--text); flex-shrink: 0; font-weight: 600; }
+body.dark-mode .permit-row label { color: #E0F7FF; }
+
+.permit-input {
+  display: inline-block; border: none;
+  border-bottom: 1px solid var(--text); outline: none;
+  font-size: 12px; font-family: Arial, sans-serif;
+  background: transparent; padding: 2px 4px;
+  color: var(--text); flex-shrink: 0; max-width: 100%; transition: all 0.2s;
+  height: 22px; line-height: 22px; box-sizing: border-box; overflow: visible;
+}
+@media (max-width: 480px) { .permit-input { font-size: 11px; } }
+.permit-input.flex-grow { flex: 1 1 200px; min-width: 100px; }
+.permit-row-column { flex-direction: column !important; align-items: flex-start !important; }
+.permit-row-column .permit-input { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; flex: none !important; }
+.permit-input.w-full    { flex: 1 1 100%; width: 100%; }
+.permit-input.short     { width: 80px; }
+@media (max-width: 480px) { .permit-input.short { width: 60px; } }
+.permit-input.medium    { width: 130px; }
+@media (max-width: 480px) { .permit-input.medium { width: 100px; } }
+.permit-input.long      { width: 220px; }
+@media (max-width: 480px) { .permit-input.long { width: 160px; } }
+body.dark-mode .permit-input { border-bottom-color: rgba(0,255,200,0.4); color: #E0F7FF; }
+.permit-input:focus {
+  border-bottom-color: var(--cyan); background: rgba(217,119,6,0.04);
+  box-shadow: 0 2px 0 0 rgba(217,119,6,0.2);
+}
+body.dark-mode .permit-input:focus {
+  border-bottom-color: #00FFC8; background: rgba(26,40,71,0.4);
+  box-shadow: 0 2px 0 0 rgba(0,255,200,0.4);
+}
+
+.permit-textarea {
+  width: 100%; border: 1px solid rgba(217,119,6,0.25);
+  resize: vertical; font-family: Arial, sans-serif; font-size: 12px;
+  padding: 6px 8px; min-height: 50px; outline: none;
+  background: var(--panel); color: var(--text); transition: all 0.3s ease;
+  max-width: 100%; border-radius: 2px;
+}
+@media (max-width: 480px) { .permit-textarea { font-size: 11px; padding: 4px 6px; } }
+body.dark-mode .permit-textarea {
+  border-color: rgba(0,255,200,0.2); background: rgba(10,14,39,0.6); color: #E0F7FF;
+}
+.permit-textarea:focus { border-color: var(--cyan); box-shadow: 0 0 8px rgba(217,119,6,0.15); }
+body.dark-mode .permit-textarea:focus {
+  border-color: #00FFC8; box-shadow: 0 0 8px rgba(0,255,200,0.25);
+}
+
+.permit-note {
+  font-size: 11px; color: var(--text-muted); font-style: italic;
+  margin: 6px 0 10px; border-left: 3px solid rgba(217,119,6,0.4);
+  padding: 4px 0 4px 10px; font-family: Arial, sans-serif;
+}
+@media (max-width: 480px) { .permit-note { font-size: 10px; } }
+body.dark-mode .permit-note { color: #7DD3FC; border-left-color: rgba(0,255,200,0.5); }
+
+.permit-divider { border: none; border-top: 1px solid rgba(217,119,6,0.2); margin: 12px 0; }
+body.dark-mode .permit-divider { border-top-color: rgba(0,255,200,0.15); }
+
+.permit-section-header {
+  font-weight: bold; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--cyan);
+  margin: 14px 0 8px; padding-bottom: 4px;
+  border-bottom: 1px solid rgba(217,119,6,0.3); font-family: Arial, sans-serif;
+}
+@media (max-width: 480px) { .permit-section-header { font-size: 11px; margin: 10px 0 6px; } }
+body.dark-mode .permit-section-header {
+  color: #00FFC8; border-bottom-color: rgba(0,255,200,0.3);
+  text-shadow: 0 0 4px rgba(0,255,200,0.3);
+}
+
+.notice {
+  text-align: center; font-size: 11px; color: var(--text-muted);
+  margin: 20px 16px 40px; max-width: 100%; font-family: Arial, sans-serif;
+}
+@media (max-width: 480px) { .notice { font-size: 10px; margin: 16px 12px 30px; } }
 body.dark-mode .notice { color: #7DD3FC; }
 
 /* ==========================================================
-   PRINT STYLES — exact copy from doc9 (proven working)
-   + page2-inner scale for desktop page-fill
+   PRINT STYLES — desktop (untouched from original)
    ========================================================== */
 @media print {
 
@@ -503,323 +562,366 @@ body.dark-mode .notice { color: #7DD3FC; }
     color-adjust: exact !important;
   }
 
-  /* Always show real tables and hide mobile UI on print, regardless of screen width */
-  #mobile-p2-accordions { display: none !important; }
-  #page2 .grid-section  { display: block !important; overflow: visible !important; }
-  #page2 .footer-fields { display: block !important; }
-
-  @page { size: 8.5in 11in; margin: 0.2in; }
-
-  /* Force light-mode CSS variables for Safari, which fires the print
-     renderer before JS can strip the dark-mode class from <body> */
-  html, body, body.dark-mode {
-    --bg: #FFFFFF !important;
-    --bg2: #FFFFFF !important;
-    --bg3: #F8F8F8 !important;
-    --bg4: #F0F0F0 !important;
-    --panel: #FFFFFF !important;
-    --panel2: #FAFAFA !important;
-    --border: rgba(217,119,6,0.25) !important;
-    --border-bright: rgba(217,119,6,0.5) !important;
-    --text: #1F2937 !important;
-    --text-muted: #6B7280 !important;
-    --text-dim: #9CA3AF !important;
-    --cyan: #D97706 !important;
-    --cyan-dim: #B45309 !important;
-    --cyan-dark: #92400E !important;
-    --glow: none !important;
-    --glow-amber: none !important;
-  }
-
-  html, body {
-    margin: 0 !important; padding: 0 !important;
-    width: 100% !important; max-width: 100% !important;
-    background: #fff !important; color: #1F2937 !important;
-    overflow: visible !important;
-  }
-
-  /* Kill dark-mode gradient background on body */
-  body.dark-mode {
-    background: #fff !important;
-    background-image: none !important;
-    background-attachment: initial !important;
-  }
-
-  .action-bar, .theme-toggle-btn, .notice { display: none !important; }
-
-  /* Neutralise any dark-mode element backgrounds that don't use CSS vars */
-  body.dark-mode .action-bar,
-  body.dark-mode .form-page,
-  body.dark-mode .page-wrapper,
-  body.dark-mode .ts-header,
-  body.dark-mode .ts-body,
-  body.dark-mode .ts-block,
-  body.dark-mode table.mat-table td,
-  body.dark-mode table.mat-table td.row-label {
+  /* Force light mode — never print in dark */
+  body, body.dark-mode {
     background: #ffffff !important;
-    background-image: none !important;
+    color: #1F2937 !important;
+  }
+  body.dark-mode .form-page,
+  body.dark-mode #page1,
+  body.dark-mode #page2 {
+    background: #ffffff !important;
     color: #1F2937 !important;
     box-shadow: none !important;
-    border-color: transparent !important;
   }
-  body.dark-mode input[type="text"],
-  body.dark-mode input[type="email"],
-  body.dark-mode input[type="tel"],
-  body.dark-mode input[type="date"],
-  body.dark-mode input[type="number"],
-  body.dark-mode textarea,
-  body.dark-mode select,
-  body.dark-mode .textarea-field,
-  body.dark-mode .inline-input {
+  body.dark-mode input, body.dark-mode textarea, body.dark-mode select {
     background: #ffffff !important;
-    background-color: #ffffff !important;
-    background-image: none !important;
     color: #1F2937 !important;
-    border-color: transparent !important;
-    border-bottom-color: #333 !important;
-    -webkit-text-fill-color: #1F2937 !important;
-    color-scheme: light !important;
-    -webkit-box-shadow: inset 0 0 0 1000px #ffffff !important;
-    box-shadow: inset 0 0 0 1000px #ffffff !important;
+    border-color: #333 !important;
+    box-shadow: none !important;
+  }
+  body.dark-mode table.mat-table td {
+    background: #ffffff !important;
+    color: #1F2937 !important;
+    border-color: #333 !important;
   }
   body.dark-mode table.mat-table th {
     background: #4B5563 !important;
     color: #ffffff !important;
   }
-  body.dark-mode .yn-checkbox-wrap { border-color: #bbb !important; color: #1F2937 !important; background: transparent !important; }
-  body.dark-mode .yn-checkbox-wrap.yn-yes.checked { background: #059669 !important; color: #fff !important; }
-  body.dark-mode .yn-checkbox-wrap.yn-no.checked  { background: #DC2626 !important; color: #fff !important; }
-  body.dark-mode .yn-checkbox-wrap.yn-opt.checked { background: #D97706 !important; color: #fff !important; }
+  body.dark-mode table.mat-table td.row-label {
+    background: #f0f0f0 !important;
+    color: #1F2937 !important;
+  }
+  body.dark-mode .permit-section-header { color: #D97706 !important; }
+  body.dark-mode .permit-row, body.dark-mode .permit-row label { color: #1F2937 !important; }
+  body.dark-mode .permit-input, body.dark-mode .permit-textarea { color: #1F2937 !important; background: #ffffff !important; }
+  body.dark-mode .checklist-title { color: #1F2937 !important; border-top-color: #1F2937 !important; }
+  body.dark-mode .permit-note { color: #1F2937 !important; border-left-color: #1F2937 !important; }
+  body.dark-mode .footer-field label { color: #1F2937 !important; }
+  body.dark-mode .logo-text { color: #111 !important; }
+  body.dark-mode .logo-text .logo-generators { color: #111 !important; }
 
-  .page-wrapper { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+  @page { size: 8.5in 11in; margin: 0.2in; }
+
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; max-width: 100%;
+    background: #ffffff; color: #1F2937;
+    overflow: visible; -webkit-text-size-adjust: 100%;
+  }
+
+  .action-bar, .theme-toggle-btn, .notice { display: none !important; }
+
+  .page-wrapper {
+    display: block; width: 100%;
+    max-width: 100%; margin: 0; padding: 0;
+  }
 
   .form-page {
-    display: block !important;
-    width: 100% !important;
-    background: #fff !important;
-    color: #1F2937 !important;
-    box-shadow: none !important;
-    border: none !important;
-    overflow: visible !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    background: #ffffff;
+    color: #1F2937;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    box-shadow: none;
+    border: none;
+    overflow: visible;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    page-break-after: always;
+    break-after: page;
   }
 
-  .form-page:last-child { page-break-after: auto !important; break-after: auto !important; }
-
-  /* ── NUCLEAR: force every element white — catches all hardcoded dark-mode colours ── */
-  /* Exclude form fields so the input-specific rule below can apply the inset shadow trick */
-  .form-page *:not(input):not(textarea):not(select) {
-    background-color: #ffffff !important;
-    background-image: none !important;
-    color: #1F2937 !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-  }
-  .form-page input, .form-page textarea, .form-page select {
-    background-image: none !important;
-    color: #1F2937 !important;
-    text-shadow: none !important;
+  .form-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
   }
 
-  /* ── Fix grey input boxes on mobile (iOS/Android dark-mode system styling) ── */
-  .form-page input[type="text"],
-  .form-page input[type="email"],
-  .form-page input[type="tel"],
-  .form-page input[type="date"],
-  .form-page input[type="number"],
-  .form-page textarea,
-  .form-page select,
-  input[type="text"], input[type="email"], input[type="tel"],
-  input[type="date"], input[type="number"], textarea, select {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-    background-image: none !important;
-    color: #1F2937 !important;
-    -webkit-appearance: none !important;
-    appearance: none !important;
-    -webkit-text-fill-color: #1F2937 !important;
-    opacity: 1 !important;
-    /* Force white background on mobile browsers that inject system grey */
-    color-scheme: light !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    /* Override any UA/autofill grey via inset box-shadow trick */
-    -webkit-box-shadow: inset 0 0 0 1000px #ffffff !important;
-    box-shadow: inset 0 0 0 1000px #ffffff !important;
+  #page1 {
+    height: auto;
+    min-height: 0;
+    display: block;
   }
-  /* Restore intentional non-white backgrounds */
-  #page1 .ts-header                       { background-color: #f0f0f0 !important; }
-  #page2 table.mat-table th              { background-color: #4B5563 !important; color: #ffffff !important; }
-  #page2 table.mat-table td.row-label    { background-color: #f0f0f0 !important; color: #1F2937 !important; }
-  #page1 .yn-checkbox-wrap.yn-yes.checked { background-color: #059669 !important; color: #fff !important; }
-  #page1 .yn-checkbox-wrap.yn-no.checked  { background-color: #DC2626 !important; color: #fff !important; }
-  #page1 .yn-checkbox-wrap.yn-opt.checked { background-color: #D97706 !important; color: #fff !important; }
 
-  /* ── PAGE 1 ── */
-  #page1 *:not(input):not(textarea):not(select) { color: #1F2937 !important; box-shadow: none !important; border-color: #555 !important; }
-  #page1 input, #page1 textarea, #page1 select { color: #1F2937 !important; border-color: #555 !important; }
-  #page1 .checklist-title { border-top-color: #1F2937 !important; font-size: 15px !important; color: #1F2937 !important; }
-  #page1 .section-title { font-size: 10px !important; color: #D97706 !important; border-bottom-color: rgba(217,119,6,0.3) !important; }
-  #page1 .logo-text { color: #D97706 !important; }
-  #page1 .logo-on { color: #D97706 !important; }
-  #page1 .logo-always, #page1 span.logo-always { color: #111111 !important; }
-  #page1 .logo-generators, #page1 span.logo-generators { color: #111111 !important; }
-  #page1 .section-title { font-size: 10px !important; }
-  #page1 .section-row { font-size: 9px !important; margin-bottom: 2px !important; }
-  #page1 .field-row label { font-size: 10px !important; }
-  #page1 .field-row input[type="text"] { font-size: 10px !important; }
-  #page1 .inline-input { font-size: 9px !important; border-bottom-color: #1F2937 !important; }
-  #page1 .top-fields { margin-bottom: 6px !important; gap: 2px 8px !important; grid-template-columns: 1fr 1fr !important; }
-  #page1 .two-col { grid-template-columns: 1fr 1fr !important; gap: 6px 12px !important; }
-  #page1 .section { margin-bottom: 6px !important; }
-  #page1 hr.section-hr { margin: 4px 0 !important; border-top-color: #ccc !important; }
-  #page1 .ts-header { background: #f0f0f0 !important; padding: 3px 6px !important; }
-  #page1 .ts-header-left { font-size: 9px !important; color: #1F2937 !important; }
-  #page1 .ts-body { padding: 3px 6px !important; }
-  #page1 .ts-toggle { color: #555 !important; }
-  #page1 .ts-block { border-color: #bbb !important; margin-bottom: 4px !important; }
-  #page1 .add-ts-btn { display: none !important; }
-  #page1 .ts-remove-btn { display: none !important; }
-  #page1 .textarea-field { border-color: #aaa !important; min-height: 30px !important; font-size: 9px !important; }
-  #page1 .yn-checkbox-wrap { border-color: #bbb !important; font-size: 8px !important; padding: 1px 3px !important; min-height: 0 !important; min-width: 0 !important; }
-  #page1 .yn-checkbox-wrap.yn-yes.checked { background: #059669 !important; color: #fff !important; }
-  #page1 .yn-checkbox-wrap.yn-no.checked  { background: #DC2626 !important; color: #fff !important; }
-  #page1 .yn-checkbox-wrap.yn-opt.checked { background: #D97706 !important; color: #fff !important; }
-  input[type="checkbox"] {
-    -webkit-appearance: none !important; appearance: none !important;
-    width: 10px !important; height: 10px !important; min-width: 10px !important;
-    border: 1.5px solid #D97706 !important; border-radius: 2px !important;
-    background: #fff !important; position: relative !important; display: inline-block !important;
+  #page1 .page1-header {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    text-align: center;
+  }
+  #page1 .logo-area { gap: 14px; margin-bottom: 12px; justify-content: center; }
+  #page1 .logo-area img { width: 50px; height: 50px; }
+  #page1 .logo-text { font-size: 24px; color: #111; line-height: 1.1; }
+
+  #page1 { border: 1.5px solid #D97706; padding: 0.15in; box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #page1 .checklist-title {
+    border-top: 2px solid #1F2937; color: #1F2937;
+    font-size: 16px; padding-top: 12px;
+    margin-bottom: 0; letter-spacing: 1.5px;
+  }
+
+  #page1 .permit-section {
+    flex: 0 0 auto;
+    display: block;
+    padding: 0;
+    margin-bottom: 10px;
+  }
+
+  #page1 .permit-section-header {
+    color: #1F2937; border-bottom: 1px solid #1F2937;
+    font-size: 11px; font-weight: bold;
+    text-shadow: none; margin: 0;
+    padding-bottom: 0; letter-spacing: 0.8px;
+  }
+
+  #page1 .permit-row {
+    font-size: 10px; line-height: 1.2;
+    margin-bottom: 0; gap: 2px 8px;
+    padding: 2px 0;
+  }
+  #page1 .permit-row:last-child { margin-bottom: 0; }
+  #page1 .permit-section-header { color: #D97706; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #page1 .checklist-title { color: #1F2937; }
+  #page1 .permit-row-column { flex-direction: column; align-items: flex-start; width: 100%; }
+  #page1 .permit-row-column .permit-input { width: 100%; max-width: 100%; box-sizing: border-box; display: block; flex: none; }
+  #page1 .permit-row label { color: #1F2937; font-weight: 600; font-size: 10px; }
+
+  #page1 .permit-input {
+    border-bottom: 1px solid #1F2937; color: #1F2937;
+    background: #ffffff; font-size: 10px;
+    padding: 1px 4px; min-height: 0;
+    height: auto; line-height: 1.4;
+  }
+  #page1 .permit-input.short     { width: 90px; }
+  #page1 .permit-input.medium    { width: 145px; }
+  #page1 .permit-input.flex-grow { flex: 1 1 220px; min-width: 200px; }
+  #page1 .permit-input.w-full    { width: 100%; flex: 1 1 100%; }
+  #page1 .permit-row-column .permit-input.w-full { flex: none; display: block; width: 100%; height: 16px; min-height: 0; }
+
+  #page1 .permit-textarea {
+    border: 1px solid #555; background: #ffffff;
+    color: #1F2937; font-size: 10px;
+    min-height: 60px; height: auto;
+    padding: 3px 8px; width: 100%; resize: none;
+  }
+
+  #page1 .permit-note {
+    color: #1F2937; border-left: 2px solid #1F2937;
+    font-size: 9px; font-style: italic;
+    padding: 2px 0 2px 8px; margin: 3px 0; line-height: 1.3;
+  }
+
+  #page1 .permit-divider { display: none !important; }
+
+  #page1 .yn-checkbox-wrap {
+    font-size: 8px; padding: 2px 6px 2px 3px;
+    border: 1px solid #999; color: #1F2937;
+    background: transparent;
+  }
+  #page1 .yn-checkbox-wrap.checked          { color: #ffffff; }
+  #page1 .yn-checkbox-wrap.yn-yes.checked   { background: #059669; border-color: #047857; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #page1 .yn-checkbox-wrap.yn-no.checked    { background: #DC2626; border-color: #b91c1c; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #page1 .yn-checkbox-wrap.yn-opt.checked   { background: #D97706; border-color: #b45309; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #page1 input[type="checkbox"] {
+    -webkit-appearance: none; appearance: none;
+    width: 12px; height: 12px; min-width: 12px;
+    border: 1.5px solid #D97706; border-radius: 2px;
+    background: #fff; position: relative; display: inline-block;
+    vertical-align: middle; margin: 1px 3px 1px 0;
+    overflow: visible;
     -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
-  input[type="checkbox"]:checked {
-    background: #D97706 !important; border-color: #D97706 !important;
+  #page1 input[type="checkbox"]:checked {
+    background: #D97706; border-color: #D97706;
     -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
-  input[type="checkbox"]:checked::after {
-    content: '' !important; position: absolute !important;
-    left: 1px !important; top: -2px !important;
-    width: 4px !important; height: 7px !important;
-    border: 2px solid #000 !important; border-top: none !important; border-left: none !important;
-    transform: rotate(45deg) !important; display: block !important;
+  #page1 input[type="checkbox"]:checked::after {
+    content: ''; display: block; position: absolute;
+    left: 1px; top: -2px;
+    width: 4px; height: 7px;
+    border: 2px solid #000; border-top: none; border-left: none;
+    transform: rotate(45deg); -webkit-transform: rotate(45deg);
   }
-  .yn-checkbox-wrap.checked input[type="checkbox"]:checked::after { border-color: #000 !important; }
 
-  /* ── PAGE 2 ── */
-  #page2 { page-break-before: always !important; break-before: page !important; }
+  .repeat-header { display: none !important; }
+  .no-print { display: none !important; }
+  #mobile-p2-accordions { display: none !important; }
+  #page2 .grid-section { display: block !important; overflow: visible; }
+  #page2 .footer-fields { display: block !important; }
 
-  /* Scale page2-inner to fill the print page on desktop.
-     On mobile Safari this wrapper is ignored — the proven-working
-     doc9 base CSS handles mobile layout without it. */
+  #page2 { page-break-before: always; break-before: page; }
+
   #page2-inner {
-    display: block !important;
-    width: 7.4in !important;
-    transform-origin: top left !important;
-    transform: scale(1.081) !important;
+    display: block;
+    width: 100%;
+    transform-origin: top left;
+    transform: none;
   }
 
-  #page2 .grid-section { margin-bottom: 3px !important; overflow: visible !important; }
+  #page2 .grid-section { margin-bottom: 3px; overflow: visible; }
 
-  #page2 table.mat-table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; }
+  #page2 table.mat-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 
   #page2 table.mat-table th,
   #page2 table.mat-table td {
-    border: 1px solid #333 !important;
-    padding: 2px 2px !important;
-    text-align: center !important;
-    height: auto !important;
-    min-height: 0 !important;
-    line-height: 1.2 !important;
-    overflow: hidden !important;
-    word-break: break-word !important;
-    vertical-align: middle !important;
-    white-space: normal !important;
-    font-size: 10px !important;
+    border: 1px solid #333;
+    padding: 2px 2px;
+    text-align: center;
+    height: auto;
+    min-height: 0;
+    line-height: 1.2;
+    overflow: hidden;
+    word-break: break-word;
+    vertical-align: middle;
+    white-space: normal;
+    font-size: 11px;
   }
 
   #page2 table.mat-table th {
-    background: #4B5563 !important;
-    color: #FFFFFF !important;
-    font-weight: bold !important;
-    font-size: 10px !important;
+    background: #4B5563;
+    color: #FFFFFF;
+    font-weight: bold;
+    font-size: 11px;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  #page2 table.mat-table td { background: #ffffff !important; color: #1F2937 !important; }
+  #page2 table.mat-table td { background: #ffffff; color: #1F2937; }
 
   #page2 table.mat-table td.row-label {
-    background: #f0f0f0 !important;
-    text-align: left !important;
-    font-weight: bold !important;
-    padding: 2px 3px !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    font-size: 10px !important;
-    line-height: 1.2 !important;
+    background: #f0f0f0;
+    text-align: left;
+    font-weight: bold;
+    padding: 2px 3px;
+    white-space: normal;
+    word-break: break-word;
+    font-size: 11px;
+    line-height: 1.2;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td.row-label { width: 68px !important; min-width: 0 !important; }
-  #page2 #fittings-table td.row-label { width: 100px !important; min-width: 0 !important; }
-  #page2 #wireway-table  td.row-label { width: 85px !important; min-width: 0 !important; }
-  #page2 #polaris-table  td.row-label { width: 85px !important; min-width: 0 !important; }
+  #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td.row-label { width: 68px; min-width: 0; }
+  #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) th,
+  #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td { font-size: 9px; }
+  #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td input[type="text"] { font-size: 9px; }
+  #page2 #fittings-table td.row-label { width: 100px; min-width: 0; white-space: normal; word-break: break-word; }
+  #page2 #wireway-table  td.row-label { width: 85px; min-width: 0; }
+  #page2 #wireway-table th,
+  #page2 #wireway-table td { font-size: 9px; }
+  #page2 #wireway-table td input[type="text"] { font-size: 9px; }
+  #page2 #polaris-table  td.row-label { width: 85px; min-width: 0; }
+  #page2 #polaris-table th,
+  #page2 #polaris-table td { font-size: 10px; }
+  #page2 #polaris-table td input[type="text"] { font-size: 10px; }
 
   #page2 table.mat-table td input[type="text"] {
-    width: 100% !important; border: none !important; background: transparent !important;
-    color: #1F2937 !important; padding: 0 !important; text-align: center !important;
-    height: auto !important; line-height: 1.2 !important; font-size: 10px !important;
-    display: block !important; box-sizing: border-box !important;
+    width: 100%; border: none; background: transparent;
+    color: #1F2937; padding: 0; text-align: center;
+    height: auto; line-height: 1.2; font-size: 11px;
+    display: block; box-sizing: border-box;
   }
   #page2 .ft-cell {
-    display: flex !important; align-items: center !important; gap: 1px !important;
+    display: flex; align-items: center; gap: 1px;
   }
   #page2 .ft-cell input[type="text"] {
-    height: auto !important; line-height: 1.2 !important;
+    height: auto; line-height: 1.2;
   }
 
-  #page2 .footer-fields { margin-top: 5px !important; padding-top: 4px !important; border-top: 1px solid #555 !important; font-size: 10px !important; }
-  #page2 .footer-row { display: flex !important; flex-wrap: wrap !important; gap: 2px 12px !important; margin-bottom: 3px !important; align-items: flex-end !important; }
-  #page2 .footer-field { display: inline-flex !important; align-items: flex-end !important; gap: 3px !important; white-space: nowrap !important; }
-  #page2 .footer-field label { font-size: 10px !important; font-weight: bold !important; color: #1F2937 !important; white-space: nowrap !important; }
-  #page2 .footer-field input[type="text"] { border: none !important; border-bottom: 1px solid #333 !important; background: transparent !important; color: #1F2937 !important; font-size: 10px !important; padding: 0 1px !important; height: auto !important; width: 60px !important; min-width: 0 !important; }
-  #page2 .footer-field input.short { width: 40px !important; }
-  #page2 .footer-field input.wide  { width: 90px !important; }
+  #page2 .footer-fields { margin-top: 14px; padding-top: 10px; border-top: 1px solid #555; font-size: 10px; }
+  #page2 .footer-row { display: flex; flex-wrap: wrap; gap: 1px 6px; margin-bottom: 4px; align-items: center; }
+  #page2 .footer-field { display: inline-flex; align-items: center; gap: 1px; white-space: nowrap; }
+  #page2 .footer-field label { font-size: 10px; font-weight: bold; color: #1F2937; white-space: nowrap; }
+  #page2 .footer-field input[type="text"] { border: none; border-bottom: 1px solid #333; background: transparent; color: #1F2937; font-size: 10px; padding: 0 1px; height: auto; width: 60px; min-width: 0; }
+  #page2 .footer-field input.short { width: 40px; }
+  #page2 .footer-field input.wide  { width: 90px; }
 
-  input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea, select {
-    background: #ffffff !important; background-color: #ffffff !important; color: #1F2937 !important;
-    border-color: transparent !important; border-bottom-color: #333 !important;
-    font-family: Arial, sans-serif !important;
-    -webkit-appearance: none !important; appearance: none !important;
-    -webkit-text-fill-color: #1F2937 !important; opacity: 1 !important;
-    color-scheme: light !important;
-    -webkit-box-shadow: inset 0 0 0 1000px #ffffff !important;
-    box-shadow: inset 0 0 0 1000px #ffffff !important;
+  input[type="text"], input[type="email"], input[type="tel"],
+  input[type="date"], input[type="number"], textarea, select {
+    background: #ffffff; color: #1F2937;
+    border-bottom-color: #333; border-color: #333;
+    font-family: Arial, sans-serif; box-shadow: none;
+    height: auto; line-height: 1.4;
   }
-  input[type="date"] { height: auto !important; line-height: 1.4 !important; padding: 1px 4px !important; min-height: 0 !important; }
-  input::placeholder, textarea::placeholder { color: transparent !important; }
-  .form-page *:not(input):not(textarea):not(select) { box-shadow: none !important; }
-  .logo-text { color: #D97706 !important; }
-  .logo-text span { color: #D97706 !important; }
-  .logo-on { color: #D97706 !important; }
-  .logo-always { color: #111111 !important; }
-  .logo-generators { color: #111111 !important; }
-  .logo-area img { filter: none !important; animation: none !important; }
+  input::placeholder, textarea::placeholder { color: transparent; }
+  .form-page * { box-shadow: none; }
+  .logo-text { color: #111; }
+  .logo-text .logo-on { color: #D97706; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .logo-text .logo-always { color: #111; }
+  .logo-text .logo-generators { color: #111; font-size: 16px; }
+  #page1 .logo-on, #page1 span.logo-on { color: #D97706; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+/* end @media print */
+
+/* ===== DESKTOP PRINT — locks in values with !important for desktop ===== */
+@media print {
+  body:not(.mobile-print) .form-page { page-break-after: always !important; break-after: page !important; }
+  body:not(.mobile-print) .form-page:last-child { page-break-after: auto !important; break-after: auto !important; }
+  body:not(.mobile-print) #page1 { border: 1.5px solid #D97706 !important; padding: 0.15in !important; box-sizing: border-box !important; }
+  body:not(.mobile-print) #page1 .logo-text { font-size: 24px !important; }
+  body:not(.mobile-print) .logo-text .logo-generators { font-size: 16px !important; }
+  body:not(.mobile-print) #page1 .checklist-title { font-size: 16px !important; }
+  body:not(.mobile-print) #page1 .permit-section-header { font-size: 11px !important; }
+  body:not(.mobile-print) #page1 .permit-row { font-size: 10px !important; padding: 2px 0 !important; }
+  body:not(.mobile-print) #page1 .permit-row label { font-size: 10px !important; }
+  body:not(.mobile-print) #page1 .permit-input { font-size: 10px !important; height: auto !important; line-height: 1.4 !important; }
+  body:not(.mobile-print) #page1 .permit-textarea { font-size: 10px !important; min-height: 60px !important; height: auto !important; resize: none !important; }
+  body:not(.mobile-print) #page1 .permit-section { margin-bottom: 4px !important; }
+  body:not(.mobile-print) #page1 .permit-divider { display: none !important; }
+  body:not(.mobile-print) #page1 .permit-section-header { margin: 2px 0 2px !important; }
+  body:not(.mobile-print) #page1 .permit-row { padding: 1px 0 !important; }
+  body:not(.mobile-print) #page1 .permit-note { font-size: 9px !important; }
+  body:not(.mobile-print) #page1 .yn-checkbox-wrap { font-size: 8px !important; }
+  body:not(.mobile-print) #page1 input[type="checkbox"] { width: 12px !important; height: 12px !important; }
+  body:not(.mobile-print) #page2 { page-break-before: always !important; break-before: page !important; }
+  body:not(.mobile-print) #page2 table.mat-table th,
+  body:not(.mobile-print) #page2 table.mat-table td { font-size: 11px !important; padding: 2px !important; line-height: 1.2 !important; border: 1px solid #333 !important; }
+  body:not(.mobile-print) #page2 table.mat-table th { background: #4B5563 !important; color: #fff !important; }
+  body:not(.mobile-print) #page2 table.mat-table td { background: #fff !important; color: #1F2937 !important; }
+  body:not(.mobile-print) #page2 table.mat-table td.row-label { background: #f0f0f0 !important; font-size: 11px !important; }
+  body:not(.mobile-print) #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td.row-label { width: 68px !important; }
+  body:not(.mobile-print) #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) th,
+  body:not(.mobile-print) #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td { font-size: 9px !important; }
+  body:not(.mobile-print) #page2 #fittings-table td.row-label { width: 100px !important; }
+  body:not(.mobile-print) #page2 #wireway-table td.row-label { width: 85px !important; }
+  body:not(.mobile-print) #page2 #wireway-table th,
+  body:not(.mobile-print) #page2 #wireway-table td { font-size: 9px !important; }
+  body:not(.mobile-print) #page2 #polaris-table td.row-label { width: 85px !important; }
+  body:not(.mobile-print) #page2 #polaris-table th,
+  body:not(.mobile-print) #page2 #polaris-table td { font-size: 10px !important; }
+  body:not(.mobile-print) #page2 table.mat-table td input[type="text"] { font-size: 11px !important; height: auto !important; line-height: 1.2 !important; }
+  body:not(.mobile-print) #page2 .footer-fields { margin-top: 14px !important; padding-top: 10px !important; font-size: 10px !important; }
+  body:not(.mobile-print) #page2 .footer-row { gap: 1px 6px !important; margin-bottom: 4px !important; }
+  body:not(.mobile-print) #page2 .footer-field label { font-size: 10px !important; }
+  body:not(.mobile-print) #page2 .footer-field input[type="text"] { font-size: 10px !important; width: 60px !important; }
+  body:not(.mobile-print) #page2 .footer-field input.short { width: 40px !important; }
+  body:not(.mobile-print) #page2 .footer-field input.wide { width: 90px !important; }
+  body:not(.mobile-print) input[type="text"], body:not(.mobile-print) textarea, body:not(.mobile-print) select { background: #ffffff !important; color: #1F2937 !important; height: auto !important; line-height: 1.4 !important; box-shadow: none !important; }
+  body:not(.mobile-print) input::placeholder, body:not(.mobile-print) textarea::placeholder { color: transparent !important; }
 }
 
-/* ===== MOBILE-ONLY PRINT RULES (max-width: 767px) =====
-   Desktop print above is untouched.
-   These rules tighten page 2 on mobile so the footer
-   stays on page 2 and doesn't spill to a 3rd page.
-   ===================================================== */
+
+
+
+
+/* ===== FT. LABEL IN WIRE TABLE CELLS ===== */
+.ft-cell {
+  display: flex; align-items: center; justify-content: center; gap: 1px; width: 100%;
+}
+.ft-cell input[type="text"] {
+  flex: 1; min-width: 0; text-align: right; border: none; border-bottom: none;
+  background: transparent; padding: 0; height: 18px; line-height: 18px; box-sizing: border-box;
+}
+.ft-label {
+  font-size: 8px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0;
+  line-height: 1; font-family: Arial, sans-serif;
+}
+body.dark-mode .ft-label { color: #7DD3FC; }
+
 /* ===== MOBILE TABLE VIEW — SCREEN ONLY (max-width: 767px) =====
    Shows real tables directly on mobile with compact styling.
    ============================================================ */
@@ -945,142 +1047,145 @@ body.dark-mode .notice { color: #7DD3FC; }
 
 }
 
-/* ===================================================================
-   PRINT — mobile-only tightening (unchanged from original)
-   =================================================================== */
-@media print and (max-width: 767px) {
+/* Mobile-only zoom — applied on screen so Safari carries it into print */
+@media screen and (max-width: 768px) {
+  body.mobile-print .page-wrapper { zoom: 0.87; }
+  /* Force exactly two sheets: page 1, then page 2. */
+  body.mobile-print .form-page { page-break-after: auto !important; break-after: auto !important; }
+  body.mobile-print #page1 { page-break-after: always !important; break-after: page !important; }
+  body.mobile-print #page2 { page-break-before: always !important; break-before: page !important; page-break-after: auto !important; break-after: auto !important; }
+  body.mobile-print #page1 .permit-section,
+  body.mobile-print #page2 .grid-section,
+  body.mobile-print #page2 table.mat-table,
+  body.mobile-print #page2 tr,
+  body.mobile-print #page2 .footer-fields { page-break-inside: avoid !important; break-inside: avoid !important; }
+  body.mobile-print #page1 .logo-text { font-size: 10px !important; }
+  body.mobile-print .logo-text .logo-generators { font-size: 9px !important; }
+  body.mobile-print #page1 .checklist-title { font-size: 9px !important; }
+  body.mobile-print #page1 .permit-section-header { font-size: 6px !important; }
+  body.mobile-print #page1 .permit-row { font-size: 5px !important; line-height: 1.2 !important; padding: 1px 0 !important; margin-bottom: 0 !important; }
+  body.mobile-print #page1 .permit-row label { font-size: 5px !important; }
+  body.mobile-print #page1 .permit-input { font-size: 5px !important; height: auto !important; }
+  body.mobile-print #page1 .permit-note { font-size: 5px !important; }
+  body.mobile-print #page1 .yn-checkbox-wrap { font-size: 5px !important; }
+  body.mobile-print #page1 input[type="checkbox"] { width: 5px !important; height: 5px !important; }
+  body.mobile-print #page1 .permit-section { margin-bottom: 3px !important; }
+  body.mobile-print #page1 .permit-textarea { font-size: 5px !important; height: 20px !important; min-height: 0 !important; }
 
-  @page { size: 8.5in 11in; margin: 0.15in; }
-
-  /* Tighten grid sections so everything fits */
-  #page2 .grid-section { margin-bottom: 2px !important; }
-
-  /* Smaller cell padding on mobile print */
-  #page2 table.mat-table th,
-  #page2 table.mat-table td {
-    padding: 1px 1px !important;
-    font-size: 11px !important;
-    line-height: 1.2 !important;
+  /* PAGE 2 — must ride the same screen path Safari carries into print.
+     Without these, page 2 prints at full screen size and overflows to extra sheets. */
+  body.mobile-print #mobile-p2-accordions { display: none !important; }
+  body.mobile-print #page2 .repeat-header { display: none !important; }
+  body.mobile-print #page2 .grid-section { margin-bottom: 2px !important; overflow: visible !important; }
+  body.mobile-print #page2 table.mat-table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
+  body.mobile-print #page2 table.mat-table th,
+  body.mobile-print #page2 table.mat-table td {
+    font-size: 4px !important; line-height: 1.05 !important; padding: 0.5px !important;
+    border: 0.4px solid #555 !important; text-align: center !important; word-break: break-word !important; overflow: hidden !important;
   }
-
-  #page2 table.mat-table th { font-size: 10px !important; }
-
-  #page2 table.mat-table td.row-label {
-    font-size: 11px !important;
-    padding: 1px 2px !important;
+  body.mobile-print #page2 table.mat-table td.row-label {
+    text-align: left !important; font-weight: bold !important; white-space: normal !important;
+    width: auto !important; padding: 0.5px 1.5px !important;
   }
-
-  #page2 table.mat-table td input[type="text"] { font-size: 9px !important; }
-  #page2 #fittings-table td.row-label { width: 125px !important; }
-  /* Tighten fittings/wireway/polaris row labels */
-  #page2 #fittings-table td.row-label { width: 125px !important; }
-  #page2 #wireway-table  td.row-label { width: 70px !important; }
-  #page2 #polaris-table  td.row-label { width: 70px !important; }
-
-  /* Compact footer */
-  #page2 .footer-fields {
-    margin-top: 1.3px !important;
-    padding-top: 1.3px !important;
-    font-size: 10.9px !important;
+  body.mobile-print #page2 table.mat-table td input[type="text"] {
+    font-size: 4px !important; height: auto !important; line-height: 1.05 !important;
+    width: 100% !important; min-width: 0 !important; text-align: center !important;
+    border: none !important; padding: 0 !important; background: transparent !important;
   }
-  #page2 .footer-row {
-    gap: 1px 8px !important;
-    margin-bottom: 2px !important;
+  body.mobile-print #page2 .ft-cell { gap: 0 !important; }
+  body.mobile-print #page2 .ft-label { font-size: 3px !important; }
+  body.mobile-print #page2 .footer-fields { margin-top: 4px !important; padding-top: 3px !important; }
+  body.mobile-print #page2 .footer-row { display: flex !important; flex-wrap: wrap !important; gap: 1px 6px !important; margin-bottom: 2px !important; }
+  body.mobile-print #page2 .footer-field { display: flex !important; align-items: center !important; gap: 2px !important; }
+  body.mobile-print #page2 .footer-field label { font-size: 5px !important; font-weight: bold !important; white-space: nowrap !important; }
+  body.mobile-print #page2 .footer-field input[type="text"] {
+    font-size: 5px !important; height: auto !important; width: 40px !important;
+    border: none !important; border-bottom: 0.5px solid #555 !important; border-radius: 0 !important;
+    background: transparent !important; padding: 0 2px !important;
   }
-  #page2 .footer-field label { font-size: 10.9px !important; }
-  #page2 .footer-field input[type="text"] {
-    font-size: 10.9px !important;
-    height: auto !important;
-    line-height: 1.0 !important;
-    vertical-align: bottom !important;
-    padding-bottom: 1px !important;
-    width: 45px !important;
-  }
-  #page2 .footer-field input.short { width: 32px !important; }
-  #page2 .footer-field input.wide  { width: 65px !important; }
+  body.mobile-print #page2 .footer-field input.short { width: 28px !important; }
+  body.mobile-print #page2 .footer-field input.wide { width: 60px !important; }
 }
 
-
-
-
-/* ===== FT. LABEL IN WIRE TABLE CELLS ===== */
-.ft-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  width: 100%;
-}
-.ft-cell input[type="text"] {
-  flex: 1;
-  min-width: 0;
-  text-align: right;
-  border: none;
-  border-bottom: none;
-  background: transparent;
-  padding: 0;
-  height: 18px;
-  line-height: 18px;
-  box-sizing: border-box;
-}
-.ft-label {
-  font-size: 8px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-  line-height: 1;
-  font-family: Arial, sans-serif;
-}
-@media screen {
-body.dark-mode .ft-label { color: #7DD3FC; }
-}
-/* Print: keep Ft. visible */
+/* ===== MOBILE PRINT — body.mobile-print scoped, last in stylesheet so wins ===== */
 @media print {
-  .ft-cell { display: flex !important; align-items: center !important; justify-content: center !important; gap: 1px !important; }
-  .ft-label { font-size: 7px !important; color: #555 !important; }
+  #debug-overlay { display: none !important; }
+  body.mobile-print #page1 { border: 1.5px solid #D97706 !important; padding: 0.05in 0.12in 0.12in 0.12in !important; box-sizing: border-box !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body.mobile-print #page1 .logo-area { gap: 8px !important; margin-bottom: 6px !important; }
+  body.mobile-print #page1 .logo-area img { width: 36px !important; height: 36px !important; }
+  body.mobile-print #page1 .logo-text { font-size: 11px !important; }
+  body.mobile-print .logo-text .logo-generators { font-size: 10px !important; }
+  body.mobile-print #page1 .checklist-title { font-size: 10px !important; padding-top: 6px !important; margin-bottom: 6px !important; letter-spacing: 1px !important; }
+  body.mobile-print #page1 .permit-section { margin-bottom: 4px !important; }
+  body.mobile-print #page1 .permit-section-header { font-size: 5px !important; margin: 4px 0 2px !important; padding-bottom: 1px !important; }
+  body.mobile-print #page1 .permit-row { font-size: 4px !important; line-height: 1.2 !important; padding: 1px 0 !important; gap: 2px 5px !important; margin-bottom: 0 !important; }
+  body.mobile-print #page1 .permit-row label { font-size: 4px !important; }
+  body.mobile-print #page1 .permit-input { font-size: 4px !important; height: auto !important; line-height: 1.4 !important; padding: 0 2px !important; }
+  body.mobile-print #page1 .permit-input.short { width: 60px !important; }
+  body.mobile-print #page1 .permit-input.medium { width: 100px !important; }
+  body.mobile-print #page1 .permit-input.flex-grow { flex: 1 1 100px !important; min-width: 60px !important; }
+  body.mobile-print #page1 .permit-input.w-full { width: 100% !important; }
+  body.mobile-print #page1 .permit-textarea { font-size: 4px !important; min-height: 0 !important; height: 20px !important; padding: 2px 4px !important; }
+  body.mobile-print #page1 .permit-note { font-size: 3px !important; margin: 1px 0 2px !important; padding: 1px 0 1px 6px !important; }
+  body.mobile-print #page1 .yn-checkbox-wrap { font-size: 3px !important; padding: 1px 4px 1px 2px !important; }
+  body.mobile-print #page1 input[type="checkbox"] { width: 4px !important; height: 4px !important; min-width: 4px !important; }
+
+  /* ---- PAGE-BREAK CONTROL: force exactly two pages ---- */
+  /* Page 1 occupies one sheet and breaks once, before page 2. */
+  body.mobile-print .form-page { page-break-after: auto !important; break-after: auto !important; }
+  body.mobile-print #page1 { page-break-after: always !important; break-after: page !important; page-break-inside: avoid !important; }
+  body.mobile-print #page2 { page-break-before: always !important; break-before: page !important; page-break-after: auto !important; break-after: auto !important; }
+  /* Keep every section/table/row from splitting across sheets. */
+  body.mobile-print #page1 .permit-section { page-break-inside: avoid !important; break-inside: avoid !important; }
+  body.mobile-print #page2 .grid-section,
+  body.mobile-print #page2 table.mat-table,
+  body.mobile-print #page2 tr,
+  body.mobile-print #page2 .footer-fields { page-break-inside: avoid !important; break-inside: avoid !important; }
+  /* Hide the screen-only repeat headers so they don't add height in print. */
+  body.mobile-print #page2 .repeat-header { display: none !important; }
+  /* Mobile accordion UI must never print. */
+  body.mobile-print #mobile-p2-accordions { display: none !important; }
+
+  /* ---- PAGE 2 TABLE COMPRESSION (mobile-print) ---- */
+  body.mobile-print #page2 { border: 1.5px solid #D97706 !important; padding: 0.08in 0.1in !important; box-sizing: border-box !important; }
+  body.mobile-print #page2 .grid-section { margin-bottom: 3px !important; overflow: visible !important; }
+  body.mobile-print #page2 table.mat-table {
+    width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  body.mobile-print #page2 table.mat-table th,
+  body.mobile-print #page2 table.mat-table td {
+    font-size: 3.2px !important; line-height: 1.05 !important; padding: 0.5px 0.5px !important;
+    border: 0.4px solid #444 !important; text-align: center !important; word-break: break-word !important;
+    overflow: hidden !important;
+  }
+  body.mobile-print #page2 table.mat-table th { background: #4B5563 !important; color: #fff !important; }
+  body.mobile-print #page2 table.mat-table td { background: #fff !important; color: #1F2937 !important; }
+  body.mobile-print #page2 table.mat-table td.row-label {
+    background: #f0f0f0 !important; text-align: left !important; font-weight: bold !important;
+    white-space: normal !important; width: auto !important; padding: 0.5px 1.5px !important;
+  }
+  body.mobile-print #page2 table.mat-table td input[type="text"] {
+    font-size: 3.2px !important; height: auto !important; line-height: 1.05 !important;
+    width: 100% !important; min-width: 0 !important; text-align: center !important;
+    border: none !important; padding: 0 !important; background: transparent !important; color: #1F2937 !important;
+  }
+  body.mobile-print #page2 .ft-cell { gap: 0 !important; }
+  body.mobile-print #page2 .ft-label { font-size: 2.4px !important; }
+  /* Footer hardware/extras */
+  body.mobile-print #page2 .footer-fields { margin-top: 4px !important; padding-top: 3px !important; }
+  body.mobile-print #page2 .footer-row { display: flex !important; flex-wrap: wrap !important; gap: 1px 6px !important; margin-bottom: 2px !important; }
+  body.mobile-print #page2 .footer-field { display: flex !important; align-items: center !important; gap: 2px !important; }
+  body.mobile-print #page2 .footer-field label { font-size: 4px !important; font-weight: bold !important; white-space: nowrap !important; }
+  body.mobile-print #page2 .footer-field input[type="text"] {
+    font-size: 4px !important; height: auto !important; width: 40px !important;
+    border: none !important; border-bottom: 0.5px solid #444 !important; border-radius: 0 !important;
+    background: transparent !important; padding: 0 2px !important; color: #1F2937 !important;
+  }
+  body.mobile-print #page2 .footer-field input.short { width: 28px !important; }
+  body.mobile-print #page2 .footer-field input.wide { width: 60px !important; }
 }
 
-@media print {
-  .repeat-header { display: none !important; }
-  .no-print { display: none !important; }
-  .action-bar { display: none !important; }
-}
-
-/* ===== iPAD PRINT FIX =====
-   Forces same compact layout as iPhone print.
-   Scoped to iPad viewport range only — never affects desktop or iPhone. */
-@media print and (min-width: 768px) and (max-width: 1366px) {
-  input[type="text"], input[type="number"], input[type="date"], input[type="email"], input[type="tel"], textarea, select { border-color: transparent !important; border-bottom-color: #333 !important; }
-  #page2 table.mat-table td input[type="text"] { border: none !important; }
-  #page2 .footer-field input[type="text"] { border-color: transparent !important; border-bottom: 1px solid #333 !important; }
-  html, body {
-    width: 8.5in !important;
-    max-width: 8.5in !important;
-  }
-  .form-page, .page {
-    width: 8.1in !important;
-    max-width: 8.1in !important;
-    margin: 0 auto !important;
-    padding: 0.15in !important;
-    box-sizing: border-box !important;
-  }
-  .page-wrapper {
-    width: 8.5in !important;
-    max-width: 8.5in !important;
-  }
-  /* Scale up all text equally for iPad */
-  #page1 .section-row { font-size: 10px !important; }
-  #page1 .field-row label { font-size: 10px !important; }
-  #page1 .field-row input[type="text"] { font-size: 10px !important; }
-  #page1 .textarea-field { font-size: 10px !important; }
-  #page1 .section-title { font-size: 12px !important; }
-  #page1 .yn-checkbox-wrap { font-size: 9px !important; }
-  #page1 input[type="checkbox"] { width: 12px !important; height: 12px !important; }
-  #page2 table.mat-table td { font-size: 7px !important; }
-  #page2 table.mat-table th { font-size: 7px !important; }
-  #page2 table.mat-table td input[type="text"] { font-size: 7.5px !important; }
-  #page2 .footer-field { font-size: 8px !important; }
-}
 </style>
 </head>
 <body>
@@ -1090,10 +1195,9 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
   <button class="btn" id="btn-pdf" onclick="openPrintPreview()">📄 PDF</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
-  <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPhone</button>
-  <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 Android</button>
-
-
+  <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPHONE</button>
+  <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 ANDROID</button>
+  <button class="btn" onclick="showDebug()">🐛 DBG</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/>
@@ -1116,90 +1220,179 @@ body.dark-mode .ft-label { color: #7DD3FC; }
     <div class="page1-header">
       <div class="logo-area">
         <img src="../logo.png"
+             crossorigin="anonymous"
              onerror="this.onerror=null;this.style.display='none';"
              alt="Always On Generators Logo"
              style="width:42px;height:42px;display:block;object-fit:contain;flex-shrink:0;">
-        <div class="logo-text"><span class="logo-always">ALWAYS</span><span class="logo-on">ON</span><br>
-          <span class="logo-generators" style="font-size:10px;font-family:Arial,sans-serif;letter-spacing:1px;">GENERATORS</span>
+        <div class="logo-text">ALWAYS<span class="logo-on">ON</span><br>
+          <span class="logo-generators">GENERATORS</span>
         </div>
       </div>
-      <div class="checklist-title">ELECTRICAL INSTALLATION CHECKLIST</div>
+      <div class="checklist-title">PERMITTING INFO REQUEST</div>
     </div>
 
-    <div class="top-fields">
-      <div class="field-row"><label>Customer Name:</label><input type="text"></div>
-      <div class="field-row"><label>Date:</label><input type="date"></div>
-      <div class="field-row"><label>Address:</label><input type="text"></div>
-      <div class="field-row"><label>Install Truck:</label><input type="text"></div>
-      <div class="field-row"><label>Job:</label><input type="text"></div>
-      <div class="field-row"><label>Team Member Names:</label><input type="text"></div>
-    </div>
-
-    <div class="two-col">
-      <div>
-        <div class="section">
-          <div class="section-title">Generator</div>
-          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
-          <div class="section-row"><label>Generator Size:</label><input class="inline-input short" type="text"></div>
-          <div class="section-row"><label>Pad or Stand Installed:</label><input type="checkbox"> YES <input type="checkbox"> NO <input type="checkbox"> Existing</div>
-          <div class="section-row"><label>Generator Set &amp; Mounted:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Connected To Mobile Link:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Battery Connected:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Generator Electrical Made Up:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Generator Set to NG or LQ in Controller &amp; In Generator:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Generator Manual:</label><input type="checkbox"> Transfer Switch <input type="checkbox"> Homeowner</div>
-          <div class="section-row"><label>Needs Completed:</label><input type="text" style="width:100%;border:none;border-bottom:1px solid var(--text);"></div>
-        </div>
-        <hr class="section-hr">
-        <div class="ts-container" id="ts-container"></div>
-        <button class="add-ts-btn" onclick="addTransferSwitch()">+ Add Transfer Switch</button>
+    <div class="permit-section">
+      <div class="permit-row">
+        <label>Homeowner's Name:</label>
+        <input class="permit-input flex-grow" type="text">
       </div>
-
-      <div>
-        <div class="section">
-          <div class="section-title">Walk Through</div>
-          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
-          <div class="section-row"><label>Service Change:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Harness Plugged In Transfer Switch(es):</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Grounding Updated:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Grounds and Neutrals Separated:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Transfer Switch(es) Made Up:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Generator Made Up:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row" data-multi="true"><label>Generator Electrical Run:</label><input type="checkbox"> Surface Mount <input type="checkbox"> U.G. <input type="checkbox"> Attic</div>
-          <div class="section-row"><label>Generator Set to NG or LQ in Controller &amp; In Generator:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>60A Load Shed Installed &amp; Programmed:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>100A Load Shed Installed &amp; Programmed:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-        </div>
-        <hr class="section-hr">
-        <div class="section">
-          <div class="section-title">Inspection(s)</div>
-          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
-          <div class="section-row"><label>Inspected:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>County:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Service Change:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Electrical Rough:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Electrical Final:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Electrical Underground:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Footing:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Pad:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>All Pics for Inspected:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-        </div>
-        <hr class="section-hr">
-        <div class="section">
-          <div class="section-row"><b>Any Miscues or Delays during the job:</b></div>
-          <textarea class="textarea-field" rows="4"></textarea>
-        </div>
-        <hr class="section-hr">
-        <div class="section">
-          <div class="section-title">Clean Up</div>
-          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
-          <div class="section-row"><b>EVERYTHING PICKED UP AND CLEAN:</b><input type="checkbox"> YES</div>
-          <div class="section-row"><label>Ready for H/O Training:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Why Not:</label><input class="inline-input long" type="text"></div>
-        </div>
+      <div class="permit-row">
+        <label>Job Address:</label>
+        <input class="permit-input flex-grow" type="text">
       </div>
     </div>
-  </div>
+
+    <hr class="permit-divider">
+
+    <div class="permit-section">
+      <div class="permit-section-header">New Construction</div>
+      <div class="permit-row">
+        <label>New construction?</label>
+        <input type="checkbox"> YES
+        <input type="checkbox"> NO
+        <label style="margin-left:8px;">If yes, are electric panels installed yet?</label>
+        <input type="checkbox"> YES
+        <input type="checkbox"> NO
+      </div>
+      <div class="permit-row">
+        <label>If no, are there blueprints on site for electric to grab a picture?</label>
+        <input type="checkbox"> YES
+        <input type="checkbox"> NO
+      </div>
+      <div class="permit-note">
+        Panel pictures with panels open, and clear pictures of panel schedules and breaker sizes.
+        (C.O.N will need pictures of ALL panels and schedules ie. pool panel, dock panel, subpanels etc.)
+      </div>
+    </div>
+
+    <hr class="permit-divider">
+
+    <div class="permit-section">
+      <div class="permit-section-header">Electrical Service</div>
+      <div class="permit-row">
+        <label>Electric meter type:</label>
+        <input type="checkbox"> Standard
+        <input type="checkbox"> Meter Main
+      </div>
+      <div class="permit-row">
+        <label>Service size:</label>
+        <input class="permit-input short" type="text" inputmode="numeric"> Amps
+        <label style="margin-left:12px;">Breaker size on Meter Main:</label>
+        <input class="permit-input short" type="text">
+      </div>
+      <div class="permit-row">
+        <label>Using existing wiring?</label>
+        <input type="checkbox"> YES
+        <input type="checkbox"> NO
+        <label style="margin-left:8px;">If yes, wire size and type:</label>
+        <input class="permit-input flex-grow" type="text">
+      </div>
+    </div>
+
+    <hr class="permit-divider">
+
+    <div class="permit-section">
+      <div class="permit-section-header">Generator Location &amp; Clearances</div>
+      <div class="permit-row">
+        <label>Does proposed generator location have required clearances?</label>
+        <input type="checkbox"> YES
+        <input type="checkbox"> NO
+      </div>
+      <div class="permit-row">
+        <label>If no, please provide alternate location:</label>
+        <input class="permit-input flex-grow" type="text">
+      </div>
+      <div class="permit-row">
+        <label>Window sealing required?</label>
+        <input type="checkbox"> YES
+        <input type="checkbox"> NO
+        <label style="margin-left:14px;">Does grounding need to be updated?</label>
+        <input type="checkbox"> YES
+        <input type="checkbox"> NO
+      </div>
+    </div>
+
+    <hr class="permit-divider">
+
+    <div class="permit-section">
+      <div class="permit-section-header">Generator Electrical Run</div>
+      <div class="permit-row">
+        <label>Generator electric run length:</label>
+        <input class="permit-input short" type="text" inputmode="numeric"> FT
+        <input type="checkbox" style="margin-left:14px;"> U.G.
+        <input type="checkbox"> A.G.
+        <input type="checkbox"> Attic
+      </div>
+    </div>
+
+    <hr class="permit-divider">
+
+    <div class="permit-section">
+      <div class="permit-section-header">ATS Installation Location</div>
+      <div class="permit-row">
+        <input type="checkbox"> At meter
+        <input type="checkbox"> In garage
+        <input type="checkbox"> Back-to-back with panels
+      </div>
+    </div>
+
+    <hr class="permit-divider">
+
+    <div class="permit-section">
+      <div class="permit-section-header">Gas</div>
+      <div class="permit-row">
+        <label>Gas piping length:</label>
+        <input class="permit-input short" type="text" inputmode="numeric"> FT
+        <input type="checkbox" style="margin-left:14px;"> U.G.
+        <input type="checkbox"> A.G.
+        <input type="checkbox"> Attic
+      </div>
+      <div class="permit-row">
+        <label>Any other gas connections?</label>
+        <input type="checkbox"> YES
+        <input type="checkbox"> NO
+        <label style="margin-left:8px;">If yes, how many?</label>
+        <input class="permit-input short" type="text" inputmode="numeric">
+        <label style="margin-left:8px;">If LP job, size of tank:</label>
+        <input class="permit-input medium" type="text">
+      </div>
+      <div class="permit-row permit-row-column" style="flex-direction:column;align-items:flex-start;gap:4px;">
+        <label>Please list connections (pool heater, grill, cooktop etc.) — please draw locations on site plan for connections:</label>
+        <input class="permit-input w-full" type="text">
+      </div>
+    </div>
+
+    <hr class="permit-divider">
+
+    <div class="permit-section">
+      <div class="permit-section-header">Tank Location Dig &amp; Special Notes</div>
+      <div class="permit-row">
+        <label>Will a big machine or mini be used for tank location dig?</label>
+        <input type="checkbox"> Big Machine
+        <input type="checkbox"> Mini
+      </div>
+      <div class="permit-row">
+        <label>If big machine is needed, is there space for it to operate?</label>
+        <input type="checkbox"> YES
+        <input type="checkbox"> NO
+      </div>
+      <div class="permit-note">Let Kade know if he needs the mini.</div>
+      <div class="permit-row" style="flex-direction:column;align-items:flex-start;gap:4px;">
+        <label>Please list any special circumstances about job:</label>
+        <textarea class="permit-textarea" rows="3" maxlength="300"></textarea>
+      </div>
+    </div>
+
+    <hr class="permit-divider">
+
+    <div class="permit-section">
+      <div class="permit-section-header">Other / Special</div>
+      <div class="permit-row" style="flex-direction:column;align-items:flex-start;gap:4px;">
+        <label>Please list any other or special notes about job:</label>
+        <textarea class="permit-textarea" rows="5"></textarea>
+      </div>
+    </div>
+  </div><!-- end page1 -->
 
   <!-- PAGE 2 -->
   <div class="form-page" id="page2">
@@ -1323,13 +1516,11 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   </div>
 </div>
 
-<p class="notice">📱 iPhone: press &amp; hold images to save  |  🤖 Android: images download to gallery</p>
+<p class="notice">📱 iPhone: press &amp; hold images to save &nbsp;|&nbsp; 🤖 Android: images download to gallery</p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-// ===== FORCE ACTION BAR TO SCROLL WITH PAGE =====
-
 // ===== THEME =====
 const THEME_KEY = 'aog_forms_theme_preference';
 function getInitialTheme() {
@@ -1349,24 +1540,12 @@ function setupThemeToggle() {
   if (!btn) return;
   btn.addEventListener('click', toggleTheme);
   if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
       if (!localStorage.getItem(THEME_KEY)) applyTheme(e.matches ? 'dark' : 'light');
     });
   }
 }
 applyTheme(getInitialTheme());
-
-// Keep page-wrapper clear of action bar on any screen size
-function adjustTopPadding() {
-  const bar = document.getElementById('action-bar');
-  const wrapper = document.querySelector('.page-wrapper');
-  const status = document.getElementById('save-status');
-  if (bar && wrapper) wrapper.style.paddingTop = bar.offsetHeight + 'px';
-  if (bar && status) status.style.top = bar.offsetHeight + 'px';
-}
-window.addEventListener('resize', adjustTopPadding);
-window.addEventListener('load', adjustTopPadding);
-setTimeout(adjustTopPadding, 100);
 
 // ===== BUILD TABLES =====
 const fittings = [
@@ -1379,7 +1558,6 @@ const fittings = [
 const fittingSizes = ['5"','4"','3-1/2"','3"','2-1/2"','2"','1-1/2"','1-1/4"','1"','¾"','½"'];
 
 fittings.forEach((name, idx) => {
-  // Every 5 rows insert a repeat header (screen only, not print)
   if (idx > 0 && idx % 5 === 0) {
     const repeatHeader = document.createElement("tr");
     repeatHeader.className = "repeat-header no-print";
@@ -1395,11 +1573,10 @@ fittings.forEach((name, idx) => {
   }
   const tr = document.createElement("tr");
   const lbl = document.createElement("td");
-  lbl.className = "row-label"; lbl.textContent = name;
-  tr.appendChild(lbl);
+  lbl.className = "row-label"; lbl.textContent = name; tr.appendChild(lbl);
   fittingSizes.forEach(() => {
     const td = document.createElement("td");
-    const inp = document.createElement("input"); inp.type = "text"; inp.inputMode = "numeric"; inp.pattern = "[0-9]*";
+    const inp = document.createElement("input"); inp.type = "text";
     td.appendChild(inp); tr.appendChild(td);
   });
   document.getElementById("fittings-body").appendChild(tr);
@@ -1408,11 +1585,10 @@ fittings.forEach((name, idx) => {
 ['4" x 4"','6" x 6"','8" x 8"','10" x 10"','12" x 12"'].forEach(name => {
   const tr = document.createElement("tr");
   const lbl = document.createElement("td");
-  lbl.className = "row-label"; lbl.textContent = name;
-  tr.appendChild(lbl);
+  lbl.className = "row-label"; lbl.textContent = name; tr.appendChild(lbl);
   ["2'","3'","4'","5'","6'"].forEach(() => {
     const td = document.createElement("td");
-    const inp = document.createElement("input"); inp.type = "text"; inp.inputMode = "numeric"; inp.pattern = "[0-9]*";
+    const inp = document.createElement("input"); inp.type = "text";
     td.appendChild(inp); tr.appendChild(td);
   });
   document.getElementById("wireway-body").appendChild(tr);
@@ -1421,73 +1597,17 @@ fittings.forEach((name, idx) => {
 ["4 AWG","1/0","3/0","250 MCM","350 MCM","500 MCM"].forEach(name => {
   const tr = document.createElement("tr");
   const lbl = document.createElement("td");
-  lbl.className = "row-label"; lbl.textContent = name;
-  tr.appendChild(lbl);
+  lbl.className = "row-label"; lbl.textContent = name; tr.appendChild(lbl);
   ["Straights","2-Port","3-Port","4-Port","5-Port"].forEach(() => {
     const td = document.createElement("td");
-    const inp = document.createElement("input"); inp.type = "text"; inp.inputMode = "numeric"; inp.pattern = "[0-9]*";
+    const inp = document.createElement("input"); inp.type = "text";
     td.appendChild(inp); tr.appendChild(td);
   });
   document.getElementById("polaris-body").appendChild(tr);
 });
-// Re-attach autosave to JS-built table inputs
-if (typeof attachAutosave === 'function') setTimeout(() => { attachAutosave(); restoreFormData(); }, 100);
-
-// ===== TRANSFER SWITCH =====
-let tsCount = 0;
-function buildTSBlock(num) {
-  const block = document.createElement("div");
-  block.className = "ts-block"; block.dataset.tsNum = num;
-  const header = document.createElement("div"); header.className = "ts-header";
-  const headerLeft = document.createElement("div"); headerLeft.className = "ts-header-left";
-  const toggle = document.createElement("span"); toggle.className = "ts-toggle"; toggle.textContent = "▼";
-  headerLeft.appendChild(toggle);
-  headerLeft.appendChild(document.createTextNode(` Transfer Switch ${num}`));
-  header.appendChild(headerLeft);
-  if (num > 1) {
-    const rb = document.createElement("button"); rb.className = "ts-remove-btn"; rb.textContent = "Remove";
-    rb.onclick = function() { removeTS(this); }; header.appendChild(rb);
-  }
-  headerLeft.addEventListener('click', function() {
-    block.querySelector('.ts-body').classList.toggle('hidden');
-    block.querySelector('.ts-toggle').classList.toggle('collapsed');
-  });
-  const body = document.createElement("div"); body.className = "ts-body";
-  body.innerHTML = `
-    <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
-    <div class="section-row"><label>Transfer Switch Type:</label><input type="checkbox"> ASE <input type="checkbox"> NSE <input type="checkbox"> Existing</div>
-    <div class="section-row"><input type="checkbox"> 16space <input type="checkbox"> 20space <input type="checkbox"> 100A <input type="checkbox"> 200A <input type="checkbox"> 300A <input type="checkbox"> 400A <input type="checkbox"> 600A <label>Quantity:</label><input class="inline-input xshort" type="text"></div>
-    <div class="section-row"><label>Transfer Switch Location:</label><input type="checkbox"> INSIDE <input type="checkbox"> OUTSIDE</div>
-    <div class="section-row"><label>Transfer Switch Mounted:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-    <div class="section-row"><label>Surge Protector(s):</label><input type="checkbox"> YES <input type="checkbox"> NO <label>Quantity:</label><input class="inline-input xshort" type="text"></div>
-    <div class="section-row"><label>Panel Lugs Torqued to Spec:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-    <div class="section-row"><label>Generator Electrical Run Torqued to Spec In Generator &amp; TS:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-    <div class="section-row"><label>Needs Completed:</label><input type="text" style="width:100%;border:none;border-bottom:1px solid var(--text);"></div>
-  `;
-  block.appendChild(header); block.appendChild(body);
-  return block;
-}
-function addTransferSwitch() {
-  tsCount++;
-  document.getElementById("ts-container").appendChild(buildTSBlock(tsCount));
-  renumberTS(); applyYNColors(); attachAutosave(); saveFormData();
-}
-function removeTS(btn) { btn.closest(".ts-block").remove(); renumberTS(); }
-function renumberTS() {
-  const blocks = document.querySelectorAll(".ts-block");
-  blocks.forEach((block, i) => {
-    const num = i + 1; block.dataset.tsNum = num;
-    const headerLeft = block.querySelector(".ts-header-left");
-    const textNode = Array.from(headerLeft.childNodes).find(n => n.nodeType === 3);
-    if (textNode) textNode.textContent = ` Transfer Switch ${num}`;
-    let rb = block.querySelector(".ts-remove-btn");
-    if (blocks.length > 1) {
-      if (!rb) { rb = document.createElement("button"); rb.className = "ts-remove-btn"; rb.textContent = "Remove"; rb.onclick = function() { removeTS(this); }; block.querySelector(".ts-header").appendChild(rb); }
-    } else { if (rb) rb.remove(); }
-  });
-  tsCount = document.querySelectorAll(".ts-block").length;
-}
-addTransferSwitch();
+// Dynamic table inputs now exist — assign their stable keys, attach autosave,
+// and restore any saved values into them. All three calls are idempotent.
+if (typeof attachAutosave === 'function') setTimeout(() => { ensureStableKeys(); attachAutosave(); restoreFormData(); }, 100);
 
 // ===== YES/NO COLORS =====
 function applyYNColors() {
@@ -1501,90 +1621,356 @@ function applyYNColors() {
     if (!label) return;
     const upper = label.toUpperCase();
     const typeClass = upper === 'YES' ? 'yn-yes' : upper === 'NO' ? 'yn-no' : 'yn-opt';
-    const wrap = document.createElement('span'); wrap.className = 'yn-checkbox-wrap ' + typeClass;
+    const wrap = document.createElement('span');
+    wrap.className = 'yn-checkbox-wrap ' + typeClass;
     cb.parentNode.insertBefore(wrap, cb); wrap.appendChild(cb);
     if (textNode) { wrap.appendChild(document.createTextNode(' ' + label)); textNode.remove(); }
-    function syncState() { wrap.classList.toggle('checked', cb.checked); }
-    function exclusiveCheck() {
-      if (!cb.checked) return;
-      const row = cb.closest('.section-row, .ts-body > div');
-      if (!row || row.dataset.multi === 'true') return;
-      row.querySelectorAll('.yn-checkbox-wrap input[type="checkbox"]').forEach(other => {
-        if (other !== cb && other.checked) {
-          other.checked = false;
-          const w = other.parentElement;
-          if (w) w.classList.remove('checked');
-        }
-      });
-    }
-    cb.addEventListener('change', () => { exclusiveCheck(); syncState(); saveFormData(); });
-    wrap.addEventListener('click', (e) => {
-      if (e.target === cb) return; // let native checkbox handle its own click
-      e.preventDefault();
-      cb.checked = !cb.checked;
-      cb.dispatchEvent(new Event('change'));
+    const sync = () => wrap.classList.toggle('checked', cb.checked);
+    cb.addEventListener('change', sync);
+    wrap.addEventListener('click', e => {
+      if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
     });
-    syncState();
+    sync();
   });
 }
-const ynObserver = new MutationObserver(() => applyYNColors());
+
+// ===== AUTOSAVE TO localStorage =====
+// NOTE: Keys are stable, position-independent identifiers (data-skey) assigned to
+// every REAL form field. The mobile accordion mirror inputs (.mob-card-input) are
+// excluded entirely — they sync into the real inputs on their own. This prevents
+// the old index-drift bug where dynamically injected inputs shifted f_0..f_N and
+// caused saved/restored/printed values to land on the wrong fields.
+const SAVE_KEY = 'aog_permitting_info_v1';
+
+// Selector for the real, savable fields (excludes accordion mirrors).
+const REAL_TEXT_SEL = 'input[type="text"]:not(.mob-card-input), input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea:not(.mob-card-input)';
+const REAL_CHECK_SEL = 'input[type="checkbox"]';
+
+// Assign a stable key to every real field, computed once over the real-field set.
+// Safe to call repeatedly: fields that already have a key keep it, and newly built
+// table inputs get appended keys without disturbing existing ones.
+function ensureStableKeys() {
+  let ti = 0, ci = 0;
+  document.querySelectorAll(REAL_TEXT_SEL).forEach(el => {
+    if (!el.dataset.skey) el.dataset.skey = 'f_' + ti;
+    ti++;
+  });
+  document.querySelectorAll(REAL_CHECK_SEL).forEach(el => {
+    if (!el.dataset.ckey) el.dataset.ckey = 'c_' + ci;
+    ci++;
+  });
+}
+
+function saveFormData() {
+  try {
+    ensureStableKeys();
+    const data = {};
+    document.querySelectorAll(REAL_TEXT_SEL).forEach(el => {
+      data[el.dataset.skey] = el.value;
+    });
+    document.querySelectorAll(REAL_CHECK_SEL).forEach(el => {
+      data[el.dataset.ckey] = el.checked ? '1' : '0';
+    });
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch(e) {}
+}
+
+function restoreFormData() {
+  try {
+    ensureStableKeys();
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    document.querySelectorAll(REAL_TEXT_SEL).forEach(el => {
+      const k = el.dataset.skey;
+      if (k && data[k] !== undefined) {
+        el.value = data[k];
+        // Mirror back into any visible accordion input bound to this field.
+        if (el._mobMirror) el._mobMirror.value = data[k];
+      }
+    });
+    document.querySelectorAll(REAL_CHECK_SEL).forEach(el => {
+      const k = el.dataset.ckey;
+      if (k && data[k] !== undefined) {
+        el.checked = data[k] === '1';
+        const wrap = el.parentElement;
+        if (wrap && wrap.classList.contains('yn-checkbox-wrap')) {
+          wrap.classList.toggle('checked', el.checked);
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+function attachAutosave() {
+  ensureStableKeys();
+  document.querySelectorAll(REAL_TEXT_SEL).forEach(el => {
+    if (el._autosaveBound) return;
+    el._autosaveBound = true;
+    el.addEventListener('input', saveFormData);
+  });
+  document.querySelectorAll(REAL_CHECK_SEL).forEach(el => {
+    if (el._autosaveBound) return;
+    el._autosaveBound = true;
+    el.addEventListener('change', saveFormData);
+  });
+}
+document.addEventListener('DOMContentLoaded', () => { applyYNColors(); restoreFormData(); setupThemeToggle(); attachAutosave(); });
+if (document.readyState !== 'loading') setTimeout(() => { applyYNColors(); setupThemeToggle(); }, 50);
 
 // ===== CLEAR =====
 function clearForm() {
   if (!confirm("Clear all fields? This cannot be undone.")) return;
   try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
-  // Remove all extra transfer switches, keep only the first
-  document.querySelectorAll('.ts-block:not(:first-child)').forEach(el => el.remove());
-  renumberTS();
   document.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = "");
   document.querySelectorAll('input[type="checkbox"]').forEach(el => {
     el.checked = false;
-    const w = el.parentElement;
-    if (w && w.classList.contains('yn-checkbox-wrap')) w.classList.remove('checked');
+    const wrap = el.parentElement;
+    if (wrap && wrap.classList.contains('yn-checkbox-wrap')) wrap.classList.remove('checked');
   });
-  document.querySelectorAll('.ts-body').forEach(b => b.classList.remove('hidden'));
-  document.querySelectorAll('.ts-toggle').forEach(t => t.classList.remove('collapsed'));
-}
-
-// ===== FILENAME HELPER =====
-function buildFilename(ext, pageNum, totalPages) {
-  // Pull Customer Name and Address from the top-fields inputs
-  const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
-  // Order: Customer Name (0), Date (1), Address (2)
-  const customerName = (topInputs[0] ? topInputs[0].value.trim() : '') || 'Customer';
-  const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
-  // Sanitize: replace any character that's not alphanumeric, space, hyphen, or dot
-  function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
-  const namePart    = sanitize(customerName);
-  const addressPart = sanitize(address);
-  const suffix = totalPages > 1 ? `_Page${pageNum}` : '';
-  return `${namePart}_${addressPart}_Elec_Install${suffix}.${ext}`;
+  // Reset accordion header "has-data" indicators and dots.
+  document.querySelectorAll('.mob-acc-header.has-data').forEach(h => h.classList.remove('has-data'));
+  document.querySelectorAll('.mob-sub-dot').forEach(d => d.style.display = 'none');
 }
 
 // ===== PRINT =====
-let wasDarkAtPrint = false;
-function openPrintPreview() {
-  const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
-  const customerName = (topInputs[0] ? topInputs[0].value.trim() : '') || 'Customer';
-  const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
-  function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
-  const origTitle = document.title;
-  document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
-
-  wasDarkAtPrint = document.body.classList.contains('dark-mode');
-  if (wasDarkAtPrint) {
-    const noTrans = document.createElement('style');
-    noTrans.id = 'no-transitions';
-    noTrans.textContent = '* { transition: none !important; animation: none !important; }';
-    document.head.appendChild(noTrans);
-    document.body.classList.remove('dark-mode');
-    void document.body.offsetHeight;
-  }
-  window.print();
-  document.title = origTitle;
+function getPrintDevice() {
+  const ua = navigator.userAgent;
+  const isIpad   = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const isMobileUA = /iPhone|Android|Mobile/.test(ua) && !isIpad;
+  // Width-based fallback: a narrow viewport means the user is filling out the
+  // mobile layout, so they need the mobile-print styling regardless of UA.
+  // This fixes desktop-devtools mobile emulation and any UA that doesn't match.
+  const narrow = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
+  if (isMobileUA || (narrow && !isIpad)) return 'mobile';
+  if (isIpad)   return 'ipad';
+  return 'desktop';
 }
 
-// ===== CAPTURE HELPER: swap mobile accordion <=> real tables =====
+function showPrintDebugLog(log) {
+  const existing = document.getElementById('debug-overlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'debug-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);color:#00FFC8;font-family:monospace;font-size:11px;padding:12px;overflow-y:auto;z-index:999999;white-space:pre-wrap;word-break:break-all;';
+  overlay.innerHTML = `<strong style="font-size:13px;color:#FBBF24;">🐛 PRINT PROCESS LOG</strong>  <span style="float:right;cursor:pointer;color:#f87171;font-size:14px;" onclick="document.getElementById('debug-overlay').remove()">✕ CLOSE</span>\n\n${log.join('\n')}`;
+  document.body.appendChild(overlay);
+}
+
+function showDebug() {
+  const log = [];
+  const device = getPrintDevice();
+  const checks = [
+    ['.page-wrapper', 'zoom'],
+    ['#page1 .logo-text', 'fontSize'],
+    ['#page1 .checklist-title', 'fontSize'],
+    ['#page1 .permit-section-header', 'fontSize'],
+    ['#page1 .permit-row', 'fontSize'],
+    ['#page1 .permit-input', 'fontSize'],
+    ['#page1 .permit-note', 'fontSize'],
+    ['#page1 .yn-checkbox-wrap', 'fontSize'],
+    ['#page1 input[type="checkbox"]', 'width'],
+  ];
+
+  function snapshot(label) {
+    log.push(`\n<strong style="color:#FBBF24">${label}</strong>`);
+    checks.forEach(([sel, prop]) => {
+      try {
+        const el = document.querySelector(sel);
+        const val = el ? window.getComputedStyle(el)[prop] : 'NOT FOUND';
+        log.push(`  ${sel} → ${prop}: <strong>${val}</strong>`);
+      } catch(e) { log.push(`  ${sel} → ERROR`); }
+    });
+  }
+
+  log.push(`<strong>Device:</strong> ${device}`);
+  log.push(`<strong>UA:</strong> ${navigator.userAgent}`);
+  log.push(`<strong>mobile-print on body:</strong> ${document.body.classList.contains('mobile-print')}`);
+
+  snapshot('BEFORE mobile-print class');
+
+  document.body.classList.add('mobile-print');
+  log.push(`\n<em>→ mobile-print class added</em>`);
+
+  snapshot('AFTER mobile-print class');
+
+  document.body.classList.remove('mobile-print');
+  log.push(`\n<em>→ mobile-print class removed</em>`);
+
+  snapshot('AFTER removal (should match BEFORE)');
+
+  showPrintDebugLog(log);
+}
+
+const MOBILE_PRINT_CSS = `
+  @page { size: 8.5in 11in; margin: 0; }
+  /* Rules moved to stylesheet @media print body.mobile-print block */
+`;
+
+const IPAD_PRINT_CSS = ``;
+
+function openPrintPreview() {
+  // Native browser print on all devices. On iOS this opens Safari's own print
+  // preview dialog directly. (Note: iOS Safari controls pagination itself and
+  // does not honor the print CSS, so page count is Safari's call.)
+  const bar  = document.querySelector('.action-bar');
+  const note = document.querySelector('.notice');
+  const status = document.getElementById('save-status');
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+  if (bar)    bar.style.display    = 'none';
+  if (note)   note.style.display   = 'none';
+  if (status) status.style.display = 'none';
+
+  window.print();
+
+  // Restore UI after the print dialog returns.
+  if (bar)    bar.style.display    = '';
+  if (note)   note.style.display   = '';
+  if (status) status.style.display = '';
+  if (wasDark) document.body.classList.add('dark-mode');
+}
+
+// Build a true multi-page PDF from canvas renders of each .form-page.
+function generatePDF() {
+  const jspdfNS = window.jspdf || window.jsPDF;
+  const JsPDF = jspdfNS && (jspdfNS.jsPDF || jspdfNS);
+
+  // Build a visible overlay IMMEDIATELY so the user never sees a blank screen.
+  const overlay = document.createElement('div');
+  overlay.id = 'pdf-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,39,0.97);z-index:1000000;display:flex;flex-direction:column;align-items:center;padding:14px;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:Arial,sans-serif;';
+  const topBar = document.createElement('div');
+  topBar.style.cssText = 'position:sticky;top:0;display:flex;gap:8px;align-items:center;justify-content:center;width:100%;max-width:620px;padding:8px 0 10px;flex-wrap:wrap;';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕ Close';
+  closeBtn.style.cssText = 'background:#DC2626;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer;';
+  const shareBtn = document.createElement('button');
+  shareBtn.textContent = '🖨 Print / Share';
+  shareBtn.style.cssText = 'background:#D97706;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer;display:none;';
+  const dlBtn = document.createElement('a');
+  dlBtn.textContent = '⬇ Download PDF';
+  dlBtn.style.cssText = 'background:#059669;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer;text-decoration:none;display:none;';
+  topBar.appendChild(shareBtn); topBar.appendChild(dlBtn); topBar.appendChild(closeBtn);
+  const statusEl = document.createElement('div');
+  statusEl.style.cssText = 'color:#7DD3FC;font-size:13px;margin:4px 0 10px;text-align:center;width:100%;max-width:620px;';
+  statusEl.textContent = 'Preparing…';
+  const container = document.createElement('div');
+  container.style.cssText = 'display:flex;flex-direction:column;gap:14px;width:100%;max-width:620px;';
+  overlay.appendChild(topBar); overlay.appendChild(statusEl); overlay.appendChild(container);
+  document.body.appendChild(overlay);
+
+  const ostat = (m) => { statusEl.textContent = m; };
+
+  if (typeof html2canvas !== 'function') {
+    ostat('Rendering library (html2canvas) did not load. Check your connection and reload.');
+    closeBtn.onclick = () => overlay.remove();
+    return;
+  }
+
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+  showRealTablesForCapture();
+  const restoreLayout = forceDesktopLayout();
+
+  let cleanedUp = false;
+  function cleanup() {
+    if (cleanedUp) return; cleanedUp = true;
+    hideRealTablesAfterCapture();
+    restoreLayout();
+    if (wasDark) document.body.classList.add('dark-mode');
+  }
+  closeBtn.onclick = () => { cleanup(); overlay.remove(); setStatus(''); };
+
+  const pages = Array.from(document.querySelectorAll('.form-page'));
+
+  (async () => {
+    const canvases = [];
+    try {
+      for (let i = 0; i < pages.length; i++) {
+        ostat(`Rendering page ${i + 1} of ${pages.length}…`);
+        // Yield so the overlay paints before the heavy render.
+        await new Promise(r => setTimeout(r, 30));
+        const canvas = await html2canvas(pages[i], {
+          scale: 2, useCORS: true, backgroundColor: '#fff',
+          logging: false, width: 1050, windowWidth: 1050,
+          ignoreElements: (el) => el.id === 'pdf-overlay' || el.classList.contains('action-bar')
+        });
+        canvases.push(canvas);
+        // Show each page image in the overlay as it finishes.
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:4px;text-align:center;';
+        lbl.textContent = `Page ${i + 1} of ${pages.length}`;
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/jpeg', 0.9);
+        img.style.cssText = 'width:100%;border:2px solid #555;border-radius:4px;display:block;';
+        const wrap = document.createElement('div');
+        wrap.appendChild(lbl); wrap.appendChild(img);
+        container.appendChild(wrap);
+      }
+      cleanup();
+
+      // Try to assemble a downloadable PDF if jsPDF is present.
+      if (JsPDF) {
+        try {
+          const pdf = new JsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
+          canvases.forEach((canvas, i) => {
+            const imgData = canvas.toDataURL('image/jpeg', 0.9);
+            const imgW = pageW;
+            const imgH = canvas.height * (pageW / canvas.width);
+            if (i > 0) pdf.addPage();
+            if (imgH > pageH) {
+              const fitW = canvas.width * (pageH / canvas.height);
+              pdf.addImage(imgData, 'JPEG', (pageW - fitW) / 2, 0, fitW, pageH);
+            } else {
+              pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH);
+            }
+          });
+          const blob = pdf.output('blob');
+          const url = URL.createObjectURL(blob);
+          dlBtn.href = url;
+          dlBtn.setAttribute('download', 'AlwaysOn_Generators_Permitting_Info.pdf');
+          dlBtn.style.display = 'inline-block';
+
+          // Native iOS share sheet (includes Print, Save to Files, AirDrop).
+          // Must be triggered by a user tap, so it lives on this button.
+          const pdfFile = (typeof File !== 'undefined')
+            ? new File([blob], 'AlwaysOn_Generators_Permitting_Info.pdf', { type: 'application/pdf' })
+            : null;
+          const canShareFile = pdfFile && navigator.canShare && navigator.canShare({ files: [pdfFile] });
+          if (canShareFile) {
+            shareBtn.style.display = 'inline-block';
+            shareBtn.onclick = async () => {
+              try {
+                await navigator.share({ files: [pdfFile], title: 'Permitting Info Request' });
+              } catch (e) { /* user cancelled or unsupported — download still available */ }
+            };
+            ostat('Done. Tap "Print / Share" for the print/save menu, or "Download PDF".');
+          } else {
+            // No Web Share for files — opening the PDF lets the user use the
+            // browser's own share/print menu instead.
+            shareBtn.style.display = 'inline-block';
+            shareBtn.textContent = '🖨 Open PDF to Print';
+            shareBtn.onclick = () => { window.open(url, '_blank'); };
+            ostat('Done. Tap "Open PDF to Print" for the print menu, or "Download PDF".');
+          }
+        } catch (perr) {
+          ostat('Pages rendered below. (PDF build failed: ' + (perr && perr.message ? perr.message : 'unknown') + ') Long-press an image to save it.');
+        }
+      } else {
+        ostat('Pages rendered below. Long-press an image to save to Photos. (PDF library not loaded.)');
+      }
+    } catch (err) {
+      cleanup();
+      ostat('Render error: ' + (err && err.message ? err.message : String(err)) + ' — tap Close and try again.');
+    }
+  })();
+}
+
+
+// ===== CAPTURE HELPERS =====
 function showRealTablesForCapture() {
   const style = document.createElement('style');
   style.id = 'capture-override';
@@ -1596,12 +1982,14 @@ function showRealTablesForCapture() {
     'table.mat-table td input[type="text"] { overflow: visible !important; height: 18px !important; line-height: 18px !important; display: block !important; }',
     '.footer-field input[type="text"] { height: 24px !important; line-height: 24px !important; overflow: visible !important; box-sizing: border-box !important; }',
     '.footer-fields { overflow: visible !important; }',
-    '.top-fields { grid-template-columns: 1fr 1fr !important; gap: 6px 12px !important; }',
-    '.two-col { grid-template-columns: 1fr 1fr !important; gap: 8px 16px !important; }',
-    '.form-page { padding: 24px !important; }',
-    '.logo-area { flex-wrap: nowrap !important; }',
-    '.section-row { font-size: 13px !important; flex-wrap: wrap !important; }',
-    '.inline-input { font-size: 13px !important; width: 100px !important; }'
+    '.footer-field { align-items: center !important; overflow: visible !important; }',
+    '.permit-input { height: 22px !important; line-height: 22px !important; overflow: visible !important; box-sizing: border-box !important; }',
+    '.permit-row { overflow: visible !important; align-items: center !important; }',
+    '.permit-section { overflow: visible !important; }',
+    // --- Crash-proofing for html2canvas: it chokes on filters/animations and
+    //     can hang on cross-origin images. Flatten all of it during capture. ---
+    '.form-page *, .form-page { filter: none !important; -webkit-filter: none !important; animation: none !important; transition: none !important; box-shadow: none !important; clip-path: none !important; -webkit-clip-path: none !important; text-shadow: none !important; }',
+    '.form-page { background: #ffffff !important; }'
   ].join('\n');
   document.head.appendChild(style);
 }
@@ -1610,7 +1998,6 @@ function hideRealTablesAfterCapture() {
   if (style) style.remove();
 }
 
-// ===== IPHONE =====
 function forceDesktopLayout() {
   const saved = [];
   function setInline(el, styles) {
@@ -1621,14 +2008,23 @@ function forceDesktopLayout() {
     }
     saved.push({ el, prev, props: Object.keys(styles) });
   }
-  // table text inputs — bump font 14px for capture
+  document.querySelectorAll('.permit-input').forEach(el => {
+    setInline(el, { height: '22px', lineHeight: '22px', overflow: 'visible', boxSizing: 'border-box' });
+  });
+  document.querySelectorAll('.permit-row').forEach(el => {
+    setInline(el, { overflow: 'visible', flexWrap: 'wrap' });
+  });
+  document.querySelectorAll('.form-page').forEach(el => {
+    setInline(el, { padding: '24px', boxSizing: 'border-box' });
+  });
+  // table inputs — bump font 1px for capture
   document.querySelectorAll('table.mat-table td input[type="text"]').forEach(el => {
     setInline(el, { fontSize: '14px', height: 'auto', lineHeight: '1.6', padding: '2px 0', overflow: 'visible', display: 'block', boxSizing: 'border-box' });
   });
   document.querySelectorAll('table.mat-table td').forEach(el => {
     setInline(el, { overflow: 'visible', height: 'auto' });
   });
-  // footer field inputs — bump font 14px for capture
+  // footer field inputs — bump font 1px for capture
   document.querySelectorAll('.footer-field input[type="text"]').forEach(el => {
     setInline(el, { fontSize: '14px', height: 'auto', lineHeight: '1.6', overflow: 'visible', boxSizing: 'border-box' });
   });
@@ -1643,14 +2039,10 @@ function forceDesktopLayout() {
     });
   });
 }
-
+// ===== iPHONE =====
 function saveForIPhone() {
   setStatus('Rendering pages, please wait…');
   const pages = document.querySelectorAll('.form-page');
-  const wasDark = document.body.classList.contains('dark-mode');
-  if (wasDark) document.body.classList.remove('dark-mode');
-  showRealTablesForCapture();
-  const restoreLayout = forceDesktopLayout();
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;overflow-y:auto;';
   const closeBtn = document.createElement('button');
@@ -1659,26 +2051,37 @@ function saveForIPhone() {
   const container = document.createElement('div');
   container.style.cssText = 'display:flex;flex-direction:column;gap:12px;width:100%;max-width:600px;';
   overlay.appendChild(closeBtn); overlay.appendChild(container); document.body.appendChild(overlay);
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+  showRealTablesForCapture();
+  const restoreLayout = forceDesktopLayout();
   let completed = 0;
   pages.forEach((page, idx) => {
     const wrapper = document.createElement('div'); wrapper.style.cssText = 'text-align:center;';
-    const fname = buildFilename('jpg', idx + 1, pages.length);
-    const lbl = document.createElement('div'); lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:4px;'; lbl.textContent = `Page ${idx+1} of ${pages.length}`;
-    const fnlbl = document.createElement('div'); fnlbl.style.cssText = 'color:#aaa;font-size:10px;margin-bottom:8px;word-break:break-all;'; fnlbl.textContent = fname;
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:8px;';
+    lbl.textContent = `Page ${idx+1} of ${pages.length}`;
     const img = document.createElement('img');
     html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
       img.src = canvas.toDataURL('image/jpeg', 0.85);
       img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
-      img.alt = fname;
-      wrapper.appendChild(lbl); wrapper.appendChild(fnlbl); wrapper.appendChild(img); container.appendChild(wrapper);
-      completed++;
-      if (completed === pages.length) { hideRealTablesAfterCapture(); restoreLayout(); setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
+      img.alt = `Form page ${idx+1}`;
+      wrapper.appendChild(lbl); wrapper.appendChild(img); container.appendChild(wrapper);
+      if (++completed === pages.length) {
+        hideRealTablesAfterCapture(); restoreLayout();
+        setStatus('Images ready. Long-press to save to Photos.');
+        if (wasDark) document.body.classList.add('dark-mode');
+      }
     });
   });
-  closeBtn.onclick = () => { hideRealTablesAfterCapture(); restoreLayout(); setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
+  closeBtn.onclick = () => {
+    hideRealTablesAfterCapture(); restoreLayout();
+    setStatus('');
+    if (wasDark) document.body.classList.add('dark-mode');
+    document.body.removeChild(overlay);
+  };
 }
 
-// ===== ANDROID =====
 function saveForAndroid() {
   setStatus('Rendering pages, please wait…');
   const pages = document.querySelectorAll('.form-page');
@@ -1690,356 +2093,224 @@ function saveForAndroid() {
   pages.forEach((page, idx) => {
     html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
       const link = document.createElement('a');
-      link.download = buildFilename('jpg', idx + 1, pages.length);
+      link.download = pages.length === 1
+        ? 'AlwaysOn_Generators_Form.jpg'
+        : `AlwaysOn_Generators_Form_Page${idx+1}.jpg`;
       link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
-      completed++;
-      if (completed === pages.length) { hideRealTablesAfterCapture(); restoreLayout(); setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
-    });
-  });
-}
-
-function setStatus(msg) {
-  const el = document.getElementById('save-status');
-  if (!el) return;
-  el.textContent = msg;
-  el.style.display = msg ? 'block' : 'none';
-}
-
-// ===== INIT =====
-
-// ===== AUTOSAVE TO localStorage =====
-const SAVE_KEY = 'aog_elec_form_v1';
-
-function saveFormData() {
-  try {
-    const data = {};
-    // Text inputs and textareas — keyed by index among all saveable fields
-    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
-      data['f_' + i] = el.value;
-    });
-    // Checkboxes
-    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
-      data['c_' + i] = el.checked ? '1' : '0';
-    });
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-  } catch(e) {}
-}
-
-function restoreFormData() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return;
-    const data = JSON.parse(raw);
-    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
-      if (data['f_' + i] !== undefined) el.value = data['f_' + i];
-    });
-    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
-      if (data['c_' + i] !== undefined) {
-        el.checked = data['c_' + i] === '1';
-        const w = el.parentElement;
-        if (w && w.classList.contains('yn-checkbox-wrap')) {
-          w.classList.toggle('checked', el.checked);
-        }
+      if (++completed === pages.length) {
+        setStatus(`${pages.length} image(s) sent to your Downloads folder.`);
+        setTimeout(() => setStatus(''), 4000);
+        if (wasDark) document.body.classList.add('dark-mode');
       }
     });
-  } catch(e) {}
-}
-
-function attachAutosave() {
-  document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach(el => {
-    el.addEventListener('input', saveFormData);
-  });
-  document.querySelectorAll('input[type="checkbox"]').forEach(el => {
-    el.addEventListener('change', saveFormData);
   });
 }
 
-function initApp() {
-  restoreFormData();
-  applyYNColors();
-  setupThemeToggle();
-  attachAutosave();
-  const container = document.getElementById('ts-container');
-  if (container) ynObserver.observe(container, { childList: true, subtree: true });
-}
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
-} else {
-  initApp();
-}
+function setStatus(msg) { document.getElementById('save-status').textContent = msg; }
+</script>
 
-// ===== BEFORE/AFTER PRINT =====
-window.addEventListener('beforeprint', () => {
-  // Inject compact style for page1 when multiple transfer switches are present
-  const tsCount = document.querySelectorAll('.ts-block').length;
-  if (tsCount > 1) {
-    const s = document.createElement('style');
-    s.id = 'multi-ts-print';
-    s.textContent = `
-      #page1 .section-row { font-size: 8px !important; margin-bottom: 1px !important; }
-      #page1 .field-row label { font-size: 8px !important; }
-      #page1 .field-row input[type="text"] { font-size: 8px !important; }
-      #page1 .inline-input { font-size: 8px !important; }
-      #page1 .section { margin-bottom: 4px !important; }
-      #page1 .section-title { font-size: 9px !important; margin-bottom: 2px !important; }
-      #page1 .ts-block { margin-bottom: 2px !important; border-color: #bbb !important; }
-      #page1 .ts-header { padding: 2px 4px !important; }
-      #page1 .ts-header-left { font-size: 8px !important; }
-      #page1 .ts-body { padding: 2px 4px !important; }
-      #page1 .ts-body .section-row { font-size: 8px !important; margin-bottom: 1px !important; }
-      #page1 .yn-checkbox-wrap { font-size: 7px !important; padding: 0px 2px !important; min-height: 0 !important; min-width: 0 !important; }
-      #page1 input[type="checkbox"] { width: 8px !important; height: 8px !important; min-width: 8px !important; }
-      #page1 .two-col { gap: 4px 8px !important; }
-      #page1 hr.section-hr { margin: 2px 0 !important; }
-      #page1 .top-fields { margin-bottom: 4px !important; gap: 1px 6px !important; }
-      #page1 .textarea-field { min-height: 20px !important; font-size: 8px !important; }
-    `;
-    document.head.appendChild(s);
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('../sw.js', { scope: '../' })
+        .then(function(reg) { console.log('[SW] Registered, scope:', reg.scope); })
+        .catch(function(err) { console.warn('[SW] Registration failed:', err); });
+    });
   }
-});
-window.addEventListener('afterprint', () => {
-  const nt = document.getElementById('no-transitions');
-  if (nt) nt.remove();
-  const mts = document.getElementById('multi-ts-print');
-  if (mts) mts.remove();
-  if (wasDarkAtPrint) document.body.classList.add('dark-mode');
-});
+</script>
 
-// ===== MOBILE ACCORDION — PAGE 2 =====
-// Runs on screen only; print uses the real tables.
+<script>
+// Dynamic top padding to clear fixed action bar
+function adjustTopPadding() {
+  const bar = document.getElementById('action-bar');
+  const wrapper = document.querySelector('.page-wrapper');
+  const status = document.getElementById('save-status');
+  if (bar && wrapper) wrapper.style.paddingTop = bar.offsetHeight + 'px';
+  if (bar && status) status.style.top = bar.offsetHeight + 'px';
+}
+window.addEventListener('resize', adjustTopPadding);
+window.addEventListener('load', adjustTopPadding);
+setTimeout(adjustTopPadding, 100);
+
+// ===== CAPTURE HELPER =====
+
+// ===== MOBILE ACCORDION =====
 function buildMobileAccordions() {
   const container = document.getElementById('mobile-p2-accordions');
   if (!container) return;
 
-  // --- Helper: create one accordion panel ---
   function makeAccordion(title, badge, buildBodyFn) {
     const wrap = document.createElement('div');
     wrap.className = 'mob-accordion';
-
     const btn = document.createElement('button');
     btn.className = 'mob-acc-header';
     btn.type = 'button';
-    btn.innerHTML = `
-      <span class="mob-acc-title">${title}</span>
-      <span class="mob-acc-badge">${badge}</span>
-      <span class="mob-filled-dot"></span>
-      <span class="mob-acc-arrow">▼</span>
-    `;
-
+    btn.innerHTML = `<span class="mob-acc-title">${title}</span><span class="mob-acc-badge">${badge}</span><span class="mob-filled-dot"></span><span class="mob-acc-arrow">▼</span>`;
     const body = document.createElement('div');
     body.className = 'mob-acc-body';
     buildBodyFn(body, btn);
-
     btn.addEventListener('click', () => {
       const isOpen = body.classList.contains('open');
       body.classList.toggle('open', !isOpen);
       btn.classList.toggle('open', !isOpen);
     });
-
-    wrap.appendChild(btn);
-    wrap.appendChild(body);
-    container.appendChild(wrap);
+    wrap.appendChild(btn); wrap.appendChild(body); container.appendChild(wrap);
   }
 
-  // --- Multi-row table (Fittings, Wireway, Polaris) ---
-  // Each row of the real table = a sub-section with heading
-  // Each cell in that row = a card row
   function addMultiRowTableAccordion(title, badge, tableId) {
     makeAccordion(title, badge, (body, headerBtn) => {
       const table = document.getElementById(tableId);
       if (!table) return;
       const colHeaders = Array.from(table.querySelectorAll('thead th')).slice(1).map(th => th.textContent.trim());
       const rows = Array.from(table.querySelectorAll('tbody tr'));
-
       rows.forEach(tr => {
         const rowLabel = tr.querySelector('td.row-label')?.textContent.trim() || '';
         const realInputs = Array.from(tr.querySelectorAll('input'));
-
-        // Sub-accordion wrapper
         const subWrap = document.createElement('div');
         subWrap.className = 'mob-sub-accordion';
-
-        // Clickable heading — collapsed by default
         const subHeader = document.createElement('div');
         subHeader.className = 'mob-section-heading mob-section-heading--toggle';
-
         const subArrow = document.createElement('span');
         subArrow.className = 'mob-sub-arrow';
         subArrow.textContent = '\u25B6';
-
         const subTitle = document.createElement('span');
         subTitle.textContent = rowLabel;
-
         const subDot = document.createElement('span');
         subDot.className = 'mob-sub-dot';
-
-        subHeader.appendChild(subArrow);
-        subHeader.appendChild(subTitle);
-        subHeader.appendChild(subDot);
-
-        // Sizes container — hidden by default
+        subHeader.appendChild(subArrow); subHeader.appendChild(subTitle); subHeader.appendChild(subDot);
         const subBody = document.createElement('div');
         subBody.className = 'mob-sub-body';
-
         colHeaders.forEach((colName, i) => {
           const row = document.createElement('div');
           row.className = 'mob-card-row';
-
           const lbl = document.createElement('div');
           lbl.className = 'mob-card-label';
           lbl.textContent = colName;
-
           const inp = document.createElement('input');
-          inp.type = 'text';
-          inp.inputMode = 'numeric';
-          inp.pattern = '[0-9]*';
-          inp.className = 'mob-card-input';
-          inp.placeholder = '\u2014';
-
+          inp.type = 'text'; inp.inputMode = 'numeric'; inp.pattern = '[0-9]*';
+          inp.className = 'mob-card-input'; inp.placeholder = '\u2014';
           const realInput = realInputs[i];
           if (realInput) {
+            realInput._mobMirror = inp;
             inp.value = realInput.value;
             inp.addEventListener('input', () => {
               realInput.value = inp.value;
+              if (typeof saveFormData === 'function') saveFormData();
               const hasRow = Array.from(subBody.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
               subDot.style.display = hasRow ? 'inline-block' : 'none';
               const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
               headerBtn.classList.toggle('has-data', hasAny);
             });
           }
-
-          row.appendChild(lbl);
-          row.appendChild(inp);
-          subBody.appendChild(row);
+          row.appendChild(lbl); row.appendChild(inp); subBody.appendChild(row);
         });
-
         subHeader.addEventListener('click', () => {
           const open = subBody.classList.toggle('open');
           subArrow.textContent = open ? '\u25BC' : '\u25B6';
         });
-
-        subWrap.appendChild(subHeader);
-        subWrap.appendChild(subBody);
-        body.appendChild(subWrap);
+        subWrap.appendChild(subHeader); subWrap.appendChild(subBody); body.appendChild(subWrap);
       });
     });
   }
 
-  // --- Footer accordion ---
+  function addSimpleTableByRef(title, badge, table) {
+    if (!table) return;
+    makeAccordion(title, badge, (body, headerBtn) => {
+      const headers = Array.from(table.querySelectorAll('thead th')).slice(1);
+      const realInputs = Array.from(table.querySelectorAll('tbody tr:first-child td input'));
+      headers.forEach((th, i) => {
+        const row = document.createElement('div');
+        row.className = 'mob-card-row';
+        const lbl = document.createElement('div');
+        lbl.className = 'mob-card-label';
+        lbl.textContent = th.textContent.trim().replace(/\n/g, ' ');
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.inputMode = 'numeric'; inp.pattern = '[0-9]*';
+        inp.className = 'mob-card-input'; inp.placeholder = '\u2014';
+        const ftSuffix = document.createElement('span');
+        ftSuffix.textContent = 'Ft.';
+        ftSuffix.style.cssText = 'font-size:11px;color:var(--text-muted);flex-shrink:0;font-family:Arial,sans-serif;';
+        const realInput = realInputs[i];
+        if (realInput) {
+          realInput._mobMirror = inp;
+          inp.value = realInput.value;
+          inp.addEventListener('input', () => {
+            realInput.value = inp.value;
+            if (typeof saveFormData === 'function') saveFormData();
+            const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
+            headerBtn.classList.toggle('has-data', hasAny);
+          });
+        }
+        row.appendChild(lbl); row.appendChild(inp); row.appendChild(ftSuffix); body.appendChild(row);
+      });
+    });
+  }
+
   function addFooterAccordion() {
     makeAccordion('Hardware & Extras', 'Qty / Length', (body, headerBtn) => {
       const realFooter = document.querySelector('#page2 .footer-fields');
       if (!realFooter) return;
-
       const realLabels = realFooter.querySelectorAll('.footer-field label');
       const realInputs = realFooter.querySelectorAll('.footer-field input');
-
       realLabels.forEach((lbl, i) => {
         const realInput = realInputs[i];
         if (!realInput) return;
-
         const row = document.createElement('div');
         row.className = 'mob-footer-row';
-
         const labelEl = document.createElement('div');
         labelEl.className = 'mob-footer-label';
         labelEl.textContent = lbl.textContent.replace(':', '').trim();
-
         const inp = document.createElement('input');
-        inp.type = 'text';
-        inp.inputMode = realInput.inputMode || 'text';
-        inp.pattern = realInput.pattern || '';
-        inp.className = 'mob-card-input mob-footer-input';
-        inp.placeholder = '—';
+        inp.type = 'text'; inp.inputMode = realInput.inputMode || 'text';
+        inp.className = 'mob-card-input mob-footer-input'; inp.placeholder = '\u2014';
+        realInput._mobMirror = inp;
         inp.value = realInput.value;
-
         inp.addEventListener('input', () => {
           realInput.value = inp.value;
+          if (typeof saveFormData === 'function') saveFormData();
           const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
           headerBtn.classList.toggle('has-data', hasAny);
         });
-
-        row.appendChild(labelEl);
-        row.appendChild(inp);
-        body.appendChild(row);
+        row.appendChild(labelEl); row.appendChild(inp); body.appendChild(row);
       });
     });
   }
 
-  // --- Wire tables (need tables to exist first, so we defer slightly) ---
-  function buildAll() {
-    // Wire tables — simple 1-row (select by thead content)
-    function findTableByHeader(text) {
-      return Array.from(document.querySelectorAll('#page2 table.mat-table')).find(t => {
-        const th = t.querySelector('thead th');
-        return th && th.textContent.includes(text);
-      });
-    }
-
-    function addSimpleTableByRef(title, badge, table) {
-      if (!table) return;
-      makeAccordion(title, badge, (body, headerBtn) => {
-        const headers = Array.from(table.querySelectorAll('thead th')).slice(1);
-        const realInputs = Array.from(table.querySelectorAll('tbody tr:first-child td input'));
-        headers.forEach((th, i) => {
-          const row = document.createElement('div');
-          row.className = 'mob-card-row';
-          const lbl = document.createElement('div');
-          lbl.className = 'mob-card-label';
-          lbl.textContent = th.textContent.trim().replace(/\n/g, ' ');
-          const inp = document.createElement('input');
-          inp.type = 'text'; inp.inputMode = 'numeric'; inp.pattern = '[0-9]*';
-          inp.className = 'mob-card-input'; inp.placeholder = '—';
-          const realInput = realInputs[i];
-          if (realInput) {
-            inp.value = realInput.value;
-            inp.addEventListener('input', () => {
-              realInput.value = inp.value;
-              const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
-              headerBtn.classList.toggle('has-data', hasAny);
-            });
-          }
-          const ftSuffix = document.createElement('span');
-          ftSuffix.textContent = 'Ft.';
-          ftSuffix.style.cssText = 'font-size:11px;color:var(--text-muted);flex-shrink:0;font-family:Arial,sans-serif;';
-          row.appendChild(lbl); row.appendChild(inp); row.appendChild(ftSuffix); body.appendChild(row);
-        });
-      });
-    }
-
-    addSimpleTableByRef('CU Wire', '13 sizes', findTableByHeader('CU Wire'));
-    addSimpleTableByRef('AL Wire', '12 sizes', findTableByHeader('AL Wire'));
-    addSimpleTableByRef('THHN Wire', '9 sizes', findTableByHeader('THHN'));
-
-    // Multi-row tables
-    addMultiRowTableAccordion('Fittings', '24 types × 11 sizes', 'fittings-table');
-    addMultiRowTableAccordion('Wireway', '5 sizes × 5 lengths', 'wireway-table');
-    addMultiRowTableAccordion('Polaris Taps', '6 gauges × 5 ports', 'polaris-table');
-
-    // Footer
-    addFooterAccordion();
+  function findTableByHeader(text) {
+    return Array.from(document.querySelectorAll('#page2 table.mat-table')).find(t => {
+      const th = t.querySelector('thead th');
+      return th && th.textContent.includes(text);
+    });
   }
 
-  // Tables are built by earlier JS — run after them
-  buildAll();
+  addSimpleTableByRef('CU Wire', '13 sizes', findTableByHeader('CU Wire'));
+  addSimpleTableByRef('AL Wire', '12 sizes', findTableByHeader('AL Wire'));
+  addSimpleTableByRef('THHN Wire', '9 sizes', findTableByHeader('THHN'));
+  addMultiRowTableAccordion('Fittings', '24 types × 11 sizes', 'fittings-table');
+  addMultiRowTableAccordion('Wireway', '5 sizes × 5 lengths', 'wireway-table');
+  addMultiRowTableAccordion('Polaris Taps', '6 gauges × 5 ports', 'polaris-table');
+  addFooterAccordion();
 }
 
-// Only run on mobile screen widths
+function initMobileAccordions() {
+  if (window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches) {
+    buildMobileAccordions();
+  }
+}
+// Ensure real inputs hold restored values BEFORE accordions mirror from them,
+// then attach autosave (idempotent), then build the mobile UI.
+function initFormAndAccordions() {
+  ensureStableKeys();
+  restoreFormData();
+  attachAutosave();
+  initMobileAccordions();
+}
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => { attachAutosave(); restoreFormData(); });
+  document.addEventListener('DOMContentLoaded', initFormAndAccordions);
 } else {
-  setTimeout(() => { attachAutosave(); restoreFormData(); }, 0);
+  setTimeout(initFormAndAccordions, 0);
 }
 
-// ===== SERVICE WORKER =====
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('../sw.js', { scope: '../' })
-      .then(reg => console.log('SW registered:', reg.scope))
-      .catch(err => console.warn('SW registration failed:', err));
-  });
-}
 </script>
-
 </body>
 </html>
