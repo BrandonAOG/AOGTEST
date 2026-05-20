@@ -19,6 +19,7 @@
    CSS CUSTOM PROPERTIES
    ============================================================ */
 :root {
+  color-scheme: light;
   --cyan: #D97706;
   --bg: #FFFFFF;
   --panel: #FFFFFF;
@@ -34,6 +35,7 @@
   --row-label-bg: #fafafa;
 }
 body.dark-mode {
+  color-scheme: dark;
   --bg: #0A0E27;
   --panel: #0F1535;
   --border: rgba(0,255,200,0.08);
@@ -99,12 +101,11 @@ body.dark-mode {
    ============================================================ */
 .action-bar {
   position: fixed !important;
-  top: 0 !important; left: 0 !important; right: 0 !important;
+  top: env(safe-area-inset-top, 0px) !important; left: 0 !important; right: 0 !important;
   z-index: 99999;
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
-  padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border-bright);
@@ -170,6 +171,7 @@ body.dark-mode .theme-icon.theme-icon-moon { opacity:1; transform:rotate(0deg); 
 .page-wrapper {
   width: 100%; max-width: 1050px; margin: 0 auto;
   display: flex; flex-direction: column;
+  padding-top: calc(44px + env(safe-area-inset-top, 0px));
 }
 .form-page {
   width: 100%; background: var(--panel);
@@ -1114,7 +1116,7 @@ body.dark-mode .miscues-textarea {
    ============================================================ */
 @media print and (max-device-width: 1024px) {
 
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-scheme: light !important; }
 
   input::placeholder, textarea::placeholder,
   *::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
@@ -1319,28 +1321,6 @@ body.dark-mode .miscues-textarea {
 @media print {
   .action-bar { display: none !important; }
 }
-
-/* ===== iPAD PRINT FIX =====
-   Forces same compact layout as iPhone print.
-   Scoped to iPad viewport range only — never affects desktop or iPhone. */
-@media print and (min-width: 768px) and (max-width: 1366px) {
-  html, body {
-    width: 8.5in !important;
-    max-width: 8.5in !important;
-  }
-  .form-page, .page {
-    width: 8.1in !important;
-    max-width: 8.1in !important;
-    margin: 0 auto !important;
-    padding: 0.15in !important;
-    box-sizing: border-box !important;
-    font-size: 9pt !important;
-  }
-  .page-wrapper {
-    width: 8.5in !important;
-    max-width: 8.5in !important;
-  }
-}
 </style>
 </head>
 <body>
@@ -1348,7 +1328,7 @@ body.dark-mode .miscues-textarea {
 <!-- ========== ACTION BAR ========== -->
 <div class="action-bar" id="action-bar">
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
-  <button class="btn" onclick="(function(){ document.title = buildFileName('pdf', null).replace('.pdf',''); const wasDark = document.body.classList.contains('dark-mode'); document.body.classList.remove('dark-mode'); setTimeout(function(){ window.print(); setTimeout(function(){ if(wasDark) document.body.classList.add('dark-mode'); }, 1000); }, 100); })()">📄 PDF</button>
+  <button class="btn" onclick="openPrintPreview()">📄 PDF</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPHONE</button>
   <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 ANDROID</button>
@@ -2315,31 +2295,128 @@ function setStatus(msg) {
    Switch to light for print, restore dark after (with fallback timer
    in case afterprint never fires on Mobile Safari)
 ================================================================ */
-(function() {
-  let wasDark = false;
-  let restoreTimer = null;
+// ── PRINT: full Safari-proof light-mode + inline-style nuke ─────────────────
+function openPrintPreview() {
+  const bar    = document.querySelector('.action-bar');
+  const note   = document.querySelector('.notice');
+  const status = document.getElementById('save-status');
+  const wasDark = document.body.classList.contains('dark-mode');
 
-  function forceLightForPrint() {
-    wasDark = document.body.classList.contains('dark-mode');
-    if (wasDark) {
-      document.body.classList.remove('dark-mode');
+  // STEP 1: flip to light mode visibly on screen
+  if (wasDark) document.body.classList.remove('dark-mode');
+  document.documentElement.style.setProperty('background', '#ffffff', 'important');
+  document.body.style.setProperty('background', '#ffffff', 'important');
+  document.documentElement.style.setProperty('color-scheme', 'light', 'important');
+  document.body.style.setProperty('color-scheme', 'light', 'important');
+
+  if (bar)    bar.style.display    = 'none';
+  if (note)   note.style.display   = 'none';
+  if (status) status.style.display = 'none';
+
+  const isMobilePrint = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
+  const wrapper = document.querySelector('.page-wrapper, .form-page');
+  const origWrapperPaddingTop = wrapper ? wrapper.style.paddingTop : '';
+  const origMaxWidth = document.body.style.maxWidth;
+  const origWidth    = document.body.style.width;
+  document.body.style.maxWidth = '100%';
+  document.body.style.width    = '100%';
+
+  // STEP 2: save & stamp inline styles on every element Safari greys out
+  const _saved = [];
+  function stamp(el, props) {
+    _saved.push([el, el.getAttribute('style') || null]);
+    for (const [k, v] of Object.entries(props)) {
+      el.style.setProperty(k, v, 'important');
     }
-    // Fallback: restore dark mode after 30s if afterprint never fires
-    clearTimeout(restoreTimer);
-    restoreTimer = setTimeout(restoreDarkAfterPrint, 30000);
   }
 
-  function restoreDarkAfterPrint() {
-    clearTimeout(restoreTimer);
-    if (wasDark) {
-      document.body.classList.add('dark-mode');
-      wasDark = false;
-    }
+  function forceLightMode() {
+    stamp(document.documentElement, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
+    stamp(document.body,            { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
+
+    document.querySelectorAll(
+      '.form-page, .page-wrapper, .permit-section, .permit-row, .permit-note, ' +
+      '.footer-fields, .footer-row, .footer-field, .grid-section, ' +
+      '#page1, #page2, #page2-inner, .reg-row, .section-block, .checklist-section'
+    ).forEach(el => stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' }));
+
+    document.querySelectorAll(
+      'input[type="text"], input[type="email"], input[type="tel"], ' +
+      'input[type="date"], input[type="number"], textarea, select'
+    ).forEach(el => stamp(el, {
+      background: '#ffffff', 'background-color': '#ffffff',
+      color: '#1F2937', '-webkit-text-fill-color': '#1F2937',
+      'box-shadow': 'none', '-webkit-appearance': 'none', 'color-scheme': 'light'
+    }));
+
+    document.querySelectorAll('table.mat-table td input, table td input').forEach(el => stamp(el, {
+      background: 'transparent', 'background-color': 'transparent',
+      color: '#1F2937', '-webkit-text-fill-color': '#1F2937',
+      'box-shadow': 'none', '-webkit-appearance': 'none', 'color-scheme': 'light'
+    }));
+
+    document.querySelectorAll('input[type="checkbox"]').forEach(el => stamp(el, {
+      background: el.checked ? '#D97706' : '#ffffff',
+      'background-color': el.checked ? '#D97706' : '#ffffff',
+      '-webkit-appearance': 'none', 'color-scheme': 'light'
+    }));
+
+    document.querySelectorAll('table.mat-table th, table th').forEach(el => stamp(el, {
+      background: '#4B5563', 'background-color': '#4B5563',
+      color: '#ffffff', '-webkit-text-fill-color': '#ffffff', 'color-scheme': 'light'
+    }));
+
+    document.querySelectorAll('table.mat-table td, table td').forEach(el => {
+      const bg = el.classList.contains('row-label') ? '#f0f0f0' : '#ffffff';
+      stamp(el, {
+        background: bg, 'background-color': bg,
+        color: '#1F2937', '-webkit-text-fill-color': '#1F2937', 'color-scheme': 'light'
+      });
+    });
   }
 
-  window.addEventListener('beforeprint', forceLightForPrint);
-  window.addEventListener('afterprint', restoreDarkAfterPrint);
-})();
+  function restoreAll() {
+    _saved.forEach(([el, orig]) => {
+      if (orig !== null) { el.setAttribute('style', orig); }
+      else               { el.removeAttribute('style'); }
+    });
+    _saved.length = 0;
+  }
+
+  // STEP 3: restore everything only when print dialog actually closes
+  let restored = false;
+  function restore() {
+    if (restored) return;
+    restored = true;
+    restoreAll();
+    if (bar)    bar.style.display = '';
+    if (note)   note.style.display = '';
+    if (status) status.style.display = '';
+    if (wasDark) document.body.classList.add('dark-mode');
+    document.body.style.maxWidth = origMaxWidth;
+    document.body.style.width    = origWidth;
+    if (wrapper) wrapper.style.paddingTop = origWrapperPaddingTop;
+    window.removeEventListener('afterprint', restore);
+    if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
+  }
+  window.addEventListener('afterprint', restore);
+  const mql = window.matchMedia ? window.matchMedia('print') : null;
+  function onMqlChange(e) { if (!e.matches) restore(); }
+  if (mql && mql.addEventListener) mql.addEventListener('change', onMqlChange);
+
+  // STEP 4: wait 1.5 s in light mode so Safari fully repaints, then open print dialog
+  void document.body.offsetHeight;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      forceLightMode();
+      void document.body.offsetHeight;
+      setTimeout(() => {
+        window.print();
+        // Do NOT restore here — afterprint fires when user closes dialog
+      }, 1500);
+    });
+  });
+}
 
 /* ================================================================
    PRINT — TEXTAREA PROXY DIVS
