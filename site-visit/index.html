@@ -1667,6 +1667,32 @@ function openPrintPreview() {
     log.push(`No injection — desktop base @media print used`);
   }
 
+  log.push(`\n<strong>STEP 3.5 — Computed styles snapshot</strong>`);
+  const snap = [
+    ['body', 'zoom'],
+    ['#page1 .logo-text', 'fontSize'],
+    ['#page1 .checklist-title', 'fontSize'],
+    ['#page1 .permit-section-header', 'fontSize'],
+    ['#page1 .permit-row', 'fontSize'],
+    ['#page1 .permit-input', 'fontSize'],
+    ['#page1 .permit-note', 'fontSize'],
+    ['#page1 .yn-checkbox-wrap', 'fontSize'],
+    ['#page1 input[type="checkbox"]', 'width'],
+    ['#page2 table.mat-table th', 'fontSize'],
+    ['#page2 table.mat-table td', 'fontSize'],
+  ];
+  snap.forEach(([sel, prop]) => {
+    try {
+      const el = document.querySelector(sel);
+      if (el) {
+        const val = window.getComputedStyle(el)[prop];
+        log.push(`  ${sel} → ${prop}: <strong style="color:#FBBF24">${val}</strong>`);
+      } else {
+        log.push(`  ${sel} → NOT FOUND`);
+      }
+    } catch(e) { log.push(`  ${sel} → ERROR: ${e.message}`); }
+  });
+
   log.push(`\n<strong>STEP 4 — window.print() called</strong>`);
 
   window.print();
