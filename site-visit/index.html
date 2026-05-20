@@ -554,7 +554,9 @@ body.dark-mode .notice { color: #7DD3FC; }
 /* ==========================================================
    PRINT STYLES — desktop (untouched from original)
    ========================================================== */
-@media print {
+@page { size: 8.5in 11in; margin: 0.2in; }
+
+@media print, body.printing {
 
   * {
     -webkit-print-color-adjust: exact !important;
@@ -633,8 +635,6 @@ body.dark-mode .notice { color: #7DD3FC; }
   body.dark-mode .footer-field label { color: #1F2937 !important; }
   body.dark-mode .logo-text { color: #111 !important; }
   body.dark-mode .logo-text .logo-generators { color: #111 !important; }
-
-  @page { size: 8.5in 11in; margin: 0.2in; }
 
   html {
     margin: 0; padding: 0;
@@ -918,9 +918,9 @@ body.dark-mode .notice { color: #7DD3FC; }
 /* ===== MOBILE PRINT — Safari honors @media print + max-width natively.
    This block (copied from the proven-working sibling page) tightens page 2
    so it fits on phones. No body.mobile-print class, no JS injection. ===== */
-@media print and (max-width: 767px) {
+@page { size: 8.5in 11in; margin: 0.15in; }
 
-  @page { size: 8.5in 11in; margin: 0.15in; }
+@media print and (max-width: 767px), body.printing.mobile-printing {
 
   /* ---- PAGE 1: sized to fill one sheet at comfortable, readable proportions.
      Tuned to use the whole page without spilling to a second sheet. The
@@ -1809,6 +1809,7 @@ function openPrintPreview() {
     if (note)   note.style.display   = '';
     if (status) status.style.display = '';
     if (wasDark) document.body.classList.add('dark-mode');
+    document.body.classList.remove('printing', 'mobile-printing');
     window.removeEventListener('afterprint', restore);
     if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
   }
@@ -1835,6 +1836,13 @@ function openPrintPreview() {
   document.body.style.maxWidth = '100%';
   document.body.style.width    = '100%';
 
+  // Apply print styles directly to the DOM so Safari's preview renderer sees
+  // the correct layout — not the screen layout. body.printing triggers the same
+  // rules as @media print; body.printing.mobile-printing adds the mobile overrides.
+  const isMobilePrint = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
+  document.body.classList.add('printing');
+  if (isMobilePrint) document.body.classList.add('mobile-printing');
+
   void document.body.offsetHeight;            // force reflow
   const wrapper = document.querySelector('.page-wrapper');
   if (wrapper) void wrapper.offsetHeight;     // force reflow of the printed content
@@ -1842,6 +1850,7 @@ function openPrintPreview() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       window.print();
+      document.body.classList.remove('printing', 'mobile-printing');
       document.body.style.maxWidth = origMaxWidth;
       document.body.style.width    = origWidth;
     });
