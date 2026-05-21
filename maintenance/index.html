@@ -2238,10 +2238,12 @@ function openPrintPreview() {
       height: 'auto', 'min-height': '0', 'max-height': 'none',
       overflow: 'visible', padding: '0', margin: '0'
     });
-    stamp(document.body, {
-      height: 'auto', 'min-height': '0', 'max-height': 'none',
-      overflow: 'visible', padding: '0', margin: '0'
-    });
+    const isMacOS = document.documentElement.classList.contains('macos');
+stamp(document.body, {
+    height: 'auto', 'min-height': '0', 'max-height': 'none',
+    overflow: 'visible', padding: '0',
+    margin: isMacOS ? '0.2in 0.2in 0 0.2in' : '0'
+});
     document.querySelectorAll(
       '.section, .section-header, .form-row, .form-group, .header, .content'
     ).forEach(el => stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' }));
