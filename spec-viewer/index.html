@@ -501,6 +501,7 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
         <option value="man-legacy-owners" data-cooling="air">10–24 kW Guardian (Legacy) Installation Guidelines (60 Hz Air-Cooled)</option>
         <option value="man-xg-owners" data-cooling="liq">32–80 kW Protector XG Owner's Manual</option>
         <option value="man-rg-22-60kw" data-cooling="liq">22–60 kW Protector RG Installation Guidelines</option>
+        <option value="man-rg-100-150kw" data-cooling="liq">100–150 kW Protector RG/HG Installation Manual · RG10090 / RG13090 / RG15090</option>
       </select>
     </div>
     <div id="gen-manual-content" class="hidden"></div>
@@ -4803,6 +4804,374 @@ function buildRG_Accessories(){
   var h='<div class="man-section">';
   h+=mh4('Available Accessories');
   h+=mt(['Accessory','Description','Part Number'],[['Cold Weather Kit','Recommended in areas where temperatures fall below 32°F (0°C).','G006175-0 (25 &amp; 30 kW) / G005630-1 (36, 45, &amp; 60 kW)'],['Extreme Cold Weather Kit','Engine block heater. Used with appropriate Cold Weather Kit. Engine oil must be replaced with synthetic oil.','G006174-0 (25 &amp; 30 kW) / G005616-0 (36, 45, &amp; 60 kW)'],['Scheduled Maintenance Kit','All pieces necessary to perform maintenance along with oil recommendations.','G006176-0 (25 &amp; 30 kW) / G006172-0 (36 &amp; 45 kW) / G006171-0 (60 kW)'],['Mobile Link&#174;','Personalized web portal displaying generator status, maintenance schedule, event history, and more.','G006463-4'],['Touch-Up Paint Kit','Paint to maintain or touch up generator enclosure to protect from corrosion.','G005703-0 (Bisque) / G005704-0 (Gray)'],['Wireless Local Monitor','Wireless and battery powered status monitor. Red/yellow/green status lights. 600 ft (183 m) range.','G006664-0'],['Liquid Cooled Generator Pad','Reinforced composite pad.','10000044173 (22–30 kW) / 10000005771 (32–60 kW)'],['All Surface Protectant','For vinyl, rubber, and plastics. Seals and protects surfaces from water and UV rays.','A0000019001'],['Ultrasonic Cleaning Solution','1 gal (3.8 L) ultra concentrated cleaning solution. Makes 6 gal (22.7 L).','A0000018981']]);
+  h+=mnote('Contact an IASD or visit www.generac.com for additional information on accessories and extended warranties.');
+  h+='</div>';return h;
+}
+
+// ── 100–150 KW LIQUID-COOLED RG/HG INSTALLATION MANUAL (A0001525181) ─────────
+MANUALS['man-rg-100-150kw'] = {
+  title: 'Installation Manual \u2014 Spark-Ignited Stationary Generators (100\u2013150 kW)',
+  models: 'RG10090-HG10090 \u00b7 RG13090-HG13090 \u00b7 RG15090-HG15090',
+  partNo: 'A0001525181 Rev. E \u00b7 09/10/2025',
+  sections: [
+    { id:'rg9-safety',     title:'Safety Rules &amp; General Information', icon:'&#9888;',   html:buildRG9_Safety() },
+    { id:'rg9-planning',   title:'Installation Planning',                  icon:'&#128203;', html:buildRG9_Planning() },
+    { id:'rg9-site',       title:'Site Selection &amp; Preparation',       icon:'&#128205;', html:buildRG9_Site() },
+    { id:'rg9-fuel',       title:'Gaseous Fuel Systems',                   icon:'&#128293;', html:buildRG9_Fuel() },
+    { id:'rg9-electrical', title:'Electrical System',                      icon:'&#9889;',   html:buildRG9_Electrical() },
+    { id:'rg9-startup',    title:'Control Panel Startup &amp; Testing',    icon:'&#9654;',   html:buildRG9_Startup() },
+    { id:'rg9-trouble',    title:'Troubleshooting &amp; Quick Reference',  icon:'&#128680;', html:buildRG9_Trouble() },
+    { id:'rg9-checklist',  title:'Installation Checklists',                icon:'&#10003;',  html:buildRG9_Checklist() },
+    { id:'rg9-access',     title:'Accessories',                            icon:'&#128230;', html:buildRG9_Accessories() }
+  ]
+};
+
+function buildRG9_Safety(){
+  var h='<div class="man-section">';
+  h+=mh4('Introduction');
+  h+=mp('Compact, high-performance, liquid-cooled, engine-driven generator designed to automatically supply electrical power during a utility power failure. Factory installed in an all-weather enclosure for outdoor installation only. Operates on vapor-withdrawn LP gas or natural gas (NG). Suitable for typical residential and commercial loads: induction motors, electronics, lighting, and microwaves when correctly sized. Features a 9.0L engine.');
+  h+=mdanger('Loss of life. Property damage. Installation must always comply with applicable codes, standards, laws and regulations. (D000190)');
+  h+=mdanger('Automatic start-up. Disconnect utility power and render unit inoperable before working on unit. (D000191)');
+  h+=mdanger('Electrocution. Never connect this unit to the electrical system of any building unless a licensed electrician has installed an approved transfer switch. (D000150)');
+  h+=mdanger('Asphyxiation. Carbon monoxide can kill in minutes. Operate this unit outdoors only. (D000525)');
+  h+=mdanger('Explosion and fire. Fuel and vapors are extremely flammable and explosive. No leakage of fuel is permitted. Keep fire and spark away. (D000192)');
+  h+=mh4('General Hazards');
+  h+=mul(['This product is NOT intended for critical life support applications.','This unit is NOT intended for use as a prime power source — standby use only.','Only qualified service personnel may install, operate, and maintain this equipment.','Only a trained and licensed electrician should perform wiring and connections.','Disconnect negative battery cable, then positive, when working on unit (accidental start-up prevention).','Keep clothing, hair, and appendages away from moving parts. Do not wear jewelry.','Do not use generator as a step.','Always use a battery-operated CO alarm indoors per manufacturer instructions.','Use only fully-charged fire extinguishers rated "ABC" by the NFPA.','Unit must be positioned to prevent combustible material accumulation underneath.','Do not alter construction of, or block ventilation for, generator.']);
+  h+=mh4('Battery Hazards');
+  h+=mul(['Do not dispose of batteries in fire — batteries are explosive.','Batteries emit explosive gases while charging — keep fire and spark away.','Disconnect battery ground terminal before working on battery or wires.','Batteries contain sulfuric acid — wear protective gear.','Do not open or mutilate batteries.','Always connect positive battery cable first to avoid spark.','Always recycle batteries per local laws — visit Call2Recycle.org/locator.']);
+  h+=mh4('Standards Index');
+  h+=mul(['NFPA 70: National Electric Code (NEC)','NFPA 37: Standard for Stationary Combustion Engines and Gas Turbines','NFPA 54: National Fuel Gas Code','NFPA 58: Standard for Storage and Handling of Liquefied Petroleum Gases','NFPA 70E: Standard for Electrical Safety in the Workplace','NFPA 211: Standard for Chimneys, Fireplaces, Vents, and Solid Fuel Burning Appliances','ICC IFGC: International Fuel Gas Code','International Building Code']);
+  h+=mh4('Before You Begin');
+  h+=mul(['Contact local inspector or city hall for all applicable codes and required permits before installing.','Fully comply with NEC, NFPA, and OSHA standards, and all federal, state, and local building and electric codes.','Unit must be installed in accordance with current NFPA 37 and NFPA 70 standards.','Verify capacity of NG meter or LP tank to provide sufficient fuel for both the unit and other household appliances.','Incorrect installation can result in personal injury, equipment damage, and may suspend or void the warranty.']);
+  h+=mh4('How to Obtain Service');
+  h+=mp('Contact Generac Customer Service at 1-888-GENERAC (1-888-436-3722) or visit www.generac.com. Always supply the complete model and serial number from the data decal. Find nearest IASD: www.generac.com/Dealer-Locator');
+  h+='</div>';return h;
+}
+
+function buildRG9_Planning(){
+  var h='<div class="man-section">';
+  h+=mdanger('Electrical backfeed. Use only approved switchgear to isolate generator from the normal power source. Connecting this generator to an electrical system supplied by an electric utility shall be by means of a transfer switch to isolate the electric system from the utility distribution system when the generator is operating. (D000237)');
+  h+=mh4('Installation Drawings');
+  h+=mp('Installation drawings show weights, dimensions, clearances, exhaust details, connection locations, wiring stub-ups, and lifting locations. Always use unit-specific installation drawings when designing a site plan. Thoroughly read the NOTES section of each drawing. Always use unit-specific wiring diagrams during planning and installation.');
+  h+=mh4('Receiving &amp; Inspection');
+  h+=mul(['Handle shipping cartons and crates carefully to avoid damage. Store and unpack with correct side up.','Carefully inspect generator and all contents for shipping damage. Correct all damage or deficiencies before installing.']);
+  h+=mh4('Storage Before Installation');
+  h+=mul(['Long-term storage (6+ months): Contact an IASD for the Long Term Preservation and Storage Manual (Part No. 0G4018) and Preservation Checklist (Part No. 0G4018A).','Short-term storage: Place on smooth flat surface — do not leave on shipping pallet. Cover exhaust openings. Leave plastic plugs in fuel connection points. Use anti-rodent plugs to prevent entry of birds, small animals, and foreign objects.']);
+  h+=mh4('Lifting');
+  h+=mdanger('Risk of electrocution. Avoid touching overhead power lines when lifting or hoisting generator. (D000245)');
+  h+=mul(['Generators over 900 lbs (408 kg) require correct tools, equipment, and qualified personnel.','Use a spreader bar to prevent damage — failure to do so WILL result in scratches and damage to painted surfaces.','Attach lifting and rigging devices at designated points only. Do not use lifting points of the engine or alternator.','Verify all fasteners are correctly secured prior to lifting.']);
+  h+=mh4('Generator Location Guidelines');
+  h+=mul(['Generator, in its protective enclosure, must be installed outdoors.','Supporting structure must be adequate for generator and its accessories.','Verify installation site is clean, dry, not subject to flooding, and has adequate drainage.','Maintain minimum clear working space around each side for service — see NEC Article 110.26.','Verify installation permits engine exhaust gases to be safely evacuated from inhabited or occupied areas.','Consider direction of prevailing winds to prevent exhaust from being carried back to engine area or fresh air intake vents of nearby buildings.','Do NOT face radiator discharge end of the enclosure into prevailing wind.','Verify installation site permits sufficient airflow for cooling and ventilation.','Consider cold weather kit options and accessories for cold weather locations.','Verify fuel pressure and pipe is sized correctly with appropriate flex hose.']);
+  h+=mnote('Failure to comply with site selection guidelines can result in damage to generator or surrounding area and may cause warranty to be suspended or voided. Extra repair labor or equipment may not be covered under warranty if service access is difficult or restricted.');
+  h+='</div>';return h;
+}
+
+function buildRG9_Site(){
+  var h='<div class="man-section">';
+  h+=mh4('Carbon Monoxide (CO)');
+  h+=mdanger('Asphyxiation. Running engines produce carbon monoxide, a colorless, odorless, poisonous gas. Carbon monoxide, if not avoided, will result in death or serious injury. Move to fresh air immediately and seek medical attention if you feel sick, dizzy, or weak while the generator is running or after it stops. (D000103)');
+  h+=mp('CO detectors must be installed in all habitable rooms of the structure and tested per manufacturer instructions. Common smoke alarms do NOT detect CO. Verify the structure is correctly caulked and sealed — voids, cracks, or openings around windows, doors, soffits, pipes, and vents can allow exhaust gas to be drawn in. If prevailing winds will cause blowing or drifting, consider using a windbreak at a safe distance from the generator.');
+  h+=mh4('Potential CO Entry Points');
+  h+=mt(['ID','Entry Point','Comments'],[
+    ['A','Windows and doors','Can be opened to admit fresh air, including inoperable windows or doors'],
+    ['B','Garage door','CO can leak in if door is open or does not seal correctly when closed'],
+    ['C','Attic vents','Attic vents, ridge vents, and soffit vents can all admit generator exhaust'],
+    ['D','Basement windows / crawl spaces','Windows, hatches, or crawl spaces allowing ventilation to/from lower level'],
+    ['E','Furnace intake/exhaust vent','Air intake and exhaust pipes for furnace'],
+    ['F','Wall cracks','Cracks in wall, foundation, mortar, seepage holes in brick/mortar, air gaps around doors/windows/pipes'],
+    ['G','Dryer vent','Exhaust duct for clothes dryer'],
+    ['H','Airflow restrictions','Corners, alcoves, fences, courtyards, heavy vegetation can collect exhaust gases'],
+    ['J','HVAC components','Do not direct generator discharge into make-up air systems, AC condensers, or window AC units'],
+    ['K','CO detector','Semi-permanently mounted device detecting CO within living areas']
+  ]);
+  h+=mnote('HVAC mechanical and gravity outdoor air intake openings shall be located per Section 401 of the ICC Mechanical Code.');
+  h+=mh4('Distance Requirements');
+  h+=mt(['ID','Description','Requirement'],[
+    ['A','Controller end of enclosure','3 ft (0.91 m) minimum — includes shrubs, bushes, and trees'],
+    ['B','Service side of enclosure','3 ft (0.91 m) minimum to combustible wall (SwRI-marked units); 5 ft (1.52 m) if not fire rated / 3 ft (0.91 m) if one-hour fire rated (non-SwRI units)'],
+    ['C','Discharge end of enclosure','3 ft (0.91 m) minimum'],
+    ['D','Non-service side of enclosure','18 in (0.48 m) minimum (SwRI-marked); 5 ft (1.52 m) if not fire rated / 3 ft (0.91 m) if one-hour fire rated (non-SwRI)'],
+    ['E','Windows, vents, openings','No operable windows, doors, vents, or openings permitted closer than locally adopted codes allow'],
+    ['F','Existing wall','Not closer than locally adopted codes allow while abiding by end and side clearances'],
+    ['G','Removable fence','Non-permanent barrier panels for servicing must be 3 ft (0.91 m) minimum from generator'],
+    ['H','Overhead clearance','No structure or overhang permitted above generator or above 3 ft service/discharge clearance; must be at least 5 ft (1.52 m) vertical distance above generator over the 18 in non-service clearance'],
+    ['J','Maintenance space','Maneuvering space for battery replacement and engine service — see NEC Article 110.26']
+  ]);
+  h+=mnote('IMPORTANT: A unit placed within NFPA requirements may still allow CO within the structure or present a fire hazard. Unit may need to be installed farther from the structure than NFPA minimum requirements.');
+  h+=mh4('NFPA 37');
+  h+=mp('NFPA 37 limits spacing of an engine generator to a minimum of 5 ft (1.52 m) from an opening in a structure or a structure having combustible walls. An exception allows closer installation to combustible walls when approved testing demonstrates a fire originating at the engine does not ignite the combustible structure. Southwest Research Institute (SwRI) testing certifies a reduction of the minimum clearance: 18 in (0.48 m) from the non-service side and 3 ft (0.91 m) from the service side and ends to a combustible wall. This offset reduction does NOT apply to clearances from openings in the structure.');
+  h+=mnote('Generator installation must comply with ICC IFGC, NFPA 37, NFPA 54, NFPA 58, and NFPA 70 standards.');
+  h+=mh4('Generator Foundation');
+  h+=mp('Install on a non-combustible base capable of supporting its weight and accessories. A correct foundation resists dynamic loading and reduces transmitted noise and vibration. Securely fasten generator to the foundation using suitable grade, size, and style fasteners.');
+  h+=mh4('Concrete Pad');
+  h+=mul(['Extend concrete pad at least 3 in (7.6 cm) beyond the frame — 6 in (15.2 cm) suggested for fuel line support and maintenance space.','Pad must support 125% of unit wet weight for single unit applications.','Pad must be flat and level to within 0.5 in (13 mm) and capable of withstanding severe torque reactions.','Common specification: 2,500 psi (17.24 MPa) concrete reinforced with 8 gauge wire mesh.','Suggested mix (by volume): 1:2:3 cement, sand, and aggregate; max 4 in (100 mm) slump; 28-day compression strength 3,000 psi (20.7 MPa).']);
+  h+=mnote('Genpad LC prefabricated mounting pads are available exclusively for Protector series generators through Generac.');
+  h+=mh4('Placement on Roofs, Platforms &amp; Other Supporting Structures');
+  h+=mp('An oil containment system (curb or dike) must be provided per NFPA 37, Section 4.1.3. The surface beneath and beyond the engine and oil containment system must be noncombustible to a minimum distance of 12 in (300 mm). Contact local building inspection or fire department for approved noncombustible materials.');
+  h+='</div>';return h;
+}
+
+function buildRG9_Fuel(){
+  var h='<div class="man-section">';
+  h+=mdanger('Explosion and fire. Fuel and vapors are extremely flammable and explosive. No leakage of fuel is permitted. Keep fire and spark away. Connection of fuel source must be done by a qualified professional technician or contractor. (D000192, D000151)');
+  h+=mh4('Fuel Properties');
+  h+=mp('NG is lighter than air and will collect in high areas. LP vapor (gas) is heavier than air and will settle in low areas. LP vapor should only use a vapor withdrawal system. The primary regulator for LP gas is NOT included with generator.');
+  h+=mh4('Energy Content');
+  h+=mt(['Fuel','Required Energy Density'],[
+    ['LP Gas','at least 91,452 BTU/US gal (25.5 MJ/L)'],
+    ['Natural Gas','at least 1,036 BTU/ft³ (37.3 MJ/m³)']
+  ]);
+  h+=mh4('Required Fuel Pressure');
+  h+=mt(['Model','LP Vapor &amp; NG Inlet Pressure'],[
+    ['100 kW (RG10090 / HG10090)','11–14 in H₂O (2.74–3.48 kPa)'],
+    ['130 kW (RG13090 / HG13090)','7–11 in H₂O (1.74–2.74 kPa)'],
+    ['150 kW (RG15090 / HG15090)','7–11 in H₂O (1.74–2.74 kPa)']
+  ]);
+  h+=mnote('Always verify fuel pressure using the appropriate specification sheet for generator. Fuel pressure MUST NEVER drop below required specification once generator is installed.');
+  h+=mh4('NG System');
+  h+=mp('The utility gas provider supplies the gas meter. Contact the utility to verify they can deliver sufficient fuel supply at sufficient volume and pressure to operate the primary regulator. The primary regulator then provides the correct volume and fuel at the required pressure to the generator. A minimum of 5 ft (1.52 m) from primary regulator outlet to generator inlet is recommended.');
+  h+=mh4('LP Gas System');
+  h+=mp('Maximum fuel tank fill capacity is 80%; a minimum of approximately 20% of tank capacity is needed for fuel expansion from liquid to vapor. Pressure regulation is typically a two-step process: a first-stage regulator reduces high tank pressure to lower line pressure, then a second-stage regulator reduces line pressure to the required unit pressure. Both regulators and associated piping must be sized correctly.');
+  h+=mh4('NG Pipe Sizing (Schedule 40 Black Pipe)');
+  h+=mt(['kW','1.25 in (3.2 cm)','1.5 in (3.8 cm)','2 in (5.1 cm)','2.5 in (6.4 cm)','3 in (7.7 cm)'],[
+    ['100','14 ft (4.3 m)','29 ft (8.8 m)','96 ft (29.3 m)','228 ft (69.5 m)','654 ft (199.3 m)'],
+    ['130','—','—','45 ft (13.7 m)','150 ft (45.7 m)','305 ft (93.0 m)'],
+    ['150','—','—','35 ft (10.7 m)','82 ft (25.0 m)','240 ft (73.2 m)']
+  ]);
+  h+=mnote('Pipe sizing based on 0.5 in H₂O (0.12 kPa) pressure drop. Tables based on black pipe. The liquid-cooled generator is not a constant flow appliance — pipe was sized to supply at least 100% of generator BTU/hr rating.');
+  h+=mh4('LP Gas Pipe Sizing (Schedule 40 Black Pipe)');
+  h+=mt(['kW','1.25 in (3.2 cm)','1.5 in (3.8 cm)','2 in (5.1 cm)','2.5 in (6.4 cm)','3 in (7.7 cm)'],[
+    ['100','40 ft (12.2 m)','83 ft (25.3 m)','281 ft (85.6 m)','665 ft (202.7 m)','—'],
+    ['130','—','—','145 ft (44.2 m)','345 ft (105.2 m)','1000 ft (304.8 m)'],
+    ['150','—','—','118 ft (36.0 m)','280 ft (85.3 m)','800 ft (243.8 m)']
+  ]);
+  h+=mh4('Fuel Pressure Regulator — Best Practices');
+  h+=mul(['Size primary regulator for at least 110% of generator\'s required fuel consumption at 100% load.','Regulator must be a "direct acting" type and approved for a mechanized engine application.','Regulator must have accuracy rating of 1% or less and/or maximum allowable pressure droop of 1–2 in H₂O (0.25–0.50 kPa).','Piping between primary regulator and generator connection point acts as a reservoir — do NOT connect regulator directly to the flexible fuel line.','Generator must have a dedicated fuel supply — do not connect other loads to outlet of primary pressure regulator.','Use sediment traps. Inspect entire pipe run for leaks.','All pipe sizing, construction, and layout must comply with ICC IFGC, NFPA 54 (NG), and NFPA 58 (LP gas).']);
+  h+=mh4('Flexible Fuel Line');
+  h+=mp('Flexible fuel line isolates vibration from the generator to reduce possibility of fuel leaks. Use a listed nonmetallic assembly meeting ANSI Z21.75/CSA 6.27. Flexible fuel line must not be connected directly to generator connection point — always connect to an approved gas fitting. Install straight without bending, twisting, or kinking. Do not install underground or in contact with the ground.');
+  h+=mh4('Final Test Procedure — 4-Point Fuel Pressure Test');
+  h+=mp('Measure fuel supply pressure at the test port located at the fuel solenoid shutoff valve(s) under each of the following conditions:');
+  h+=mol([
+    'Static Pressure: Generator not running. Must not exceed maximum pressure listed in unit specification sheet.',
+    'Cranking Pressure: Generator cranking. Must not drop more than 1 in H₂O (0.25 kPa) below Static Pressure or below minimum specification. If it does, fuel supply piping or primary regulator may be incorrectly sized or regulator mounted too close to generator.',
+    'Running — No Load Pressure: Generator running at rated frequency and voltage with no load. Must be at or slightly below maximum pressure per specification sheet.',
+    'Running — Full Load Pressure: Generator running with full rated load applied. Fuel supply pressure should not drop more than 1–2 in H₂O (0.25–0.50 kPa) from No Load Pressure and must NEVER drop below minimum pressure in unit specification sheet.'
+  ]);
+  h+=mnote('Take necessary pressure readings as quickly as possible. Severe deformation of valves may occur if gauge adapter probe (Part No. 0K2341) is left in test port for hours or days. Below 45°F (7°C), the neoprene plug may not fully recover its original shape immediately upon removal — tighten protective cap after testing.');
+  h+=mh4('LP Tank Sizing for Vapor Withdrawal');
+  h+=mp('The vaporization rate of an LP tank depends on tank size (wetted surface area), liquid level, ambient temperature, and relative humidity. Cold weather reduces vaporization capacity. Vaporization rates in the table below are based on the tank at 20% fill capacity.');
+  h+=mt(['Tank Capacity (US gal)','Available Capacity (US gal)','Temp °F','Vaporization Capacity BTU/hr'],[
+    ['250 (946 L)','150 (568 L)','40 / 20 / 0','507,600 / 338,400 / 169,200'],
+    ['325 (1,230 L)','195 (738 L)','40 / 20 / 0','642,600 / 428,400 / 214,200'],
+    ['500 (1,893 L)','300 (1,136 L)','40 / 20 / 0','792,540 / 528,360 / 264,180'],
+    ['850 (3,218 L)','510 (1,931 L)','40 / 20 / 0','1,217,700 / 811,800 / 405,900'],
+    ['1,000 (3,785 L)','600 (2,271 L)','40 / 20 / 0','1,416,960 / 944,640 / 472,620']
+  ]);
+  h+=mnote('Available tank capacity is approximately 60% of total (based on 80% max fill minus 20% minimum operating level). Contact a reputable LP gas supplier when sizing tanks and associated regulators.');
+  h+='</div>';return h;
+}
+
+function buildRG9_Electrical(){
+  var h='<div class="man-section">';
+  h+=mdanger('Electrocution. Turn utility and emergency power supplies to OFF before connecting power source and load lines. (D000116)');
+  h+=mh4('General Information');
+  h+=mp('All wiring must be correctly sized, routed, supported, and connected per NEC and local codes. The generator uses Customer Connection Interface (CCI) panels to separate high voltage and customer control wiring connections. Always use unit-specific wiring diagrams when making wiring connections.');
+  h+=mh4('Generator Feeder Conductors');
+  h+=mp('Generator supply connection is made at the generator disconnect circuit breaker terminals. Conductor sizes must be adequate to handle maximum current based on 167°F (75°C) column of NEC tables. Apply corrosion inhibitor to conductors if aluminum conductors are used. Tighten terminal lugs to torque values noted on decal located on inside of door.');
+  h+=mh4('Frame Breaker Specifications');
+  h+=mt(['Frame Breaker','Range','Wire Type','Wire Temp Rating','Lug Torque'],[
+    ['Generac 225 AF 2-Pole','125A–200A','Cu/Al','167°F (75°C)','375 in-lb (42.37 Nm)'],
+    ['Generac 225 AF 3-Pole','50A–200A','Cu/Al','167°F (75°C)','375 in-lb (42.37 Nm)'],
+    ['Generac 400 AF 2-Pole','225A–400A','Cu/Al','167°F (75°C)','375 in-lb (42.37 Nm)'],
+    ['Generac 400 AF 3-Pole','225A–400A','Cu/Al','167°F (75°C)','375 in-lb (42.37 Nm)']
+  ]);
+  h+=mnote('Generac frame breakers are rated at an 80% continuous load rating. Frame breaker torque specs are on the breaker data tag.');
+  h+=mh4('Control Wiring — Wire Length vs. Size');
+  h+=mt(['Maximum Wire Length','Recommended Wire Size'],[
+    ['1–115 ft (0.30–35 m)','No. 18 AWG'],
+    ['116–185 ft (36–56 m)','No. 16 AWG'],
+    ['186–295 ft (57–89 m)','No. 14 AWG'],
+    ['296–460 ft (90–140 m)','No. 12 AWG']
+  ]);
+  h+=mh4('Control Wiring Connections (TB2 &amp; TB3 Terminal Blocks)');
+  h+=mt(['Terminal','Function','Voltage'],[
+    ['TB2-1 (Neutral)','Neutral for T1 Battery Charger','Neutral'],
+    ['TB2-2 (T1)','Power for T1 Battery Charger','120 VAC'],
+    ['TB2-3 (N2)','Utility Sensing from Transfer Switch','208–277 VAC'],
+    ['TB2-4 (N1)','Utility Sensing from Transfer Switch','208–277 VAC'],
+    ['TB3-A (178)','Two Wire Start Control [GTS]','5 VDC'],
+    ['TB3-B (183)','Two Wire Start Control [GTS]','5 VDC'],
+    ['TB3-5 (23)','Transfer Relay Control Wire','12–0 VDC'],
+    ['TB3-6 (194)','Power for Transfer Relay','12 VDC']
+  ]);
+  h+=mnote('T1 is the 120 VAC power supply for the control panel battery charger. This circuit must be powered whether the transfer switch is in utility or generator mode. If circuit loses power, control board will generate a "Battery Charge AC Fail" warning.');
+  h+=mh4('RTS Series Transfer Switch With T1 — Wiring Steps');
+  h+=mol([
+    'Connect Neutral in TB2 to neutral in transfer switch (for battery charging).',
+    'Connect T1 in TB2 to T1 in transfer switch (120V supply to battery charger).',
+    'Connect N1, N2 sensing wires in TB2 to N1 and N2 in transfer switch (utility sensing).',
+    'Connect wire 23 in TB3 to 23 in transfer switch (transfer relay coil).',
+    'Connect wire 194 in TB3 to 194 in transfer switch (transfer relay).'
+  ]);
+  h+=mnote('RTS Series Without T1 Fuse/Connection: Use a 120V generator-protected circuit from panel board to power the battery charger circuit (dedicated 15/20 amp circuit).');
+  h+=mh4('Battery');
+  h+=mp('Battery capacity, ambient temperatures, and coolant/oil temperatures determine engine starting ability. Battery recommendations are listed in Cold Cranking Amps (CCA) at 0°F (−18°C). Battery capacities decrease as ambient temperatures decrease.');
+  h+=mnote('At temperatures of 32°F (0°C) and below, install a pad-type battery heater to aid cold-climate starting. Available as a cold weather kit through an IASD.');
+  h+=mh4('Battery Installation');
+  h+=mol([
+    'Install rubber protective cover over positive (+) battery terminal.',
+    'Grasp battery strap and lift battery. Set battery onto battery tray.',
+    'Tighten two screws with nylon washers to secure hold-down clamp, or fasten strap over top of battery.',
+    'Remove rubber protective cover from positive (+) terminal.',
+    'Install positive battery cable (red) on positive (+) terminal.',
+    'Install negative battery cable (black) on negative (−) terminal.'
+  ]);
+  h+=mnote('The unit has an internal battery charger powered by the T1 wire. Verify T1 power has been safely disconnected before performing any work on battery.');
+  h+=mh4('Transfer Switch Location');
+  h+=mul(['Locate transfer switch as close to emergency load as practical.','Locate in a clean, dry, well-ventilated location away from excessive heat.','In a 3-phase system, all power conduits from the generator must contain all three phases.','Conduit, wire, circuit protective device sizes, insulation, etc. must conform to applicable local and national codes.']);
+  h+='</div>';return h;
+}
+
+function buildRG9_Startup(){
+  var h='<div class="man-section">';
+  h+=mdanger('Automatic start-up. Disconnect utility power and render unit inoperable before working on unit. With control panel set to AUTO, engine may crank and start at any time without warning. Always set control panel to OFF and remove the 7.5 amp fuse before working on or around the generator or transfer switch. (D000191)');
+  h+=mh4('Control Panel Interface');
+  h+=mt(['Control','Function'],[
+    ['AUTO','Activates fully automatic operation. Unit automatically starts and exercises per exercise timer settings.'],
+    ['OFF','Shuts down engine and prevents automatic operation and exercise.'],
+    ['MANUAL','Cranks and starts generator. Transfer to standby will NOT occur unless there is a utility failure.']
+  ]);
+  h+=mnote('RG10090-HG10090 uses the Evolution Controller (behind viewing window at rear of unit). RG13090-HG13090 and RG15090-HG15090 use the PowerZone 410 Controller (behind right side door). See PowerZone 410 Technical Manual for full controller details on 130 kW and 150 kW units.');
+  h+=mh4('Exercise Timer Settings');
+  h+=mul(['Day/Time: Generator starts and exercises for the defined period, on the specified day and time. Runs approximately 12 minutes at 1,800 RPM then shuts down.','Exercise Frequency: Weekly, Biweekly, or Monthly. If Monthly, select day of month (1–28).','Exercise feature operates ONLY when generator is placed in AUTO.','Date/time must be reset every time the 12V battery is disconnected and reconnected, or when fuse is removed.']);
+  h+=mh4('Interconnect System Self-Test Feature');
+  h+=mp('The controller performs a system self-test at startup checking for utility (AC) voltage on DC circuits. If utility voltage is detected on DC circuits (incorrect wiring), the controller displays a warning and locks out the generator to prevent damage. Power to controller must be removed to clear this warning. Utility voltage must be present at N1 and N2 terminals for this test to pass.');
+  h+=mh4('Before Starting');
+  h+=mol([
+    'Verify generator is OFF.',
+    'Set generator MLCB (generator disconnect) to OFF (OPEN).',
+    'Turn off all breakers supplied by generator.',
+    'Check engine crankcase oil level and fill to FULL mark if necessary. Do not fill above FULL mark. (Unit comes factory-filled with 30 weight organic oil.)',
+    'Inspect fuel supply — gaseous fuel lines must be purged and leak tested per applicable fuel-gas codes. All fuel shutoff valves must be open.',
+    'Verify both generator emergency shutdown switches are ON.'
+  ]);
+  h+=mnote('During initial startup only, generator may exceed normal start attempts and experience an "OVERCRANK" fault due to accumulated air in the fuel system. Reset by pressing OFF button and ENTER button. Restart up to two more times. If unit fails to start, contact an IASD.');
+  h+=mh4('Activate Unit (Evolution Controller — RG10090 Only)');
+  h+=mol([
+    'Power up unit — Install Wizard appears. Select language and press ENTER.',
+    'Display reads: "Activate me (ENT) or ESC to run in manual." Press ENTER.',
+    'Display reads: "To Activate go to www.activategen.com." Go to that website or call 1-888-9ACTIVATE (922-8482) if passcode not available.',
+    'Enter the activation passcode using UP/DOWN arrows and ENTER for each digit.',
+    'Press ESCAPE to return to preceding digits if correction needed.'
+  ]);
+  h+=mnote('If power is removed after a successful activation, no data is lost, but the time and date must be updated. Press ESCAPE to abort activation — unit will run in manual mode only.');
+  h+=mh4('Electrical Checks');
+  h+=mol([
+    'Verify generator is in OFF mode (red LED illuminated). Verify generator MLCB is OFF (OPEN).',
+    'Turn off all circuit breakers/electrical loads to be supplied by generator.',
+    'Turn on utility power supply to transfer switch. Verify utility voltage across N1 and N2 (and N3 if 3-phase).',
+    'Press MANUAL on control panel — engine will crank and start. Allow 5 minutes to warm up.',
+    'Set generator MLCB to ON (CLOSED). Verify generator voltage and frequency at transfer switch terminal lugs E1 and E2 (and E3 if 3-phase).',
+    'Set generator MLCB to OFF (OPEN). Press OFF on control panel to shut engine down.'
+  ]);
+  h+=mh4('Testing Generator Under Load');
+  h+=mdanger('Electrocution. Do not manually transfer under load. Disconnect transfer switch from all power sources prior to manual transfer. (D000132)');
+  h+=mol([
+    'Verify generator is in OFF mode. Turn off all breakers/electrical loads.',
+    'Turn off utility power supply to transfer switch.',
+    'Manually set transfer switch to STANDBY (load terminals connected to generator\'s E1 and E2).',
+    'Verify both emergency shutdown switches are ON. Press MANUAL on control panel.',
+    'Allow engine to warm up approximately 5 minutes. Set generator MLCB to ON (CLOSED).',
+    'Turn on circuit breakers/electrical loads. Loads are now powered by standby generator.',
+    'Connect calibrated AC voltmeter and frequency meter across E1 and E2. Voltage should be approximately rated unit voltage.',
+    'Allow generator to run at full rated load for 20–30 minutes. Listen for unusual noises, vibration, or abnormal operation. Inspect for oil leaks and overheating.',
+    'Turn off electrical loads. Set generator MLCB to OFF (OPEN). Allow engine to run at no-load for 2–5 minutes. Press OFF.'
+  ]);
+  h+=mh4('Checking Automatic Operation');
+  h+=mol([
+    'Verify generator is in OFF mode. Install front cover over transfer switch.',
+    'Turn on utility power supply to transfer switch. Transfer switch will transfer to utility position.',
+    'Set generator MLCB to ON (CLOSED). Verify both emergency shutdown switches are ON.',
+    'Press AUTO on control panel. System is now ready for automatic operation.',
+    'Turn off utility power supply to transfer switch.'
+  ]);
+  h+=mp('With generator in AUTO, engine will crank and start when utility power is turned OFF after a 10-second delay (factory default). After starting, transfer switch connects load circuits to standby side. With generator running and loads powered, turn ON utility power. System transfers to UTILITY, then runs through cool-down cycle and shuts down.');
+  h+=mh4('Shutting Generator Down While Under Load or During a Utility Outage');
+  h+=mp('<strong>To turn generator OFF (while running in AUTO and online):</strong>');
+  h+=mol(['Turn main utility disconnect OFF (OPEN).','Set generator MLCB (generator disconnect) to OFF (OPEN).','Allow unit to run for a few minutes to cool, then press OFF on control panel. Red LED will illuminate to verify system is OFF.']);
+  h+=mp('<strong>To turn generator back ON:</strong>');
+  h+=mol(['Press AUTO on control panel. Allow unit to start and warm up for a few minutes.','Set generator MLCB (generator disconnect) to ON (CLOSED).']);
+  h+='</div>';return h;
+}
+
+function buildRG9_Trouble(){
+  var h='<div class="man-section">';
+  h+=mnote('To clear an active alarm: press ENTER button twice, then press AUTO. Contact an IASD if alarm reoccurs.');
+  h+=mh4('Engine Troubleshooting');
+  h+=mt(['Problem','Cause','Correction'],[
+    ['Engine will not crank','Blown fuse','Replace 7.5A fuse in generator control panel. Correct short circuit condition.'],
+    ['Engine will not crank','Loose, corroded, or faulty battery cables / faulty starter contact or motor','Tighten, clean, or replace as necessary. Contact an IASD.'],
+    ['Engine will not crank','Discharged battery','Charge or replace battery.'],
+    ['Engine will not crank','One or both emergency shutdown switches OFF (O)','Set both emergency shutdown switches to ON (I).'],
+    ['Engine cranks but will not start','No fuel','Verify fuel source / turn on fuel shutoff valve.'],
+    ['Engine cranks but will not start','Faulty fuel solenoid (FS)','Contact an IASD.'],
+    ['Engine cranks but will not start','Faulty spark plug(s)','Clean, re-gap, or replace spark plugs.'],
+    ['Engine cranks but will not start','Valve lash out of adjustment','Reset valve lash.'],
+    ['Engine starts hard and runs rough','Air cleaner plugged or damaged','Inspect / replace air cleaner.'],
+    ['Engine starts hard and runs rough','Incorrect fuel pressure','Verify NG: 11–14 in H₂O (100 kW) or 7–11 in H₂O (130 &amp; 150 kW); LP Vapor same ranges.'],
+    ['Engine starts hard and runs rough','Fuel selection in controller incorrect','Program controller with correct fuel type.'],
+    ['Unit set to OFF but engine continues to run','Controller wired incorrectly / faulty control board','Contact an IASD.'],
+    ['No AC output from generator','Generator MLCB (generator disconnect) is OFF (OPEN)','Set generator MLCB to ON (CLOSED).'],
+    ['No AC output from generator','Generator internal failure','Contact an IASD.'],
+    ['No transfer to standby after utility failure','Generator MLCB is OFF / faulty transfer switch coil, relay, or control board','Set MLCB to ON (CLOSED). Contact an IASD.'],
+    ['Unit consumes large amounts of oil','Excessive engine oil / wrong type / faulty breather / damaged gasket or seal','Adjust oil level. See oil recommendations. Contact IASD. Inspect for leaks.']
+  ]);
+  h+=mh4('Quick Reference — Controller Alarms');
+  h+=mt(['Active Alarm','LED','Problem','Solution'],[
+    ['HIGH TEMPERATURE','RED','Unit shuts down during operation','Inspect ventilation around generator, intake, exhaust, and rear. Contact IASD if no obstruction.'],
+    ['OVERLOAD REMOVE LOAD','RED','Unit shuts down during operation','Clear alarm and remove household loads. Put back in AUTO and restart.'],
+    ['RPM SENSE LOSS','RED','Unit was running and shuts down, attempts restart','Clear alarm and remove loads. Put in AUTO and restart. Contact IASD if persists.'],
+    ['NOT ACTIVATED','RED','Unit will not start in AUTO with utility loss','See Activate Unit procedure (Evolution Controller).'],
+    ['LOW OIL PRESSURE','RED','Unit will not start in AUTO with utility loss','Check oil level. Add oil per owner manual. Contact IASD if level is correct.'],
+    ['OVERCRANK','RED','Unit will not start in AUTO with utility loss','Verify fuel shutoff valve is ON. Clear alarm. Attempt MANUAL start. Contact IASD if fails.'],
+    ['LOW BATTERY / BATTERY PROBLEM','YELLOW','Warning active','Clear alarm. Check battery in control menu. Replace if CHECK BATTERY displayed.'],
+    ['FUSE PROBLEM','RED','Unit will not start in AUTO with utility loss','Inspect 7.5A fuse. Replace with ATO 7.5A fuse if bad.'],
+    ['GENERATOR EMERGENCY SHUTDOWN','RED','Unit shuts down or does not start','Clear alarm. Verify both emergency shutdown switches are ON (I).'],
+    ['SERVICE A / SERVICE B','YELLOW','Maintenance due','Perform scheduled maintenance, then press ENTER to clear.'],
+    ['CHARGER MISSING AC','YELLOW','AC input to battery charger missing 5+ min','Inspect connections at transfer switch. Contact IASD.'],
+    ['OVERVOLTAGE / UNDERVOLTAGE / OVERSPEED / UNDERSPEED / STEPPER OVERCURRENT / WIRING ERROR','RED','Unit will not start','Contact an IASD for assistance.']
+  ]);
+  h+='</div>';return h;
+}
+
+function buildRG9_Checklist(){
+  var h='<div class="man-section">';
+  h+=mh4('Safety Checklist');
+  h+=mul(['Are manuals, wiring diagrams, and other documentation readily available?','Is there any evidence of freight damage or scratches to painted surfaces (indicating lifting without spreader bar)?','Are all guards, covers, insulation blankets, and protective devices in place?','Is generator correctly grounded? Is a fire extinguisher kept near generator?','Is there any evidence of oil or coolant leaks? Are any combustible materials left in generator compartment?','Is the area surrounding generator clean and free of debris?']);
+  h+=mh4('Installation Planning Checklist');
+  h+=mul(['Is generator readily accessible for maintenance, repair, and firefighting purposes?','Is installation site clean, dry, and provided with adequate drainage?','Is there minimum clearance around the generator to facilitate repair or replacement of major components?','Have adequate provisions been made for installation of the fuel supply?']);
+  h+=mh4('Foundations &amp; Mounting Checklist');
+  h+=mul(['Is generator installed on a concrete pad capable of supporting its weight and accessories?','Is generator securely fastened with suitable grade, size, and style fasteners?','Is concrete pad seated on a prepared solid subsurface with appropriate reinforcing bar or wire mesh?','Does concrete pad extend beyond frame rails at least 3 in (7.62 cm) on all sides?','Is concrete pad flat and level to within 0.5 in (13 mm)?','Do all fuel, coolant, exhaust, and electrical lines have flexible sections where they connect to generator?','Is all piping correctly supported and secured?']);
+  h+=mh4('Ventilation System Checklist');
+  h+=mul(['Is there sufficient airflow for cooling and ventilation?','Are all bushes, shrubs, and other vegetation a minimum of 3 ft (1 m) away?','Is system piping correctly sized? Have all gas loads been taken into consideration?','Does installation have necessary accessories for fast, reliable starting in adverse weather conditions?']);
+  h+=mh4('Gaseous Fuel System Checklist');
+  h+=mul(['Are fuel supply lines correctly sized and installed? Were they purged and leak tested?','Is fuel pressure regulator correctly sized and approved for a mechanized engine application?','Is a fuel pressure test port installed before fuel shutoff solenoids at the fuel inlet?','Does generator have a dedicated fuel line not shared with other appliances?','Is fuel regulator sized to deliver a fuel flow rating (CFH) at least 10% greater than the 100% rated kW fuel consumption?','Does regulator have a max allowable pressure drop of 1–2 in H₂O (0.25–0.50 kPa) under all operating conditions?','Is flexible fuel line installed between generator connection point and rigid supply piping — straight without bends or kinks?','Is a fuel shutoff valve installed near unit and verified to operate correctly?','Was the Final Operating Test (4-point fuel pressure test) performed?','Is there any evidence of leakage at any hoses, clamps, or fittings?']);
+  h+=mh4('Electrical System Checklist');
+  h+=mul(['Is all wiring correctly sized, routed, and connected?','Are wire lugs fastened to bus bars with hardware tightened to specified torque?','Are batteries correctly sized, installed, and connected (positive cable first)?','Are battery fluid levels correct? Are battery cables clean and free of corrosion?','Is area housing storage battery correctly ventilated?','Are block heaters and battery charger correctly matched with utility supply voltage?','Are remote start wires 178 &amp; 183 pulled and connected inside lower control panel and inside transfer switch?','Are two generator emergency shutdown switches ON (I)?','Is voltage and phase rotation correct at the transfer switch?','Is generator set to OFF?']);
+  h+='</div>';return h;
+}
+
+function buildRG9_Accessories(){
+  var h='<div class="man-section">';
+  h+=mh4('Available Accessories');
+  h+=mt(['Accessory','Description','Part Number'],[
+    ['Battery Heater Kit','Recommended for environments below 32°F (0°C). Powered by 120 VAC, 60 Hz.','G0098830'],
+    ['Engine Block Heater Kit','Recommended for environments below 0°F (−18°C). Powered by 120 VAC, 60 Hz. Engine oil must be replaced with synthetic oil.','G0098840'],
+    ['Scheduled Maintenance Kit','All pieces necessary to perform routine maintenance with oil recommendations (oil not included).','G009882-0'],
+    ['Generac Generator Connectivity Accessory, Cellular (GGCAC)','Provides reliable cellular connection with Wi-Fi backup. Monitoring via Mobile Link (owner) and Fleet (servicer). RG13090/RG15090 without GGCAC require Wire Harness A0005792571. NEW RG13090/RG15090 INCLUDE GGCAC standard.','G0072150'],
+    ['GGCAC Wiring Harness','Required to connect GGCAC (G0072150) to the PowerZone 410 controller in RG13090 and RG15090.','A0005792571'],
+    ['Bisque Paint Kit','Touch-up paint for generator enclosure to protect from future corrosion.','G0057030']
+  ]);
   h+=mnote('Contact an IASD or visit www.generac.com for additional information on accessories and extended warranties.');
   h+='</div>';return h;
 }
