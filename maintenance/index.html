@@ -2211,9 +2211,17 @@ function openPrintPreview() {
     stamp(document.body, {
       height: 'auto', 'min-height': '0', 'max-height': 'none',
       overflow: 'visible', padding: '0',
-      margin: isMacOS ? '0.2in 0.2in 0 0.2in' : '0',
-      zoom:   isMacOS ? '0.93' : 'unset'
+      margin: '0',                          // ← always 0, never shifts with zoom
+      zoom: isMacOS ? '0.93' : 'unset'
     });
+
+    // macOS: center the page via its own margin, not body margin
+    if (isMacOS) {
+      document.querySelectorAll('.page, #page').forEach(el => stamp(el, {
+        margin: '0.2in auto 0',             // top gap + auto left/right = true center
+        'max-width': '95%'                  // breathing room from paper edges
+      }));
+    }
 
     document.querySelectorAll('.section, .section-header, .form-row, .form-group, .header, .content').forEach(el =>
       stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' })
