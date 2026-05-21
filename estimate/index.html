@@ -620,6 +620,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border-bright);
@@ -1358,10 +1359,8 @@ function printForm() {
       '  * { animation:none!important;animation-play-state:paused!important;transition:none!important; }',
       '  .doc-title, .company-name { transform:translateZ(0);will-change:auto!important;isolation:auto!important; }',
       '  .header::after { display:none!important;content:none!important; }',
-      '  html { min-height:0!important;height:auto!important; }',
-      '  body { min-height:0!important;height:auto!important; }',
-      '  .page { min-height:0!important;height:auto!important;break-after:avoid!important;page-break-after:avoid!important; }',
-      '  .footer { margin-top:auto!important;padding:2px 14px!important;break-after:avoid!important;page-break-after:avoid!important; }',
+      '  .page { min-height:0!important; }',
+      '  .footer { margin-top:auto!important;padding:2px 14px!important; }',
       '  .footer-text,.footer span { font-size:0.28rem!important; }',
       '  .field-row,.inline-row { min-height:29.7px!important; }',
       '  input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"] { min-height:29.7px!important;height:29.7px!important; }',
@@ -2952,7 +2951,10 @@ function adjustTopPadding() {
   var bar = document.getElementById('action-bar');
   var page = document.getElementById('page');
   var status = document.getElementById('save-status');
-  if (bar && page) page.style.paddingTop = bar.offsetHeight + 'px';
+  if (bar && page) {
+    // offsetHeight includes safe-area-inset-top padding, so page clears the full bar
+    page.style.paddingTop = bar.offsetHeight + 'px';
+  }
   if (bar && status) status.style.top = bar.offsetHeight + 'px';
 }
 window.addEventListener('resize', adjustTopPadding);
