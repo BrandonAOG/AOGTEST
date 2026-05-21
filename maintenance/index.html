@@ -1075,6 +1075,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover {
     max-width: 100% !important;
     height: auto !important;
     min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
     display: block !important;
     box-sizing: border-box !important;
@@ -1082,6 +1083,12 @@ body.dark-mode::-webkit-scrollbar-thumb:hover {
     padding: 24px !important;
     border: 1.5px solid #D97706 !important;
     box-shadow: none !important;
+  }
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 
   .page::before, .page::after,
@@ -2045,14 +2052,26 @@ function openPrintPreview() {
       overflow: 'hidden', background: 'transparent', 'background-color': 'transparent'
     }));
 
+    // .page has min-height:100vh — on mobile Safari 100vh INCLUDES the browser
+    // chrome (address bar + bottom bar), making the element taller than the paper.
+    // window.innerHeight is the actual visible area excluding chrome — the only
+    // reliable value. We stamp it as a px height so Safari's page-count math
+    // measures real content height, not the inflated 100vh value.
+    const innerH = window.innerHeight + 'px';
     document.querySelectorAll('.page, #page').forEach(el => stamp(el, {
       background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light',
-      'min-height': '0', height: 'auto', overflow: 'visible'
+      'min-height': '0', height: 'auto', 'max-height': 'none', overflow: 'visible',
+      display: 'block'
     }));
-    // Also stamp html and body — Safari uses viewport height for page-count math
-    document.querySelectorAll('html, body').forEach(el => stamp(el, {
-      height: 'auto', 'min-height': '0', overflow: 'visible'
-    }));
+    // html + body: collapse to content height — no vh, no fill-available
+    stamp(document.documentElement, {
+      height: 'auto', 'min-height': '0', 'max-height': 'none',
+      overflow: 'visible', padding: '0', margin: '0'
+    });
+    stamp(document.body, {
+      height: 'auto', 'min-height': '0', 'max-height': 'none',
+      overflow: 'visible', padding: '0', margin: '0'
+    });
     document.querySelectorAll(
       '.section, .section-header, .form-row, .form-group, .header, .content'
     ).forEach(el => stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' }));
@@ -2107,6 +2126,8 @@ function openPrintPreview() {
     if (wasDark) document.body.classList.add('dark-mode');
     document.body.style.maxWidth = origMaxWidth;
     document.body.style.width    = origWidth;
+    const fixEl = document.getElementById('safari-print-height-fix');
+    if (fixEl) fixEl.remove();
     window.removeEventListener('afterprint', restore);
     if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
   }
@@ -2115,16 +2136,38 @@ function openPrintPreview() {
   function onMqlChange(e) { if (!e.matches) restore(); }
   if (mql && mql.addEventListener) mql.addEventListener('change', onMqlChange);
 
+  // Inject a <style> tag that overrides min-height:100vh at the stylesheet level.
+  // Safari's print renderer picks up injected styles BEFORE it counts pages.
+  // -webkit-fill-available = actual visible area minus browser chrome on iOS.
+  const _printStyleEl = document.createElement('style');
+  _printStyleEl.id = 'safari-print-height-fix';
+  _printStyleEl.textContent = [
+    '.page, #page {',
+    '  min-height: 0 !important;',
+    '  height: auto !important;',
+    '  max-height: none !important;',
+    '  overflow: visible !important;',
+    '  display: block !important;',
+    '}',
+    'html, body {',
+    '  height: auto !important;',
+    '  min-height: 0 !important;',
+    '  overflow: visible !important;',
+    '}'
+  ].join('\n');
+  document.head.appendChild(_printStyleEl);
+
   void document.body.offsetHeight;
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      // 600ms pause — lets Safari fully repaint to light mode before
-      // we stamp inline styles and open the print dialog
       setTimeout(() => {
         forceLightMode();
         void document.body.offsetHeight;
         setTimeout(() => {
           window.print();
+          // Clean up injected style after print
+          const el = document.getElementById('safari-print-height-fix');
+          if (el) el.remove();
         }, 600);
       }, 600);
     });
