@@ -2047,7 +2047,11 @@ function openPrintPreview() {
 
     document.querySelectorAll('.page, #page').forEach(el => stamp(el, {
       background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light',
-      'min-height': '0', height: 'auto'
+      'min-height': '0', height: 'auto', overflow: 'visible'
+    }));
+    // Also stamp html and body — Safari uses viewport height for page-count math
+    document.querySelectorAll('html, body').forEach(el => stamp(el, {
+      height: 'auto', 'min-height': '0', overflow: 'visible'
     }));
     document.querySelectorAll(
       '.section, .section-header, .form-row, .form-group, .header, .content'
