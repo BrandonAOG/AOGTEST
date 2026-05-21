@@ -2094,33 +2094,23 @@ const DRAFT_KEY = 'aog_maint_draft';
 function getInitialTheme() {
   const saved = localStorage.getItem(THEME_KEY);
   if (saved) return saved;
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
   return 'light';
 }
 
 function applyTheme(theme) {
-  const body = document.body;
-  if (theme === 'dark') {
-    body.classList.add('dark-mode');
-  } else {
-    body.classList.remove('dark-mode');
-  }
-  try {
-    localStorage.setItem(THEME_KEY, theme);
-  } catch (e) {}
+  if (theme === 'dark') document.body.classList.add('dark-mode');
+  else document.body.classList.remove('dark-mode');
+  try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
 }
 
 function toggleTheme() {
-  const isDark = document.body.classList.contains('dark-mode');
-  applyTheme(isDark ? 'light' : 'dark');
+  applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark');
 }
 
 function setupThemeToggle() {
   const btn = document.getElementById('theme-toggle-btn');
-  if (!btn) return;
-  btn.addEventListener('click', toggleTheme);
+  if (btn) btn.addEventListener('click', toggleTheme);
 }
 
 function saveDraft() {
@@ -2128,7 +2118,6 @@ function saveDraft() {
   document.querySelectorAll('input, textarea').forEach(el => {
     const key = el.id || el.name;
     if (!key) return;
-    
     if (el.type === 'checkbox') {
       if (!data[key]) data[key] = [];
       if (el.checked) data[key].push(el.value);
@@ -2138,26 +2127,19 @@ function saveDraft() {
       if (data[key] === undefined) data[key] = el.value;
     }
   });
-  
-  try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
-  } catch (e) {}
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch (e) {}
 }
 
 function restoreDraft() {
   const saved = localStorage.getItem(DRAFT_KEY);
   if (!saved) return;
-  
   try {
     const data = JSON.parse(saved);
     document.querySelectorAll('input, textarea').forEach(el => {
       const key = el.id || el.name;
       if (!key || data[key] === undefined) return;
-      
       if (el.type === 'checkbox') {
-        if (Array.isArray(data[key])) {
-          el.checked = data[key].includes(el.value);
-        }
+        if (Array.isArray(data[key])) el.checked = data[key].includes(el.value);
       } else if (el.type === 'radio') {
         if (el.value === data[key]) el.checked = true;
       } else {
@@ -2169,27 +2151,19 @@ function restoreDraft() {
 
 function clearForm() {
   if (!confirm('Clear all fields?')) return;
-  document.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], textarea').forEach(el => {
-    el.value = '';
-  });
-  document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => {
-    el.checked = false;
-  });
+  document.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], textarea').forEach(el => el.value = '');
+  document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => el.checked = false);
   localStorage.removeItem(DRAFT_KEY);
 }
 
 function openPrintPreview() {
-  const bar    = document.querySelector('.action-bar, .toolbar');
-  const status = document.getElementById('save-status');
   const wasDark = document.body.classList.contains('dark-mode');
-
   if (wasDark) document.body.classList.remove('dark-mode');
+
   document.documentElement.style.setProperty('background', '#ffffff', 'important');
   document.body.style.setProperty('background', '#ffffff', 'important');
   document.documentElement.style.setProperty('color-scheme', 'light', 'important');
   document.body.style.setProperty('color-scheme', 'light', 'important');
-
-  // bar and status are hidden inside forceLightMode() via stamp() with full position nuke
 
   const origMaxWidth = document.body.style.maxWidth;
   const origWidth    = document.body.style.width;
@@ -2218,9 +2192,11 @@ function openPrintPreview() {
       overflow: 'visible', display: 'block',
       flex: 'none', 'flex-direction': 'unset', 'flex-shrink': 'unset'
     }));
+
     document.querySelectorAll('.content').forEach(el => stamp(el, {
       display: 'block', flex: 'none', 'flex-grow': 'unset'
     }));
+
     document.querySelectorAll('.footer').forEach(el => stamp(el, {
       display: 'flex', 'justify-content': 'space-between', 'align-items': 'center',
       flex: 'none', 'margin-top': '8px', 'margin-bottom': '0', width: '100%'
@@ -2239,17 +2215,16 @@ function openPrintPreview() {
       zoom:   isMacOS ? '0.93' : 'unset'
     });
 
-    document.querySelectorAll(
-      '.section, .section-header, .form-row, .form-group, .header, .content'
-    ).forEach(el => stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' }));
+    document.querySelectorAll('.section, .section-header, .form-row, .form-group, .header, .content').forEach(el =>
+      stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' })
+    );
 
-    document.querySelectorAll('.footer').forEach(el => stamp(el, {
-      background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light'
-    }));
+    document.querySelectorAll('.footer').forEach(el =>
+      stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' })
+    );
 
     document.querySelectorAll(
-      'input[type="text"], input[type="email"], input[type="tel"], ' +
-      'input[type="date"], input[type="number"], textarea, select'
+      'input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea, select'
     ).forEach(el => stamp(el, {
       background: '#ffffff', 'background-color': '#ffffff',
       color: '#1F2937', '-webkit-text-fill-color': '#1F2937',
@@ -2268,38 +2243,15 @@ function openPrintPreview() {
 
     document.querySelectorAll('table td').forEach(el => {
       const bg = el.classList.contains('row-label') ? '#f0f0f0' : '#ffffff';
-      stamp(el, {
-        background: bg, 'background-color': bg,
-        color: '#1F2937', '-webkit-text-fill-color': '#1F2937', 'color-scheme': 'light'
-      });
-    });
-  }
-    // Radios + checkboxes: do NOT stamp background or -webkit-appearance:none —
-    // that fills the circle/box solid white and hides the native checkmark/dot.
-    // Only force color-scheme:light so Safari uses light OS appearance.
-    document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => {
-      _saved.push([el, el.getAttribute('style') || null]);
-      el.style.setProperty('color-scheme', 'light', 'important');
-    });
-
-    document.querySelectorAll('table th').forEach(el => stamp(el, {
-      background: '#4B5563', 'background-color': '#4B5563',
-      color: '#ffffff', '-webkit-text-fill-color': '#ffffff', 'color-scheme': 'light'
-    }));
-
-    document.querySelectorAll('table td').forEach(el => {
-      const bg = el.classList.contains('row-label') ? '#f0f0f0' : '#ffffff';
-      stamp(el, {
-        background: bg, 'background-color': bg,
-        color: '#1F2937', '-webkit-text-fill-color': '#1F2937', 'color-scheme': 'light'
-      });
+      stamp(el, { background: bg, 'background-color': bg,
+        color: '#1F2937', '-webkit-text-fill-color': '#1F2937', 'color-scheme': 'light' });
     });
   }
 
   function restoreAll() {
     _saved.forEach(([el, orig]) => {
-      if (orig !== null) { el.setAttribute('style', orig); }
-      else               { el.removeAttribute('style'); }
+      if (orig !== null) el.setAttribute('style', orig);
+      else el.removeAttribute('style');
     });
     _saved.length = 0;
   }
@@ -2309,7 +2261,6 @@ function openPrintPreview() {
     if (restored) return;
     restored = true;
     restoreAll();
-    // bar and status restored via restoreAll()
     if (wasDark) document.body.classList.add('dark-mode');
     document.body.style.maxWidth = origMaxWidth;
     document.body.style.width    = origWidth;
@@ -2318,29 +2269,17 @@ function openPrintPreview() {
     window.removeEventListener('afterprint', restore);
     if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
   }
+
   window.addEventListener('afterprint', restore);
   const mql = window.matchMedia ? window.matchMedia('print') : null;
   function onMqlChange(e) { if (!e.matches) restore(); }
   if (mql && mql.addEventListener) mql.addEventListener('change', onMqlChange);
 
-  // Inject a <style> tag that overrides min-height:100vh at the stylesheet level.
-  // Safari's print renderer picks up injected styles BEFORE it counts pages.
-  // -webkit-fill-available = actual visible area minus browser chrome on iOS.
   const _printStyleEl = document.createElement('style');
   _printStyleEl.id = 'safari-print-height-fix';
   _printStyleEl.textContent = [
-    '.page, #page {',
-    '  min-height: 0 !important;',
-    '  height: auto !important;',
-    '  max-height: none !important;',
-    '  overflow: visible !important;',
-    '  display: block !important;',
-    '}',
-    'html, body {',
-    '  height: auto !important;',
-    '  min-height: 0 !important;',
-    '  overflow: visible !important;',
-    '}'
+    '.page, #page { min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; }',
+    'html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; }'
   ].join('\n');
   document.head.appendChild(_printStyleEl);
 
@@ -2352,7 +2291,6 @@ function openPrintPreview() {
         void document.body.offsetHeight;
         setTimeout(() => {
           window.print();
-          // Clean up injected style after print
           const el = document.getElementById('safari-print-height-fix');
           if (el) el.remove();
         }, 600);
@@ -2360,7 +2298,6 @@ function openPrintPreview() {
     });
   });
 }
-
 
 function setStatus(msg) {
   const el = document.getElementById('save-status');
@@ -2371,25 +2308,27 @@ function capturePageToCanvas() {
   return new Promise((resolve, reject) => {
     const page = document.getElementById('page');
 
-    const prevWidth = page.style.width;
-    const prevMaxWidth = page.style.maxWidth;
-    const prevBodyPad = document.body.style.padding;
+    const prevWidth     = page.style.width;
+    const prevMaxWidth  = page.style.maxWidth;
+    const prevMarginTop = page.style.marginTop;
+    const prevBodyPad   = document.body.style.padding;
 
     const CAPTURE_WIDTH = 1050;
-    const PAPER_RATIO = 11 / 8.5;
+    const PAPER_RATIO   = 11 / 8.5;
 
-    page.style.width = CAPTURE_WIDTH + 'px';
-    page.style.maxWidth = CAPTURE_WIDTH + 'px';
+    page.style.width     = CAPTURE_WIDTH + 'px';
+    page.style.maxWidth  = CAPTURE_WIDTH + 'px';
+    page.style.marginTop = '0';
     document.body.style.padding = '0';
 
     const forceStyle = document.createElement('style');
     forceStyle.id = 'capture-force-style';
     forceStyle.textContent = `
-      .two-column {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
+      .two-column { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+      .toolbar, .action-bar, #action-bar, #save-status {
+        display: none !important; position: static !important;
+        height: 0 !important; padding: 0 !important; overflow: hidden !important;
       }
-      .toolbar, .action-bar, #action-bar, #save-status { display: none !important; position: static !important; height: 0 !important; padding: 0 !important; }
       .theme-toggle-btn { display: none !important; }
     `;
     document.head.appendChild(forceStyle);
@@ -2402,17 +2341,21 @@ function capturePageToCanvas() {
           allowTaint: true,
           backgroundColor: '#ffffff',
           logging: false,
-          width: CAPTURE_WIDTH,
-          height: page.scrollHeight,
+          width:       CAPTURE_WIDTH,
+          height:      page.scrollHeight,
           windowWidth: CAPTURE_WIDTH,
           scrollX: 0,
           scrollY: 0,
           ignoreElements: el =>
-            el.classList.contains('toolbar') ||
+            el.classList.contains('toolbar')         ||
+            el.classList.contains('action-bar')      ||
+            el.id === 'action-bar'                   ||
+            el.id === 'save-status'                  ||
             el.classList.contains('theme-toggle-btn')
         }).then(srcCanvas => {
-          page.style.width = prevWidth;
-          page.style.maxWidth = prevMaxWidth;
+          page.style.width     = prevWidth;
+          page.style.maxWidth  = prevMaxWidth;
+          page.style.marginTop = prevMarginTop;
           document.body.style.padding = prevBodyPad;
           const fs = document.getElementById('capture-force-style');
           if (fs) fs.remove();
@@ -2421,23 +2364,23 @@ function capturePageToCanvas() {
           const LETTER_H = Math.round(LETTER_W * PAPER_RATIO);
 
           const letterCanvas = document.createElement('canvas');
-          letterCanvas.width = LETTER_W;
+          letterCanvas.width  = LETTER_W;
           letterCanvas.height = LETTER_H;
           const ctx = letterCanvas.getContext('2d');
 
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, LETTER_W, LETTER_H);
 
-          const scale = LETTER_W / srcCanvas.width;
+          const scale   = LETTER_W / srcCanvas.width;
           const scaledH = Math.round(srcCanvas.height * scale);
-          const drawH = Math.min(scaledH, LETTER_H);
-          ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height,
-                        0, 0, LETTER_W, drawH);
+          const drawH   = Math.min(scaledH, LETTER_H);
+          ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, 0, 0, LETTER_W, drawH);
 
           resolve(letterCanvas);
         }).catch(err => {
-          page.style.width = prevWidth;
-          page.style.maxWidth = prevMaxWidth;
+          page.style.width     = prevWidth;
+          page.style.maxWidth  = prevMaxWidth;
+          page.style.marginTop = prevMarginTop;
           document.body.style.padding = prevBodyPad;
           const fs = document.getElementById('capture-force-style');
           if (fs) fs.remove();
@@ -2483,7 +2426,7 @@ function saveForIPhone() {
     capturePageToCanvas().then(canvas => {
       img.src = canvas.toDataURL('image/jpeg', 0.92);
       lbl.innerHTML = '<b>Long-press the image below</b><br>then tap "Add to Photos"';
-      lbl.style.color = '#4ade80'; lbl.style.padding = '0 12px';
+      lbl.style.color = '#4ade80';
       setStatus('Ready - long-press image to save.');
       if (wasDark) document.body.classList.add('dark-mode');
     }).catch(() => {
@@ -2517,30 +2460,25 @@ function saveForAndroid() {
   }, 250);
 }
 
-// Auto-save every 30 seconds
 setInterval(saveDraft, 30000);
 document.addEventListener('change', saveDraft);
 document.addEventListener('input', saveDraft);
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const todayInput = document.getElementById('date');
   if (todayInput && !todayInput.value) {
     todayInput.value = new Date().toISOString().split('T')[0];
   }
-  
-  const initialTheme = getInitialTheme();
-  applyTheme(initialTheme);
+  applyTheme(getInitialTheme());
   setupThemeToggle();
   restoreDraft();
 });
 
-// Service Worker
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
+  window.addEventListener('load', function () {
     navigator.serviceWorker.register('../sw.js', { scope: '../' })
-      .then(function(reg) { console.log('[SW] Registered, scope:', reg.scope); })
-      .catch(function(err) { console.warn('[SW] Registration failed:', err); });
+      .then(reg => console.log('[SW] Registered, scope:', reg.scope))
+      .catch(err => console.warn('[SW] Registration failed:', err));
   });
 }
 </script>
