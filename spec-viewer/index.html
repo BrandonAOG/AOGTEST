@@ -493,17 +493,7 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
 <div class="panel hidden" id="panel-gen-manual">
   <div class="ph"><div class="pn">04</div><div><div class="pt">Installation Manuals</div><div class="pd">Select a generator series to view its installation guide</div></div></div>
   <div class="pb">
-    <div class="fw" style="margin-bottom:20px">
-      <label class="fl">Generator Series</label>
-      <select class="fsel" id="gen-manual-sel" onchange="showManual(this.value)">
-        <option value="">— Select a series —</option>
-        <option value="man-install-10-28kw" data-cooling="air">10–28 kW Guardian NextGen (Installation)</option>
-        <option value="man-legacy-owners" data-cooling="air">10–24 kW Guardian (Legacy) Installation Guidelines (60 Hz Air-Cooled)</option>
-        <option value="man-xg-owners" data-cooling="liq">32–80 kW Protector XG Owner's Manual</option>
-        <option value="man-rg-22-60kw" data-cooling="liq">22–60 kW Protector RG Installation Guidelines</option>
-        <option value="man-rg-100-150kw" data-cooling="liq">100–150 kW Protector RG/HG Installation Manual · RG10090 / RG13090 / RG15090</option>
-      </select>
-    </div>
+    <div class="ats-pick-grid" id="gen-manual-cards" style="margin-bottom:20px"></div>
     <div id="gen-manual-content" class="hidden"></div>
   </div>
 </div>
@@ -837,25 +827,38 @@ function setGenMode(mode){
   setHidden('panel-gen-manual', mode!=='manual');
   if(mode==='specs') popGenModels();
   if(mode==='manual'){
-    filterGenManuals();
-    document.getElementById('gen-manual-sel').value='';
+    renderGenManualCards();
     var el=document.getElementById('gen-manual-content');
     el.classList.add('hidden'); el.innerHTML='';
   }
 }
 
-function filterGenManuals(){
-  var sel = document.getElementById('gen-manual-sel');
-  var opts = sel.querySelectorAll('option[data-cooling]');
-  var hasVisible = false;
-  opts.forEach(function(o){
-    var show = o.getAttribute('data-cooling') === cooling;
-    o.style.display = show ? '' : 'none';
-    if(show) hasVisible = true;
-  });
-  sel.querySelector('option[value=""]').textContent = hasVisible
-    ? '— Select a series —'
-    : '— No manuals available for this series yet —';
+// Manual card definitions — cooling: 'air' | 'liq'
+var GEN_MANUALS = [
+  { key:'man-install-10-28kw', cooling:'air', kw:'10–28 kW', name:'Guardian NextGen', sub:'Installation Manual', pn:'A0009378416' },
+  { key:'man-legacy-owners',   cooling:'air', kw:'10–24 kW', name:'Guardian (Legacy)', sub:'60 Hz Air-Cooled Installation Guidelines', pn:'A0000973297' },
+  { key:'man-xg-owners',       cooling:'liq', kw:'32–80 kW', name:'Protector XG', sub:"Owner's Manual", pn:'A0005536684' },
+  { key:'man-rg-22-60kw',      cooling:'liq', kw:'22–60 kW', name:'Protector RG', sub:'Installation Guidelines', pn:'0K8419' },
+  { key:'man-rg-100-150kw',    cooling:'liq', kw:'100–150 kW', name:'Protector RG/HG', sub:'Installation Manual · RG10090 / RG13090 / RG15090', pn:'A0001525181' }
+];
+
+function renderGenManualCards(){
+  var grid = document.getElementById('gen-manual-cards');
+  var visible = GEN_MANUALS.filter(function(m){ return m.cooling === cooling; });
+  grid.innerHTML = visible.map(function(m){
+    return '<div class="ats-pick" id="gmpick-'+m.key+'" onclick="selectGenManual(\''+m.key+'\')">'
+      + '<div class="aps-amps">'+m.kw+'</div>'
+      + '<div class="aps-name">'+m.name+' &mdash; '+m.sub+'</div>'
+      + '<div class="aps-pn">Part No. '+m.pn+'</div>'
+      + '</div>';
+  }).join('');
+}
+
+function selectGenManual(key){
+  document.querySelectorAll('#gen-manual-cards .ats-pick').forEach(function(el){ el.classList.remove('active'); });
+  var card = document.getElementById('gmpick-'+key);
+  if(card) card.classList.add('active');
+  showManual(key);
 }
 
 function popGenModels(){
