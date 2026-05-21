@@ -857,6 +857,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-safari .page { zoom: 0.830; padding: 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
   body.mobile-safari .two-column { grid-template-columns: 1fr 1fr !important; }
   body.mobile-safari .field-row-nowrap { flex-wrap: nowrap !important; }
+  body.mobile-safari #name { flex: 0 1 28% !important; min-width: 0 !important; }
   body.mobile-safari #batnotes, body.mobile-safari #gennotes { min-height: 53px !important; height: 53px !important; }
   body.mobile-safari #oilnotes, body.mobile-safari #gasnotes, body.mobile-safari #tsnotes { min-height: 26px !important; height: 26px !important; }
 }
@@ -866,6 +867,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-chrome .page { zoom: 0.99; padding: 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
   body.mobile-chrome .two-column { grid-template-columns: 1fr 1fr !important; }
   body.mobile-chrome .field-row-nowrap { flex-wrap: nowrap !important; }
+  body.mobile-chrome #name { flex: 0 1 28% !important; min-width: 0 !important; }
   body.mobile-chrome #batnotes, body.mobile-chrome #gennotes { min-height: 53px !important; height: 53px !important; }
   body.mobile-chrome #oilnotes, body.mobile-chrome #gasnotes, body.mobile-chrome #tsnotes { min-height: 26px !important; height: 26px !important; }
 } */
@@ -1403,11 +1405,42 @@ function clearForm() {
 }
 
 function openPrintPreview() {
-  // NOTE: No style.setProperty calls here — stamp() handles everything
-  // so restoreAll() can cleanly undo every change after printing.
   const wasDark = document.body.classList.contains('dark-mode');
+  const isMacOS = document.documentElement.classList.contains('macos');
   if (wasDark) document.body.classList.remove('dark-mode');
 
+  // ── macOS Safari fast path ────────────────────────────────────────────
+  // afterprint fires BEFORE the job reaches the printer on macOS Safari,
+  // so JS stamp + restore causes the actual printout to differ from the
+  // preview. Solution: skip all JS stamping and let the CSS @media print
+  // html.macos rules handle everything. No stamps = no restore race.
+  if (isMacOS) {
+    const fixEl = document.createElement('style');
+    fixEl.id = 'safari-print-height-fix';
+    fixEl.textContent = [
+      '.page, #page { min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; margin-top: 0 !important; }',
+      'html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; }'
+    ].join('\n');
+    document.head.appendChild(fixEl);
+
+    function macRestore() {
+      if (wasDark) document.body.classList.add('dark-mode');
+      const el = document.getElementById('safari-print-height-fix');
+      if (el) el.remove();
+      window.removeEventListener('afterprint', macRestore);
+    }
+    window.addEventListener('afterprint', macRestore);
+
+    void document.body.offsetHeight;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTimeout(() => { window.print(); }, 400);
+      });
+    });
+    return;
+  }
+
+  // ── All other browsers: JS stamp approach ─────────────────────────────
   const origMaxWidth = document.body.style.maxWidth;
   const origWidth    = document.body.style.width;
   document.body.style.maxWidth = '100%';
@@ -1451,21 +1484,10 @@ function openPrintPreview() {
       overflow: 'visible', padding: '0', margin: '0'
     });
 
-    // macOS: margin on body is always 0; centering + bottom padding go on .page
-    const isMacOS = document.documentElement.classList.contains('macos');
     stamp(document.body, {
       height: 'auto', 'min-height': '0', 'max-height': 'none',
-      overflow: 'visible', padding: '0',
-      margin: '0',
-      zoom: isMacOS ? '0.93' : 'unset'
+      overflow: 'visible', padding: '0', margin: '0'
     });
-    if (isMacOS) {
-      document.querySelectorAll('.page, #page').forEach(el => stamp(el, {
-        margin: '0.2in auto 0',    // true center after zoom
-        'max-width': '95%',
-        'padding-bottom': '0.3in' // prevents bottom border clipping
-      }));
-    }
 
     document.querySelectorAll('.section, .section-header, .form-row, .form-group, .header, .content').forEach(el =>
       stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' })
@@ -1483,8 +1505,6 @@ function openPrintPreview() {
       'box-shadow': 'none', '-webkit-appearance': 'none', 'color-scheme': 'light'
     }));
 
-    // Checkboxes/radios: only force color-scheme — do NOT set background or
-    // -webkit-appearance:none or the native checkmark/dot disappears.
     document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => {
       _saved.push([el, el.getAttribute('style') || null]);
       el.style.setProperty('color-scheme', 'light', 'important');
@@ -1502,8 +1522,6 @@ function openPrintPreview() {
   }
 
   function restoreAll() {
-    // Reverse order so the earliest-saved (true original) state wins
-    // when the same element was stamped more than once (e.g. body).
     _saved.slice().reverse().forEach(([el, orig]) => {
       if (orig !== null) el.setAttribute('style', orig);
       else el.removeAttribute('style');
