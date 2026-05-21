@@ -1071,20 +1071,38 @@ body.dark-mode::-webkit-scrollbar-thumb:hover {
   }
 
   .page {
+    display: block !important;
     width: 100% !important;
     max-width: 100% !important;
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
-    display: block !important;
+    flex-direction: unset !important;
+    flex-shrink: unset !important;
+    flex: none !important;
     box-sizing: border-box !important;
     margin: 0 !important;
     padding: 24px !important;
     border: 1.5px solid #D97706 !important;
     box-shadow: none !important;
   }
+  .page * {
+    flex-shrink: unset !important;
+  }
+  .content {
+    display: block !important;
+    flex: none !important;
+    flex-grow: unset !important;
+  }
+  .footer {
+    display: block !important;
+    flex: none !important;
+    margin-top: 8px !important;
+    margin-bottom: 0 !important;
+  }
   html, body {
+    display: block !important;
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -2060,8 +2078,15 @@ function openPrintPreview() {
     const innerH = window.innerHeight + 'px';
     document.querySelectorAll('.page, #page').forEach(el => stamp(el, {
       background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light',
-      'min-height': '0', height: 'auto', 'max-height': 'none', overflow: 'visible',
-      display: 'block'
+      'min-height': '0', height: 'auto', 'max-height': 'none',
+      overflow: 'visible', display: 'block',
+      flex: 'none', 'flex-direction': 'unset', 'flex-shrink': 'unset'
+    }));
+    document.querySelectorAll('.content').forEach(el => stamp(el, {
+      display: 'block', flex: 'none', 'flex-grow': 'unset'
+    }));
+    document.querySelectorAll('.footer').forEach(el => stamp(el, {
+      display: 'block', flex: 'none', 'margin-top': '8px', 'margin-bottom': '0'
     }));
     // html + body: collapse to content height — no vh, no fill-available
     stamp(document.documentElement, {
