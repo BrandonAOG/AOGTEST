@@ -2114,11 +2114,13 @@ function openPrintPreview() {
       'box-shadow': 'none', '-webkit-appearance': 'none', 'color-scheme': 'light'
     }));
 
-    document.querySelectorAll('input[type="checkbox"]').forEach(el => stamp(el, {
-      background: el.checked ? '#D97706' : '#ffffff',
-      'background-color': el.checked ? '#D97706' : '#ffffff',
-      '-webkit-appearance': 'none', 'color-scheme': 'light'
-    }));
+    // Radios + checkboxes: do NOT stamp background or -webkit-appearance:none —
+    // that fills the circle/box solid white and hides the native checkmark/dot.
+    // Only force color-scheme:light so Safari uses light OS appearance.
+    document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => {
+      _saved.push([el, el.getAttribute('style') || null]);
+      el.style.setProperty('color-scheme', 'light', 'important');
+    });
 
     document.querySelectorAll('table th').forEach(el => stamp(el, {
       background: '#4B5563', 'background-color': '#4B5563',
