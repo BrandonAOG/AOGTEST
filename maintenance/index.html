@@ -1076,14 +1076,104 @@ body.dark-mode::-webkit-scrollbar-thumb:hover {
     overflow: visible !important;
   }
 
-  /* ── macOS Safari ── */
+  /* ════════════════════════════════════════════════════════════════
+     macOS SAFARI PRINT TUNING
+     All html.macos rules only apply when printing on macOS Safari.
+     Tips:
+       - font-size uses rem — 1rem = whatever html.macos font-size is set to (17px)
+       - zoom on body shrinks/grows the ENTIRE page evenly (no off-center shift)
+       - margin on body = physical gap from paper edge (top/left/right)
+       - increase a value to make it bigger, decrease to make it smaller
+       - change ONE thing at a time and test print preview
+     ════════════════════════════════════════════════════════════════ */
+
+  /* ── GLOBAL: root font size — changing this one value scales ALL rem values below ──
+     ↑ increase (e.g. 18px) = everything bigger
+     ↓ decrease (e.g. 16px) = everything smaller */
   html.macos {
-    font-size: 19px !important;
+    font-size: 17px !important;
   }
+
+  /* ── GLOBAL: zoom + page margins ──
+     zoom: shrinks/grows entire page (0.93 = 93% of full size)
+       ↑ closer to 1.0 = bigger · ↓ closer to 0.8 = smaller
+     margin: physical gap between content and paper edge
+       format: top right-&-left (0 = no bottom margin) */
   html.macos body {
     zoom: 0.93 !important;
-    margin: 0.15in 0.15in 0 0.15in !important;
+    margin: 0.1in 0.1in 0 0.1in !important;
   }
+
+  /* ── HEADER: company name + document title ──
+     tip: these are the two large text items at the top of the form
+     ↑ increase rem = bigger header text · ↓ decrease = smaller */
+  html.macos .company-name       { font-size: 1.05rem !important; }
+  html.macos .doc-title          { font-size: 1.05rem !important; }
+
+  /* ── HEADER: logo size ──
+     tip: width and height must match to keep it square */
+  html.macos .logo-img           { width: 46px !important; height: 46px !important; }
+
+  /* ── HEADER: spacing below header bar ──
+     tip: controls the gap between header and first section */
+  html.macos .header             { margin-bottom: 4px !important; padding: 5px 10px !important; }
+
+  /* ── SECTION HEADERS: the amber-colored bar titles ──
+     tip: also controls letter-spacing (spread between characters) */
+  html.macos .section-header     { font-size: 0.52rem !important; letter-spacing: 0.3px !important; }
+
+  /* ── SECTION SPACING: gap between sections ──
+     tip: margin-bottom controls how much air is between each section block */
+  html.macos .section            { margin-bottom: 3px !important; }
+
+  /* ── FIELD ROWS: each label+input line ──
+     tip: gap controls space between rows · line-height controls row height */
+  html.macos .field-row          { font-size: 0.49rem !important; gap: 3px !important; line-height: 1.4 !important; }
+  html.macos .field-row label    { font-size: 0.62rem !important; }
+  html.macos label               { font-size: 0.57rem !important; }
+
+  /* ── TEXT INPUTS + TEXTAREAS ──
+     tip: min-height controls how tall each input line appears on print */
+  html.macos input[type="text"],
+  html.macos input[type="date"],
+  html.macos input[type="number"],
+  html.macos textarea,
+  html.macos select              { font-size: 0.49rem !important; min-height: 16px !important; }
+
+  /* ── NOTES BOXES: the larger multi-line text areas ──
+     tip: adjust height to give more or less space for handwritten notes
+     batnotes/gennotes = battery & generator · oilnotes/gasnotes/tsnotes = smaller ones */
+  html.macos #batnotes,
+  html.macos #gennotes           { min-height: 62px !important; height: 62px !important; }
+  html.macos #oilnotes,
+  html.macos #gasnotes,
+  html.macos #tsnotes            { min-height: 30px !important; height: 30px !important; }
+
+  /* ── CHECKBOXES + RADIO BUTTONS ──
+     tip: width/height controls the size of the box/circle on print */
+  html.macos .check-item span    { font-size: 0.47rem !important; }
+  html.macos .check-item input[type="checkbox"],
+  html.macos .check-item input[type="radio"] { width: 10px !important; height: 10px !important; }
+
+  /* ── Y/N TOGGLES ──
+     tip: height controls the toggle pill height · font-size controls YES/NO text */
+  html.macos .yn-group           { height: 18px !important; }
+  html.macos .yn-group .yn-label { font-size: 0.47rem !important; padding: 0 5px !important; }
+
+  /* ── TWO-COLUMN LAYOUT: gap between left and right columns ──
+     tip: increase gap for more breathing room between the two sides */
+  html.macos .two-column         { gap: 3px !important; }
+
+  /* ── FOOTER: bottom bar with report name + version ──
+     tip: both footer spans use the same font-size
+     margin-top controls space between last section and footer line */
+  html.macos .footer             { margin-top: 4px !important; padding: 4px 2px !important; }
+  html.macos .footer-text,
+  html.macos .footer span        { font-size: 0.48rem !important; }
+
+  /* ── PAGE BORDER: the amber rectangle around the whole form ──
+     tip: border width (1.5px) · inner padding (24px = breathing room inside border) */
+  html.macos .page               { border: 1.5px solid #D97706 !important; padding: 24px !important; }
 
   /* ── Windows (Chrome / Edge / Firefox) ── */
   html.windows .page {
