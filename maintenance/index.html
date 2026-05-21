@@ -2206,20 +2206,12 @@ function openPrintPreview() {
     stamp(document.documentElement, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
     stamp(document.body,            { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
 
-    // Fixed elements — Safari prints them even when display:none via JS.
-    // Must zero out position, height, padding, border, box-shadow.
     document.querySelectorAll('.action-bar, .toolbar, #action-bar, #save-status').forEach(el => stamp(el, {
       display: 'none', position: 'static', height: '0', 'min-height': '0',
       padding: '0', margin: '0', border: 'none', 'box-shadow': 'none',
       overflow: 'hidden', background: 'transparent', 'background-color': 'transparent'
     }));
 
-    // .page has min-height:100vh — on mobile Safari 100vh INCLUDES the browser
-    // chrome (address bar + bottom bar), making the element taller than the paper.
-    // window.innerHeight is the actual visible area excluding chrome — the only
-    // reliable value. We stamp it as a px height so Safari's page-count math
-    // measures real content height, not the inflated 100vh value.
-    const innerH = window.innerHeight + 'px';
     document.querySelectorAll('.page, #page').forEach(el => stamp(el, {
       background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light',
       'min-height': '0', height: 'auto', 'max-height': 'none',
@@ -2233,19 +2225,20 @@ function openPrintPreview() {
       display: 'flex', 'justify-content': 'space-between', 'align-items': 'center',
       flex: 'none', 'margin-top': '8px', 'margin-bottom': '0', width: '100%'
     }));
-    // html + body: collapse to content height — no vh, no fill-available
+
     stamp(document.documentElement, {
       height: 'auto', 'min-height': '0', 'max-height': 'none',
       overflow: 'visible', padding: '0', margin: '0'
     });
+
     const isMacOS = document.documentElement.classList.contains('macos');
-stamp(document.body, {
-    height: 'auto', 'min-height': '0', 'max-height': 'none',
-    overflow: 'visible', padding: '0',
-    margin: isMacOS ? '0.2in 0.2in 0 0.2in' : '0',
-    zoom:   isMacOS ? '0.93' : 'unset'
-});
-});
+    stamp(document.body, {
+      height: 'auto', 'min-height': '0', 'max-height': 'none',
+      overflow: 'visible', padding: '0',
+      margin: isMacOS ? '0.2in 0.2in 0 0.2in' : '0',
+      zoom:   isMacOS ? '0.93' : 'unset'
+    });
+
     document.querySelectorAll(
       '.section, .section-header, .form-row, .form-group, .header, .content'
     ).forEach(el => stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' }));
@@ -2263,6 +2256,24 @@ stamp(document.body, {
       'box-shadow': 'none', '-webkit-appearance': 'none', 'color-scheme': 'light'
     }));
 
+    document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => {
+      _saved.push([el, el.getAttribute('style') || null]);
+      el.style.setProperty('color-scheme', 'light', 'important');
+    });
+
+    document.querySelectorAll('table th').forEach(el => stamp(el, {
+      background: '#4B5563', 'background-color': '#4B5563',
+      color: '#ffffff', '-webkit-text-fill-color': '#ffffff', 'color-scheme': 'light'
+    }));
+
+    document.querySelectorAll('table td').forEach(el => {
+      const bg = el.classList.contains('row-label') ? '#f0f0f0' : '#ffffff';
+      stamp(el, {
+        background: bg, 'background-color': bg,
+        color: '#1F2937', '-webkit-text-fill-color': '#1F2937', 'color-scheme': 'light'
+      });
+    });
+  }
     // Radios + checkboxes: do NOT stamp background or -webkit-appearance:none —
     // that fills the circle/box solid white and hides the native checkmark/dot.
     // Only force color-scheme:light so Safari uses light OS appearance.
