@@ -1060,6 +1060,51 @@ body.dark-mode::-webkit-scrollbar-thumb:hover {
     color-scheme: light !important;
   }
 
+  /* ── iOS / mobile Safari ── */
+  html.ios * {
+    transform: none !important;
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+  }
+  html.ios .page,
+  html.ios body,
+  html.ios html {
+    display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* ── macOS Safari ── */
+  html.macos .page {
+    zoom: 1 !important;
+    display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  /* ── Windows (Chrome / Edge / Firefox) ── */
+  html.windows .page {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  html.windows * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ── Android Chrome ── */
+  html.android * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html.android .page {
+    display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
   input::placeholder, textarea::placeholder {
     color: transparent !important;
     opacity: 0 !important;
@@ -1497,19 +1542,24 @@ body.dark-mode .action-bar {
      narrow-viewport print breakpoints, so they all need the same fix.      */
 (function () {
   var ua = navigator.userAgent;
-  if (
-    /iP(hone|od|ad)/.test(ua) &&
-    /WebKit/.test(ua)
-  ) {
-    document.documentElement.classList.add('mobile-safari');
-    if (document.body) {
-      document.body.classList.add('mobile-safari');
-    } else {
-      document.addEventListener('DOMContentLoaded', function () {
-        document.body.classList.add('mobile-safari');
-      });
-    }
+  var html = document.documentElement;
+  var isIOS     = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
+  var isMacOS   = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+  var isWindows = /Windows/.test(ua);
+  var isAndroid = /Android/.test(ua);
+  if (isIOS)     { html.classList.add('ios', 'mobile-safari'); }
+  if (isMacOS)   { html.classList.add('macos'); }
+  if (isWindows) { html.classList.add('windows'); }
+  if (isAndroid) { html.classList.add('android'); }
+  // Fallback: apply to body once DOM is ready
+  function applyToBody() {
+    if (isIOS)     { document.body.classList.add('ios', 'mobile-safari'); }
+    if (isMacOS)   { document.body.classList.add('macos'); }
+    if (isWindows) { document.body.classList.add('windows'); }
+    if (isAndroid) { document.body.classList.add('android'); }
   }
+  if (document.body) { applyToBody(); }
+  else { document.addEventListener('DOMContentLoaded', applyToBody); }
 })();
 </script>
 
