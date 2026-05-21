@@ -580,7 +580,6 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .gas-appliances-label { color: #6B7280 !important; font-size: 0.57rem !important; margin-bottom: 3px !important; }
   #install-difficulty-row { flex-shrink: 0 !important; margin-top: 0 !important; }
   #address-suggestions, #gps-status { display: none !important; }
-  .field-error { display: none !important; }
   #install_days { padding: 2px 5px !important; min-height: 31px !important; height: 31px !important; }
   #elec_run_ft { width: 9ch !important; min-width: 9ch !important; max-width: 9ch !important; flex-shrink: 0 !important; }
   #gen_size { width: 15ch !important; min-width: 15ch !important; max-width: 15ch !important; flex-shrink: 0 !important; }
@@ -661,9 +660,19 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 
 /* ===== iPAD INPUT FONT SIZE BUMP =====
    Increases text input font by ~0.5px on iPadOS.
-   Targets touch devices with tablet-width viewports (iPad range).
-   pointer:coarse excludes desktop mice; min-width:768px excludes phones. */
-@media screen and (pointer: coarse) and (min-width: 768px) {
+   Primary: JS adds .mobile-safari to <body> for all iOS WebKit (iPad + iPhone);
+   min-width:768px then narrows it to iPad-sized viewports only.
+   Fallback: pure-CSS path using pointer:coarse + hover:none + min-width. */
+@media screen and (min-width: 768px) {
+  body.mobile-safari input[type="text"], body.mobile-safari input[type="email"],
+  body.mobile-safari input[type="tel"], body.mobile-safari input[type="date"],
+  body.mobile-safari input[type="number"], body.mobile-safari textarea,
+  body.mobile-safari select {
+    font-size: 0.85rem !important;
+  }
+}
+/* CSS-only fallback (no JS) */
+@media screen and (pointer: coarse) and (hover: none) and (min-width: 768px) {
   input[type="text"], input[type="email"], input[type="tel"],
   input[type="date"], input[type="number"], textarea, select {
     font-size: 0.85rem !important;
@@ -744,11 +753,11 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
           </svg>
           Customer Info
         </div>
-        <div class="field-row"><label for="name">Name</label><input type="text" id="name" name="name" required class="long" placeholder="Full name" autocomplete="name" aria-label="Customer name"></div>
+        <div class="field-row"><label for="name">Name</label><input type="text" id="name" name="name" class="long" placeholder="Full name" autocomplete="name" aria-label="Customer name"></div>
         <div class="field-row">
           <label for="address">Address</label>
           <div class="addr-wrap">
-            <input type="text" id="address" name="address" required class="long" placeholder="Start typing address…"
+            <input type="text" id="address" name="address" class="long" placeholder="Start typing address…"
                    autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false"
                    aria-label="Street address" aria-autocomplete="list" aria-controls="address-suggestions" aria-expanded="false">
             <button class="gps-btn" title="Use my current location" id="gps-btn" type="button" aria-label="Get GPS location">
@@ -758,11 +767,11 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
           </div>
         </div>
         <div id="gps-status" aria-hidden="true"></div>
-        <div class="field-row"><label> </label><input type="text" id="address2" name="address2" required class="long" placeholder="City, State ZIP" autocomplete="off" aria-label="City, state, and zip code"></div>
+        <div class="field-row"><label> </label><input type="text" id="address2" name="address2" class="long" placeholder="City, State ZIP" autocomplete="off" aria-label="City, state, and zip code"></div>
         <div class="field-row"><label for="hoa">Community/HOA</label><input type="text" id="hoa" name="hoa" class="long" autocomplete="off" aria-label="Community or HOA name"></div>
-        <div class="field-row"><label for="phone">Phone #</label><input type="tel" id="phone" name="phone" required class="long" autocomplete="tel" aria-label="Phone number" pattern="[0-9\-\(\)\s]*"></div>
-        <div class="field-row"><label for="email">Best Email</label><input type="email" id="email" name="email" required class="long" autocomplete="email" aria-label="Email address"></div>
-        <div class="field-row"><label for="today">Today's Date</label><input type="date" id="today" name="today" required class="med" autocomplete="off" aria-label="Today's date"></div>
+        <div class="field-row"><label for="phone">Phone #</label><input type="tel" id="phone" name="phone" class="long" autocomplete="tel" aria-label="Phone number" pattern="[0-9\-\(\)\s]*"></div>
+        <div class="field-row"><label for="email">Best Email</label><input type="email" id="email" name="email" class="long" autocomplete="email" aria-label="Email address"></div>
+        <div class="field-row"><label for="today">Today's Date</label><input type="date" id="today" name="today" class="med" autocomplete="off" aria-label="Today's date"></div>
       </div>
 
       <div class="top-col">
@@ -796,7 +805,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
           <label for="est_date">Estimate Date</label><input type="date" id="est_date" name="est_date" class="med" autocomplete="off" aria-label="Estimate date">
           <label for="est_time">Time</label><input type="text" id="est_time" name="est_time" class="short" placeholder="10-11" autocomplete="off" aria-label="Estimate time">
         </div>
-        <div class="field-row"><label for="estimator">Estimator</label><input type="text" id="estimator" name="estimator" required class="long" autocomplete="off" aria-label="Estimator name"></div>
+        <div class="field-row"><label for="estimator">Estimator</label><input type="text" id="estimator" name="estimator" class="long" autocomplete="off" aria-label="Estimator name"></div>
       </div>
     </div>
 
@@ -1110,119 +1119,6 @@ setInterval(saveDraft, 30000);
 document.addEventListener('change', saveDraft);
 document.addEventListener('input',  saveDraft);
 
-// ── VALIDATION ──
-var VALIDATION_RULES = {
-  name:      { required: true, minLength: 2, pattern: /^[a-zA-Z\s\-'.]+$/, message: 'Name must contain only letters, spaces, hyphens, or apostrophes' },
-  address:   { required: true, minLength: 5, message: 'Please enter a valid street address' },
-  phone:     { required: true, pattern: /^[\d\-\(\)\s+]{10,}$/, message: 'Phone must be at least 10 digits' },
-  email:     { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Please enter a valid email address' },
-  estimator: { required: true, minLength: 2, message: 'Estimator name is required' },
-  sqft:      { pattern: /^[0-9]*$/, min: 500, max: 100000, message: 'Square footage must be between 500 and 100,000' }
-};
-
-var FormValidator = (function() {
-  function FV() { this.errors = {}; this.validatedFields = new Set(); }
-  FV.prototype.validateField = function(fieldId) {
-    var el = document.getElementById(fieldId); if (!el) return true;
-    var rules = VALIDATION_RULES[fieldId]; if (!rules) return true;
-    var value = el.value.trim();
-    var errors = [];
-    if (rules.required && !value) errors.push(rules.message || (fieldId + ' is required'));
-    if (value) {
-      if (rules.minLength && value.length < rules.minLength) errors.push('Must be at least ' + rules.minLength + ' characters');
-      if (rules.pattern && !rules.pattern.test(value)) errors.push(rules.message || ('Invalid ' + fieldId + ' format'));
-      var num = parseFloat(value);
-      if (!isNaN(num)) {
-        if (rules.min !== undefined && num < rules.min) errors.push('Must be at least ' + rules.min);
-        if (rules.max !== undefined && num > rules.max) errors.push('Must be no more than ' + rules.max);
-      }
-    }
-    if (errors.length > 0) this.errors[fieldId] = errors; else delete this.errors[fieldId];
-    this.updateFieldUI(el, errors.length === 0);
-    this.validatedFields.add(fieldId);
-    return errors.length === 0;
-  };
-  FV.prototype.validateAllRequired = function() {
-    var self = this;
-    return Object.keys(VALIDATION_RULES).filter(function(k) { return VALIDATION_RULES[k].required; })
-      .map(function(id) { return self.validateField(id); })
-      .every(function(r) { return r === true; });
-  };
-  FV.prototype.updateFieldUI = function(el, isValid) {
-    var wrapper = el.parentElement;
-    var oldError = wrapper && wrapper.querySelector('.field-error');
-    if (oldError) oldError.remove();
-    if (isValid) {
-      el.style.borderBottomColor = '#059669';
-      el.style.boxShadow = '0 2px 0 0 rgba(5,150,105,0.3)';
-    } else {
-      el.style.borderBottomColor = '#DC2626';
-      el.style.boxShadow = '0 2px 0 0 rgba(220,38,38,0.3)';
-      if (wrapper && this.errors[el.id]) {
-        var e = document.createElement('div');
-        e.className = 'field-error';
-        e.style.cssText = 'font-size:0.62rem;color:#DC2626;margin-top:2px;font-family:var(--font-mono);letter-spacing:0.5px;';
-        e.textContent = '✗ ' + this.errors[el.id][0];
-        wrapper.appendChild(e);
-      }
-    }
-  };
-  FV.prototype.clearFieldUI = function(el) {
-    el.style.borderBottomColor = '';
-    el.style.boxShadow = '';
-    var w = el.parentElement;
-    var e = w && w.querySelector('.field-error');
-    if (e) e.remove();
-  };
-  FV.prototype.getErrorSummary = function() {
-    return Object.entries(this.errors).map(function(pair) {
-      var id = pair[0], msgs = pair[1];
-      var lbl = id.replace(/_/g,' ').split(' ').map(function(w) { return w.charAt(0).toUpperCase()+w.slice(1); }).join(' ');
-      return lbl + ': ' + msgs[0];
-    });
-  };
-  FV.prototype.showErrorModal = function() {
-    var errors = this.getErrorSummary(); if (errors.length === 0) return false;
-    var self = this;
-    var modal = document.createElement('div');
-    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9998;backdrop-filter:blur(4px);';
-    modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true'); modal.setAttribute('aria-label','Validation errors');
-    var content = document.createElement('div');
-    content.style.cssText = 'background:linear-gradient(135deg,#1a1a1a 0%,#0a0a0a 100%);border:2px solid #DC2626;border-radius:12px;padding:30px;max-width:500px;width:90%;box-shadow:0 0 40px rgba(220,38,38,0.4);font-family:var(--font-body);';
-    var title = document.createElement('h2'); title.style.cssText='color:#DC2626;font-family:var(--font-display);margin:0 0 16px 0;font-size:18px;letter-spacing:2px;'; title.textContent='⚠ VALIDATION ERRORS';
-    var divider = document.createElement('div'); divider.style.cssText='height:1px;background:linear-gradient(90deg,#DC2626,transparent);margin-bottom:16px;';
-    var errorList = document.createElement('ul'); errorList.style.cssText='list-style:none;padding:0;margin:0 0 20px 0;';
-    errors.forEach(function(err) { var li=document.createElement('li'); li.style.cssText='color:#00E5FF;font-family:var(--font-mono);font-size:13px;line-height:1.6;padding:6px 0;'; li.textContent='• '+err; errorList.appendChild(li); });
-    var closeBtn = document.createElement('button');
-    closeBtn.style.cssText='width:100%;background:linear-gradient(135deg,#DC2626,#b01f1f);border:none;color:white;padding:12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:var(--font-display);font-size:12px;letter-spacing:1px;';
-    closeBtn.textContent='CLOSE';
-    closeBtn.addEventListener('click', function() { document.body.removeChild(modal); });
-    content.appendChild(title); content.appendChild(divider); content.appendChild(errorList); content.appendChild(closeBtn);
-    modal.appendChild(content); document.body.appendChild(modal);
-    closeBtn.focus();
-    var firstErrorId = Object.keys(this.errors)[0];
-    if (firstErrorId) { var el=document.getElementById(firstErrorId); if(el) setTimeout(function() { el.scrollIntoView({behavior:'smooth',block:'center'}); }, 100); }
-    return true;
-  };
-  return FV;
-})();
-
-var validator = new FormValidator();
-
-function setupFieldValidation() {
-  Object.keys(VALIDATION_RULES).forEach(function(fieldId) {
-    var el = document.getElementById(fieldId); if (!el) return;
-    el.addEventListener('blur', function() { validator.validateField(fieldId); });
-    el.addEventListener('focus', function() { validator.clearFieldUI(this); });
-    if (['email','phone','sqft'].indexOf(fieldId) !== -1) {
-      var t;
-      el.addEventListener('input', function() { clearTimeout(t); t = setTimeout(function() { validator.validateField(fieldId); }, 600); });
-    }
-  });
-}
-
-function validateForm() {
-  if (!validator.validateAllRequired()) { validator.showErrorModal(); return false; }
   return true;
 }
 
@@ -1262,7 +1158,6 @@ function getEstimateFilename(ext) {
 
 // ── PRINT ──
 function printForm() {
-  if (!validateForm()) return;
 
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var wasDark = document.body.classList.contains('dark-mode');
@@ -1626,7 +1521,6 @@ function capturePageToCanvas() {
 
 // ── iPHONE SAVE ──
 function saveForIPhone() {
-  if (!validateForm()) return;
   setStatus('Rendering… please wait');
 
   var filename = getEstimateFilename('jpg');
@@ -1666,7 +1560,6 @@ function saveForIPhone() {
 
 // ── ANDROID SAVE ──
 function saveForAndroid() {
-  if (!validateForm()) return;
   setStatus('Rendering… please wait');
 
   var filename = getEstimateFilename('jpg');
@@ -1687,7 +1580,6 @@ function saveForAndroid() {
 
 // ── EMAIL ──
 function sendEmail() {
-  if (!validateForm()) return;
   var data = getFormData();
   var name    = data.name    || '';
   var emailTo = data.email   || '';
@@ -2945,14 +2837,6 @@ document.addEventListener('DOMContentLoaded', function() {
   setupThemeToggle();
   setupAddressAutocomplete();
   setupGpsButton();
-  setupFieldValidation();
-
-  setTimeout(function() {
-    Object.keys(VALIDATION_RULES).forEach(function(fieldId) {
-      var el = document.getElementById(fieldId);
-      if (el && el.value.trim()) validator.validateField(fieldId);
-    });
-  }, 0);
 });
 </script>
 
