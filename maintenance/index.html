@@ -2114,11 +2114,15 @@ function openPrintPreview() {
   void document.body.offsetHeight;
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      forceLightMode();
-      void document.body.offsetHeight;
+      // 600ms pause — lets Safari fully repaint to light mode before
+      // we stamp inline styles and open the print dialog
       setTimeout(() => {
-        window.print();
-      }, 1500);
+        forceLightMode();
+        void document.body.offsetHeight;
+        setTimeout(() => {
+          window.print();
+        }, 600);
+      }, 600);
     });
   });
 }
