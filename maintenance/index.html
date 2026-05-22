@@ -41,6 +41,58 @@
   --icon-color-section: #D97706;
 
   /* =============================================
+     MISCELLANEOUS SIZES
+     ============================================= */
+
+  /* ---- PAGE CORNER BRACKETS ---- */
+  --corner-size:          24px;   /* decorative corner bracket size (all four corners)  */
+
+  /* ---- LOGO ---- */
+  --logo-size-screen:     36px;   /* AOG logo size on screen                           */
+  --logo-size-print:      36px;   /* AOG logo size in PDF                              */
+
+  /* ---- HEADER ---- */
+  --header-gap:           8px;    /* gap between header elements                       */
+  --header-min-height:    56px;   /* minimum header bar height                         */
+  --header-logo-pad:      30px;   /* left padding on the logo/title group              */
+
+  /* ---- THEME TOGGLE BUTTON ---- */
+  --theme-btn-size:       36px;   /* width and height of the dark/light toggle button  */
+  --theme-btn-padding:    5px;    /* padding inside the toggle button                  */
+  --theme-icon-size:      16px;   /* moon/sun icon size inside toggle button           */
+
+  /* ---- ACTION BUTTONS (Save, Load, PDF…) ---- */
+  --btn-font-size:        0.55rem; /* text size on action buttons                      */
+  --btn-padding:          5px 10px; /* padding inside action buttons                  */
+  --btn-min-height:       30px;   /* minimum button height                             */
+  --btn-gap:              4px;    /* gap between icon and label inside button          */
+
+  /* ---- SECTION HEADER DOT ---- */
+  --section-dot-size:     4px;    /* glowing dot before each section header title      */
+
+  /* ---- SECTION GAP ---- */
+  --section-gap:          6px;    /* gap between icon and text in section headers      */
+  --section-margin-bottom:4px;    /* space below each section block                   */
+
+  /* ---- INPUT FIELD WIDTHS ---- */
+  --w-tech:           165px;  /* Technician name input width                       */
+  --w-model:          100px;  /* Generator model input width                       */
+  --w-serial:         100px;  /* Serial number input width                         */
+  --w-hours:          60px;   /* Runtime hours input width                         */
+  --w-dare:           135px;  /* Battery brand input width                         */
+  --w-filterpart:     135px;  /* Oil filter part number input width                */
+  --w-signal:         40px;   /* Cell signal input width                           */
+
+  /* ---- TEXTAREA SCREEN HEIGHTS ---- */
+  --h-batnotes:       60px;   /* Battery notes box height on screen                */
+  --h-gennotes:       60px;   /* Generator notes box height on screen              */
+  --h-oilnotes:       50px;   /* Oil notes box minimum height on screen            */
+  --h-gasnotes:       50px;   /* Gas notes box minimum height on screen            */
+
+  /* ---- INLINE LABEL GAPS ---- */
+  --gap-genvolt-label:    12px;   /* space before "Voltage" label in generator section */
+
+  /* =============================================
      FONT SIZES — edit any value to resize that
      element. Screen = on-device display.
      Print blocks: base (all), macos, ios/safari,
@@ -85,10 +137,30 @@
   --fs-print-macos-yn-label:       0.47rem;
   --fs-print-macos-footer:         0.48rem;
 
-  /* ---- PRINT : iOS Safari ---- */
+  /* ---- PRINT : iOS Safari (iPhone only) ---- */
   --fs-print-ios-input:            0.62rem;
   --fs-print-ios-textarea-notes:   0.57rem;  /* batnotes / gennotes large boxes            */
   --fs-print-ios-textarea-small:   0.57rem;  /* oilnotes / gasnotes / tsnotes small boxes  */
+
+  /* ---- PRINT : iPad Safari (separate from iPhone) ---- */
+  --fs-print-ipad-company-name:    1.05rem;  /* "Always On Generators" in iPad PDF          */
+  --fs-print-ipad-doc-title:       1.05rem;  /* "Maintenance Report" in iPad PDF            */
+  --fs-print-ipad-section-header:  0.52rem;  /* section title bars in iPad PDF              */
+  --fs-print-ipad-label:           0.57rem;  /* field labels in iPad PDF                    */
+  --fs-print-ipad-input:           0.62rem;  /* text inside inputs in iPad PDF              */
+  --fs-print-ipad-check-item:      0.47rem;  /* checkbox text in iPad PDF                   */
+  --fs-print-ipad-yn-label:        0.47rem;  /* Y/N buttons in iPad PDF                     */
+  --fs-print-ipad-footer:          0.48rem;  /* footer text in iPad PDF                     */
+  --h-print-ipad-input:            16px;     /* input height in iPad PDF                    */
+  --h-print-ipad-yn-group:         18px;     /* Y/N group height in iPad PDF                */
+  --h-print-ipad-batnotes:         62px;     /* Battery notes box in iPad PDF               */
+  --h-print-ipad-gennotes:         62px;     /* Generator notes box in iPad PDF             */
+  --h-print-ipad-oilnotes:         30px;     /* Oil notes box in iPad PDF                   */
+  --h-print-ipad-gasnotes:         30px;     /* Gas notes box in iPad PDF                   */
+  --h-print-ipad-tsnotes:          30px;     /* Transfer switch notes box in iPad PDF       */
+  --pd-print-ipad-page:            18px;     /* page padding for iPad print                 */
+  --pd-print-ipad-footer:          4px 2px;  /* footer padding in iPad PDF                  */
+  --pd-print-ipad-yn-label:        0 5px;    /* Y/N button padding in iPad PDF              */
 
   /* ---- PRINT : Mobile Chrome ---- */
   --fs-print-chrome-input:         0.62rem;
@@ -266,7 +338,7 @@ body.dark-mode .page {
 .page::before, .page::after {
   content: '';
   position: absolute;
-  width: 24px; height: 24px;
+  width: var(--corner-size); height: var(--corner-size);
   border-color: var(--cyan);
   border-style: solid;
   z-index: 10;
@@ -275,7 +347,7 @@ body.dark-mode .page {
 .page::after  { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
 .page-corner-bl, .page-corner-br {
   position: absolute;
-  width: 24px; height: 24px;
+  width: var(--corner-size); height: var(--corner-size);
   border-color: var(--cyan);
   border-style: solid;
   z-index: 10;
@@ -290,7 +362,7 @@ body.dark-mode .page {
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none; }
   .header { flex-wrap: nowrap; gap: 6px; padding: 6px 8px; min-height: auto; justify-content: space-between; }
   .header-logo { flex: 0 1 auto; min-width: 0; overflow: hidden; padding-left: 30px; }
-  .logo-img { width: 36px; height: 36px; }
+  .logo-img { width: var(--logo-size-screen); height: var(--logo-size-screen); }
   .company-name { font-size: 0.75rem !important; letter-spacing: 0.5px !important; white-space: nowrap; }
   .doc-title { font-size: 0.75rem !important; letter-spacing: 1px !important; white-space: nowrap; }
 }
@@ -303,11 +375,11 @@ body.dark-mode .page {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--header-gap);
   border-bottom: 1px solid var(--border-bright);
   position: relative;
   overflow: hidden;
-  min-height: 56px;
+  min-height: var(--header-min-height);
   page-break-after: avoid;
   break-after: avoid;
   margin: 0;
@@ -339,7 +411,7 @@ body.dark-mode .header::after {
 .header-logo { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 
 .logo-img {
-  width: 40px; height: 40px;
+  width: var(--logo-size-screen); height: var(--logo-size-screen);
   flex-shrink: 0;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(217,119,6,0.6)) drop-shadow(0 0 24px rgba(217,119,6,0.4)) brightness(1.1);
@@ -393,8 +465,8 @@ body.dark-mode .doc-title {
 /* ── THEME TOGGLE ── */
 .theme-toggle-btn {
   position: relative;
-  width: 36px; height: 36px;
-  padding: 5px;
+  width: var(--theme-btn-size); height: var(--theme-btn-size);
+  padding: var(--theme-btn-padding);
   border: 1px solid rgba(217,119,6,0.4);
   background: rgba(217,119,6,0.05);
   border-radius: 4px;
@@ -415,7 +487,7 @@ body.dark-mode .theme-toggle-btn:hover { background: rgba(0,255,200,0.12); borde
 .theme-toggle-btn:active { transform: scale(0.95); }
 
 .theme-icon {
-  width: 16px; height: 16px;
+  width: var(--theme-icon-size); height: var(--theme-icon-size);
   transition: all 0.3s ease;
   position: absolute;
   fill: none;
@@ -437,19 +509,19 @@ body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 5px 10px;
+  gap: var(--btn-gap);
+  padding: var(--btn-padding);
   border: 1px solid rgba(217,119,6,0.4);
   background: rgba(217,119,6,0.05);
   font-family: var(--font-display);
-  font-size: 0.55rem;
+  font-size: var(--btn-font-size);
   font-weight: 500;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   cursor: pointer;
   color: var(--cyan);
   white-space: nowrap;
-  min-height: 30px;
+  min-height: var(--btn-min-height);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: all 0.15s;
@@ -479,7 +551,7 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
 /* ── SECTIONS ── */
 .section {
   border: 1px solid var(--border);
-  margin-bottom: 4px;
+  margin-bottom: var(--section-margin-bottom);
   background: var(--panel);
   position: relative;
   transition: all 0.3s ease;
@@ -516,7 +588,7 @@ body.dark-mode .section::before {
   font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--section-gap);
   transition: all 0.3s ease;
   text-transform: uppercase;
 }
@@ -529,7 +601,7 @@ body.dark-mode .section-header {
 .section-header::before {
   content: '';
   display: inline-block;
-  width: 4px; height: 4px;
+  width: var(--section-dot-size); height: var(--section-dot-size);
   background: var(--cyan);
   box-shadow: 0 0 4px var(--cyan);
   flex-shrink: 0;
@@ -918,7 +990,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 
   .header { display: flex !important; margin-bottom: 4px !important; padding: var(--pd-print-header) !important; border-bottom: 0.5px solid #D97706 !important; background: white !important; min-height: auto !important; }
   .header::after { display: none !important; }
-  .logo-img { width: 46px !important; height: 46px !important; }
+  .logo-img { width: var(--logo-size-print) !important; height: var(--logo-size-print) !important; }
   .company-name { color: #D97706 !important; text-shadow: none !important; font-size: var(--fs-print-company-name) !important; letter-spacing: 1px !important; }
   .doc-title { color: #D97706 !important; text-shadow: none !important; font-size: var(--fs-print-doc-title) !important; letter-spacing: 1.5px !important; }
 
@@ -1003,18 +1075,46 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.dark-mode .check-item { background: white !important; }
 }
 
-/* ── Mobile Safari print fix ── */
+/* ── iPhone Safari print fix ── */
 @media print {
-  body.mobile-safari .page { zoom: 0.830; padding: var(--pd-print-ios-page) !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
-  body.mobile-safari .two-column { grid-template-columns: 1fr 1fr !important; }
-  body.mobile-safari .field-row-nowrap { flex-wrap: nowrap !important; }
-  body.mobile-safari #name { flex: 0 1 50% !important; min-width: 0 !important; }
-  body.mobile-safari #date, body.mobile-safari #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
-  body.mobile-safari #batnotes { min-height: var(--h-print-ios-batnotes) !important; height: var(--h-print-ios-batnotes) !important; }
-  body.mobile-safari #gennotes { min-height: var(--h-print-ios-gennotes) !important; height: var(--h-print-ios-gennotes) !important; }
-  body.mobile-safari #oilnotes { min-height: var(--h-print-ios-oilnotes) !important; height: var(--h-print-ios-oilnotes) !important; }
-  body.mobile-safari #gasnotes { min-height: var(--h-print-ios-gasnotes) !important; height: var(--h-print-ios-gasnotes) !important; }
-  body.mobile-safari #tsnotes  { min-height: var(--h-print-ios-tsnotes) !important; height: var(--h-print-ios-tsnotes) !important; }
+  body.mobile-safari:not(.ipad-safari) .page { zoom: 0.830; padding: var(--pd-print-ios-page) !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
+  body.mobile-safari:not(.ipad-safari) .two-column { grid-template-columns: 1fr 1fr !important; }
+  body.mobile-safari:not(.ipad-safari) .field-row-nowrap { flex-wrap: nowrap !important; }
+  body.mobile-safari:not(.ipad-safari) #name { flex: 0 1 50% !important; min-width: 0 !important; }
+  body.mobile-safari:not(.ipad-safari) #date, body.mobile-safari:not(.ipad-safari) #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
+  body.mobile-safari:not(.ipad-safari) input[type="text"],
+  body.mobile-safari:not(.ipad-safari) input[type="date"],
+  body.mobile-safari:not(.ipad-safari) input[type="number"] { font-size: var(--fs-print-ios-input) !important; }
+  body.mobile-safari:not(.ipad-safari) #batnotes,
+  body.mobile-safari:not(.ipad-safari) #gennotes { font-size: var(--fs-print-ios-textarea-notes) !important; min-height: var(--h-print-ios-batnotes) !important; height: var(--h-print-ios-batnotes) !important; }
+  body.mobile-safari:not(.ipad-safari) #oilnotes,
+  body.mobile-safari:not(.ipad-safari) #gasnotes,
+  body.mobile-safari:not(.ipad-safari) #tsnotes { font-size: var(--fs-print-ios-textarea-small) !important; min-height: var(--h-print-ios-oilnotes) !important; height: var(--h-print-ios-oilnotes) !important; }
+}
+
+/* ── iPad Safari print fix ── */
+@media print {
+  body.ipad-safari .page { zoom: 0.830; padding: var(--pd-print-ipad-page) !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
+  body.ipad-safari .two-column { grid-template-columns: 1fr 1fr !important; }
+  body.ipad-safari .field-row-nowrap { flex-wrap: nowrap !important; }
+  body.ipad-safari .company-name { font-size: var(--fs-print-ipad-company-name) !important; }
+  body.ipad-safari .doc-title    { font-size: var(--fs-print-ipad-doc-title) !important; }
+  body.ipad-safari .section-header { font-size: var(--fs-print-ipad-section-header) !important; }
+  body.ipad-safari label         { font-size: var(--fs-print-ipad-label) !important; }
+  body.ipad-safari input[type="text"],
+  body.ipad-safari input[type="date"],
+  body.ipad-safari input[type="number"] { font-size: var(--fs-print-ipad-input) !important; min-height: var(--h-print-ipad-input) !important; }
+  body.ipad-safari .check-item span { font-size: var(--fs-print-ipad-check-item) !important; }
+  body.ipad-safari .yn-group    { height: var(--h-print-ipad-yn-group) !important; }
+  body.ipad-safari .yn-group .yn-label { font-size: var(--fs-print-ipad-yn-label) !important; padding: var(--pd-print-ipad-yn-label) !important; }
+  body.ipad-safari .footer      { padding: var(--pd-print-ipad-footer) !important; }
+  body.ipad-safari .footer-text,
+  body.ipad-safari .footer span { font-size: var(--fs-print-ipad-footer) !important; }
+  body.ipad-safari #batnotes { min-height: var(--h-print-ipad-batnotes) !important; height: var(--h-print-ipad-batnotes) !important; }
+  body.ipad-safari #gennotes { min-height: var(--h-print-ipad-gennotes) !important; height: var(--h-print-ipad-gennotes) !important; }
+  body.ipad-safari #oilnotes { min-height: var(--h-print-ipad-oilnotes) !important; height: var(--h-print-ipad-oilnotes) !important; }
+  body.ipad-safari #gasnotes { min-height: var(--h-print-ipad-gasnotes) !important; height: var(--h-print-ipad-gasnotes) !important; }
+  body.ipad-safari #tsnotes  { min-height: var(--h-print-ipad-tsnotes) !important; height: var(--h-print-ipad-tsnotes) !important; }
 }
 
 /* ── Mobile Chrome print fix (Android Chrome + Chrome on iOS) ── */
@@ -1090,12 +1190,14 @@ body.dark-mode .action-bar {
   var html = document.documentElement;
   var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad
   var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua) && !isCriOS; // Safari on iOS only
-  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+  var isIPad     = /iPad/.test(ua) || (/Macintosh/.test(ua) && /Safari/.test(ua) && !(/Chrome/.test(ua)) && navigator.maxTouchPoints > 1); // iPad (including iPadOS 13+)
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && navigator.maxTouchPoints === 0;
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
   var isMobileChrome = isCriOS || (isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua));
 
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
+  if (isIPad)         html.classList.add('ios', 'mobile-safari', 'ipad-safari');
   if (isCriOS)        html.classList.add('ios');
   if (isMacOS)        html.classList.add('macos');
   if (isWindows)      html.classList.add('windows');
@@ -1104,6 +1206,7 @@ body.dark-mode .action-bar {
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
+    if (isIPad)         document.body.classList.add('ios', 'mobile-safari', 'ipad-safari');
     if (isCriOS)        document.body.classList.add('ios');
     if (isMacOS)        document.body.classList.add('macos');
     if (isWindows)      document.body.classList.add('windows');
@@ -1117,7 +1220,7 @@ body.dark-mode .action-bar {
 
 <div class="page" id="page">
   <div class="header">
-    <div class="header-logo" style="padding-left:30px;">
+    <div class="header-logo" style="padding-left:var(--header-logo-pad);">
       <img src="https://raw.githubusercontent.com/BrandonAOG/AOG-Logo/main/logo.png" alt="logo" width="40" height="40" class="logo-img">
       <div class="company-name">Always On<br>Generators</div>
     </div>
@@ -1149,15 +1252,15 @@ body.dark-mode .action-bar {
           <label for="address">Address</label>
           <input type="text" id="address" class="long" placeholder="Address" title="Customer street address">
           <label for="tech">Tech</label>
-          <input type="text" id="tech" class="med" placeholder="Tech" title="Technician name performing the maintenance" style="width:165px;">
+          <input type="text" id="tech" class="med" placeholder="Tech" title="Technician name performing the maintenance" style="width:var(--w-tech);">
         </div>
         <div class="field-row field-row-nowrap">
           <label for="model">Model</label>
-          <input type="text" id="model" class="med" placeholder="Model" title="Generator model number — e.g. RG02224ANAX" style="width:100px;">
+          <input type="text" id="model" class="med" placeholder="Model" title="Generator model number — e.g. RG02224ANAX" style="width:var(--w-model);">
           <label for="serial">Serial #</label>
-          <input type="text" id="serial" class="med" placeholder="Serial number" title="Generator serial number from the unit label" style="width:100px;">
+          <input type="text" id="serial" class="med" placeholder="Serial number" title="Generator serial number from the unit label" style="width:var(--w-serial);">
           <label for="hours">Hrs</label>
-          <input type="number" id="hours" class="med" placeholder="500" title="Current runtime hours on the generator" style="width:60px;">
+          <input type="number" id="hours" class="med" placeholder="500" title="Current runtime hours on the generator" style="width:var(--w-hours);">
         </div>
       </div>
     </div>
@@ -1215,7 +1318,7 @@ body.dark-mode .action-bar {
               <label class="check-item"><input type="radio" name="water" value="add"><span>Add</span></label>
             </div>
           </div>
-          <textarea id="batnotes" placeholder="Battery notes..." title="Battery condition notes — corrosion, cable condition, replacement needed" style="height:60px;"></textarea>
+          <textarea id="batnotes" placeholder="Battery notes..." title="Battery condition notes — corrosion, cable condition, replacement needed" style="height:var(--h-batnotes);"></textarea>
         </div>
       </div>
 
@@ -1228,7 +1331,7 @@ body.dark-mode .action-bar {
               <label class="check-item"><input type="radio" name="startup" value="norm"><span>Normal</span></label>
               <label class="check-item"><input type="radio" name="startup" value="abn"><span>Abnormal</span></label>
             </div>
-            <label for="genvolt" style="margin-left:12px;">Voltage</label>
+            <label for="genvolt" style="margin-left:var(--gap-genvolt-label);">Voltage</label>
             <input type="text" id="genvolt" class="short" placeholder="120/240" title="Generator output voltage reading — e.g. 120/240">
           </div>
           <div class="field-row">
@@ -1282,7 +1385,7 @@ body.dark-mode .action-bar {
             <label for="exercisetime">Exercise Schedule</label>
             <input type="text" id="exercisetime" class="med" placeholder="e.g., Tues 11:00am" title="Generator exercise schedule — day and time — e.g. Tues 11:00am">
           </div>
-          <textarea id="gennotes" placeholder="Generator notes..." title="Generator condition notes — unusual sounds, leaks, error codes, service needed" style="height:60px;"></textarea>
+          <textarea id="gennotes" placeholder="Generator notes..." title="Generator condition notes — unusual sounds, leaks, error codes, service needed" style="height:var(--h-gennotes);"></textarea>
         </div>
       </div>
     </div>
@@ -1307,7 +1410,7 @@ body.dark-mode .action-bar {
           <label for="filterpart">Part #</label>
           <input type="text" id="filterpart" class="med" placeholder="Part #" title="Oil filter part number used — e.g. A047F001" style="width:135px;">
         </div>
-        <textarea id="oilnotes" placeholder="Oil & filter notes..." title="Oil change notes — oil type used, quantity, condition at drain" style="min-height:50px;"></textarea>
+        <textarea id="oilnotes" placeholder="Oil & filter notes..." title="Oil change notes — oil type used, quantity, condition at drain" style="min-height:var(--h-oilnotes);"></textarea>
       </div>
     </div>
 
@@ -1397,7 +1500,7 @@ body.dark-mode .action-bar {
             </div>
           </div>
         </div>
-        <textarea id="gasnotes" placeholder="Gas system notes..." title="Gas system notes — regulator condition, line pressure, leaks, tank observations" style="min-height:50px;"></textarea>
+        <textarea id="gasnotes" placeholder="Gas system notes..." title="Gas system notes — regulator condition, line pressure, leaks, tank observations" style="min-height:var(--h-gasnotes);"></textarea>
       </div>
     </div>
 
@@ -1478,7 +1581,7 @@ body.dark-mode .action-bar {
           </div>
           <div class="field-group" style="display:flex;align-items:center;gap:8px;">
             <label for="signal">Signal %</label>
-            <input type="number" id="signal" placeholder="100" title="Cell signal strength percentage for remote monitoring — e.g. 85" style="width:40px;">
+            <input type="number" id="signal" placeholder="100" title="Cell signal strength percentage for remote monitoring — e.g. 85" style="width:var(--w-signal);">
           </div>
         </div>
       </div>
