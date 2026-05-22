@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Quality Control Checklist</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
+
+<script>
+(function() {
+  var saved = '';
+  try { saved = localStorage.getItem('aog_theme_preference') || ''; } catch(e) {}
+  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var isDark = saved === 'dark' || (!saved && prefersDark);
+  if (isDark) document.documentElement.classList.add('dark-mode-pending');
+})();
+</script>
+
+<script>
+(function() {
+  var ua = navigator.userAgent;
+  var isCriOS    = /CriOS/.test(ua);
+  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua) && !isCriOS;
+  var isIPad     = /iPad/.test(ua) || (/Macintosh/.test(ua) && /Safari/.test(ua) && !(/Chrome/.test(ua)) && navigator.maxTouchPoints > 1);
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && navigator.maxTouchPoints === 0;
+  var isWindows  = /Windows/.test(ua);
+  var isAndroid  = /Android/.test(ua);
+  var isMobileChrome = isCriOS || (isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua));
+
+  function addClasses(el, list) { list.forEach(function(c){ if(c) el.classList.add(c); }); }
+  var html = document.documentElement;
+  if (isIOS || isIPad) addClasses(html, ['ios','mobile-safari']);
+  if (isIPad)          html.classList.add('ipad-safari');
+  if (isMacOS)         html.classList.add('macos');
+  if (isWindows)       html.classList.add('windows');
+  if (isAndroid)       html.classList.add('android');
+  if (isMobileChrome)  html.classList.add('mobile-chrome');
+
+  function applyToBody() {
+    var b = document.body;
+    if (isIOS || isIPad) addClasses(b, ['ios','mobile-safari']);
+    if (isIPad)          b.classList.add('ipad-safari');
+    if (isMacOS)         b.classList.add('macos');
+    if (isWindows)       b.classList.add('windows');
+    if (isAndroid)       b.classList.add('android');
+    if (isMobileChrome)  b.classList.add('mobile-chrome');
+  }
+  if (document.body) applyToBody();
+  else document.addEventListener('DOMContentLoaded', applyToBody);
+})();
+</script>
+
+<style>
+:root {
+  color-scheme: light;
+  --cyan:          #D97706;
+  --amber:         #D97706;
+  --bg:            #FFFFFF;
+  --bg3:           #F8F8F8;
+  --panel:         #FFFFFF;
+  --border:        rgba(217,119,6,0.25);
+  --border-bright: rgba(217,119,6,0.5);
+  --text:          #1F2937;
+  --text-muted:    #6B7280;
+  --text-dim:      #9CA3AF;
+  --font-display:  'Orbitron', monospace;
+  --font-mono:     'Share Tech Mono', monospace;
+  --font-body:     'Exo 2', sans-serif;
+
+  /* ╔══════════════════════════════════════════════╗
+     ║  SECTION 1 — FONT SIZES                     ║
+     ║  Phone = base. iPad & Desktop override       ║
+     ║  in their media query blocks below.          ║
+     ╚══════════════════════════════════════════════╝ */
+
+  /* ── 1a. Screen — Phone (base) ── */
+  --fs-phone-company:       0.75rem;  /* "Always On Generators" text in header           */
+  --fs-phone-title:         0.78rem;  /* "Quality Control Checklist" text in header      */
+  --fs-phone-info-label:    0.45rem;  /* Customer Name / Date / Technician / Gas Crew labels */
+  --fs-phone-info-input:    0.62rem;  /* text typed into Customer Name, Address, Date… fields */
+  --fs-phone-section:       0.55rem;  /* Transfer Switch / Meter / Generator… section bars */
+  --fs-phone-item:          0.52rem;  /* Check All Wire Connections, Vacuumed… item text */
+  --fs-phone-option:        0.47rem;  /* Good / Bad / Yes / No / Installed / Removed labels */
+  --fs-phone-summary:       0.45rem;  /* Overall Job Status / Items Requiring Follow-Up / Additional Comments */
+  --fs-phone-footer:        0.38rem;  /* "Quality Control Checklist · Always On Generators · Confidential" */
+  --fs-phone-pagenum:       0.38rem;  /* "Page 1 of 2" / "Page 2 of 2"                  */
+
+  /* ── 1b. Screen — iPad ── */
+  --fs-ipad-company:        0.75rem;  /* "Always On Generators" text in header           */
+  --fs-ipad-title:          0.78rem;  /* "Quality Control Checklist" text in header      */
+  --fs-ipad-info-label:     0.45rem;  /* Customer Name / Date / Technician / Gas Crew labels */
+  --fs-ipad-info-input:     0.62rem;  /* text typed into Customer Name, Address, Date… fields */
+  --fs-ipad-section:        0.55rem;  /* Transfer Switch / Meter / Generator… section bars */
+  --fs-ipad-item:           0.52rem;  /* Check All Wire Connections, Vacuumed… item text */
+  --fs-ipad-option:         0.47rem;  /* Good / Bad / Yes / No / Installed / Removed labels */
+  --fs-ipad-summary:        0.45rem;  /* Overall Job Status / Items Requiring Follow-Up / Additional Comments */
+  --fs-ipad-footer:         0.38rem;  /* "Quality Control Checklist · Always On Generators · Confidential" */
+  --fs-ipad-pagenum:        0.38rem;  /* "Page 1 of 2" / "Page 2 of 2"                  */
+
+  /* ── 1c. Screen — Desktop ── */
+  --fs-desktop-company:     0.75rem;  /* "Always On Generators" text in header           */
+  --fs-desktop-title:       0.78rem;  /* "Quality Control Checklist" text in header      */
+  --fs-desktop-info-label:  0.45rem;  /* Customer Name / Date / Technician / Gas Crew labels */
+  --fs-desktop-info-input:  0.62rem;  /* text typed into Customer Name, Address, Date… fields */
+  --fs-desktop-section:     0.55rem;  /* Transfer Switch / Meter / Generator… section bars */
+  --fs-desktop-item:        0.52rem;  /* Check All Wire Connections, Vacuumed… item text */
+  --fs-desktop-option:      0.47rem;  /* Good / Bad / Yes / No / Installed / Removed labels */
+  --fs-desktop-summary:     0.45rem;  /* Overall Job Status / Items Requiring Follow-Up / Additional Comments */
+  --fs-desktop-footer:      0.38rem;  /* "Quality Control Checklist · Always On Generators · Confidential" */
+  --fs-desktop-pagenum:     0.38rem;  /* "Page 1 of 2" / "Page 2 of 2"                  */
+
+  /* ── 1d. PDF — Phone (base for all print) ── */
+  --fs-print-phone-company:   0.78rem;  /* "Always On Generators" in PDF                */
+  --fs-print-phone-title:     0.82rem;  /* "Quality Control Checklist" in PDF           */
+  --fs-print-phone-info-label:0.5rem;   /* Customer Name / Date / Technician / Gas Crew labels in PDF */
+  --fs-print-phone-info-input:0.65rem;  /* text in Customer Name, Address, Date… fields in PDF */
+  --fs-print-phone-section:   0.6rem;   /* Transfer Switch / Meter / Generator… section bars in PDF */
+  --fs-print-phone-item:      0.58rem;  /* Check All Wire Connections, Vacuumed… item text in PDF */
+  --fs-print-phone-option:    0.52rem;  /* Good / Bad / Yes / No / Installed / Removed in PDF */
+  --fs-print-phone-footer:    0.42rem;  /* "Quality Control Checklist · Always On Generators · Confidential" in PDF */
+  --fs-print-phone-summary:   8px;      /* Overall Job Status / Pass / Fail / Items Requiring Follow-Up in PDF */
+
+  /* ── 1e. PDF — iPad ── */
+  --fs-print-ipad-company:    0.78rem;  /* "Always On Generators" in iPad PDF           */
+  --fs-print-ipad-title:      0.82rem;  /* "Quality Control Checklist" in iPad PDF      */
+  --fs-print-ipad-info-label: 0.5rem;   /* Customer Name / Date / Technician / Gas Crew labels in iPad PDF */
+  --fs-print-ipad-info-input: 0.65rem;  /* text in Customer Name, Address, Date… fields in iPad PDF */
+  --fs-print-ipad-section:    0.6rem;   /* Transfer Switch / Meter / Generator… section bars in iPad PDF */
+  --fs-print-ipad-item:       0.58rem;  /* Check All Wire Connections, Vacuumed… item text in iPad PDF */
+  --fs-print-ipad-option:     0.52rem;  /* Good / Bad / Yes / No / Installed / Removed in iPad PDF */
+  --fs-print-ipad-footer:     0.42rem;  /* "Quality Control Checklist · Always On Generators · Confidential" in iPad PDF */
+  --fs-print-ipad-summary:    8px;      /* Overall Job Status / Pass / Fail / Items Requiring Follow-Up in iPad PDF */
+
+  /* ── 1f. PDF — macOS Safari ── */
+  --fs-print-macos-company:   0.78rem;  /* "Always On Generators" in macOS PDF          */
+  --fs-print-macos-title:     0.82rem;  /* "Quality Control Checklist" in macOS PDF     */
+  --fs-print-macos-info-label:0.5rem;   /* Customer Name / Date / Technician / Gas Crew labels in macOS PDF */
+  --fs-print-macos-info-input:0.65rem;  /* text in Customer Name, Address, Date… fields in macOS PDF */
+  --fs-print-macos-section:   0.6rem;   /* Transfer Switch / Meter / Generator… section bars in macOS PDF */
+  --fs-print-macos-item:      0.58rem;  /* Check All Wire Connections, Vacuumed… item text in macOS PDF */
+  --fs-print-macos-option:    0.52rem;  /* Good / Bad / Yes / No / Installed / Removed in macOS PDF */
+  --fs-print-macos-footer:    0.42rem;  /* "Quality Control Checklist · Always On Generators · Confidential" in macOS PDF */
+  --fs-print-macos-summary:   8px;      /* Overall Job Status / Pass / Fail / Items Requiring Follow-Up in macOS PDF */
+  --fs-print-macos-base:      16px;     /* base html font-size multiplier for macOS PDF (all rem units scale from this) */
+
+  /* ── 1g. PDF — Desktop Chrome ── */
+  --fs-print-desktop-company:   0.78rem;  /* "Always On Generators" in desktop PDF        */
+  --fs-print-desktop-title:     0.82rem;  /* "Quality Control Checklist" in desktop PDF   */
+  --fs-print-desktop-info-label:0.5rem;   /* Customer Name / Date / Technician / Gas Crew labels in desktop PDF */
+  --fs-print-desktop-info-input:0.65rem;  /* text in Customer Name, Address, Date… fields in desktop PDF */
+  --fs-print-desktop-section:   0.69rem;  /* Transfer Switch / Meter / Generator… section bars in desktop PDF */
+  --fs-print-desktop-item:      0.67rem;  /* Check All Wire Connections, Vacuumed… item text in desktop PDF */
+  --fs-print-desktop-option:    0.61rem;  /* Good / Bad / Yes / No / Installed / Removed in desktop PDF */
+  --fs-print-desktop-footer:    0.42rem;  /* "Quality Control Checklist · Always On Generators · Confidential" in desktop PDF */
+  --fs-print-desktop-summary:   8px;      /* Overall Job Status / Pass / Fail / Items Requiring Follow-Up in desktop PDF */
+  --fs-print-desktop-base:      13px;     /* base html font-size multiplier for desktop PDF (all rem units scale from this) */
+
+  /* ── PRINT SUMMARY SIZES — hardcoded px so base font-size doesn't interfere ---- */
+
+  /* ╔══════════════════════════════════════════════╗
+     ║  SECTION 2 — PADDING                        ║
+     ╚══════════════════════════════════════════════╝ */
+
+  /* ── 2a. Screen — Phone ── */
+  --pd-phone-page:         10px 14px;  /* space between page edge and all form content — phone */
+  --pd-phone-header:       6px 12px;   /* space inside the logo / title / info header area */
+  --pd-phone-section:      3px 8px;    /* space inside Transfer Switch / Meter / Generator… title bars */
+  --pd-phone-item:         2px 6px;    /* space inside each Check All Wire / Vacuumed… row */
+  --pd-phone-option:       0 4px;      /* space around Good / Bad / Yes / No label text   */
+  --pd-phone-info-input:   0 2px;      /* space inside Customer Name / Address / Date… text fields */
+  --pd-phone-footer:       4px 0;      /* space above/below the footer bar                */
+  --pd-phone-summary:      8px 10px;   /* space inside the Summary section body           */
+
+  /* ── 2b. Screen — iPad ── */
+  --pd-ipad-page:          10px 14px;  /* space between page edge and all form content — iPad */
+  --pd-ipad-header:        6px 12px;   /* space inside the logo / title / info header area — iPad */
+  --pd-ipad-section:       3px 8px;    /* space inside section title bars — iPad          */
+  --pd-ipad-item:          2px 6px;    /* space inside each checklist item row — iPad     */
+  --pd-ipad-option:        0 4px;      /* space around Good / Bad / Yes / No labels — iPad */
+  --pd-ipad-info-input:    0 2px;      /* space inside Customer Name / Address / Date… fields — iPad */
+  --pd-ipad-footer:        4px 0;      /* space above/below the footer bar — iPad         */
+  --pd-ipad-summary:       8px 10px;   /* space inside the Summary section body — iPad    */
+
+  /* ── 2c. Screen — Desktop ── */
+  --pd-desktop-page:       10px 14px;  /* space between page edge and all form content — desktop */
+  --pd-desktop-header:     6px 12px;   /* space inside the logo / title / info header area — desktop */
+  --pd-desktop-section:    3px 8px;    /* space inside section title bars — desktop       */
+  --pd-desktop-item:       2px 6px;    /* space inside each checklist item row — desktop  */
+  --pd-desktop-option:     0 4px;      /* space around Good / Bad / Yes / No labels — desktop */
+  --pd-desktop-info-input: 0 2px;      /* space inside Customer Name / Address / Date… fields — desktop */
+  --pd-desktop-footer:     4px 0;      /* space above/below the footer bar — desktop      */
+  --pd-desktop-summary:    8px 10px;   /* space inside the Summary section body — desktop */
+
+  /* ── 2d. PDF — Phone ── */
+  --pd-print-phone-page:        8px 12px;   /* space between page edge and all content in PDF */
+  --pd-print-phone-header:      4px 10px;   /* space inside the header area in PDF         */
+  --pd-print-phone-section:     4px 8px;    /* space inside Transfer Switch / Meter… title bars in PDF */
+  --pd-print-phone-item:        5px 6px;    /* space inside each Check All Wire / Vacuumed… row in PDF */
+  --pd-print-phone-option:      0 3px;      /* space around Good / Bad / Yes / No labels in PDF */
+  --pd-print-phone-info-input:  0 2px 0.5px 2px;      /* space inside Customer Name / Address… fields in PDF */
+  --pd-print-phone-footer:      0.5px 0;      /* space above/below footer bar in PDF         */
+  --pd-print-phone-summary:     4px 8px;    /* space inside Summary section body in PDF    */
+
+  /* ── 2e. PDF — iPad ── */
+  --pd-print-ipad-page:         8px 12px;   /* space between page edge and all content in iPad PDF */
+  --pd-print-ipad-header:       4px 10px;   /* space inside the header area in iPad PDF    */
+  --pd-print-ipad-section:      4px 8px;    /* space inside section title bars in iPad PDF */
+  --pd-print-ipad-item:         5px 6px;    /* space inside each checklist item row in iPad PDF */
+  --pd-print-ipad-option:       0 3px;      /* space around Good / Bad / Yes / No labels in iPad PDF */
+  --pd-print-ipad-info-input:   0 2px 0.5px 2px;      /* space inside Customer Name / Address… fields in iPad PDF */
+  --pd-print-ipad-footer:       0.5px 0;      /* space above/below footer bar in iPad PDF    */
+  --pd-print-ipad-summary:      4px 8px;    /* space inside Summary section body in iPad PDF */
+
+  /* ── 2f. PDF — macOS ── */
+  --pd-print-macos-page:        8px 12px;   /* space between page edge and all content in macOS PDF */
+  --pd-print-macos-header:      4px 10px;   /* space inside the header area in macOS PDF   */
+  --pd-print-macos-section:     4px 8px;    /* space inside section title bars in macOS PDF */
+  --pd-print-macos-item:        5px 6px;    /* space inside each checklist item row in macOS PDF */
+  --pd-print-macos-option:      0 3px;      /* space around Good / Bad / Yes / No labels in macOS PDF */
+  --pd-print-macos-info-input:  0 2px 0.5px 2px;      /* space inside Customer Name / Address… fields in macOS PDF */
+  --pd-print-macos-footer:      0.5px 0;      /* space above/below footer bar in macOS PDF   */
+  --pd-print-macos-summary:     4px 8px;    /* space inside Summary section body in macOS PDF */
+
+  /* ── 2g. PDF — Desktop ── */
+  --pd-print-desktop-page:      8px 12px;   /* space between page edge and all content in desktop PDF */
+  --pd-print-desktop-header:    4px 10px;   /* space inside the header area in desktop PDF */
+  --pd-print-desktop-section:   4px 8px;    /* space inside section title bars in desktop PDF */
+  --pd-print-desktop-item:      5px 6px;    /* space inside each checklist item row in desktop PDF */
+  --pd-print-desktop-option:    0 3px;      /* space around Good / Bad / Yes / No labels in desktop PDF */
+  --pd-print-desktop-info-input:0 2px 0.5px 2px;      /* space inside Customer Name / Address… fields in desktop PDF */
+  --pd-print-desktop-footer:    0.5px 0;      /* space above/below footer bar in desktop PDF */
+  --pd-print-desktop-summary:   4px 8px;    /* space inside Summary section body in desktop PDF */
+
+  /* ── SUMMARY TEXTAREA → FOOTER GAP ── */
+  --gap-phone-summary-footer:     1px;   /* space between Additional Comments box and footer — phone  */
+  --gap-ipad-summary-footer:      1px;   /* space between Additional Comments box and footer — iPad   */
+  --gap-desktop-summary-footer:   2px;   /* space between Additional Comments box and footer — desktop */
+  --gap-print-phone-summary-footer:   2px;   /* space between Additional Comments box and footer — phone PDF  */
+  --gap-print-ipad-summary-footer:    2px;   /* space between Additional Comments box and footer — iPad PDF   */
+  --gap-print-macos-summary-footer:   2px;   /* space between Additional Comments box and footer — macOS PDF  */
+  --gap-print-desktop-summary-footer: 2px;   /* space between Additional Comments box and footer — desktop PDF */
+
+  /* ╔══════════════════════════════════════════════╗
+     ║  SECTION 3 — ELEMENT HEIGHTS                ║
+     ╚══════════════════════════════════════════════╝ */
+
+  /* ── 3a. Screen ── */
+  --h-phone-info-input:   20px;   /* Customer Name / Address / Date / Technician… field height — phone */
+  --h-ipad-info-input:    20px;   /* Customer Name / Address / Date / Technician… field height — iPad  */
+  --h-desktop-info-input: 20px;   /* Customer Name / Address / Date / Technician… field height — desktop */
+  --h-phone-item:         20px;   /* Check All Wire / Vacuumed / Bonding Jumper… row height — phone */
+  --h-ipad-item:          20px;   /* Check All Wire / Vacuumed / Bonding Jumper… row height — iPad  */
+  --h-desktop-item:       20px;   /* Check All Wire / Vacuumed / Bonding Jumper… row height — desktop */
+  --h-phone-checkbox:     11px;   /* Good / Bad / Yes / No checkbox square size — phone */
+  --h-ipad-checkbox:      11px;   /* Good / Bad / Yes / No checkbox square size — iPad  */
+  --h-desktop-checkbox:   11px;   /* Good / Bad / Yes / No checkbox square size — desktop */
+
+  /* ── 3b. PDF — Phone ── */
+  --h-print-phone-info-input: 20px;  /* Customer Name / Address / Date… field height in PDF */
+  --h-print-phone-item:       32px;  /* Check All Wire / Vacuumed / Bonding Jumper… row height in PDF */
+  --h-print-phone-checkbox:   12px;  /* Good / Bad / Yes / No checkbox square size in PDF */
+
+  /* ── 3c. PDF — iPad ── */
+  --h-print-ipad-info-input:  20px;  /* Customer Name / Address / Date… field height in iPad PDF */
+  --h-print-ipad-item:        32px;  /* Check All Wire / Vacuumed / Bonding Jumper… row height in iPad PDF */
+  --h-print-ipad-checkbox:    12px;  /* Good / Bad / Yes / No checkbox square size in iPad PDF */
+
+  /* ── 3d. PDF — macOS ── */
+  --h-print-macos-info-input: 20px;  /* Customer Name / Address / Date… field height in macOS PDF */
+  --h-print-macos-item:       32px;  /* Check All Wire / Vacuumed / Bonding Jumper… row height in macOS PDF */
+  --h-print-macos-checkbox:   12px;  /* Good / Bad / Yes / No checkbox square size in macOS PDF */
+
+  /* ── 3e. PDF — Desktop ── */
+  --h-print-desktop-info-input:20px;  /* Customer Name / Address / Date… field height in desktop PDF */
+  --h-print-desktop-item:      26px;  /* Check All Wire / Vacuumed / Bonding Jumper… row height in desktop PDF */
+  --h-print-desktop-checkbox:  12px;  /* Good / Bad / Yes / No checkbox square size in desktop PDF */
+
+  /* ╔══════════════════════════════════════════════╗
+     ║  SECTION 4 — SPACING GAPS                   ║
+     ╚══════════════════════════════════════════════╝ */
+
+  --gap-phone-sections:         5px;   /* space between Transfer Switch / Meter / Generator… sections — phone */
+  --gap-ipad-sections:          5px;   /* space between sections — iPad                  */
+  --gap-desktop-sections:       5px;   /* space between sections — desktop               */
+  --gap-print-phone-sections:  5px;   /* space between Transfer Switch / Meter / Generator… sections in PDF */
+  --gap-print-ipad-sections:   5px;   /* space between sections in iPad PDF             */
+  --gap-print-macos-sections:  12px;   /* space between sections in macOS PDF            */
+  --gap-print-desktop-sections:12px;   /* space between sections in desktop PDF          */
+}
+
+</style>
+<style id="dark-mode-style">
+@media screen {
+body.dark-mode,
+html.dark-mode-pending body {
+  --bg:            #0A0E27;
+  --bg3:           #1A2847;
+  --panel:         #0F1535;
+  --border:        rgba(0,255,200,0.08);
+  --border-bright: rgba(0,255,200,0.25);
+  --text:          #E0F7FF;
+  --text-muted:    #7DD3FC;
+  --text-dim:      #38BDF8;
+  --cyan:          #00FFC8;
+  --amber:         #D97706;
+}
+}
+
+body.dark-mode,
+html.dark-mode-pending body {
+  background: linear-gradient(135deg, #0A0E27 0%, #0F1535 25%, #0A1628 50%, #0F1535 75%, #0A0E27 100%) !important;
+  background-attachment: fixed;
+}
+
+body.dark-mode .page {
+  background: linear-gradient(135deg, rgba(15,21,53,0.95) 0%, rgba(10,14,39,0.98) 100%) !important;
+  border-color: #00FFC8 !important;
+  box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15) !important;
+}
+
+body.dark-mode .page-header { border-bottom-color: #00FFC8 !important; }
+body.dark-mode .company-name { color: #00FFC8 !important; }
+body.dark-mode .doc-title { color: #E0F7FF !important; }
+body.dark-mode .info-label { color: #7DD3FC !important; }
+body.dark-mode .info-input { color: #E0F7FF !important; border-bottom-color: rgba(0,255,200,0.3) !important; background: transparent !important; }
+
+body.dark-mode .section-header {
+  background: linear-gradient(90deg, rgba(26,40,71,0.8) 0%, rgba(36,52,88,0.6) 100%) !important;
+  color: #00FFC8 !important; border-left-color: #00FFC8 !important;
+  border-bottom-color: rgba(0,255,200,0.2) !important;
+}
+body.dark-mode .section-header::before { background: #00FFC8 !important; }
+
+body.dark-mode .check-item { border-bottom-color: rgba(0,255,200,0.08) !important; }
+body.dark-mode .item-label { color: #E0F7FF !important; }
+body.dark-mode .item-num { color: #7DD3FC !important; }
+body.dark-mode .opt { color: #7DD3FC !important; }
+body.dark-mode .opt input[type="checkbox"] { accent-color: #00FFC8 !important; }
+body.dark-mode .opt input[value="good"],
+body.dark-mode .opt input[value="yes"],
+body.dark-mode .opt input[value="installed"],
+body.dark-mode .opt input[value="complete"]  { accent-color: #10B981 !important; }
+body.dark-mode .opt input[value="bad"],
+body.dark-mode .opt input[value="no"],
+body.dark-mode .opt input[value="removed"],
+body.dark-mode .opt input[value="not_done"]  { accent-color: #F43F5E !important; }
+body.dark-mode .notes-line { border-bottom-color: rgba(0,255,200,0.25) !important; color: #E0F7FF !important; background: transparent !important; }
+
+body.dark-mode .page-footer { border-top-color: rgba(0,255,200,0.25) !important; }
+body.dark-mode .footer-text { color: #38BDF8 !important; }
+body.dark-mode .page-num { color: #38BDF8 !important; }
+
+body.dark-mode .action-bar {
+  background: linear-gradient(90deg, rgba(15,21,53,0.9) 0%, rgba(26,40,71,0.8) 50%, rgba(15,21,53,0.9) 100%) !important;
+  border-bottom-color: rgba(0,255,200,0.25) !important;
+}
+body.dark-mode .ab-btn { color: #00FFC8 !important; border-color: rgba(0,255,200,0.25) !important; background: rgba(0,255,200,0.05) !important; }
+
+/* ── Dark mode theme toggle ── */
+.theme-toggle-btn {
+  position: relative; width: 36px; height: 36px; padding: 5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.05);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; color: var(--cyan); transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; flex-shrink: 0;
+}
+body.dark-mode .theme-toggle-btn { background: rgba(0,255,200,0.08) !important; border-color: rgba(0,255,200,0.2) !important; color: #00FFC8 !important; }
+.theme-icon { width: 16px; height: 16px; transition: all 0.3s ease; position: absolute; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke: var(--cyan); }
+.theme-icon.theme-icon-moon { opacity: 0; }
+body.dark-mode .theme-icon { opacity: 0; transform: rotate(-180deg); }
+body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg); }
+
+/* ── CRITICAL: Force light mode in print for Chrome ── */
+@media print {
+  html, body,
+  body.dark-mode,
+  html.dark-mode-pending body {
+    background: #ffffff !important;
+    color: #1F2937 !important;
+    color-scheme: light !important;
+    -webkit-color-scheme: light !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body.dark-mode *,
+  html.dark-mode-pending body * {
+    background: #ffffff !important;
+    color: #1F2937 !important;
+    border-color: rgba(217,119,6,0.4) !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  body.dark-mode .page,
+  html.dark-mode-pending .page {
+    background: #ffffff !important;
+    border: 1.5pt solid #D97706 !important;
+  }
+  body.dark-mode .section-header,
+  html.dark-mode-pending .section-header {
+    background: #f5f5f5 !important;
+    color: #D97706 !important;
+  }
+  body.dark-mode .section-header::before,
+  html.dark-mode-pending .section-header::before {
+    background: #D97706 !important;
+  }
+  body.dark-mode .company-name,
+  html.dark-mode-pending .company-name {
+    color: #D97706 !important;
+  }
+  body.dark-mode .footer-text,
+  body.dark-mode .page-num,
+  html.dark-mode-pending .footer-text,
+  html.dark-mode-pending .page-num {
+    color: #9CA3AF !important;
+  }
+  body.dark-mode .action-bar,
+  body.dark-mode .theme-toggle-btn,
+  html.dark-mode-pending .action-bar,
+  html.dark-mode-pending .theme-toggle-btn { display: none !important; }
+}
+
+</style>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg3);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ── ACTION BAR ── */
+.action-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  background: #fff; border-bottom: 1px solid var(--border-bright);
+  padding: 6px 10px; padding-top: max(6px, env(safe-area-inset-top, 6px));
+  display: flex; gap: 6px; align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.ab-btn {
+  padding: 6px 10px; font-size: 10px; font-weight: bold;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.05);
+  cursor: pointer; color: var(--cyan); text-transform: uppercase;
+  font-family: var(--font-display); white-space: nowrap; flex: 1;
+  text-align: center; text-decoration: none; display: inline-flex;
+  align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent;
+}
+.ab-btn:hover { border-color: var(--cyan); }
+
+#offline-banner {
+  position: fixed; top: 0; left: 0; right: 0; background: #DC2626; color: #FFFFFF;
+  padding: 10px 16px; text-align: center; font-family: var(--font-display);
+  font-size: 0.75rem; letter-spacing: 2px; z-index: 10000; display: none;
+  box-shadow: 0 4px 12px rgba(220,38,38,0.3);
+}
+#offline-banner.show { display: block; }
+body.offline { padding-top: 50px; }
+
+/* ── WRAPPER ── */
+.wrapper {
+  padding-top: 54px;
+  padding-bottom: 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+
+/* ── PAGE ── */
+.page {
+  width: 100%; max-width: 820px;
+  background: #fff;
+  border: 1.5px solid var(--cyan);
+  box-shadow: 0 2px 12px rgba(217,119,6,0.1);
+  padding: var(--pd-phone-page);
+  position: relative;
+}
+
+/* ── HEADER ── */
+.page-header {
+  display: flex; align-items: flex-start; gap: 12px;
+  border-bottom: 1.5px solid var(--cyan);
+  padding: var(--pd-phone-header); margin-bottom: 8px;
+}
+.logo-img { width: 52px; height: 52px; object-fit: contain; flex-shrink: 0; }
+.header-right { flex: 1; }
+.company-name {
+  font-family: var(--font-display); font-size: var(--fs-phone-company);
+  color: var(--cyan); letter-spacing: 2px; font-weight: 700; line-height: 1.2;
+}
+.doc-title {
+  font-family: var(--font-display); font-size: var(--fs-phone-title);
+  color: var(--text); letter-spacing: 1px; font-weight: 500; margin-top: 2px;
+}
+.info-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 8px;
+}
+.info-row { display: flex; align-items: flex-end; gap: 4px; }
+.info-label {
+  font-family: var(--font-display); font-size: var(--fs-phone-info-label);
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.info-input {
+  flex: 1; border: none; border-bottom: 1.5px solid rgba(217,119,6,0.4);
+  font-family: var(--font-mono); font-size: var(--fs-phone-info-input);
+  color: var(--text); background: transparent; outline: none;
+  min-height: var(--h-phone-info-input); padding: var(--pd-phone-info-input);
+}
+.info-row.full { grid-column: 1 / -1; }
+
+/* On small phones — stack name/date and tech/crew each on their own rows */
+@media screen and (max-width: 500px) {
+  .info-grid { grid-template-columns: 1fr; }
+  .info-row { grid-column: 1 / -1; flex-wrap: wrap; align-items: flex-end; row-gap: 2px; }
+  /* Give labels a fixed width so inputs always start at the same column */
+  .info-row .info-label { min-width: 90px; }
+  /* When a row wraps, second label+input pair gets the same indent */
+  .info-row .info-label:nth-of-type(2) { margin-left: 0; }
+  #name-date-row input[type="date"] { max-width: 150px !important; }
+}
+
+/* ── SECTION ── */
+.section { margin-bottom: var(--gap-phone-sections); }
+.section-header {
+  background: var(--bg3); border-left: 3px solid var(--cyan);
+  border-bottom: 1px solid var(--border-bright);
+  padding: var(--pd-phone-section);
+  font-family: var(--font-display); font-size: var(--fs-phone-section);
+  color: var(--cyan); letter-spacing: 2px; font-weight: 700;
+  text-transform: uppercase; margin-bottom: 2px;
+  display: flex; align-items: center; gap: 6px;
+}
+.section-header::before {
+  content: ''; width: 5px; height: 5px;
+  background: var(--cyan); flex-shrink: 0;
+}
+
+/* ── CHECKLIST ITEM ── */
+.check-item {
+  display: flex; align-items: center; gap: 4px;
+  flex-wrap: wrap;
+  padding: var(--pd-phone-item);
+  min-height: var(--h-phone-item);
+  border-bottom: 1px solid rgba(217,119,6,0.08);
+}
+.check-item:last-child { border-bottom: none; }
+.item-num {
+  font-family: var(--font-mono); font-size: var(--fs-phone-option);
+  color: var(--text-muted); width: 14px; flex-shrink: 0; text-align: right;
+}
+.item-label {
+  font-family: var(--font-body); font-size: var(--fs-phone-item);
+  color: var(--text); flex: 0 1 auto; font-weight: 500; white-space: nowrap;
+}
+.options { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.opt {
+  display: flex; align-items: center; gap: 2px;
+  font-family: var(--font-display); font-size: var(--fs-phone-option);
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+  white-space: nowrap; padding: var(--pd-phone-option);
+}
+.opt input[type="checkbox"] {
+  width: var(--h-phone-checkbox); height: var(--h-phone-checkbox);
+  min-width: var(--h-phone-checkbox); min-height: var(--h-phone-checkbox);
+  accent-color: var(--cyan); cursor: pointer; flex-shrink: 0;
+  border: none; padding: 0; margin: 0;
+}
+/* Green for good/yes/installed/complete, red for bad/no/removed/not_done */
+.opt input[value="good"],
+.opt input[value="yes"],
+.opt input[value="installed"],
+.opt input[value="complete"]  { accent-color: #059669; }
+.opt input[value="bad"],
+.opt input[value="no"],
+.opt input[value="removed"],
+.opt input[value="not_done"]  { accent-color: #DC2626; }
+.notes-line {
+  flex: 1; border: none; border-bottom: 1px solid rgba(217,119,6,0.3);
+  background: transparent; min-height: 14px;
+  min-width: 60px; font-size: 0.4rem;
+}
+/* On small screens: notes-line drops to its own full-width row */
+@media screen and (max-width: 600px) {
+  .notes-line {
+    flex-basis: 100%;
+    margin-left: 18px; /* align with label, past the item-num */
+    min-width: 0;
+  }
+  .check-item { align-items: flex-start; }
+  .item-num { padding-top: 3px; }
+}
+.check-solo { display: flex; align-items: center; gap: 3px; }
+
+/* ── SUMMARY SECTION ── */
+.summary-body {
+  padding: var(--pd-phone-summary);
+}
+.summary-label {
+  font-family: var(--font-display); font-size: var(--fs-phone-summary);
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px;
+  font-weight: 600; margin-bottom: 6px;
+}
+body.dark-mode .summary-label { color: #7DD3FC; }
+.summary-status-row {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.status-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1.5px solid var(--border-bright); border-radius: 20px;
+  min-height: var(--h-phone-item); padding: var(--pd-phone-item);
+  cursor: pointer; font-family: var(--font-display);
+  font-size: var(--fs-phone-summary); font-weight: 600; letter-spacing: 0.5px;
+  white-space: nowrap; transition: all 0.15s;
+  color: var(--text-muted);
+  -webkit-tap-highlight-color: transparent;
+}
+.status-btn input[type="radio"] { display: none; }
+.status-icon {
+  width: 1em; height: 1em; flex-shrink: 0;
+  vertical-align: middle; display: inline-block;
+}
+/* Color only on selection */
+.status-pass:has(input:checked)     { border-color: #059669; color: #059669; background: rgba(5,150,105,0.15); box-shadow: 0 0 6px rgba(5,150,105,0.3); }
+.status-fail:has(input:checked)     { border-color: #DC2626; color: #DC2626; background: rgba(220,38,38,0.12); box-shadow: 0 0 6px rgba(220,38,38,0.3); }
+.status-followup:has(input:checked) { border-color: #D97706; color: #D97706; background: rgba(217,119,6,0.12); box-shadow: 0 0 6px rgba(217,119,6,0.3); }
+body.dark-mode .status-btn { border-color: rgba(0,255,200,0.2); color: #7DD3FC; }
+body.dark-mode .status-pass:has(input:checked)     { border-color: #10B981; color: #10B981; background: rgba(16,185,129,0.2); }
+body.dark-mode .status-fail:has(input:checked)     { border-color: #F43F5E; color: #F43F5E; background: rgba(244,63,94,0.2); }
+body.dark-mode .status-followup:has(input:checked) { border-color: #F59E0B; color: #F59E0B; background: rgba(245,158,11,0.2); }
+.summary-textarea {
+  width: 100%; height: 52px; max-height: 52px; resize: none;
+  border: none; border-bottom: 1.5px solid rgba(217,119,6,0.3);
+  background: transparent; font-family: var(--font-body);
+  font-size: var(--fs-phone-summary); color: var(--text);
+  padding: 6px 4px; outline: none; box-sizing: border-box; overflow: hidden;
+}
+.summary-textarea::placeholder { color: var(--text-dim); }
+body.dark-mode .summary-textarea { color: #E0F7FF !important; border-bottom-color: rgba(0,255,200,0.25) !important; background: transparent !important; }
+body.dark-mode .summary-textarea::placeholder { color: rgba(125,211,252,0.4) !important; }
+.summary-signoff {
+  display: flex; align-items: flex-end; gap: 6px; margin-top: 10px; flex-wrap: wrap;
+}
+.summary-sig-line {
+  flex: 1; border-bottom: 1.5px solid rgba(217,119,6,0.4); min-height: 22px; min-width: 80px;
+}
+body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !important; }
+
+/* Print overrides for summary */
+@media print {
+  .summary-body { padding: 4px 8px 6px !important; }
+  .page-header   { padding: var(--pd-print-desktop-header) !important; }
+  .info-input    { padding: var(--pd-print-desktop-info-input) !important; }
+  .opt           { padding: var(--pd-print-desktop-option) !important; }
+  .page-footer   { padding: var(--pd-print-desktop-footer) !important; }
+  .summary-body  { padding: var(--pd-print-desktop-summary) !important; }
+  #additional_comments { margin-bottom: var(--gap-print-desktop-summary-footer) !important; }
+  #page2 .page-footer  { margin-top: var(--gap-print-desktop-summary-footer) !important; }
+  .summary-label { font-size: var(--fs-print-desktop-summary) !important; margin-bottom: 3px !important; color: #6B7280 !important; }
+  .summary-status-row { gap: 5px !important; margin-bottom: 3px !important; }
+  .status-btn { min-height: var(--h-print-desktop-item) !important; padding: var(--pd-print-desktop-item) !important; font-size: var(--fs-print-desktop-summary) !important; border-radius: 12px !important; color: #6B7280 !important; border-color: rgba(217,119,6,0.4) !important; background: #ffffff !important; }
+  .status-btn span { font-size: var(--fs-print-desktop-summary) !important; color: #6B7280 !important; }
+  .status-pass:has(input:checked)     { border-color: #059669 !important; color: #059669 !important; background: rgba(5,150,105,0.15) !important; }
+  .status-fail:has(input:checked)     { border-color: #DC2626 !important; color: #DC2626 !important; background: rgba(220,38,38,0.12) !important; }
+  .status-followup:has(input:checked) { border-color: #D97706 !important; color: #D97706 !important; background: rgba(217,119,6,0.12) !important; }
+  .summary-textarea { height: 40px !important; max-height: 40px !important; font-size: var(--fs-print-desktop-summary) !important; padding: 3px 4px !important; color: #1F2937 !important; background: #ffffff !important; resize: none !important; overflow: hidden !important; }
+  .summary-textarea::placeholder { color: transparent !important; opacity: 0 !important; }
+  .summary-textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
+}
+
+/* ── PAGE FOOTER ── */
+.page-footer {
+  margin-top: var(--gap-phone-summary-footer); border-top: 1px solid var(--border-bright);
+  padding: var(--pd-phone-footer); display: flex; justify-content: space-between; align-items: center;
+}
+.footer-text {
+  font-family: var(--font-display); font-size: var(--fs-phone-footer);
+  color: var(--text-dim); letter-spacing: 1.5px;
+}
+.page-num {
+  font-family: var(--font-mono); font-size: var(--fs-phone-pagenum);
+  color: var(--text-dim);
+}
+
+/* ══════════════════════════════════════
+   iPAD SCREEN overrides
+   ══════════════════════════════════════ */
+@media screen and (min-width: 768px) {
+  body.mobile-safari .company-name  { font-size: var(--fs-ipad-company) !important; }
+  body.mobile-safari .doc-title     { font-size: var(--fs-ipad-title) !important; }
+  body.mobile-safari .info-label    { font-size: var(--fs-ipad-info-label) !important; }
+  body.mobile-safari .info-input    { font-size: var(--fs-ipad-info-input) !important; min-height: var(--h-ipad-info-input) !important; }
+  body.mobile-safari .section-header{ font-size: var(--fs-ipad-section) !important; padding: var(--pd-ipad-section) !important; }
+  body.mobile-safari .item-label    { font-size: var(--fs-ipad-item) !important; }
+  body.mobile-safari .opt           { font-size: var(--fs-ipad-option) !important; }
+  body.mobile-safari .item-num      { font-size: var(--fs-ipad-option) !important; }
+  body.mobile-safari .check-item    { min-height: var(--h-ipad-item) !important; padding: var(--pd-ipad-item) !important; }
+  body.mobile-safari .opt input[type="checkbox"] { width: var(--h-ipad-checkbox) !important; height: var(--h-ipad-checkbox) !important; min-width: var(--h-ipad-checkbox) !important; min-height: var(--h-ipad-checkbox) !important; }
+  body.mobile-safari .footer-text   { font-size: var(--fs-ipad-footer) !important; }
+  body.mobile-safari .page-num      { font-size: var(--fs-ipad-pagenum) !important; }
+  body.mobile-safari .section       { margin-bottom: var(--gap-ipad-sections) !important; }
+  body.mobile-safari .page          { padding: var(--pd-ipad-page) !important; }
+  body.mobile-safari .page-header    { padding: var(--pd-ipad-header) !important; }
+  body.mobile-safari .info-input     { padding: var(--pd-ipad-info-input) !important; }
+  body.mobile-safari .opt            { padding: var(--pd-ipad-option) !important; }
+  body.mobile-safari .page-footer    { padding: var(--pd-ipad-footer) !important; margin-top: var(--gap-ipad-summary-footer) !important; }
+  body.mobile-safari .summary-body   { padding: var(--pd-ipad-summary) !important; }
+  body.mobile-safari .summary-label  { font-size: var(--fs-ipad-summary) !important; }
+  body.mobile-safari .status-btn     { font-size: var(--fs-ipad-summary) !important; min-height: var(--h-ipad-item) !important; padding: var(--pd-ipad-item) !important; }
+  body.mobile-safari .summary-textarea { font-size: var(--fs-ipad-summary) !important; }
+}
+/* CSS-only fallback */
+@media screen and (pointer: coarse) and (hover: none) and (min-width: 768px) {
+  .company-name   { font-size: var(--fs-ipad-company) !important; }
+  .doc-title      { font-size: var(--fs-ipad-title) !important; }
+  .info-label     { font-size: var(--fs-ipad-info-label) !important; }
+  .info-input     { font-size: var(--fs-ipad-info-input) !important; min-height: var(--h-ipad-info-input) !important; }
+  .section-header { font-size: var(--fs-ipad-section) !important; padding: var(--pd-ipad-section) !important; }
+  .item-label     { font-size: var(--fs-ipad-item) !important; }
+  .opt            { font-size: var(--fs-ipad-option) !important; }
+  .check-item     { min-height: var(--h-ipad-item) !important; padding: var(--pd-ipad-item) !important; }
+  .opt input[type="checkbox"] { width: var(--h-ipad-checkbox) !important; height: var(--h-ipad-checkbox) !important; min-width: var(--h-ipad-checkbox) !important; min-height: var(--h-ipad-checkbox) !important; }
+  .footer-text    { font-size: var(--fs-ipad-footer) !important; }
+  .section        { margin-bottom: var(--gap-ipad-sections) !important; }
+  .page           { padding: var(--pd-ipad-page) !important; }
+  .page-header    { padding: var(--pd-ipad-header) !important; }
+  .info-input     { padding: var(--pd-ipad-info-input) !important; }
+  .opt            { padding: var(--pd-ipad-option) !important; }
+  .page-footer    { padding: var(--pd-ipad-footer) !important; }
+  .summary-body   { padding: var(--pd-ipad-summary) !important; }
+  .summary-label   { font-size: var(--fs-ipad-summary) !important; }
+  .status-btn      { font-size: var(--fs-ipad-summary) !important; min-height: var(--h-ipad-item) !important; padding: var(--pd-ipad-item) !important; }
+  .summary-textarea{ font-size: var(--fs-ipad-summary) !important; }
+}
+
+/* ══════════════════════════════════════
+   DESKTOP SCREEN overrides
+   ══════════════════════════════════════ */
+@media screen and (min-width: 1025px) and (pointer: fine) {
+  .company-name   { font-size: var(--fs-desktop-company) !important; }
+  .doc-title      { font-size: var(--fs-desktop-title) !important; }
+  .info-label     { font-size: var(--fs-desktop-info-label) !important; }
+  .info-input     { font-size: var(--fs-desktop-info-input) !important; min-height: var(--h-desktop-info-input) !important; }
+  .section-header { font-size: var(--fs-desktop-section) !important; padding: var(--pd-desktop-section) !important; }
+  .item-label     { font-size: var(--fs-desktop-item) !important; }
+  .opt            { font-size: var(--fs-desktop-option) !important; }
+  .check-item     { min-height: var(--h-desktop-item) !important; padding: var(--pd-desktop-item) !important; }
+  .opt input[type="checkbox"] { width: var(--h-desktop-checkbox) !important; height: var(--h-desktop-checkbox) !important; min-width: var(--h-desktop-checkbox) !important; min-height: var(--h-desktop-checkbox) !important; }
+  .footer-text    { font-size: var(--fs-desktop-footer) !important; }
+  .section        { margin-bottom: var(--gap-desktop-sections) !important; }
+  .page           { padding: var(--pd-desktop-page) !important; }
+  .page-header    { padding: var(--pd-desktop-header) !important; }
+  .info-input     { padding: var(--pd-desktop-info-input) !important; }
+  .opt            { padding: var(--pd-desktop-option) !important; }
+  .page-footer    { padding: var(--pd-desktop-footer) !important; margin-top: var(--gap-desktop-summary-footer) !important; }
+  .summary-body   { padding: var(--pd-desktop-summary) !important; }
+  .summary-label   { font-size: var(--fs-desktop-summary) !important; }
+  .status-btn      { font-size: var(--fs-desktop-summary) !important; min-height: var(--h-desktop-item) !important; padding: var(--pd-desktop-item) !important; }
+  .summary-textarea{ font-size: var(--fs-desktop-summary) !important; }
+}
+
+/* ══════════════════════════════════════
+   BASE PRINT — all devices
+   ══════════════════════════════════════ */
+@media print {
+  @page { size: 8.5in 11in; margin: 0.18in 0.18in 0.12in 0.18in; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; transition: none !important; }
+  body { background: #fff !important; }
+  .action-bar, #save-status, #offline-banner { display: none !important; }
+  .wrapper { padding-top: 0 !important; gap: 0 !important; background: #fff !important; display: block !important; }
+  .page {
+    width: 100% !important; max-width: none !important;
+    border: 1.5pt solid #D97706 !important; box-shadow: none !important;
+    padding: var(--pd-print-phone-page) !important;
+    page-break-after: always !important; break-after: page !important;
+  }
+  .page:last-child { page-break-after: auto !important; break-after: auto !important; }
+  .page-header   { padding-bottom: 3px !important; margin-bottom: 4px !important; }
+  .logo-img      { width: 38px !important; height: 38px !important; }
+  .company-name  { font-size: var(--fs-print-desktop-company) !important; }
+  .doc-title     { font-size: var(--fs-print-desktop-title) !important; }
+  .info-label    { font-size: var(--fs-print-desktop-info-label) !important; }
+  .info-input    { font-size: var(--fs-print-desktop-info-input) !important; min-height: var(--h-print-desktop-info-input) !important; }
+  .info-grid    { grid-template-columns: 1fr !important; gap: 2px 6px !important; margin-top: 3px !important; }
+  #name-date-row { flex-wrap: nowrap !important; }
+  #addr-elec-row { flex-wrap: nowrap !important; }
+  #tech-crew-row { flex-wrap: nowrap !important; }
+  .section       { margin-bottom: var(--gap-print-desktop-sections) !important; }
+  .section-header{ font-size: var(--fs-print-desktop-section) !important; padding: var(--pd-print-desktop-section) !important; margin-bottom: 1px !important; }
+  .check-item    { min-height: var(--h-print-desktop-item) !important; padding: var(--pd-print-desktop-item) !important; border-bottom-color: rgba(217,119,6,0.1) !important; flex-wrap: nowrap !important; }
+  .item-label    { font-size: var(--fs-print-desktop-item) !important; }
+  .item-num      { font-size: var(--fs-print-desktop-option) !important; }
+  .opt           { font-size: var(--fs-print-desktop-option) !important; gap: 2px !important; }
+  .options       { gap: 3px !important; }
+  .opt input[type="checkbox"] { width: var(--h-print-phone-checkbox) !important; height: var(--h-print-phone-checkbox) !important; min-width: var(--h-print-phone-checkbox) !important; min-height: var(--h-print-phone-checkbox) !important; }
+  .footer-text   { font-size: var(--fs-print-phone-footer) !important; }
+  .page-num      { font-size: var(--fs-print-phone-footer) !important; }
+  .page-footer   { margin-top: 4px !important; padding: var(--pd-print-desktop-footer) !important; }
+}
+
+/* ══ iPad print ══ */
+@media print and (min-width: 768px) {
+  html { font-size: var(--fs-print-ipad-section) !important; }
+  .company-name   { font-size: var(--fs-print-ipad-company) !important; }
+  .doc-title      { font-size: var(--fs-print-ipad-title) !important; }
+  .info-label     { font-size: var(--fs-print-ipad-info-label) !important; }
+  .info-input     { font-size: var(--fs-print-ipad-info-input) !important; min-height: var(--h-print-ipad-info-input) !important; }
+  .section-header { font-size: var(--fs-print-ipad-section) !important; padding: var(--pd-print-ipad-section) !important; }
+  .item-label     { font-size: var(--fs-print-ipad-item) !important; }
+  .item-num       { font-size: var(--fs-print-ipad-option) !important; }
+  .opt            { font-size: var(--fs-print-ipad-option) !important; }
+  .check-item     { min-height: var(--h-print-ipad-item) !important; padding: var(--pd-print-ipad-item) !important; flex-wrap: nowrap !important; }
+  .opt input[type="checkbox"] { width: var(--h-print-ipad-checkbox) !important; height: var(--h-print-ipad-checkbox) !important; min-width: var(--h-print-ipad-checkbox) !important; min-height: var(--h-print-ipad-checkbox) !important; }
+  .footer-text    { font-size: var(--fs-print-ipad-footer) !important; }
+  .section        { margin-bottom: var(--gap-print-ipad-sections) !important; }
+  .page           { padding: var(--pd-print-ipad-page) !important; }
+  .page-header   { padding: var(--pd-print-ipad-header) !important; }
+  .info-input    { padding: var(--pd-print-ipad-info-input) !important; }
+  .opt           { padding: var(--pd-print-ipad-option) !important; }
+  .page-footer   { padding: var(--pd-print-ipad-footer) !important; }
+  .summary-body  { padding: var(--pd-print-ipad-summary) !important; }
+  .summary-label   { font-size: var(--fs-print-ipad-summary) !important; color: #6B7280 !important; }
+  .status-btn      { font-size: var(--fs-print-ipad-summary) !important; min-height: var(--h-print-ipad-item) !important; padding: var(--pd-print-ipad-item) !important; }
+  .status-btn span { font-size: var(--fs-print-ipad-summary) !important; }
+  .summary-textarea{ font-size: var(--fs-print-ipad-summary) !important; }
+}
+
+/* ══ macOS Safari print ══ */
+@media print {
+  html.macos { font-size: var(--fs-print-macos-base) !important; }
+  html.macos .company-name   { font-size: var(--fs-print-macos-company) !important; }
+  html.macos .doc-title      { font-size: var(--fs-print-macos-title) !important; }
+  html.macos .info-label     { font-size: var(--fs-print-macos-info-label) !important; }
+  html.macos .info-input     { font-size: var(--fs-print-macos-info-input) !important; min-height: var(--h-print-macos-info-input) !important; }
+  html.macos .section-header { font-size: var(--fs-print-macos-section) !important; padding: var(--pd-print-macos-section) !important; }
+  html.macos .item-label     { font-size: var(--fs-print-macos-item) !important; }
+  html.macos .opt            { font-size: var(--fs-print-macos-option) !important; }
+  html.macos .check-item     { min-height: var(--h-print-macos-item) !important; padding: var(--pd-print-macos-item) !important; }
+  html.macos .opt input[type="checkbox"] { width: var(--h-print-macos-checkbox) !important; height: var(--h-print-macos-checkbox) !important; min-width: var(--h-print-macos-checkbox) !important; min-height: var(--h-print-macos-checkbox) !important; }
+  html.macos .footer-text    { font-size: var(--fs-print-macos-footer) !important; }
+  html.macos .section        { margin-bottom: var(--gap-print-macos-sections) !important; }
+  html.macos .page           { padding: var(--pd-print-macos-page) !important; }
+  /* iPad PDF summary→footer gap */
+  #additional_comments { margin-bottom: var(--gap-print-ipad-summary-footer) !important; }
+  #page2 .page-footer { margin-top: var(--gap-print-ipad-summary-footer) !important; }
+
+  html.macos .page-header   { padding: var(--pd-print-macos-header) !important; }
+  html.macos .info-input    { padding: var(--pd-print-macos-info-input) !important; }
+  html.macos .opt           { padding: var(--pd-print-macos-option) !important; }
+  html.macos .page-footer   { padding: var(--pd-print-macos-footer) !important; }
+  html.macos .summary-body  { padding: var(--pd-print-macos-summary) !important; }
+  html.macos #additional_comments { margin-bottom: var(--gap-print-macos-summary-footer) !important; }
+  html.macos #page2 .page-footer  { margin-top: var(--gap-print-macos-summary-footer) !important; }
+  html.macos .summary-label    { font-size: var(--fs-print-macos-summary) !important; color: #6B7280 !important; }
+  html.macos .status-btn       { font-size: var(--fs-print-macos-summary) !important; min-height: var(--h-print-macos-item) !important; padding: var(--pd-print-macos-item) !important; }
+  html.macos .status-btn span  { font-size: var(--fs-print-macos-summary) !important; }
+  html.macos .summary-textarea { font-size: var(--fs-print-macos-summary) !important; }
+}
+
+/* ══ Desktop Chrome/Windows print ══ */
+@media print and (min-width: 1361px) {
+  html { font-size: var(--fs-print-desktop-base) !important; }
+  .company-name   { font-size: var(--fs-print-desktop-company) !important; }
+  .doc-title      { font-size: var(--fs-print-desktop-title) !important; }
+  .info-label     { font-size: var(--fs-print-desktop-info-label) !important; }
+  .info-input     { font-size: var(--fs-print-desktop-info-input) !important; }
+  .section-header { font-size: var(--fs-print-desktop-section) !important; }
+  .item-label     { font-size: var(--fs-print-desktop-item) !important; }
+  .opt            { font-size: var(--fs-print-desktop-option) !important; }
+  .check-item     { min-height: var(--h-print-desktop-item) !important; }
+  .footer-text    { font-size: var(--fs-print-desktop-footer) !important; }
+  .section        { margin-bottom: var(--gap-print-desktop-sections) !important; }
+  .page           { padding: var(--pd-print-desktop-page) !important; }
+}
+
+body.mobile-safari { -webkit-print-color-adjust: exact; }
+</style>
+</head>
+
+<body>
+
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <a class="ab-btn" onclick="printForm()" style="cursor:pointer;">📄 PDF</a>
+  <a class="ab-btn" onclick="clearForm()" style="cursor:pointer;">🗑 CLEAR</a>
+  <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode" onclick="toggleTheme()">
+    <svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg class="theme-icon theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+</div>
+<div id="offline-banner" role="alert">⚠️ YOU ARE OFFLINE — Your data will be auto-saved locally</div>
+<div id="save-status" style="position:fixed;top:46px;left:0;right:0;z-index:9998;text-align:center;font-size:10px;color:var(--text-muted);background:#fff;padding:2px 8px;display:none;" aria-live="polite"></div>
+
+<div class="wrapper">
+
+  <!-- ══ PAGE 1 ══ -->
+  <div class="page" id="page1">
+    <div class="page-header">
+      <img src="https://raw.githubusercontent.com/BrandonAOG/AOG-Logo/main/logo.png" alt="AOG Logo" class="logo-img"
+           onerror="this.style.display='none'">
+      <div class="header-right">
+        <div class="company-name">Always On Generators</div>
+        <div class="doc-title">Quality Control Checklist</div>
+        <div class="info-grid">
+          <div class="info-row full" id="name-date-row">
+            <span class="info-label">Customer Name:</span>
+            <input class="info-input" type="text" id="cust_name" autocomplete="off">
+            <span class="info-label" style="margin-left:8px;flex-shrink:0;">Date:</span>
+            <input class="info-input" type="date" id="cust_date" style="max-width:160px;flex-shrink:0;">
+          </div>
+          <div class="info-row full" id="addr-elec-row">
+            <span class="info-label">Address:</span>
+            <input class="info-input" type="text" id="cust_addr" autocomplete="off">
+            <span class="info-label" style="margin-left:8px;flex-shrink:0;">Elec. Crew:</span>
+            <input class="info-input" type="text" id="elec_crew" autocomplete="off">
+          </div>
+          <div class="info-row full" id="tech-crew-row">
+            <span class="info-label">Technician:</span>
+            <input class="info-input" type="text" id="tech_name" autocomplete="off">
+            <span class="info-label" style="margin-left:8px;flex-shrink:0;">Gas Crew:</span>
+            <input class="info-input" type="text" id="crew_name" autocomplete="off">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSFER SWITCH -->
+    <div class="section">
+      <div class="section-header">Transfer Switch</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Check All Wire Connections</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="ts_wire" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="ts_wire" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Check Conduit Penetrations</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="ts_conduit" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="ts_conduit" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">3.</span>
+        <span class="item-label">Check Lock Rings</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="ts_lock" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="ts_lock" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">4.</span>
+        <span class="item-label">Bonding Jumper</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="ts_bond" value="installed"><span>Installed</span></label>
+          <label class="opt"><input type="checkbox" name="ts_bond" value="removed"><span>Removed</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">5.</span>
+        <span class="item-label">Vacuumed</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="ts_vac" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="ts_vac" value="no"><span>No</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- METER -->
+    <div class="section">
+      <div class="section-header">Meter</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Check For Updated Grounding</span>
+        <div class="options">
+          <label class="opt check-solo"><input type="checkbox" name="meter_grnd" value="done"></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Check for ICB</span>
+        <div class="options">
+          <label class="opt check-solo"><input type="checkbox" name="meter_icb" value="done"></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- METER MAIN -->
+    <div class="section">
+      <div class="section-header">Meter Main</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Check All Wire Connections</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="mm_wire" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="mm_wire" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Check Conduit Penetrations</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="mm_conduit" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="mm_conduit" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">3.</span>
+        <span class="item-label">Check P-Taps</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="mm_ptaps" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="mm_ptaps" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">4.</span>
+        <span class="item-label">Vacuumed</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="mm_vac" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="mm_vac" value="no"><span>No</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- CUSTOMER PANEL -->
+    <div class="section">
+      <div class="section-header">Customer Panel</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Check All Wire Connections</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="cp_wire" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="cp_wire" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Grounds And Neutrals Separated</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="cp_gnd" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="cp_gnd" value="no"><span>No</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">3.</span>
+        <span class="item-label">Bonding Screw</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="cp_bond" value="installed"><span>Installed</span></label>
+          <label class="opt"><input type="checkbox" name="cp_bond" value="removed"><span>Removed</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- LOAD SHEDDING -->
+    <div class="section">
+      <div class="section-header">Load Shedding</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Settings Set Correctly</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="ls_settings" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="ls_settings" value="no"><span>No</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Scroll Saver Mode Set</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="ls_scroll" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="ls_scroll" value="no"><span>No</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- CONDUIT STRAPPING -->
+    <div class="section">
+      <div class="section-header">Conduit Strapping</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Penetration Caulked or Foamed</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="cs_caulk" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="cs_caulk" value="no"><span>No</span></label>
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Strapping Condition</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="cs_strap" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="cs_strap" value="bad"><span>Bad</span></label>
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span class="footer-text">QUALITY CONTROL CHECKLIST · ALWAYS ON GENERATORS · CONFIDENTIAL</span>
+      <span class="page-num">Page 1 of 2</span>
+    </div>
+  </div><!-- /page1 -->
+
+  <!-- ══ PAGE 2 ══ -->
+  <div class="page" id="page2">
+    <div class="page-header">
+      <img src="https://raw.githubusercontent.com/BrandonAOG/AOG-Logo/main/logo.png" alt="AOG Logo" class="logo-img"
+           onerror="this.style.display='none'">
+      <div class="header-right">
+        <div class="company-name">Always On Generators</div>
+        <div class="doc-title" id="doc-title-continued">Quality Control Checklist — continued</div>
+        <div class="info-grid">
+          <div class="info-row full">
+            <span class="info-label">Customer Name:</span>
+            <input class="info-input" type="text" id="cust_name2" autocomplete="off">
+            <span class="info-label" style="margin-left:10px;">Date:</span>
+            <input class="info-input" type="date" id="cust_date2" style="max-width:120px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GENERATOR -->
+    <div class="section">
+      <div class="section-header">Generator</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Clearance</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gen_clear" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="gen_clear" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Battery Install</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gen_batt" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="gen_batt" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">3.</span>
+        <span class="item-label">Gen Connections</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gen_conn" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="gen_conn" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">4.</span>
+        <span class="item-label">Controller Settings</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gen_ctrl" value="complete"><span>Complete</span></label>
+          <label class="opt"><input type="checkbox" name="gen_ctrl" value="not_done"><span>Not Done</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">5.</span>
+        <span class="item-label">Adjust Gas</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gen_gas" value="complete"><span>Complete</span></label>
+          <label class="opt"><input type="checkbox" name="gen_gas" value="not_done"><span>Not Done</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- GAS TANK -->
+    <div class="section">
+      <div class="section-header">Gas Tank</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Filled</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gt_filled" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="gt_filled" value="no"><span>No</span></label>
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Vacuumed</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gt_vac" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="gt_vac" value="no"><span>No</span></label>
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">3.</span>
+        <span class="item-label">Bonded (Attic ONLY)</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gt_bond" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="gt_bond" value="no"><span>No</span></label>
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">4.</span>
+        <span class="item-label">Leak Check</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gt_leak" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="gt_leak" value="no"><span>No</span></label>
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- GAS -->
+    <div class="section">
+      <div class="section-header">Gas</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Leak Check</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gas_leak" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="gas_leak" value="no"><span>No</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Threads Painted</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gas_threads" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="gas_threads" value="no"><span>No</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">3.</span>
+        <span class="item-label">Gas Supports</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gas_supp" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="gas_supp" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">4.</span>
+        <span class="item-label">Sediment Trap</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gas_sed" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="gas_sed" value="no"><span>No</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">5.</span>
+        <span class="item-label">Venting</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gas_vent" value="good"><span>Good</span></label>
+          <label class="opt"><input type="checkbox" name="gas_vent" value="bad"><span>Bad</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">6.</span>
+        <span class="item-label">Leak Down Check Performed</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="gas_ldc" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="gas_ldc" value="no"><span>No</span></label>
+          
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- JOB SITE -->
+    <div class="section">
+      <div class="section-header">Job Site</div>
+      <div class="check-item">
+        <span class="item-num">1.</span>
+        <span class="item-label">Cleaned</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="site_clean" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="site_clean" value="no"><span>No</span></label>
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+      <div class="check-item">
+        <span class="item-num">2.</span>
+        <span class="item-label">Placards Installed</span>
+        <div class="options">
+          <label class="opt"><input type="checkbox" name="site_placards" value="yes"><span>Yes</span></label>
+          <label class="opt"><input type="checkbox" name="site_placards" value="no"><span>No</span></label>
+        </div>
+        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="section summary-section">
+      <div class="section-header">Summary</div>
+      <div class="summary-body">
+        <div class="summary-label">Overall Job Status</div>
+        <div class="summary-status-row">
+          <label class="status-btn status-pass">
+            <input type="radio" name="job_status" value="pass">
+            <span><svg class="status-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" fill="#059669"/><polyline points="4,8 7,11 12,5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Pass</span>
+          </label>
+          <label class="status-btn status-fail">
+            <input type="radio" name="job_status" value="fail">
+            <span><svg class="status-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" fill="#DC2626"/><line x1="5" y1="5" x2="11" y2="11" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="11" y1="5" x2="5" y2="11" stroke="white" stroke-width="2" stroke-linecap="round"/></svg> Fail</span>
+          </label>
+          <label class="status-btn status-followup">
+            <input type="radio" name="job_status" value="followup">
+            <span><svg class="status-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2L14.5 13H1.5L8 2Z" fill="#D97706"/><line x1="8" y1="7" x2="8" y2="10" stroke="white" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="12" r="0.75" fill="white"/></svg> Needs Follow-Up</span>
+          </label>
+        </div>
+        <div class="summary-label" style="margin-top:4px;">Items Requiring Follow-Up</div>
+        <textarea id="followup_notes" name="followup_notes" class="summary-textarea" placeholder="List any items that need to be revisited or corrected…" autocomplete="off"></textarea>
+        <div class="summary-label" style="margin-top:3px;">Additional Comments</div>
+        <textarea id="additional_comments" name="additional_comments" class="summary-textarea" placeholder="Any other notes, observations, or customer concerns…" autocomplete="off"></textarea>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span class="footer-text">QUALITY CONTROL CHECKLIST · ALWAYS ON GENERATORS · CONFIDENTIAL</span>
+      <span class="page-num">Page 2 of 2</span>
+    </div>
+  </div><!-- /page2 -->
+
+</div><!-- /wrapper -->
+
+<script>
+// ── SYNC PAGE 2 HEADER FIELDS FROM PAGE 1 ──
+function syncPage2() {
+  var n = document.getElementById('cust_name');
+  var d = document.getElementById('cust_date');
+  var n2 = document.getElementById('cust_name2');
+  var d2 = document.getElementById('cust_date2');
+  if (n && n2) n2.value = n.value;
+  if (d && d2) d2.value = d.value;
+}
+document.getElementById('cust_name').addEventListener('input', syncPage2);
+document.getElementById('cust_date').addEventListener('input', syncPage2);
+
+// ── AUTO-SAVE DRAFT ──
+var DRAFT_KEY = 'aog_checklist_qc_draft';
+function saveDraft() {
+  var data = {};
+  document.querySelectorAll('input').forEach(function(el) {
+    var key = el.id || el.name;
+    if (!key) return;
+    if (el.type === 'checkbox') {
+      if (!Array.isArray(data[key])) data[key] = [];
+      if (el.checked) data[key].push(el.value);
+    } else {
+      if (data[key] === undefined) data[key] = el.value;
+    }
+  });
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function restoreDraft() {
+  var saved = '';
+  try { saved = localStorage.getItem(DRAFT_KEY) || ''; } catch(e) {}
+  if (!saved) return;
+  try {
+    var data = JSON.parse(saved);
+    document.querySelectorAll('input').forEach(function(el) {
+      var key = el.id || el.name;
+      if (!key || data[key] === undefined) return;
+      if (el.type === 'checkbox') {
+        el.checked = Array.isArray(data[key]) && data[key].indexOf(el.value) !== -1;
+      } else {
+        el.value = data[key];
+      }
+    });
+    syncPage2();
+  } catch(e) {}
+}
+setInterval(saveDraft, 30000);
+document.addEventListener('change', saveDraft);
+document.addEventListener('input', saveDraft);
+
+// ── CLEAR ──
+function clearForm() {
+  if (!confirm('Clear all fields?')) return;
+  document.querySelectorAll('input[type="text"],input[type="date"]').forEach(function(el){ el.value=''; });
+  document.querySelectorAll('input[type="checkbox"]').forEach(function(el){ el.checked=false; });
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('cust_date').value = today;
+  document.getElementById('cust_date2').value = today;
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
+
+// ── PRINT ──
+function setStatus(msg) { var el=document.getElementById('save-status'); if(el){el.textContent=msg;el.style.display=msg?'block':'none';} }
+
+// ── BEFORE/AFTER PRINT (Chrome needs these) ──
+window.addEventListener('beforeprint', function() {
+  document.body.classList.remove('dark-mode');
+  document.documentElement.classList.remove('dark-mode-pending');
+  document.documentElement.style.colorScheme = 'light';
+  document.body.style.colorScheme = 'light';
+  var ds = document.getElementById('dark-mode-style');
+  if (ds) ds.disabled = true;
+  var ct = document.getElementById('doc-title-continued');
+  if (ct) ct.style.setProperty('display', 'none', 'important');
+});
+window.addEventListener('afterprint', function() {
+  document.documentElement.style.colorScheme = '';
+  document.body.style.colorScheme = '';
+  var ds = document.getElementById('dark-mode-style');
+  if (ds) ds.disabled = false;
+  var wasDark = false;
+  try { wasDark = localStorage.getItem('aog_theme_preference') === 'dark'; } catch(e) {}
+  if (wasDark) document.body.classList.add('dark-mode');
+  var ct = document.getElementById('doc-title-continued');
+  if (ct) ct.style.removeProperty('display');
+});
+
+function printForm() {
+  var isMobileSafari = document.body.classList.contains('mobile-safari');
+  var wasDark        = document.body.classList.contains('dark-mode');
+
+
+  // ── Set document title for PDF filename ──
+  var prevTitle = document.title;
+  var cName = (document.getElementById('cust_name').value||'').trim();
+  document.title = (cName ? cName + ' - ' : '') + 'QC Checklist';
+
+  // ── Strip dark mode ──
+  document.body.classList.remove('dark-mode');
+  document.documentElement.classList.remove('dark-mode-pending');
+  document.documentElement.style.colorScheme = 'light';
+  document.body.style.colorScheme = 'light';
+  var _darkStyleEl = document.getElementById('dark-mode-style');
+  if (_darkStyleEl) _darkStyleEl.disabled = true;
+
+  // ── Inline-style key elements ──
+  var compName   = document.querySelector('.company-name');
+  var docTitle   = document.querySelector('.doc-title');
+  var footerEls  = document.querySelectorAll('.footer-text');
+  if (compName)  compName.setAttribute('style',  'color:#D97706!important;text-shadow:none!important;');
+  if (docTitle)  docTitle.setAttribute('style',  'color:#1F2937!important;text-shadow:none!important;');
+  footerEls.forEach(function(el){ el.setAttribute('style','color:#9CA3AF!important;text-shadow:none!important;'); });
+
+  // ── Inject force-print-light ──
+  var printStyle = document.createElement('style');
+  printStyle.id  = 'force-print-light';
+  printStyle.textContent = [
+    ':root, html, body { color-scheme: light !important; }',
+    'body { --cyan:#D97706!important; --bg:#FFFFFF!important; --bg3:#F8F8F8!important; --panel:#FFFFFF!important; --text:#1F2937!important; --text-muted:#6B7280!important; --text-dim:#9CA3AF!important; }',
+    ':root { --cyan:#D97706!important; }',
+    '*, *::before, *::after { animation:none!important; animation-play-state:paused!important; transition:none!important; }',
+    'input[type="checkbox"] { accent-color:#D97706!important; }',
+    '@media print {',
+    '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;border-color:rgba(217,119,6,0.4)!important;animation:none!important;transition:none!important; }',
+    '  html,body { background:white!important; }',
+    '  .page { border:1.5pt solid #D97706!important;background:white!important; }',
+    '  .company-name { color:#D97706!important; }',
+    '  .doc-title { color:#1F2937!important; }',
+    '  .section-header { background:#f5f5f5!important;color:#D97706!important;text-shadow:none!important; }',
+    '  .item-label,.item-num,.opt { color:#1F2937!important; }',
+    '  .info-input,.notes-line { background:white!important;color:#1F2937!important; }',
+    '  .footer-text,.page-num { color:#9CA3AF!important; }',
+    '  .action-bar,.theme-toggle-btn,#save-status,#offline-banner,#print-debug { display:none!important; }',
+    '  .summary-label { font-size:var(--fs-print-desktop-summary)!important; color:#6B7280!important; }',
+    '  .status-btn { min-height:var(--h-print-desktop-item)!important; padding:var(--pd-print-desktop-item)!important; font-size:var(--fs-print-desktop-summary)!important; border-radius:12px!important; color:#6B7280!important; border-color:rgba(217,119,6,0.4)!important; background:white!important; }',
+    '  .status-btn span { font-size:var(--fs-print-desktop-summary)!important; color:#6B7280!important; line-height:1!important; display:inline-flex!important; align-items:center!important; gap:3px!important; }',
+    '  .status-btn svg { width:1em!important; height:1em!important; }',
+    '  .status-pass svg circle { fill:#059669!important; }',
+    '  .status-pass svg polyline { stroke:white!important; }',
+    '  .status-fail svg circle { fill:#DC2626!important; }',
+    '  .status-fail svg line { stroke:white!important; }',
+    '  .status-followup svg path { fill:#D97706!important; }',
+    '  .status-followup svg line, .status-followup svg circle { stroke:white!important; fill:white!important; }',
+    '  .status-pass:has(input:checked)     { border:2.5pt solid #059669!important; background:white!important; }',
+    '  .status-pass:has(input:checked),',
+    '  .status-pass:has(input:checked) span,',
+    '  .status-pass:has(input:checked) * { color:#059669!important; }',
+    '  .status-fail:has(input:checked)     { border:2.5pt solid #DC2626!important; background:white!important; }',
+    '  .status-fail:has(input:checked),',
+    '  .status-fail:has(input:checked) span,',
+    '  .status-fail:has(input:checked) * { color:#DC2626!important; }',
+    '  .status-followup:has(input:checked)     { border:2.5pt solid #D97706!important; background:white!important; }',
+    '  .status-followup:has(input:checked),',
+    '  .status-followup:has(input:checked) span,',
+    '  .status-followup:has(input:checked) * { color:#D97706!important; }',
+    '  .summary-textarea { height:40px!important; max-height:40px!important; font-size:var(--fs-print-desktop-summary)!important; color:#1F2937!important; background:white!important; overflow:hidden!important; }',
+    '  .summary-textarea::placeholder { color:transparent!important; opacity:0!important; }',
+    '}'
+  ].join('\n');
+  document.head.appendChild(printStyle);
+
+  // ── Force light vars ──
+  var lightVars = document.createElement('style');
+  lightVars.id = 'force-light-vars';
+  lightVars.textContent = ':root, body { --cyan:#D97706!important; --bg:#FFFFFF!important; --bg3:#F8F8F8!important; --panel:#FFFFFF!important; --text:#1F2937!important; --text-muted:#6B7280!important; --text-dim:#9CA3AF!important; --border:rgba(217,119,6,0.25)!important; --border-bright:rgba(217,119,6,0.5)!important; }';
+  document.head.appendChild(lightVars);
+
+  var vp = document.querySelector('meta[name="viewport"]');
+  var origVP = vp ? vp.getAttribute('content') : null;
+
+  // ── RESTORE function (defined before use) ──
+  function restore() {
+    document.title = prevTitle;
+    if (vp && origVP) vp.setAttribute('content', origVP);
+    var f  = document.getElementById('safari-print-fix');  if(f)  f.remove();
+    var pl = document.getElementById('force-print-light'); if(pl) pl.remove();
+    var lv = document.getElementById('force-light-vars');  if(lv) lv.remove();
+    document.documentElement.style.colorScheme = '';
+    document.body.style.colorScheme = '';
+    if (_darkStyleEl) _darkStyleEl.disabled = false;
+    if (wasDark) { document.body.classList.add('dark-mode'); document.documentElement.setAttribute('data-theme','dark'); }
+    var ct = document.getElementById('doc-title-continued');
+    if (ct) ct.style.removeProperty('display');
+    if (compName)  compName.removeAttribute('style');
+    if (docTitle)  docTitle.removeAttribute('style');
+    footerEls.forEach(function(el){ el.removeAttribute('style'); });
+  }
+
+  if (isMobileSafari && vp) {
+    vp.setAttribute('content', 'width=820, initial-scale=1.0');
+
+    // Build safari-page-fix style
+    var fix = document.createElement('style');
+    fix.id = 'safari-print-fix';
+    fix.textContent = [
+      '@page { size:8.5in 11in; margin:0.15in; }',
+      '@media print {',
+      '  * { animation:none!important; transition:none!important; }',
+      '  html, body { height:auto!important; }',
+      '  .wrapper { display:block!important; padding:0!important; gap:0!important; }',
+      '  .page { display:block!important; width:100%!important; max-width:none!important;',
+      '    page-break-after:always!important; break-after:page!important;',
+      '    page-break-inside:avoid!important; break-inside:avoid!important;',
+      '    padding:var(--pd-print-ipad-page)!important;',
+      '    border:1.5pt solid #D97706!important; box-shadow:none!important;',
+      '    margin:0!important; position:static!important; overflow:visible!important; }',
+      '  .page:last-child { page-break-after:auto!important; break-after:auto!important; }',
+      '  .company-name   { font-size:var(--fs-print-ipad-company)!important; }',
+      '  .doc-title      { font-size:var(--fs-print-ipad-title)!important; }',
+      '  .info-label     { font-size:var(--fs-print-ipad-info-label)!important; }',
+      '  .info-input     { font-size:var(--fs-print-ipad-info-input)!important; min-height:var(--h-print-ipad-info-input)!important; }',
+      '  .section-header { font-size:var(--fs-print-ipad-section)!important; padding:var(--pd-print-ipad-section)!important; }',
+      '  .item-label     { font-size:var(--fs-print-ipad-item)!important; }',
+      '  .item-num       { font-size:var(--fs-print-ipad-option)!important; }',
+      '  .opt            { font-size:var(--fs-print-ipad-option)!important; }',
+      '  .check-item     { min-height:var(--h-print-ipad-item)!important; padding:var(--pd-print-ipad-item)!important; flex-wrap:nowrap!important; }',
+      '  .section        { margin-bottom:var(--gap-print-ipad-sections)!important; }',
+      '  .opt input[type="checkbox"] { width:var(--h-print-ipad-checkbox)!important; height:var(--h-print-ipad-checkbox)!important; min-width:var(--h-print-ipad-checkbox)!important; min-height:var(--h-print-ipad-checkbox)!important; }',
+      '  .footer-text    { font-size:var(--fs-print-ipad-footer)!important; }',
+      '  #doc-title-continued { display:none!important; }',
+      '  #additional_comments { margin-bottom:var(--gap-print-ipad-summary-footer)!important; }',
+      '  #page2 .page-footer { margin-top:var(--gap-print-ipad-summary-footer)!important; }',
+      '  .page-footer { padding:var(--pd-print-ipad-footer)!important; }',
+      '  #page2 .summary-body { padding-bottom:0!important; }',
+      '}'
+    ].join('\n');
+
+
+    // Wait for viewport reflow then inject styles and print
+    setTimeout(function() {
+
+      // Force layout commit
+      void document.getElementById('page1').getBoundingClientRect();
+      void document.getElementById('page2').getBoundingClientRect();
+
+      document.head.appendChild(fix);
+
+      // Hide continued title
+      var ct = document.getElementById('doc-title-continued');
+      if (ct) ct.style.setProperty('display', 'none', 'important');
+
+      requestAnimationFrame(function() {
+        window.print();
+
+        // After print dialog opens, force WebKit to re-composite the print layer
+        // by making a trivial style mutation 100ms later while dialog is open
+        setTimeout(function() {
+          // Toggle a harmless property — forces Safari to invalidate + re-render
+          // the print preview from the now-fully-settled layout
+          document.body.style.webkitTransform = 'translateZ(0)';
+          requestAnimationFrame(function() {
+            document.body.style.webkitTransform = '';
+          });
+        }, 100);
+      });
+    }, 600);
+
+    // Detect when print dialog closes
+    var wentHidden = false;
+    document.addEventListener('visibilitychange', function _iosVis() {
+      if (document.hidden) {
+        wentHidden = true;
+      } else if (wentHidden) {
+        document.removeEventListener('visibilitychange', _iosVis);
+        restore();
+      }
+    });
+    // Fallback restore after 8s if visibility never changes
+    setTimeout(function() { if (!wentHidden) restore(); }, 8000);
+
+  } else {
+
+    window.addEventListener('afterprint', restore);
+    window.print();
+  }
+}
+
+// ── OFFLINE ──
+window.addEventListener('online',  function() { var b=document.getElementById('offline-banner'); if(b) b.classList.remove('show'); document.body.classList.remove('offline'); });
+window.addEventListener('offline', function() { var b=document.getElementById('offline-banner'); if(b) b.classList.add('show'); document.body.classList.add('offline'); });
+
+// ── THEME ──
+var THEME_KEY = 'aog_theme_preference';
+function applyTheme(theme) {
+  var isDark = theme === 'dark';
+  if (isDark) { document.body.classList.add('dark-mode'); document.documentElement.setAttribute('data-theme','dark'); }
+  else { document.body.classList.remove('dark-mode'); document.documentElement.setAttribute('data-theme','light'); }
+  document.documentElement.classList.remove('dark-mode-pending');
+  try { localStorage.setItem(THEME_KEY, theme); } catch(e) {}
+}
+function toggleTheme() { applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark'); }
+function getInitialTheme() {
+  var saved = ''; try { saved = localStorage.getItem(THEME_KEY) || ''; } catch(e) {}
+  if (saved) return saved;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', function() {
+  var today = new Date().toISOString().split('T')[0];
+  if (!navigator.onLine) { var b=document.getElementById('offline-banner'); if(b) b.classList.add('show'); document.body.classList.add('offline'); }
+  applyTheme(getInitialTheme());
+  if (document.documentElement.classList.contains('dark-mode-pending')) {
+    document.body.classList.add('dark-mode');
+  }
+  restoreDraft();
+  if (!document.getElementById('cust_date').value) document.getElementById('cust_date').value = today;
+  if (!document.getElementById('cust_date2').value) document.getElementById('cust_date2').value = today;
+  if (!document.getElementById('sign_date').value) document.getElementById('sign_date').value = today;
+  syncPage2();
+});
+</script>
+</body>
+</html>
