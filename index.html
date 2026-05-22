@@ -636,6 +636,59 @@ body::after {
   .status-bar { gap: 12px; padding: 10px 14px; font-size: 0.6rem; letter-spacing: 1px; }
   #update-toast { left: 12px; right: 12px; bottom: 16px; max-width: 100%; width: auto; }
 }
+
+/* ══════════════════════════════════════
+   CATEGORY NAVIGATION
+   ══════════════════════════════════════ */
+.category-nav {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 24px; justify-content: center;
+}
+.cat-btn {
+  position: relative;
+  padding: 12px 24px;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--yellow-bright);
+  background: linear-gradient(135deg, rgba(15,21,53,0.9), rgba(26,40,71,0.7));
+  border: 1.5px solid rgba(251,191,36,0.35);
+  cursor: pointer; transition: all 0.25s;
+  clip-path: polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent;
+}
+.cat-btn::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--yellow-bright), transparent);
+  opacity: 0; transition: opacity 0.25s;
+}
+.cat-btn:hover { border-color: var(--orange); color: var(--orange-bright);
+  box-shadow: 0 0 20px rgba(249,115,22,0.25); }
+.cat-btn:hover::before { opacity: 1; }
+.cat-btn.active {
+  background: linear-gradient(135deg, rgba(251,191,36,0.18), rgba(249,115,22,0.12));
+  border-color: var(--yellow-bright);
+  color: #fff;
+  box-shadow: 0 0 24px rgba(251,191,36,0.3), inset 0 0 16px rgba(251,191,36,0.06);
+}
+.cat-btn.active::before { opacity: 1; }
+
+/* Category label above grid */
+.category-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.6rem; letter-spacing: 4px; color: var(--yellow-bright);
+  text-align: center; margin-bottom: 16px; opacity: 0.7;
+}
+
+/* Hide/show card groups */
+.card-group { display: contents; }
+.card-group.hidden { display: none; }
+
+@media (max-width: 480px) {
+  .cat-btn { padding: 10px 16px; font-size: 0.65rem; letter-spacing: 2px; flex: 1; min-width: 0; text-align: center; }
+  .category-nav { gap: 6px; }
+}
 </style>
 </head>
 <body>
@@ -695,9 +748,65 @@ body::after {
   </div>
 
   <!-- FORMS SECTION -->
-  <div class="forms-section-label">Select Form Module</div>
+  <div class="forms-section-label">Select Category</div>
+
+  <!-- CATEGORY NAV -->
+  <div class="category-nav" id="category-nav">
+    <button class="cat-btn active" data-cat="estimate">⚡ Estimate</button>
+    <button class="cat-btn" data-cat="installs">🔧 Installs</button>
+    <button class="cat-btn" data-cat="maintenance">🔁 Maintenance</button>
+    <button class="cat-btn" data-cat="tools">🛠 Tools</button>
+  </div>
+
+  <div class="category-title" id="category-title">ESTIMATE</div>
 
   <div class="forms-grid">
+
+    <!-- ══ ESTIMATE CATEGORY ══ -->
+    <div class="card-group" data-group="estimate">
+
+    <!-- ESTIMATE FORM -->
+    <a href="#" class="form-card" data-form="estimate">
+      <div class="glow-strip"></div>
+      <div class="form-card-content">
+        <div class="form-icon-wrap">
+          <svg viewBox="0 0 24 24">
+            <path d="M9 2h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v0a2 2 0 0 1 2-2z"/>
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+            <line x1="9" y1="12" x2="15" y2="12"/>
+            <line x1="9" y1="16" x2="13" y2="16"/>
+          </svg>
+        </div>
+        <div class="form-text">
+          <div class="form-title">Estimate Form</div>
+          <div class="form-desc">Quote &amp; pricing forms for new estimates</div>
+        </div>
+      </div>
+      <div class="form-arrow">▶ ENTER</div>
+    </a>
+
+    <!-- SITE VISIT -->
+    <a href="#" class="form-card" data-form="site-visits">
+      <div class="glow-strip"></div>
+      <div class="form-card-content">
+        <div class="form-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 1 8 8c0 5.25-8 14-8 14S4 15.25 4 10a8 8 0 0 1 8-8z"/></svg></div>
+        <div class="form-text"><div class="form-title">Site Visit Form</div><div class="form-desc">Pre-install site assessment &amp; documentation</div></div>
+      </div>
+      <div class="form-arrow">▶ ENTER</div>
+    </a>
+    <!-- LOAD CALCULATION -->
+    <a href="#" class="form-card" data-form="load-calc">
+      <div class="glow-strip"></div>
+      <div class="form-card-content">
+        <div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h4M7 12h2M13 8l2 4 2-4"/></svg></div>
+        <div class="form-text"><div class="form-title">Load Calculation</div><div class="form-desc">Electrical load sizing &amp; generator selection</div></div>
+      </div>
+      <div class="form-arrow">▶ ENTER</div>
+    </a>
+    </div><!-- /estimate -->
+
+    <!-- ══ INSTALLS CATEGORY ══ -->
+    <div class="card-group hidden" data-group="installs">
 
     <!-- ELECTRICAL INSTALL -->
     <a href="#" class="form-card" data-form="install">
@@ -735,27 +844,31 @@ body::after {
       <div class="form-arrow">▶ ENTER</div>
     </a>
 
-    <!-- ESTIMATE -->
-    <a href="#" class="form-card" data-form="estimate">
+    <!-- QC CHECKLIST (installs) -->
+    <a href="#" class="form-card" data-form="qc-checklist">
       <div class="glow-strip"></div>
       <div class="form-card-content">
         <div class="form-icon-wrap">
           <svg viewBox="0 0 24 24">
             <path d="M9 2h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v0a2 2 0 0 1 2-2z"/>
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-            <line x1="9" y1="12" x2="15" y2="12"/>
-            <line x1="9" y1="16" x2="13" y2="16"/>
+            <polyline points="9 11 11 13 15 9"/>
           </svg>
         </div>
         <div class="form-text">
-          <div class="form-title">Estimate Form</div>
-          <div class="form-desc">Quote &amp; pricing forms for new estimates</div>
+          <div class="form-title">QC Checklist</div>
+          <div class="form-desc">Quality control inspection for completed installations</div>
         </div>
       </div>
       <div class="form-arrow">▶ ENTER</div>
     </a>
 
-    <!-- MAINTENANCE -->
+    </div><!-- /installs -->
+
+    <!-- ══ MAINTENANCE CATEGORY ══ -->
+    <div class="card-group hidden" data-group="maintenance">
+
+    <!-- MAINTENANCE FORM -->
     <a href="#" class="form-card" data-form="maintenance">
       <div class="glow-strip"></div>
       <div class="form-card-content">
@@ -773,20 +886,34 @@ body::after {
       <div class="form-arrow">▶ ENTER</div>
     </a>
 
-    <!-- SITE VISIT -->
-    <a href="#" class="form-card" data-form="site-visits">
+    <!-- SERVICE WORK (new) -->
+    <a href="#" class="form-card" data-form="service-work">
       <div class="glow-strip"></div>
       <div class="form-card-content">
         <div class="form-icon-wrap">
           <svg viewBox="0 0 24 24">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-            <circle cx="12" cy="10" r="3"/>
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
           </svg>
         </div>
         <div class="form-text">
-          <div class="form-title">Site Visit Form</div>
-          <div class="form-desc">On-site inspection &amp; assessment forms</div>
+          <div class="form-title">Service Work</div>
+          <div class="form-desc">Service call documentation &amp; repair forms</div>
         </div>
+      </div>
+      <div class="form-arrow">▶ ENTER</div>
+    </a>
+
+    </div><!-- /maintenance -->
+
+    <!-- ══ TOOLS CATEGORY ══ -->
+    <div class="card-group hidden" data-group="tools">
+
+    <!-- LOAD CALCULATION -->
+    <a href="#" class="form-card" data-form="load-calc">
+      <div class="glow-strip"></div>
+      <div class="form-card-content">
+        <div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h4M7 12h2M13 8l2 4 2-4"/></svg></div>
+        <div class="form-text"><div class="form-title">Load Calculation</div><div class="form-desc">Electrical load sizing &amp; generator selection</div></div>
       </div>
       <div class="form-arrow">▶ ENTER</div>
     </a>
@@ -828,23 +955,6 @@ body::after {
       <div class="form-arrow">▶ ENTER</div>
     </a>
 
-    <!-- LOAD CALCULATION -->
-    <a href="#" class="form-card" data-form="load-calc">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Load Calculation</div>
-          <div class="form-desc">[EXPERIMENTAL] Advanced power load analysis &amp; sizing</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
     <!-- GAS CALCULATOR -->
     <a href="#" class="form-card" data-form="gas-calc">
       <div class="glow-strip"></div>
@@ -864,20 +974,20 @@ body::after {
       <div class="form-arrow">▶ ENTER</div>
     </a>
 
-    <!-- QUALITY CONTROL CHECKLIST -->
-    <a href="#" class="form-card" data-form="qc-checklist">
+    <!-- SITE PLAN / ANNOTATOR -->
+    <a href="#" class="form-card" data-form="site-annotator">
       <div class="glow-strip"></div>
       <div class="form-card-content">
         <div class="form-icon-wrap">
           <svg viewBox="0 0 24 24">
-            <path d="M9 2h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v0a2 2 0 0 1 2-2z"/>
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-            <polyline points="9 11 11 13 15 9"/>
+            <path d="M3 3h18v18H3z" stroke-width="1.5"/>
+            <path d="M3 9h18M9 3v18"/>
+            <path d="M14 14l3 3M17 14l-3 3"/>
           </svg>
         </div>
         <div class="form-text">
-          <div class="form-title">QC Checklist</div>
-          <div class="form-desc">Quality control inspection checklist for completed installations</div>
+          <div class="form-title">Site Plan / Annotator</div>
+          <div class="form-desc">Draw, annotate &amp; mark up site plans &amp; diagrams</div>
         </div>
       </div>
       <div class="form-arrow">▶ ENTER</div>
@@ -923,6 +1033,8 @@ body::after {
       <div class="form-arrow">▶ ENTER</div>
     </a>
 
+    </div><!-- /tools -->
+
   </div>
 
   <!-- FOOTER -->
@@ -934,6 +1046,48 @@ body::after {
 </div>
 
 <script>
+
+// ── Category Navigation ───────────────────────────────────────
+const catTitles = {
+  estimate:    'ESTIMATE',
+  installs:    'INSTALLS',
+  maintenance: 'MAINTENANCE',
+  tools:       'TOOLS',
+};
+
+document.querySelectorAll('.cat-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    const cat = this.getAttribute('data-cat');
+
+    // Update active button
+    document.querySelectorAll('.cat-btn').forEach(function(b) { b.classList.remove('active'); });
+    this.classList.add('active');
+
+    // Update title
+    document.getElementById('category-title').textContent = catTitles[cat] || cat.toUpperCase();
+
+    // Show/hide card groups
+    document.querySelectorAll('.card-group').forEach(function(g) {
+      if (g.getAttribute('data-group') === cat) {
+        g.classList.remove('hidden');
+      } else {
+        g.classList.add('hidden');
+      }
+    });
+
+    // Re-run entrance animation on visible cards
+    document.querySelectorAll('.card-group[data-group="' + cat + '"] .form-card').forEach(function(card, i) {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(20px)';
+      setTimeout(function() {
+        card.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.4,0,0.2,1)';
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+      }, 50 + (i * 80));
+    });
+  });
+});
+
 // ── Form URL routing ──────────────────────────────────────────
 const FORM_URLS = {
   'install':        './elect-install/',
@@ -948,6 +1102,8 @@ const FORM_URLS = {
   'breaker-sizing': './breaker-conductor/',
   'spec-viewer':    './spec-viewer/',
   'qc-checklist':   './qc-checklist/',
+  'service-work':    './service-work/',
+  'site-annotator':  './site-annotator/',
 };
 
 document.querySelectorAll('.form-card').forEach(function(card) {
