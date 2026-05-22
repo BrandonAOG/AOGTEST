@@ -1289,13 +1289,12 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   input[type="date"], input[type="number"] { min-height: var(--h-print-ipad-input) !important; height: var(--h-print-ipad-input) !important; }
   .yn-group .yn-label    { min-height: var(--h-print-ipad-yn-label) !important; height: var(--h-print-ipad-yn-label) !important; line-height: var(--h-print-ipad-yn-label) !important; }
   .field-row             { min-height: var(--h-print-ipad-field-row) !important; }
-  /* Keep Estimate Date + Time on one line — prevent stacking */
-  .field-row:has(#est_date) { flex-wrap: nowrap !important; overflow: hidden !important; }
-  .field-row:has(#est_date) input[type="date"] { min-width: 110px !important; width: 110px !important; flex-shrink: 1 !important; }
-  .field-row:has(#est_date) #est_time { min-width: 50px !important; width: 50px !important; flex-shrink: 1 !important; }
-  /* Keep Today's Date on one line */
-  .field-row:has(#today) { flex-wrap: nowrap !important; }
-  .field-row:has(#today) input[type="date"] { min-width: 110px !important; width: 110px !important; flex-shrink: 1 !important; }
+  /* Keep all date field rows on one line — Safari-safe ID-based rules */
+  #today          { min-width: 110px !important; width: 110px !important; flex-shrink: 1 !important; }
+  #est_date       { min-width: 110px !important; width: 110px !important; flex-shrink: 1 !important; }
+  #est_time       { min-width: 50px !important;  width: 50px !important;  flex-shrink: 1 !important; }
+  #est_done_on    { min-width: 110px !important; width: 110px !important; flex-shrink: 1 !important; }
+  .date-row       { flex-wrap: nowrap !important; }
   .inline-row            { min-height: var(--h-print-ipad-inline-row) !important; }
   .gas-appliances-label  { font-size: var(--fs-print-ipad-gas-label) !important; }
   .gas-appliances-box    { padding: var(--pd-print-ipad-gas-box) !important; }
@@ -1462,7 +1461,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
         <div class="field-row"><label for="hoa">Community/HOA</label><input type="text" id="hoa" name="hoa" title="Community or HOA name — e.g. Cape Coral Estates" class="long" autocomplete="off" aria-label="Community or HOA name"></div>
         <div class="field-row"><label for="phone">Phone #</label><input type="tel" id="phone" name="phone" title="Best contact phone number — e.g. 239-555-0100" class="long" autocomplete="tel" aria-label="Phone number" pattern="[0-9\-\(\)\s]*"></div>
         <div class="field-row"><label for="email">Best Email</label><input type="email" id="email" name="email" title="Best email address for sending the estimate" class="long" autocomplete="email" aria-label="Email address"></div>
-        <div class="field-row"><label for="today">Today's Date</label><input type="date" id="today" name="today" title="Today's date — auto-filled on load" class="med" autocomplete="off" aria-label="Today's date"></div>
+        <div class="field-row date-row"><label for="today">Today's Date</label><input type="date" id="today" name="today" title="Today's date — auto-filled on load" class="med" autocomplete="off" aria-label="Today's date"></div>
       </div>
 
       <div class="top-col">
@@ -1492,7 +1491,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
           </fieldset>
         </div>
         <hr class="divider">
-        <div class="field-row">
+        <div class="field-row date-row">
           <label for="est_date">Estimate Date</label><input type="date" id="est_date" name="est_date" title="Date of the estimate appointment" class="med" autocomplete="off" aria-label="Estimate date">
           <label for="est_time">Time</label><input type="text" id="est_time" name="est_time" title="Appointment time window — e.g. 10-11 or 2pm" class="short" placeholder="10-11" autocomplete="off" aria-label="Estimate time">
         </div>
