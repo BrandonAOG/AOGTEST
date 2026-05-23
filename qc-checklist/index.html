@@ -1668,34 +1668,19 @@ function printForm() {
     ].join('\n');
 
 
-    // Wait for viewport reflow then inject styles and print
-    setTimeout(function() {
+    // Force layout commit immediately after viewport change
+    void document.getElementById('page1').getBoundingClientRect();
+    void document.getElementById('page2').getBoundingClientRect();
 
-      // Force layout commit
-      void document.getElementById('page1').getBoundingClientRect();
-      void document.getElementById('page2').getBoundingClientRect();
+    document.head.appendChild(fix);
 
-      document.head.appendChild(fix);
+    // Hide continued title
+    var ct = document.getElementById('doc-title-continued');
+    if (ct) ct.style.setProperty('display', 'none', 'important');
 
-      // Hide continued title
-      var ct = document.getElementById('doc-title-continued');
-      if (ct) ct.style.setProperty('display', 'none', 'important');
-
-      requestAnimationFrame(function() {
-        window.print();
-
-        // After print dialog opens, force WebKit to re-composite the print layer
-        // by making a trivial style mutation 100ms later while dialog is open
-        setTimeout(function() {
-          // Toggle a harmless property — forces Safari to invalidate + re-render
-          // the print preview from the now-fully-settled layout
-          document.body.style.webkitTransform = 'translateZ(0)';
-          requestAnimationFrame(function() {
-            document.body.style.webkitTransform = '';
-          });
-        }, 100);
-      });
-    }, 300);
+    requestAnimationFrame(function() {
+      window.print();
+    });
 
     // Detect when print dialog closes
     var wentHidden = false;
