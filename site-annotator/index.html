@@ -1447,14 +1447,18 @@ function onDown(e){
     var sp=snapPt(getPos(e).x,getPos(e).y);
     var sh=getHandleAt(sp.x,sp.y);
     if(sh>=0){
-      // Start transform on handle
       e.preventDefault();
       selHandle=sh;
-      selDragStart={x:sp.x,y:sp.y,
-        shape:{type:selectedShape.type,cx:selectedShape.cx,cy:selectedShape.cy,
+      var snapObj={type:selectedShape.type,cx:selectedShape.cx,cy:selectedShape.cy,
                w:selectedShape.w,h:selectedShape.h,angle:selectedShape.angle,
                color:selectedShape.color,strokeW:selectedShape.strokeW,
-               opacity:selectedShape.opacity,fill:selectedShape.fill,lineStyle:selectedShape.lineStyle}};
+               opacity:selectedShape.opacity,fill:selectedShape.fill,lineStyle:selectedShape.lineStyle};
+      // For rotation handles (8-11): store initial angle offset so shape doesn't jump
+      var rotOff=0;
+      if(sh>=8){
+        rotOff=Math.atan2(sp.y-selectedShape.cy, sp.x-selectedShape.cx)-selectedShape.angle;
+      }
+      selDragStart={x:sp.x,y:sp.y,shape:snapObj,rotAngleOffset:rotOff};
       return;
     }
     if(isInsideShape(selectedShape,sp.x,sp.y)){
@@ -1501,9 +1505,10 @@ function onMove(e){
       // Move
       selectedShape.cx=orig.cx+(tp.x-selDragStart.x);
       selectedShape.cy=orig.cy+(tp.y-selDragStart.y);
-    } else if(selHandle===8){
-      // Rotate — angle from center to mouse, offset by 90°
-      selectedShape.angle=Math.atan2(tp.y-selectedShape.cy, tp.x-selectedShape.cx)+Math.PI/2;
+    } else if(selHandle>=8){
+      // Rotate from any corner — use stored angle offset so shape doesn't jump
+      var rawA=Math.atan2(tp.y-selectedShape.cy, tp.x-selectedShape.cx);
+      selectedShape.angle=rawA-selDragStart.rotAngleOffset;
     } else {
       // Resize — work in local coordinate space
       var cos=Math.cos(-orig.angle), sin=Math.sin(-orig.angle);
@@ -2136,44 +2141,50 @@ function commitText(){
 
 // ══════════════════════════════════════════════════════════════
 // SHAPE SELECTION & TRANSFORM SYSTEM
-// After drawing a rect or ellipse, the shape enters "selected" mode.
-// It is held as a vector object (not burned to pixels) until committed.
-// 8 resize handles + 1 rotation handle allow full transform.
+// Handles: 0-7 resize (corners+edges), 8-11 rotate (all 4 corners)
 // ══════════════════════════════════════════════════════════════
 
-var selectedShape = null; // {type,cx,cy,w,h,angle,color,strokeW,opacity,fill,lineStyle}
-var selHandle     = -1;   // -1=none, 0-7=resize, 8=rotate, -2=move
-var selDragStart  = null; // snapshot at drag start
+var selectedShape = null;
+var selHandle     = -1;   // -1=none, 0-7=resize, 8-11=rotate, -2=move
+var selDragStart  = null;
 
-// ── Handle layout (local space, relative to shape center) ──
-// 0=TL 1=TC 2=TR 3=MR 4=BR 5=BC 6=BL 7=ML  8=ROTATE
-var HANDLE_SIZE   = 9;   // px on screen (scaled by zoom)
-var ROTATE_OFFSET = 28;  // px above top-center on screen
+var HANDLE_SIZE   = 9;
+var ROT_OFFSET    = 22;  // px from corner to rotation handle (screen space)
+var ROT_COLOR     = '#db2777'; // deep pink — visible on white backgrounds
 
+// ── Handle positions ────────────────────────────────────────
+// 0=TL 1=TC 2=TR 3=MR 4=BR 5=BC 6=BL 7=ML (resize)
+// 8=TL-rot 9=TR-rot 10=BR-rot 11=BL-rot  (rotate, outside corners)
 function getHandlePositions(s){
   var hw=s.w/2, hh=s.h/2;
-  var rotOff = ROTATE_OFFSET / zoom;
+  var ro=ROT_OFFSET/zoom;
   var local=[
-    {x:-hw,y:-hh},{x:0,y:-hh},{x:hw,y:-hh},
-    {x:hw,y:0},
-    {x:hw,y:hh},{x:0,y:hh},{x:-hw,y:hh},
-    {x:-hw,y:0},
-    {x:0,y:-hh-rotOff} // rotation handle
+    {x:-hw, y:-hh}, {x:0, y:-hh}, {x:hw, y:-hh},   // 0 1 2
+    {x:hw,  y:0},                                      // 3
+    {x:hw,  y:hh},  {x:0, y:hh},  {x:-hw, y:hh},    // 4 5 6
+    {x:-hw, y:0},                                      // 7
+    // Rotation handles at 4 corners, offset diagonally outward
+    {x:-hw-ro, y:-hh-ro},  // 8 TL-rot
+    {x: hw+ro, y:-hh-ro},  // 9 TR-rot
+    {x: hw+ro, y: hh+ro},  // 10 BR-rot
+    {x:-hw-ro, y: hh+ro},  // 11 BL-rot
   ];
   var cos=Math.cos(s.angle), sin=Math.sin(s.angle);
   return local.map(function(p){
-    return {
-      x: s.cx + p.x*cos - p.y*sin,
-      y: s.cy + p.x*sin + p.y*cos
-    };
+    return {x:s.cx+p.x*cos-p.y*sin, y:s.cy+p.x*sin+p.y*cos};
   });
 }
 
 function getHandleAt(x,y){
   if(!selectedShape) return -1;
   var handles=getHandlePositions(selectedShape);
-  var hitR=(HANDLE_SIZE+4)/zoom;
-  for(var i=handles.length-1;i>=0;i--){
+  var hitR=(HANDLE_SIZE+5)/zoom;
+  // Check rotation handles first (8-11) — they're further out so check before resize
+  for(var i=8;i<=11;i++){
+    if(Math.hypot(x-handles[i].x,y-handles[i].y)<hitR) return i;
+  }
+  // Then resize handles
+  for(var i=0;i<=7;i++){
     if(Math.hypot(x-handles[i].x,y-handles[i].y)<hitR) return i;
   }
   return -1;
@@ -2183,105 +2194,106 @@ function isInsideShape(s,x,y){
   var cos=Math.cos(-s.angle),sin=Math.sin(-s.angle);
   var lx=(x-s.cx)*cos-(y-s.cy)*sin;
   var ly=(x-s.cx)*sin+(y-s.cy)*cos;
-  if(s.type==='rect')    return Math.abs(lx)<=s.w/2+4/zoom && Math.abs(ly)<=s.h/2+4/zoom;
+  if(s.type==='rect')    return Math.abs(lx)<=s.w/2+4/zoom&&Math.abs(ly)<=s.h/2+4/zoom;
   if(s.type==='ellipse') return (lx/(s.w/2+4/zoom))*(lx/(s.w/2+4/zoom))+(ly/(s.h/2+4/zoom))*(ly/(s.h/2+4/zoom))<=1;
   return false;
 }
 
+// ── Render selection overlay ────────────────────────────────
 function renderSelection(){
   if(!selectedShape){
-    // Shrink sel-cv back to 1×1 to free the ~33MB GPU buffer
-    if(selCv.width > 1){ selCv.width=1; selCv.height=1; }
-    return;
+    if(selCv.width>1){ selCv.width=1; selCv.height=1; } return;
   }
-  // Expand sel-cv to match canvas only when a shape is being transformed
-  if(selCv.width !== drawCv.width || selCv.height !== drawCv.height){
-    selCv.width  = drawCv.width;
-    selCv.height = drawCv.height;
+  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
+    selCv.width=drawCv.width; selCv.height=drawCv.height;
   }
   selCtx.clearRect(0,0,selCv.width,selCv.height);
-  var s=selectedShape;
-  var lw=1.5/zoom;
+  var s=selectedShape, lw=1.5/zoom;
 
+  // Shape preview
   selCtx.save();
-  selCtx.translate(s.cx,s.cy);
-  selCtx.rotate(s.angle);
-
-  // ── Shape outline preview ──
-  selCtx.strokeStyle='#00D4FF';
-  selCtx.lineWidth=s.strokeW;
+  selCtx.translate(s.cx,s.cy); selCtx.rotate(s.angle);
+  selCtx.strokeStyle=s.color; selCtx.lineWidth=s.strokeW;
   selCtx.globalAlpha=s.opacity;
   if(s.lineStyle==='dashed') selCtx.setLineDash([s.strokeW*4,s.strokeW*3]);
   else if(s.lineStyle==='dotted') selCtx.setLineDash([s.strokeW,s.strokeW*2.5]);
   else selCtx.setLineDash([]);
   selCtx.fillStyle=s.color;
-
   if(s.type==='rect'){
-    if(s.fill){ selCtx.globalAlpha=s.opacity*0.25; selCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h); selCtx.globalAlpha=s.opacity; }
+    if(s.fill){selCtx.globalAlpha=s.opacity*.25;selCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);selCtx.globalAlpha=s.opacity;}
     selCtx.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
   } else if(s.type==='ellipse'){
-    selCtx.beginPath(); selCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
-    if(s.fill){ selCtx.globalAlpha=s.opacity*0.25; selCtx.fill(); selCtx.globalAlpha=s.opacity; }
+    selCtx.beginPath();selCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
+    if(s.fill){selCtx.globalAlpha=s.opacity*.25;selCtx.fill();selCtx.globalAlpha=s.opacity;}
     selCtx.stroke();
   }
   selCtx.restore();
 
-  // ── Selection border (dashed cyan) ──
+  // Dashed bounding box
   selCtx.save();
-  selCtx.translate(s.cx,s.cy);
-  selCtx.rotate(s.angle);
+  selCtx.translate(s.cx,s.cy); selCtx.rotate(s.angle);
   selCtx.strokeStyle='rgba(0,212,255,0.8)';
-  selCtx.lineWidth=lw;
-  selCtx.setLineDash([4/zoom,3/zoom]);
-  selCtx.globalAlpha=1;
+  selCtx.lineWidth=lw; selCtx.setLineDash([4/zoom,3/zoom]); selCtx.globalAlpha=1;
   var pad=6/zoom;
-  if(s.type==='rect')    selCtx.strokeRect(-s.w/2-pad,-s.h/2-pad,s.w+pad*2,s.h+pad*2);
-  else if(s.type==='ellipse'){
-    selCtx.beginPath(); selCtx.ellipse(0,0,s.w/2+pad,s.h/2+pad,0,0,Math.PI*2); selCtx.stroke();
-  }
+  if(s.type==='rect') selCtx.strokeRect(-s.w/2-pad,-s.h/2-pad,s.w+pad*2,s.h+pad*2);
+  else{selCtx.beginPath();selCtx.ellipse(0,0,s.w/2+pad,s.h/2+pad,0,0,Math.PI*2);selCtx.stroke();}
   selCtx.restore();
 
-  // ── Draw rotation connector line ──
+  // Draw all handles
   var handles=getHandlePositions(s);
-  selCtx.save();
-  selCtx.strokeStyle='rgba(0,212,255,0.5)';
-  selCtx.lineWidth=lw;
-  selCtx.setLineDash([2/zoom,2/zoom]);
-  selCtx.globalAlpha=1;
-  selCtx.beginPath();
-  selCtx.moveTo(handles[1].x,handles[1].y);
-  selCtx.lineTo(handles[8].x,handles[8].y);
-  selCtx.stroke();
-  selCtx.restore();
-
-  // ── Draw handles ──
   var hs=HANDLE_SIZE/zoom;
-  selCtx.setLineDash([]);
-  selCtx.globalAlpha=1;
-  handles.forEach(function(h,i){
+  selCtx.setLineDash([]); selCtx.globalAlpha=1;
+
+  // Resize handles 0-7
+  for(var i=0;i<=7;i++){
+    var h=handles[i];
     selCtx.save();
-    if(i===8){
-      // Rotation handle — gold circle
-      selCtx.beginPath(); selCtx.arc(h.x,h.y,hs*0.65,0,Math.PI*2);
-      selCtx.fillStyle='#FBBF24'; selCtx.strokeStyle='#fff';
-      selCtx.lineWidth=lw*1.5; selCtx.fill(); selCtx.stroke();
-      // draw a rotation arrow icon inside
-      selCtx.strokeStyle='#0a0e27'; selCtx.lineWidth=lw;
-      selCtx.beginPath();
-      var ar=hs*0.35;
-      selCtx.arc(h.x,h.y,ar,Math.PI*0.2,Math.PI*1.8,false);
-      selCtx.stroke();
-    } else {
-      // Resize handle — white rounded square
-      var corner=hs*0.25;
-      selCtx.fillStyle='#fff'; selCtx.strokeStyle='#00D4FF';
-      selCtx.lineWidth=lw*1.5;
-      selCtx.beginPath();
-      selCtx.roundRect(h.x-hs/2,h.y-hs/2,hs,hs,corner);
-      selCtx.fill(); selCtx.stroke();
-    }
+    selCtx.fillStyle='#fff'; selCtx.strokeStyle='#00D4FF';
+    selCtx.lineWidth=lw*1.5;
+    selCtx.beginPath();
+    if(selCtx.roundRect) selCtx.roundRect(h.x-hs/2,h.y-hs/2,hs,hs,hs*.25);
+    else selCtx.rect(h.x-hs/2,h.y-hs/2,hs,hs);
+    selCtx.fill(); selCtx.stroke();
     selCtx.restore();
-  });
+  }
+
+  // Rotation handles 8-11 — deep pink circles with curved arrow
+  for(var i=8;i<=11;i++){
+    var h=handles[i];
+    var r=hs*0.7;
+    // Connector line from bounding-box corner to rotation handle
+    var cornerIdx=[0,2,4,6][i-8];
+    var corner=handles[cornerIdx];
+    selCtx.save();
+    selCtx.strokeStyle='rgba(219,39,119,0.4)';
+    selCtx.lineWidth=lw; selCtx.setLineDash([2/zoom,2/zoom]);
+    selCtx.beginPath(); selCtx.moveTo(corner.x,corner.y); selCtx.lineTo(h.x,h.y);
+    selCtx.stroke();
+    selCtx.restore();
+    // Circle
+    selCtx.save();
+    selCtx.fillStyle=ROT_COLOR; selCtx.strokeStyle='#fff';
+    selCtx.lineWidth=lw*1.5; selCtx.setLineDash([]);
+    selCtx.shadowColor=ROT_COLOR; selCtx.shadowBlur=6/zoom;
+    selCtx.beginPath(); selCtx.arc(h.x,h.y,r,0,Math.PI*2);
+    selCtx.fill(); selCtx.stroke();
+    // Curved arrow inside
+    selCtx.strokeStyle='#fff'; selCtx.lineWidth=lw*1.2;
+    selCtx.shadowBlur=0;
+    var ar=r*.55;
+    selCtx.beginPath(); selCtx.arc(h.x,h.y,ar,Math.PI*.15,Math.PI*1.85,false); selCtx.stroke();
+    // Arrowhead at end of arc
+    var endAngle=Math.PI*1.85;
+    var ax=h.x+ar*Math.cos(endAngle), ay=h.y+ar*Math.sin(endAngle);
+    var perpA=endAngle+Math.PI/2, aw=ar*.45;
+    selCtx.beginPath();
+    selCtx.moveTo(ax,ay);
+    selCtx.lineTo(ax-aw*Math.cos(perpA-Math.PI*.35),ay-aw*Math.sin(perpA-Math.PI*.35));
+    selCtx.moveTo(ax,ay);
+    selCtx.lineTo(ax-aw*Math.cos(perpA+Math.PI*.35),ay-aw*Math.sin(perpA+Math.PI*.35));
+    selCtx.stroke();
+    selCtx.restore();
+  }
 }
 
 function commitSelection(){
@@ -2289,8 +2301,7 @@ function commitSelection(){
   var s=selectedShape;
   var lc=lctx();
   lc.save();
-  lc.translate(s.cx,s.cy);
-  lc.rotate(s.angle);
+  lc.translate(s.cx,s.cy); lc.rotate(s.angle);
   lc.strokeStyle=s.color; lc.fillStyle=s.color;
   lc.lineWidth=s.strokeW; lc.lineCap='round'; lc.lineJoin='round';
   lc.globalAlpha=s.opacity;
@@ -2298,16 +2309,15 @@ function commitSelection(){
   else if(s.lineStyle==='dotted') lc.setLineDash([s.strokeW,s.strokeW*2.5]);
   else lc.setLineDash([]);
   if(s.type==='rect'){
-    if(s.fill){ lc.globalAlpha=s.opacity*0.25; lc.fillRect(-s.w/2,-s.h/2,s.w,s.h); lc.globalAlpha=s.opacity; }
+    if(s.fill){lc.globalAlpha=s.opacity*.25;lc.fillRect(-s.w/2,-s.h/2,s.w,s.h);lc.globalAlpha=s.opacity;}
     lc.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
   } else if(s.type==='ellipse'){
-    lc.beginPath(); lc.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
-    if(s.fill){ lc.globalAlpha=s.opacity*0.25; lc.fill(); lc.globalAlpha=s.opacity; }
+    lc.beginPath();lc.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
+    if(s.fill){lc.globalAlpha=s.opacity*.25;lc.fill();lc.globalAlpha=s.opacity;}
     lc.stroke();
   }
   lc.restore(); lc.globalAlpha=1; lc.setLineDash([]);
   selectedShape=null; selHandle=-1; selDragStart=null;
-  // Shrink sel-cv back to 1×1 immediately to free the GPU buffer
   selCv.width=1; selCv.height=1;
   composite(); pushUndo();
 }
@@ -2318,26 +2328,24 @@ function cancelSelection(){
   composite();
 }
 
-// ── Cursor for handles ──
-var HANDLE_CURSORS=['nw-resize','n-resize','ne-resize','e-resize','se-resize','s-resize','sw-resize','w-resize','grab'];
+// Resize / rotate cursors for each handle
+var HANDLE_CURSORS=['nw-resize','n-resize','ne-resize','e-resize',
+                    'se-resize','s-resize','sw-resize','w-resize',
+                    'grab','grab','grab','grab']; // 8-11 = rotate
+
 function updateSelCursor(x,y){
   if(!selectedShape){ drawCv.style.cursor='crosshair'; return; }
   var h=getHandleAt(x,y);
-  if(h===8){ drawCv.style.cursor='grab'; return; }
   if(h>=0){ drawCv.style.cursor=HANDLE_CURSORS[h]; return; }
   if(isInsideShape(selectedShape,x,y)){ drawCv.style.cursor='move'; return; }
   drawCv.style.cursor='crosshair';
 }
 
-// Override drawCv mousemove to update cursor when selection is active
 drawCv.addEventListener('mousemove',function(e){
   var p=getPos(e);
-  if(tool==='text' && !_txtCursorActive && baseLoaded){
-    showTextHover(p.x,p.y);
-  } else if(tool!=='text'){
-    clearTextHover();
-  }
-  if(selectedShape && selHandle===-1){ updateSelCursor(p.x,p.y); }
+  if(tool==='text'&&!_txtCursorActive&&baseLoaded){ showTextHover(p.x,p.y); }
+  else if(tool!=='text'){ clearTextHover(); }
+  if(selectedShape&&selHandle===-1){ updateSelCursor(p.x,p.y); }
 },{passive:true});
 
 // ══════════════════════════════════════════════════════════════
