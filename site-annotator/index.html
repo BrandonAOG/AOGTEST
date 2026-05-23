@@ -730,6 +730,7 @@ body{display:flex;flex-direction:column;}
       <div class="sc-row"><span class="sc-desc">Fit to screen</span><span class="sc-key">Ctrl+0</span></div>
       <div class="sc-row"><span class="sc-desc">Pan (hold)</span><span class="sc-key">Space</span></div>
       <div class="sc-row"><span class="sc-desc">Close polygon</span><span class="sc-key">Esc</span></div>
+      <div class="sc-row"><span class="sc-desc">Hold to delete</span><span class="sc-key">600ms hold</span></div>
       <div class="sc-row"><span class="sc-desc">Shortcuts</span><span class="sc-key">?</span></div>
     </div>
     <button id="shortcuts-close">Close</button>
@@ -951,17 +952,20 @@ function lctx(){ return layers[activeLayerIdx].ctx; }
 // ── PRE-OPERATION SNAPSHOT ──────────────────────────────────
 // captureState() is called BEFORE any operation changes state.
 // pushUndo() commits that pre-op snapshot to the undo stack.
+// ALL layers are snapshotted so undo works globally across layers.
 var _preOp = null;
 
 function captureState(){
-  var lc=layers[activeLayerIdx];
-  if(!lc||!lc.canvas.width||!lc.canvas.height){ _preOp=null; return; }
   try{
+    var snaps=layers.map(function(l){
+      if(!l.canvas.width||!l.canvas.height) return null;
+      return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
+    });
     _preOp={
-      idx:       activeLayerIdx,
-      data:      lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
-      textObjs:  JSON.parse(JSON.stringify(textObjs)),
-      shapeObjs: JSON.parse(JSON.stringify(shapeObjs))
+      layerData:  snaps,
+      activeIdx:  activeLayerIdx,
+      textObjs:   JSON.parse(JSON.stringify(textObjs)),
+      shapeObjs:  JSON.parse(JSON.stringify(shapeObjs))
     };
   }catch(ex){ _preOp=null; }
 }
@@ -971,15 +975,18 @@ function pushUndo(){
     var snap=_preOp;
     _preOp=null;
     if(!snap){
-      // Fallback if captureState wasn't called first (e.g. clearFn)
-      var lc=layers[activeLayerIdx];
-      if(!lc||!lc.canvas.width||!lc.canvas.height) return;
-      snap={
-        idx:       activeLayerIdx,
-        data:      lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
-        textObjs:  JSON.parse(JSON.stringify(textObjs)),
-        shapeObjs: JSON.parse(JSON.stringify(shapeObjs))
-      };
+      // Fallback: snapshot everything now
+      try{
+        snap={
+          layerData: layers.map(function(l){
+            if(!l.canvas.width||!l.canvas.height) return null;
+            return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
+          }),
+          activeIdx:  activeLayerIdx,
+          textObjs:   JSON.parse(JSON.stringify(textObjs)),
+          shapeObjs:  JSON.parse(JSON.stringify(shapeObjs))
+        };
+      }catch(ex2){ return; }
     }
     undoStack.push(snap);
     if(undoStack.length>MAX_UNDO) undoStack.shift();
@@ -989,33 +996,49 @@ function pushUndo(){
 }
 
 function applySnap(snap){
-  // Legacy format (array) used by doRestore; new format (object) used by undo/redo
+  // New format: {layerData:[...], activeIdx, textObjs, shapeObjs}
+  // Legacy format (array of ImageData) used by very old saves
   if(Array.isArray(snap)){
     snap.forEach(function(d,i){ if(layers[i]&&d){ layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); layers[i].ctx.putImageData(d,0,0); } });
+  } else if(snap&&snap.layerData){
+    snap.layerData.forEach(function(d,i){
+      if(layers[i]&&d){ layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); try{ layers[i].ctx.putImageData(d,0,0); }catch(ex){} }
+    });
   } else if(snap&&snap.idx!=null&&snap.data){
+    // Old single-layer format
     var lc=layers[snap.idx];
     if(lc){ lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height); lc.ctx.putImageData(snap.data,0,0); }
   }
   composite();
 }
 
+function _snapCurrentState(){
+  return {
+    layerData: layers.map(function(l){
+      if(!l.canvas.width||!l.canvas.height) return null;
+      try{ return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height); }catch(ex){ return null; }
+    }),
+    activeIdx:  activeLayerIdx,
+    textObjs:   JSON.parse(JSON.stringify(textObjs)),
+    shapeObjs:  JSON.parse(JSON.stringify(shapeObjs))
+  };
+}
+
 function undoFn(){
   if(!undoStack.length) return;
   try{
     var snap=undoStack.pop();
-    var lc=layers[snap.idx];
-    if(!lc) return;
-    // Save current state (with shapes+text) to redo stack
-    redoStack.push({
-      idx:       snap.idx,
-      data:      lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
-      textObjs:  JSON.parse(JSON.stringify(textObjs)),
-      shapeObjs: JSON.parse(JSON.stringify(shapeObjs))
-    });
+    // Save current state to redo stack
+    redoStack.push(_snapCurrentState());
     if(redoStack.length>MAX_UNDO) redoStack.shift();
     // Restore pre-op state
-    lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height);
-    lc.ctx.putImageData(snap.data,0,0);
+    if(snap.layerData){
+      snap.layerData.forEach(function(d,i){
+        if(layers[i]&&d){ layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); try{ layers[i].ctx.putImageData(d,0,0); }catch(ex){} }
+      });
+    } else if(snap.idx!=null&&snap.data){
+      var lc=layers[snap.idx]; if(lc){ lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height); lc.ctx.putImageData(snap.data,0,0); }
+    }
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; renderTextObjs(); }
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
     composite();
@@ -1026,17 +1049,15 @@ function redoFn(){
   if(!redoStack.length) return;
   try{
     var snap=redoStack.pop();
-    var lc=layers[snap.idx];
-    if(!lc) return;
-    undoStack.push({
-      idx:       snap.idx,
-      data:      lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
-      textObjs:  JSON.parse(JSON.stringify(textObjs)),
-      shapeObjs: JSON.parse(JSON.stringify(shapeObjs))
-    });
+    undoStack.push(_snapCurrentState());
     if(undoStack.length>MAX_UNDO) undoStack.shift();
-    lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height);
-    lc.ctx.putImageData(snap.data,0,0);
+    if(snap.layerData){
+      snap.layerData.forEach(function(d,i){
+        if(layers[i]&&d){ layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); try{ layers[i].ctx.putImageData(d,0,0); }catch(ex){} }
+      });
+    } else if(snap.idx!=null&&snap.data){
+      var lc=layers[snap.idx]; if(lc){ lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height); lc.ctx.putImageData(snap.data,0,0); }
+    }
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; renderTextObjs(); }
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
     composite();
@@ -1679,36 +1700,21 @@ function previewShape(ctx,x1,y1,x2,y2){
 }
 
 function drawFinalShape(ctx,x1,y1,x2,y2,isTouch){
-  // rect/ellipse/cloud: on touch → enter selection/transform mode so user can reposition.
-  // On desktop (mouse) → commit immediately so there's no delay.
+  // rect/ellipse/cloud: always enter selection/transform mode after drawing.
+  // User can then move, resize, rotate, or click elsewhere to commit.
+  // Consistent on both touch and desktop — prevents disappear on re-edit.
   if(tool==='rect'||tool==='ellipse'||tool==='cloud'){
-    if(isTouch){
-      selectedShape={
-        type:tool,
-        cx:(x1+x2)/2, cy:(y1+y2)/2,
-        w:Math.max(4,Math.abs(x2-x1)), h:Math.max(4,Math.abs(y2-y1)),
-        angle:0,
-        color:color, strokeW:strokeW, opacity:opacity,
-        fill:fillShape, lineStyle:lineStyle
-      };
-      selHandle=-1; selDragStart=null;
-      renderSelection();
-      return; // don't commit yet — let user position then tap Enter/elsewhere
-    } else {
-      // Desktop: commit straight to shapeObjs
-      shapeObjs.push({
-        id:Date.now(),
-        type:tool,
-        cx:(x1+x2)/2, cy:(y1+y2)/2,
-        w:Math.max(4,Math.abs(x2-x1)), h:Math.max(4,Math.abs(y2-y1)),
-        angle:0,
-        color:color, strokeW:strokeW, opacity:opacity,
-        fill:fillShape, lineStyle:lineStyle,
-        layerIdx:activeLayerIdx
-      });
-      renderShapeObjs(); composite();
-      return;
-    }
+    selectedShape={
+      type:tool,
+      cx:(x1+x2)/2, cy:(y1+y2)/2,
+      w:Math.max(4,Math.abs(x2-x1)), h:Math.max(4,Math.abs(y2-y1)),
+      angle:0,
+      color:color, strokeW:strokeW, opacity:opacity,
+      fill:fillShape, lineStyle:lineStyle
+    };
+    selHandle=-1; selDragStart=null;
+    renderSelection();
+    return; // don't commit yet — click elsewhere or press Enter/Esc to commit
   }
   setupCtx(ctx);
   drawShapeOnCtx(ctx,tool,x1,y1,x2,y2,true);
@@ -2330,7 +2336,10 @@ if(window.visualViewport){
 // Stop mousedown on the textarea from propagating to canvas handlers
 textOv.addEventListener('mousedown', function(e){ e.stopPropagation(); });
 textOv.addEventListener('keydown',function(e){
-  if(e.key==='Escape'){ textOv.style.display='none'; return; }
+  // Stop ALL propagation from the textarea — prevents document keydown
+  // handler from seeing Enter (which would call commitSelection and double the shape).
+  e.stopPropagation();
+  if(e.key==='Escape'){ commitText(); return; }
   if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); commitText(); }
 });
 
@@ -2651,19 +2660,125 @@ drawCv.addEventListener('mousemove',function(e){
 // ── CANVAS TOUCH EVENTS ──
 drawCv.addEventListener('touchstart',function(e){
   if(e.touches.length>=2){ e.preventDefault(); if(drawing){drawing=false;if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; return; }
+  holdStartTouch(e);
   onDown(e);
 },{passive:false});
 
-drawCv.addEventListener('touchmove',function(e){ if(e.touches.length>=2||pinching){ return; } onMove(e); },{passive:false});
-drawCv.addEventListener('touchend',function(e){ if(pinching) return; onUp(e); },{passive:false});
+drawCv.addEventListener('touchmove',function(e){ if(e.touches.length>=2||pinching){ return; } holdCancel(); onMove(e); },{passive:false});
+drawCv.addEventListener('touchend',function(e){ holdCancel(); if(pinching) return; onUp(e); },{passive:false});
 drawCv.addEventListener('mousedown', function(e){
   // When text tool active, prevent canvas from reclaiming focus after we give it to textOv
   if(tool==='text') e.preventDefault();
+  holdStartMouse(e);
   onDown(e);
 });
-drawCv.addEventListener('mousemove',onMove);
-drawCv.addEventListener('mouseup',onUp);
-drawCv.addEventListener('mouseleave',onUp);
+drawCv.addEventListener('mousemove',function(e){ holdCancel(); onMove(e); });
+drawCv.addEventListener('mouseup',function(e){ holdCancel(); onUp(e); });
+drawCv.addEventListener('mouseleave',function(e){ holdCancel(); onUp(e); });
+
+// ── HOLD-TO-DELETE ─────────────────────────────────────────────
+// Press and hold 600ms on any drawn item to delete it.
+// Works for: rect/ellipse/cloud (shapeObjs), text (textObjs).
+// Shows a red ripple ring as visual feedback during the hold.
+var _holdTimer   = null;
+var _holdRipple  = null;  // rAF loop id
+var _holdCx      = 0;     // canvas coords of hold
+var _holdCy      = 0;
+var _holdSx      = 0;     // screen coords for ripple
+var _holdSy      = 0;
+var _holdStart   = 0;
+var HOLD_MS      = 600;
+
+function holdStartTouch(e){
+  if(!baseLoaded||pinching) return;
+  var t=e.touches[0];
+  _holdSx=t.clientX; _holdSy=t.clientY;
+  var p=vpToCanvas(t.clientX,t.clientY);
+  _holdCx=p.x; _holdCy=p.y;
+  _holdStart=Date.now();
+  _holdTimer=setTimeout(function(){ holdFire(); },HOLD_MS);
+  startHoldRipple(_holdSx,_holdSy);
+}
+
+function holdStartMouse(e){
+  if(!baseLoaded||e.button!==0) return;
+  _holdSx=e.clientX; _holdSy=e.clientY;
+  var p=vpToCanvas(e.clientX,e.clientY);
+  _holdCx=p.x; _holdCy=p.y;
+  _holdStart=Date.now();
+  _holdTimer=setTimeout(function(){ holdFire(); },HOLD_MS);
+  startHoldRipple(_holdSx,_holdSy);
+}
+
+function holdCancel(){
+  clearTimeout(_holdTimer); _holdTimer=null;
+  stopHoldRipple();
+}
+
+function holdFire(){
+  _holdTimer=null;
+  stopHoldRipple();
+  if(!baseLoaded) return;
+  var x=_holdCx, y=_holdCy;
+
+  // 1. Shape objects (rect/ellipse/cloud)
+  var sHit=findShapeObjAt(x,y,true);
+  if(sHit){
+    captureState();
+    // If currently being edited, cancel selection first
+    if(editShapeObj===sHit){ cancelSelection(); }
+    shapeObjs=shapeObjs.filter(function(s){ return s!==sHit; });
+    renderShapeObjs(); composite(); pushUndo();
+    toast('Shape deleted','',1500);
+    drawing=false; // cancel any in-progress draw
+    return;
+  }
+
+  // 2. Text objects
+  var tHit=findTextObjAt(x,y);
+  if(tHit){
+    captureState();
+    if(editingObj===tHit){ commitText(); return; } // commitText handles delete of editing obj
+    textObjs=textObjs.filter(function(o){ return o!==tHit; });
+    renderTextObjs(); pushUndo();
+    toast('Text deleted','',1500);
+    drawing=false;
+    return;
+  }
+
+  // 3. Nothing found — inform user
+  toast('Hold on a shape or text to delete it','',2000);
+  drawing=false;
+}
+
+// Ripple animation — a red ring expanding from the hold point as a countdown cue
+function startHoldRipple(sx,sy){
+  _holdRipple=null; // will use requestAnimationFrame
+  var el=document.createElement('div');
+  el.id='_hold_ripple';
+  el.style.cssText='position:fixed;border-radius:50%;border:2.5px solid #ef4444;pointer-events:none;z-index:999;transform:translate(-50%,-50%);opacity:0.9;';
+  el.style.left=sx+'px'; el.style.top=sy+'px';
+  document.body.appendChild(el);
+  var t0=Date.now();
+  function frame(){
+    var el2=document.getElementById('_hold_ripple');
+    if(!el2) return;
+    var prog=Math.min(1,(Date.now()-t0)/HOLD_MS);
+    var sz=Math.round(20+prog*28);
+    el2.style.width=sz+'px'; el2.style.height=sz+'px';
+    el2.style.opacity=(0.9*(1-prog*0.4)).toFixed(2);
+    el2.style.borderColor=prog>0.7?'#b91c1c':'#ef4444';
+    if(prog<1) _holdRipple=requestAnimationFrame(frame);
+  }
+  _holdRipple=requestAnimationFrame(frame);
+}
+
+function stopHoldRipple(){
+  if(_holdRipple){ cancelAnimationFrame(_holdRipple); _holdRipple=null; }
+  var el=document.getElementById('_hold_ripple');
+  if(el) el.parentNode.removeChild(el);
+}
+// ── END HOLD-TO-DELETE ─────────────────────────────────────────
 
 // ── TOOL BUTTONS ──
 document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
