@@ -826,6 +826,8 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; transition: none !important; }
   body { background: #fff !important; }
   .action-bar, #save-status, #offline-banner { display: none !important; }
+  #meter-items, #meter-main-items { display: block !important; }
+  .meter-toggle-header span:last-child { display: none !important; }
   .wrapper { padding-top: 0 !important; gap: 0 !important; background: #fff !important; display: block !important; }
   .page {
     width: 100% !important; max-width: none !important;
@@ -1045,71 +1047,71 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
       </div>
     </div>
 
-    <!-- METER -->
-    <div class="section">
-      <div class="section-header">Meter</div>
-      <div class="check-item">
-        <span class="item-num">1.</span>
-        <span class="item-label">Check For Updated Grounding</span>
-        <div class="options">
-          <label class="opt check-solo"><input type="checkbox" name="meter_grnd" value="done"></label>
-          
-        </div>
-        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+    <!-- METER / METER MAIN (tap to toggle) -->
+    <div class="section" id="meter-section">
+      <div class="section-header meter-toggle-header" onclick="toggleMeterTab()" style="cursor:pointer; user-select:none; -webkit-user-select:none;">
+        <span id="meter-tab-label">Meter</span>
+        <span style="margin-left:auto; font-size:0.6em; opacity:0.7; letter-spacing:1px;">TAP TO SWITCH ⇄</span>
       </div>
-      <div class="check-item">
-        <span class="item-num">2.</span>
-        <span class="item-label">Check for ICB</span>
-        <div class="options">
-          <label class="opt check-solo"><input type="checkbox" name="meter_icb" value="done"></label>
-          
-        </div>
-        <input class="notes-line" type="text" placeholder="" autocomplete="off">
-      </div>
-    </div>
 
-    <!-- METER MAIN -->
-    <div class="section">
-      <div class="section-header">Meter Main</div>
-      <div class="check-item">
-        <span class="item-num">1.</span>
-        <span class="item-label">Check All Wire Connections</span>
-        <div class="options">
-          <label class="opt"><input type="checkbox" name="mm_wire" value="good"><span>Good</span></label>
-          <label class="opt"><input type="checkbox" name="mm_wire" value="bad"><span>Bad</span></label>
-          
+      <!-- METER items -->
+      <div id="meter-items">
+        <div class="check-item">
+          <span class="item-num">1.</span>
+          <span class="item-label">Check For Updated Grounding</span>
+          <div class="options">
+            <label class="opt check-solo"><input type="checkbox" name="meter_grnd" value="done"></label>
+          </div>
+          <input class="notes-line" type="text" placeholder="" autocomplete="off">
         </div>
-        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+        <div class="check-item">
+          <span class="item-num">2.</span>
+          <span class="item-label">Check for ICB</span>
+          <div class="options">
+            <label class="opt check-solo"><input type="checkbox" name="meter_icb" value="done"></label>
+          </div>
+          <input class="notes-line" type="text" placeholder="" autocomplete="off">
+        </div>
       </div>
-      <div class="check-item">
-        <span class="item-num">2.</span>
-        <span class="item-label">Check Conduit Penetrations</span>
-        <div class="options">
-          <label class="opt"><input type="checkbox" name="mm_conduit" value="good"><span>Good</span></label>
-          <label class="opt"><input type="checkbox" name="mm_conduit" value="bad"><span>Bad</span></label>
-          
+
+      <!-- METER MAIN items (hidden by default) -->
+      <div id="meter-main-items" style="display:none;">
+        <div class="check-item">
+          <span class="item-num">1.</span>
+          <span class="item-label">Check All Wire Connections</span>
+          <div class="options">
+            <label class="opt"><input type="checkbox" name="mm_wire" value="good"><span>Good</span></label>
+            <label class="opt"><input type="checkbox" name="mm_wire" value="bad"><span>Bad</span></label>
+          </div>
+          <input class="notes-line" type="text" placeholder="" autocomplete="off">
         </div>
-        <input class="notes-line" type="text" placeholder="" autocomplete="off">
-      </div>
-      <div class="check-item">
-        <span class="item-num">3.</span>
-        <span class="item-label">Check P-Taps</span>
-        <div class="options">
-          <label class="opt"><input type="checkbox" name="mm_ptaps" value="good"><span>Good</span></label>
-          <label class="opt"><input type="checkbox" name="mm_ptaps" value="bad"><span>Bad</span></label>
-          
+        <div class="check-item">
+          <span class="item-num">2.</span>
+          <span class="item-label">Check Conduit Penetrations</span>
+          <div class="options">
+            <label class="opt"><input type="checkbox" name="mm_conduit" value="good"><span>Good</span></label>
+            <label class="opt"><input type="checkbox" name="mm_conduit" value="bad"><span>Bad</span></label>
+          </div>
+          <input class="notes-line" type="text" placeholder="" autocomplete="off">
         </div>
-        <input class="notes-line" type="text" placeholder="" autocomplete="off">
-      </div>
-      <div class="check-item">
-        <span class="item-num">4.</span>
-        <span class="item-label">Vacuumed</span>
-        <div class="options">
-          <label class="opt"><input type="checkbox" name="mm_vac" value="yes"><span>Yes</span></label>
-          <label class="opt"><input type="checkbox" name="mm_vac" value="no"><span>No</span></label>
-          
+        <div class="check-item">
+          <span class="item-num">3.</span>
+          <span class="item-label">Check P-Taps</span>
+          <div class="options">
+            <label class="opt"><input type="checkbox" name="mm_ptaps" value="good"><span>Good</span></label>
+            <label class="opt"><input type="checkbox" name="mm_ptaps" value="bad"><span>Bad</span></label>
+          </div>
+          <input class="notes-line" type="text" placeholder="" autocomplete="off">
         </div>
-        <input class="notes-line" type="text" placeholder="" autocomplete="off">
+        <div class="check-item">
+          <span class="item-num">4.</span>
+          <span class="item-label">Vacuumed</span>
+          <div class="options">
+            <label class="opt"><input type="checkbox" name="mm_vac" value="yes"><span>Yes</span></label>
+            <label class="opt"><input type="checkbox" name="mm_vac" value="no"><span>No</span></label>
+          </div>
+          <input class="notes-line" type="text" placeholder="" autocomplete="off">
+        </div>
       </div>
     </div>
 
@@ -1440,6 +1442,32 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 </div><!-- /wrapper -->
 
 <script>
+
+// ── METER / METER MAIN TOGGLE ──
+var _meterTab = 'meter'; // 'meter' or 'meter-main'
+
+function toggleMeterTab() {
+  _meterTab = (_meterTab === 'meter') ? 'meter-main' : 'meter';
+  applyMeterTab();
+  saveDraft();
+}
+
+function applyMeterTab() {
+  var label    = document.getElementById('meter-tab-label');
+  var mItems   = document.getElementById('meter-items');
+  var mmItems  = document.getElementById('meter-main-items');
+  if (!label || !mItems || !mmItems) return;
+  if (_meterTab === 'meter-main') {
+    label.textContent   = 'Meter Main';
+    mItems.style.display  = 'none';
+    mmItems.style.display = '';
+  } else {
+    label.textContent   = 'Meter';
+    mItems.style.display  = '';
+    mmItems.style.display = 'none';
+  }
+}
+
 // ── SYNC PAGE 2 HEADER FIELDS FROM PAGE 1 ──
 function syncPage2() {
   var n = document.getElementById('cust_name');
@@ -1466,6 +1494,7 @@ function saveDraft() {
       if (data[key] === undefined) data[key] = el.value;
     }
   });
+  data['__meter_tab'] = _meterTab;
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch(e) {}
 }
 function restoreDraft() {
@@ -1483,6 +1512,7 @@ function restoreDraft() {
         el.value = data[key];
       }
     });
+    if (data['__meter_tab']) { _meterTab = data['__meter_tab']; applyMeterTab(); }
     syncPage2();
   } catch(e) {}
 }
