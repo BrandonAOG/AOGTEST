@@ -338,21 +338,17 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   --theme-dim:#4A5A7A;
 }
 
-/* ── ACTION BAR — matches spec viewer exactly ── */
+/* ── ACTION BAR ── */
 #aog-nav{
-  position:fixed;top:0;left:0;right:0;
-  z-index:99999;
+  flex-shrink:0;
   width:100%;
   background:var(--theme-bg-nav);
-  padding:4px 8px;
+  padding:max(4px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
   display:flex;gap:4px;flex-wrap:nowrap;align-items:center;
-  box-shadow:0 4px 18px rgba(0,0,0,0.4);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
   border-bottom:1px solid var(--theme-border);
   box-sizing:border-box;
-  /* Safe area for iOS notch/home-bar */
-  padding-top:max(4px, env(safe-area-inset-top));
-  padding-left:max(8px, env(safe-area-inset-left));
-  padding-right:max(8px, env(safe-area-inset-right));
+  z-index:200;
 }
 
 /* Action bar buttons — identical to spec viewer .ab-btn */
@@ -384,12 +380,14 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 
 /* Customer bar — second row */
 #customer-bar{
-  display:flex;align-items:center;gap:6px;padding:3px 8px;
+  flex-shrink:0;
+  width:100%;
+  display:flex;align-items:center;gap:6px;
+  padding:3px max(8px, env(safe-area-inset-right)) 3px max(8px, env(safe-area-inset-left));
   background:var(--theme-bg-nav);
   border-bottom:1px solid var(--theme-border);
-  flex-shrink:0;
-  padding-left:max(8px, env(safe-area-inset-left));
-  padding-right:max(8px, env(safe-area-inset-right));
+  box-sizing:border-box;
+  z-index:200;
 }
 #customer-bar label{
   font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;
@@ -466,8 +464,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 [data-theme="light"] .tb-btn:hover{background:#dde8ff;color:#1A2640;}
 [data-theme="light"] .tb-btn.active{background:rgba(217,119,6,0.15);border-color:#D97706;color:#D97706;}
 
-/* shift body down to make room for nav rows */
-body{display:flex;flex-direction:column;}
+/* body flex is already set in base styles */
 #toolbar{flex-shrink:0}
 
 @media(max-width:480px){
@@ -543,7 +540,8 @@ body{display:flex;flex-direction:column;}
   <button class="tb-btn" data-tool="rect"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/></svg><span class="lbl">Rect</span></button>
   <button class="tb-btn" data-tool="ellipse"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg><span class="lbl">Ellipse</span></button>
   <button class="tb-btn" data-tool="cloud"><svg viewBox="0 0 24 24"><path d="M3 18c0-2 1.5-3.5 3-3.5.3-2.5 2.5-4.5 5-4.5 2 0 3.8 1.1 4.7 2.8.2 0 .5-.1.8-.1 1.9 0 3.5 1.6 3.5 3.5 0 2-1.6 3.5-3.5 3.5H6C4.3 19.7 3 18.9 3 18z"/></svg><span class="lbl">Cloud</span></button>
-  <button class="tb-btn" data-tool="measure" title="Measure — draw a line to measure distance. Tap existing measure to edit endpoints."><svg viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="3"/><line x1="3" y1="21" x2="3" y2="17"/><line x1="21" y1="3" x2="17" y2="3"/><line x1="8" y1="16" x2="8" y2="13"/><line x1="13" y1="11" x2="16" y2="11"/></svg><span class="lbl">Measure</span></button>
+  <button class="tb-btn" data-tool="measure" title="Measure — draw a straight line to measure distance. Tap existing measure to edit endpoints."><svg viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="3"/><line x1="3" y1="21" x2="3" y2="17"/><line x1="21" y1="3" x2="17" y2="3"/><line x1="8" y1="16" x2="8" y2="13"/><line x1="13" y1="11" x2="16" y2="11"/></svg><span class="lbl">Measure</span></button>
+  <button class="tb-btn" data-tool="pathmeasure" title="Path Measure — click waypoints along a trench/run. Double-click to finish. Measures total curved distance."><svg viewBox="0 0 24 24"><path d="M3 20 Q8 8 12 12 Q16 16 21 4" fill="none"/><circle cx="3" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="4" r="1.5" fill="currentColor" stroke="none"/><line x1="3" y1="20" x2="3" y2="16"/><line x1="21" y1="4" x2="17" y2="4"/></svg><span class="lbl">Path&nbsp;Dist</span></button>
   <button class="tb-btn" data-tool="polygon"><svg viewBox="0 0 24 24"><polygon points="12,3 21,9 17,19 7,19 3,9"/></svg><span class="lbl">Area</span></button>
   <button class="tb-btn" data-tool="leader"><svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="14" y2="10"/><polyline points="14 4 14 10 8 10"/></svg><span class="lbl">Leader</span></button>
   <button class="tb-btn" data-tool="stamp" id="stamp-tool-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20h16v-2a8 8 0 0 0-16 0v2z"/></svg><span class="lbl">Stamp</span></button>
@@ -1055,7 +1053,8 @@ function captureState(){
       activeIdx:  activeLayerIdx,
       textObjs:   JSON.parse(JSON.stringify(textObjs)),
       shapeObjs:  JSON.parse(JSON.stringify(shapeObjs)),
-      measureObjs:JSON.parse(JSON.stringify(measureObjs))
+      measureObjs:JSON.parse(JSON.stringify(measureObjs)),
+      pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs))
     };
   }catch(ex){ _preOp=null; }
 }
@@ -1075,7 +1074,8 @@ function pushUndo(){
           activeIdx:  activeLayerIdx,
           textObjs:   JSON.parse(JSON.stringify(textObjs)),
           shapeObjs:  JSON.parse(JSON.stringify(shapeObjs)),
-          measureObjs:JSON.parse(JSON.stringify(measureObjs))
+          measureObjs:JSON.parse(JSON.stringify(measureObjs)),
+          pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs))
         };
       }catch(ex2){ return; }
     }
@@ -1112,7 +1112,8 @@ function _snapCurrentState(){
     activeIdx:  activeLayerIdx,
     textObjs:   JSON.parse(JSON.stringify(textObjs)),
     shapeObjs:  JSON.parse(JSON.stringify(shapeObjs)),
-    measureObjs:JSON.parse(JSON.stringify(measureObjs))
+    measureObjs:JSON.parse(JSON.stringify(measureObjs)),
+    pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs))
   };
 }
 
@@ -1134,6 +1135,8 @@ function undoFn(){
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; renderTextObjs(); }
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
     if(snap.measureObjs!==undefined){ measureObjs=snap.measureObjs; renderMeasureObjs(); }
+    if(snap.pathMeasureObjs!==undefined){ pathMeasureObjs=snap.pathMeasureObjs; }
+    renderShapeAndMeasure();
     composite();
   }catch(ex){ console.warn('undoFn failed:',ex); }
 }
@@ -1154,6 +1157,8 @@ function redoFn(){
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; renderTextObjs(); }
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
     if(snap.measureObjs!==undefined){ measureObjs=snap.measureObjs; renderMeasureObjs(); }
+    if(snap.pathMeasureObjs!==undefined){ pathMeasureObjs=snap.pathMeasureObjs; }
+    renderShapeAndMeasure();
     composite();
   }catch(ex){ console.warn('redoFn failed:',ex); }
 }
@@ -1169,6 +1174,7 @@ function clearFn(){
   shapeObjs = shapeObjs.filter(function(s){ return s.layerIdx!==activeLayerIdx; });
   textObjs  = textObjs.filter(function(obj){ return obj.layerIdx!==activeLayerIdx; });
   measureObjs = measureObjs.filter(function(m){ return m.layerIdx!==activeLayerIdx; });
+  pathMeasureObjs = pathMeasureObjs.filter(function(pm){ return pm.layerIdx!==activeLayerIdx; });
   // Cancel any in-progress selection on the cleared layer
   if(selectedShape){
     var tobj=selectedShape._textObj;
@@ -1514,6 +1520,7 @@ function afterLoad(){
   initLayers(baseCv.width,baseCv.height);
   undoStack=[]; redoStack=[]; textObjs=[]; editingObj=null; shapeObjs=[]; editShapeObj=null;
   measureObjs=[]; selectedMeasure=null; measureDragHandle=-1; measureDragStart=null;
+  pathMeasureObjs=[]; pmPoints=[]; pmActive=false;
   penPathPoints=[];
   tCtx.clearRect(0,0,tCv.width,tCv.height);
   shCtx.clearRect(0,0,shCv.width,shCv.height);
@@ -1673,6 +1680,7 @@ function onDown(e){
 
   if(tool==='text'){ handleText(e); return; }
   if(tool==='polygon'){ return; }
+  if(tool==='pathmeasure'){ return; }
   if(tool==='leader'){ return; }
   if(tool==='stamp'){ handleStamp(e); return; }
 
@@ -1728,13 +1736,9 @@ function onDown(e){
   compositedSnap=dCtx.getImageData(0,0,drawCv.width,drawCv.height);
   if(tool==='pen'||tool==='eraser'){
     var lc2=lctx();
-    // Start fresh path on BOTH the layer canvas AND the display canvas.
-    // Without this, dCtx.lineTo() connects to wherever the previous path
-    // ended, causing random lines across the screen.
     lc2.beginPath(); lc2.moveTo(startX,startY);
     dCtx.beginPath(); dCtx.moveTo(startX,startY);
     lastPenX=startX; lastPenY=startY;
-    if(tool==='pen') penPathPoints=[{x:startX,y:startY}];
   }
 }
 
@@ -1791,15 +1795,15 @@ function onMove(e){
   var p=snapPt(getPos(e).x,getPos(e).y); var x=p.x,y=p.y;
   var lc=lctx();
   if(tool==='pen'){
-    // Quadratic Bezier through midpoint for smooth curves
     var mx=(lastPenX+x)/2, my=(lastPenY+y)/2;
     setupCtx(lc); lc.quadraticCurveTo(lastPenX,lastPenY,mx,my); lc.stroke(); resetCtx(lc);
     setupCtx(dCtx); dCtx.quadraticCurveTo(lastPenX,lastPenY,mx,my); dCtx.stroke(); resetCtx(dCtx);
-    penPathPoints.push({x:x,y:y});
     lastPenX=x; lastPenY=y;
   } else if(tool==='eraser'){
     lc.save(); lc.globalCompositeOperation='destination-out'; lc.lineWidth=strokeW*4; lc.lineCap='round'; lc.lineTo(x,y); lc.stroke(); lc.restore();
     composite();
+  } else if(tool==='measure'){
+    // Measure preview handled by dedicated mousemove listener — nothing here
   } else {
     // shape preview on display canvas
     dCtx.putImageData(compositedSnap,0,0);
@@ -1811,7 +1815,13 @@ function onUp(e){
   // End measure endpoint drag
   if(selectedMeasure && measureDragHandle!==-1){
     measureDragHandle=-1; measureDragStart=null;
-    renderMeasureSelection();
+    var isTouch=!!(e.changedTouches&&e.changedTouches.length);
+    if(!isTouch){
+      // Desktop: commit immediately on mouseup
+      commitMeasureSelection();
+    } else {
+      renderMeasureSelection();
+    }
     return;
   }
   // End shape transform drag
@@ -1821,38 +1831,41 @@ function onUp(e){
   }
   if(!drawing) return;
   drawing=false;
-  // Reset path on display canvas after every stroke — prevents stale
-  // path from connecting to the start of the next stroke
+  // Reset path on display canvas after every stroke
   dCtx.beginPath();
   var p=snapPt(getPos(e).x,getPos(e).y);
   var lc=lctx();
   if(tool==='pen'){
-    // Draw pen path length label onto the layer canvas
-    penPathPoints.push({x:p.x,y:p.y});
-    if(penPathPoints.length>1){
-      drawPenPathLabel(lc, penPathPoints, color, opacity, strokeW);
-    }
     penPathPoints=[];
     composite();
   } else if(tool==='eraser'){ composite(); }
   else if(tool==='measure'){
-    // Create a new measure object (editable vector)
     var px=Math.hypot(p.x-startX,p.y-startY);
     if(px>4){
+      var isTouch=!!(e.changedTouches&&e.changedTouches.length);
       var newM={
         id:Date.now(),
         x1:startX, y1:startY, x2:p.x, y2:p.y,
         color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
         layerIdx:activeLayerIdx,
-        _editing:true
+        _editing:false
       };
       measureObjs.push(newM);
-      selectedMeasure=newM;
-      measureDragHandle=-1; measureDragStart=null;
-      renderShapeAndMeasure();
-      renderMeasureSelection();
-      // Also handle calibration mode
+      if(isTouch){
+        // Touch: stay in edit mode so endpoints can be dragged
+        newM._editing=true;
+        selectedMeasure=newM;
+        measureDragHandle=-1; measureDragStart=null;
+        renderShapeAndMeasure();
+        renderMeasureSelection();
+      } else {
+        // Desktop: commit immediately on mouseup — no extra click needed
+        selectedMeasure=null;
+        renderShapeAndMeasure();
+      }
       if(scalingMode){ refLinePixels=px; document.getElementById('ref-px-info').textContent='Line drawn: '+Math.round(px)+' pixels'; showScaleDlg(); scalingMode=false; commitMeasureSelection(); }
+    } else {
+      renderShapeAndMeasure();
     }
     composite();
   }
@@ -2053,6 +2066,12 @@ function renderShapeAndMeasure(){
     if(layer&&!layer.visible) return;
     drawMeasureObjOnCtx(shCtx, m, false);
   });
+  // Path measure objects
+  pathMeasureObjs.forEach(function(pm){
+    var layer=layers[pm.layerIdx];
+    if(layer&&!layer.visible) return;
+    drawPathMeasureOnCtx(shCtx, pm, 1);
+  });
 }
 
 // Hit test: find measure object near a canvas point
@@ -2196,6 +2215,184 @@ function formatLength(px){
   return real>=1000?(real/1000).toFixed(2)+'k'+scaleUnit:real.toFixed(2)+scaleUnit;
 }
 
+// ══════════════════════════════════════════════════════════════
+// PATH MEASURE TOOL
+// Click to add waypoints along any route (trench, conduit run,
+// driveway, etc). Double-click or press Enter to finish.
+// Shows each segment length and a bold total at the endpoint.
+// Stored as pathMeasureObjs — survives undo/redo, exports to PNG/PDF.
+// ══════════════════════════════════════════════════════════════
+var pathMeasureObjs = [];  // committed path measures
+var pmPoints   = [];       // waypoints being placed (in-progress)
+var pmActive   = false;    // true while placing points
+
+// ── Draw a committed path measure onto a canvas context ──────
+function drawPathMeasureOnCtx(ctx, pm, sc){
+  sc = sc || 1;
+  if(!pm.pts||pm.pts.length<2) return;
+  var pts=pm.pts;
+  ctx.save();
+  ctx.globalAlpha=pm.opacity;
+  ctx.strokeStyle=pm.color;
+  ctx.lineWidth=Math.max(1.5,pm.strokeW)*sc;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.setLineDash([pm.strokeW*3*sc,pm.strokeW*2*sc]); // dashed so it reads as "measurement" not real line
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x*sc,pts[0].y*sc);
+  for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x*sc,pts[i].y*sc);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Waypoint dots
+  ctx.fillStyle=pm.color;
+  pts.forEach(function(pt){
+    ctx.beginPath();
+    ctx.arc(pt.x*sc,pt.y*sc,Math.max(3,pm.strokeW*1.8)*sc,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // Segment labels
+  var runTotal=0;
+  for(var i=1;i<pts.length;i++){
+    var segPx=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);
+    runTotal+=segPx;
+    var mx=(pts[i-1].x+pts[i].x)/2*sc;
+    var my=(pts[i-1].y+pts[i].y)/2*sc;
+    var ang=Math.atan2(pts[i].y-pts[i-1].y,pts[i].x-pts[i-1].x);
+    var segLabel=scaleSet?formatLength(segPx):(Math.round(segPx)+'px');
+    ctx.globalAlpha=1;
+    ctx.font=(Math.round(10*sc)||10)+'px Arial,sans-serif';
+    ctx.textAlign='center';
+    ctx.save();
+    ctx.translate(mx,my);
+    ctx.rotate(ang);
+    // Keep label right-side-up
+    if(ang>Math.PI/2||ang<-Math.PI/2){ ctx.rotate(Math.PI); }
+    ctx.lineWidth=2.5*sc; ctx.strokeStyle='#000';
+    ctx.strokeText(segLabel,0,-5*sc);
+    ctx.fillStyle=pm.color; ctx.lineWidth=0;
+    ctx.fillText(segLabel,0,-5*sc);
+    ctx.restore();
+  }
+
+  // Total label — bold, at endpoint
+  var totalPx=runTotal;
+  var totalLabel=(scaleSet?formatLength(totalPx):(Math.round(totalPx)+'px'))+' TOTAL';
+  var ex=pts[pts.length-1].x*sc, ey=pts[pts.length-1].y*sc;
+  ctx.globalAlpha=1;
+  ctx.font='bold '+(Math.round(13*sc)||13)+'px Arial,sans-serif';
+  ctx.textAlign='left';
+  // Pill background
+  var tw=ctx.measureText(totalLabel).width;
+  var pad=5*sc;
+  ctx.fillStyle='rgba(0,0,0,0.65)';
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(ex+8*sc-pad,ey-10*sc-pad,tw+pad*2,16*sc+pad*2,4*sc);
+  else ctx.rect(ex+8*sc-pad,ey-10*sc-pad,tw+pad*2,16*sc+pad*2);
+  ctx.fill();
+  // Text
+  ctx.fillStyle=pm.color;
+  ctx.fillText(totalLabel,ex+8*sc,ey+4*sc);
+  ctx.restore();
+}
+
+// ── Render all committed path measures onto shCv ─────────────
+function renderPathMeasureObjs(){
+  renderShapeAndMeasure(); // shCv is shared — re-render everything
+}
+
+// ── Draw the live in-progress path on shCv ───────────────────
+function redrawPathMeasurePreview(mouseX,mouseY){
+  if(!pmActive||pmPoints.length<1) return;
+  if(shCv.width!==drawCv.width||shCv.height!==drawCv.height){
+    shCv.width=drawCv.width; shCv.height=drawCv.height;
+  }
+  // Full re-render of committed objects + live preview on top
+  renderShapeAndMeasure(); // draws committed items
+
+  var pts=pmPoints.concat(mouseX!=null?[{x:mouseX,y:mouseY}]:[]);
+  if(pts.length<2) return;
+
+  shCtx.save();
+  shCtx.globalAlpha=opacity;
+  shCtx.strokeStyle=color;
+  shCtx.lineWidth=Math.max(1.5,strokeW);
+  shCtx.lineCap='round'; shCtx.lineJoin='round';
+  shCtx.setLineDash([strokeW*3,strokeW*2]);
+  shCtx.beginPath();
+  shCtx.moveTo(pts[0].x,pts[0].y);
+  for(var i=1;i<pts.length;i++) shCtx.lineTo(pts[i].x,pts[i].y);
+  shCtx.stroke();
+  shCtx.setLineDash([]);
+
+  // Waypoint dots
+  shCtx.fillStyle=color;
+  pmPoints.forEach(function(pt){
+    shCtx.beginPath();
+    shCtx.arc(pt.x,pt.y,Math.max(3,strokeW*1.8),0,Math.PI*2);
+    shCtx.fill();
+  });
+
+  // Running total and current segment length
+  var runTotal=0;
+  for(var i=1;i<pts.length;i++) runTotal+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);
+
+  // Live label near cursor
+  if(mouseX!=null){
+    var liveLabel=(scaleSet?formatLength(runTotal):(Math.round(runTotal)+'px'));
+    shCtx.globalAlpha=1;
+    shCtx.font='bold 13px Arial,sans-serif';
+    shCtx.textAlign='left';
+    var tw=shCtx.measureText(liveLabel).width;
+    shCtx.fillStyle='rgba(0,0,0,0.7)';
+    shCtx.fillRect(mouseX+12,mouseY-18,tw+10,20);
+    shCtx.fillStyle=color;
+    shCtx.fillText(liveLabel,mouseX+17,mouseY-3);
+    // Hint
+    shCtx.font='10px Arial,sans-serif';
+    shCtx.fillStyle='rgba(255,255,255,0.6)';
+    shCtx.fillText('Dbl-click or Enter to finish',mouseX+12,mouseY+14);
+  }
+  shCtx.restore();
+}
+
+// ── Commit the in-progress path as a stored object ───────────
+function closePathMeasure(){
+  if(pmPoints.length<2){ pmPoints=[]; pmActive=false; renderShapeAndMeasure(); return; }
+  captureState();
+  pathMeasureObjs.push({
+    id:Date.now(),
+    pts: pmPoints.slice(),
+    color:color, strokeW:strokeW, opacity:opacity,
+    layerIdx:activeLayerIdx
+  });
+  pmPoints=[]; pmActive=false;
+  renderShapeAndMeasure();
+  composite();
+  pushUndo();
+  toast('Path measured · Hold to delete','ok',2000);
+}
+
+// ── Find a path measure object near a point ──────────────────
+function findPathMeasureObjAt(x,y,isTouch){
+  var thresh=isTouch?18:8;
+  for(var i=pathMeasureObjs.length-1;i>=0;i--){
+    var pm=pathMeasureObjs[i];
+    var layer=layers[pm.layerIdx]; if(layer&&!layer.visible) continue;
+    var pts=pm.pts;
+    for(var j=1;j<pts.length;j++){
+      var dx=pts[j].x-pts[j-1].x, dy=pts[j].y-pts[j-1].y;
+      var len2=dx*dx+dy*dy; if(len2<1) continue;
+      var t=Math.max(0,Math.min(1,((x-pts[j-1].x)*dx+(y-pts[j-1].y)*dy)/len2));
+      var nx=pts[j-1].x+t*dx-x, ny=pts[j-1].y+t*dy-y;
+      if(Math.hypot(nx,ny)<thresh+(pm.strokeW||2)/2) return pm;
+    }
+  }
+  return null;
+}
+
+// ── END PATH MEASURE SYSTEM ──────────────────────────────────
+
 // ── POLYGON / AREA ──
 // ── POLYGON / LEADER CLICK & DOUBLE-TAP ──
 var lastTap=0;
@@ -2210,12 +2407,17 @@ drawCv.addEventListener('touchend',function(e){
     var isDoubleTap=(now-lastTap<350);
     lastTap=now;
     if(isDoubleTap){
-      // Double-tap = close polygon (don't add extra point)
       if(polyPoints.length>=3) setTimeout(closePolygon,0);
     } else {
-      // Single tap = add vertex
       polyPoints.push(p); polyActive=true; redrawPolyPreview(p.x,p.y);
     }
+    return;
+  }
+  if(tool==='pathmeasure'){
+    var isDoubleTapPM=(now-lastTap<350);
+    lastTap=now;
+    if(isDoubleTapPM&&pmPoints.length>=2){ setTimeout(closePathMeasure,0); }
+    else { pmPoints.push(p); pmActive=true; redrawPathMeasurePreview(p.x,p.y); }
     return;
   }
   lastTap=now;
@@ -2227,10 +2429,15 @@ drawCv.addEventListener('click',function(e){
   if(pinching||drawing) return;
   var pos=getPos(e); var p=snapPt(pos.x,pos.y);
   if(tool==='polygon'){ polyPoints.push(p); polyActive=true; redrawPolyPreview(p.x,p.y); }
+  else if(tool==='pathmeasure'){
+    pmPoints.push(p); pmActive=true;
+    redrawPathMeasurePreview(p.x,p.y);
+  }
   else if(tool==='leader'){ handleLeaderClick(p.x,p.y,e); }
 });
 drawCv.addEventListener('dblclick',function(e){
   if(tool==='polygon'&&polyPoints.length>=3){ e.preventDefault(); closePolygon(); }
+  else if(tool==='pathmeasure'&&pmPoints.length>=2){ e.preventDefault(); closePathMeasure(); }
 });
 
 drawCv.addEventListener('mousemove',function(e){
@@ -2240,19 +2447,87 @@ drawCv.addEventListener('mousemove',function(e){
     dCtx.save(); dCtx.strokeStyle=color; dCtx.lineWidth=strokeW; dCtx.setLineDash([4,3]); dCtx.globalAlpha=0.6;
     dCtx.beginPath(); dCtx.moveTo(leaderP1x,leaderP1y); dCtx.lineTo(pos.x,pos.y); dCtx.stroke(); dCtx.restore();
   }
-  // Live measurement preview
-  if(tool==='measure'&&drawing){
+  // Path measure live preview
+  if(tool==='pathmeasure'&&pmActive&&pmPoints.length>=1){
+    var mpos=getPos(e);
+    redrawPathMeasurePreview(mpos.x,mpos.y);
+    return;
+  }
+  // Live measurement preview — draw on shCv (z-index:1, above draw-cv)
+  if(tool==='measure'&&drawing&&compositedSnap){
     var mpos=getPos(e);
     var mpx=Math.hypot(mpos.x-startX,mpos.y-startY);
+    var ang=Math.atan2(mpos.y-startY,mpos.x-startX);
+    var perp=ang+Math.PI/2;
+    var tk=Math.max(5,strokeW*2.5);
+
+    // Restore dCtx to base state (no stale preview lines)
     dCtx.putImageData(compositedSnap,0,0);
-    previewShape(dCtx,startX,startY,mpos.x,mpos.y);
-    // show live label
+
+    // Draw live preview on shCv so it's visible above draw-cv
+    if(shCv.width!==drawCv.width||shCv.height!==drawCv.height){
+      shCv.width=drawCv.width; shCv.height=drawCv.height;
+    }
+    // Re-render committed shapes/measures, then overlay live preview
+    shCtx.clearRect(0,0,shCv.width,shCv.height);
+    // Redraw committed shape+measure objects underneath
+    shapeObjs.forEach(function(s){
+      if(s._editing) return;
+      var layer=layers[s.layerIdx]; if(layer&&!layer.visible) return;
+      shCtx.save();
+      shCtx.translate(s.cx,s.cy); shCtx.rotate(s.angle);
+      shCtx.strokeStyle=s.color; shCtx.fillStyle=s.color;
+      shCtx.lineWidth=s.strokeW; shCtx.lineCap='round'; shCtx.lineJoin='round';
+      shCtx.globalAlpha=s.opacity;
+      if(s.lineStyle==='dashed') shCtx.setLineDash([s.strokeW*4,s.strokeW*3]);
+      else if(s.lineStyle==='dotted') shCtx.setLineDash([s.strokeW,s.strokeW*2.5]);
+      else shCtx.setLineDash([]);
+      if(s.type==='rect'){
+        if(s.fill){shCtx.globalAlpha=s.opacity*.25;shCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);shCtx.globalAlpha=s.opacity;}
+        shCtx.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
+      } else if(s.type==='ellipse'){
+        shCtx.beginPath();shCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
+        if(s.fill){shCtx.globalAlpha=s.opacity*.25;shCtx.fill();shCtx.globalAlpha=s.opacity;}
+        shCtx.stroke();
+      } else if(s.type==='cloud'){ drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2); }
+      shCtx.restore();
+    });
+    measureObjs.forEach(function(m){
+      if(m._editing) return;
+      var layer=layers[m.layerIdx]; if(layer&&!layer.visible) return;
+      drawMeasureObjOnCtx(shCtx,m,false);
+    });
+    // Now draw the live preview line on top
+    shCtx.save();
+    shCtx.globalAlpha=opacity;
+    shCtx.strokeStyle=color;
+    shCtx.lineWidth=Math.max(1.5,strokeW);
+    shCtx.lineCap='round';
+    if(lineStyle==='dashed') shCtx.setLineDash([strokeW*4,strokeW*3]);
+    else if(lineStyle==='dotted') shCtx.setLineDash([strokeW,strokeW*2.5]);
+    else shCtx.setLineDash([]);
+    shCtx.beginPath(); shCtx.moveTo(startX,startY); shCtx.lineTo(mpos.x,mpos.y); shCtx.stroke();
+    // Ticks
+    shCtx.setLineDash([]);
+    [[startX,startY],[mpos.x,mpos.y]].forEach(function(pt){
+      shCtx.beginPath();
+      shCtx.moveTo(pt[0]+Math.cos(perp)*tk,pt[1]+Math.sin(perp)*tk);
+      shCtx.lineTo(pt[0]-Math.cos(perp)*tk,pt[1]-Math.sin(perp)*tk);
+      shCtx.stroke();
+    });
+    // Label
     var midX=(startX+mpos.x)/2, midY=(startY+mpos.y)/2;
-    var liveLabel=scaleSet?formatLength(mpx):(Math.round(mpx)+'px');
-    dCtx.save(); dCtx.font='bold 12px Arial,sans-serif'; dCtx.fillStyle='#fff';
-    dCtx.strokeStyle='#000'; dCtx.lineWidth=3; dCtx.textAlign='center';
-    dCtx.strokeText(liveLabel,midX,midY-6); dCtx.lineWidth=0; dCtx.fillStyle=color; dCtx.fillText(liveLabel,midX,midY-6);
-    dCtx.restore();
+    var liveLabel=(scaleSet?formatLength(mpx):(Math.round(mpx)+'px'));
+    shCtx.globalAlpha=1;
+    shCtx.font='bold 13px Arial,sans-serif';
+    shCtx.textAlign='center';
+    shCtx.translate(midX,midY); shCtx.rotate(ang);
+    shCtx.lineWidth=3; shCtx.strokeStyle='#000'; shCtx.setLineDash([]);
+    shCtx.strokeText(liveLabel,0,-8);
+    shCtx.fillStyle=color; shCtx.lineWidth=0;
+    shCtx.fillText(liveLabel,0,-8);
+    shCtx.restore();
+    return;
   }
   if(!polyActive||tool!=='polygon') return;
   var pos=getPos(e);
@@ -3124,6 +3399,17 @@ function holdFire(){
     return;
   }
 
+  // 1c. Path measure objects
+  var pmHit=findPathMeasureObjAt(x,y,true);
+  if(pmHit){
+    captureState();
+    pathMeasureObjs=pathMeasureObjs.filter(function(pm){ return pm!==pmHit; });
+    renderShapeAndMeasure(); composite(); pushUndo();
+    toast('Path measure deleted','',1500);
+    drawing=false;
+    return;
+  }
+
   // 2. Text objects
   var tHit=findTextObjAt(x,y);
   if(tHit){
@@ -3174,6 +3460,7 @@ function stopHoldRipple(){
 document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
   btn.addEventListener('click',function(){
     if(tool==='polygon'&&polyActive){ closePolygon(); }
+    if(tool==='pathmeasure'&&pmActive){ closePathMeasure(); }
     commitText(); commitSelection(); commitMeasureSelection(); leaderStep=0;
     stopTextCursor(); clearTextHover();
     tool=btn.dataset.tool;
@@ -3397,6 +3684,13 @@ function compositeExport(maxPx){
       ctx.restore();
     });
   }catch(ex){ console.warn('[Export] measureObjs:',ex); }
+  // Path measure objects
+  try{
+    pathMeasureObjs.forEach(function(pm){
+      var layer=layers[pm.layerIdx]; if(layer&&!layer.visible) return;
+      drawPathMeasureOnCtx(ctx, pm, scale);
+    });
+  }catch(ex){ console.warn('[Export] pathMeasureObjs:',ex); }
   return out;
 }
 
@@ -3798,6 +4092,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     stopTextCursor(); clearTextHover();
     if(selectedMeasure){ commitMeasureSelection(); return; }
+    if(tool==='pathmeasure'&&pmActive){ closePathMeasure(); return; }
     if(selectedShape){ commitSelection(); return; }
     if(tool==='polygon'&&polyActive){ closePolygon(); return; }
     leaderStep=0;
@@ -3809,7 +4104,8 @@ document.addEventListener('keydown',function(e){
     return;
   }
   if(e.key==='Enter'&&selectedShape){ commitSelection(); return; }
-  var map={q:'pen',l:'line',a:'arrow',r:'rect',e:'ellipse',c:'cloud',m:'measure',g:'polygon',t:'text',x:'eraser',h:'pan'};
+  if(e.key==='Enter'&&tool==='pathmeasure'&&pmActive){ closePathMeasure(); return; }
+  var map={q:'pen',l:'line',a:'arrow',r:'rect',e:'ellipse',c:'cloud',m:'measure',v:'pathmeasure',g:'polygon',t:'text',x:'eraser',h:'pan'};
   if(map[e.key]){ var b=document.querySelector('.tb-btn[data-tool="'+map[e.key]+'"]'); if(b) b.click(); }
 });
 document.addEventListener('keyup',function(e){ if(e.code==='Space'){ spaceDown=false; viewport.style.cursor=''; hideHint(); } });
@@ -3994,26 +4290,7 @@ function updateWatermark(){
   };
 })();
 
-// ── TOP PADDING — accounts for fixed nav + customer bar ───────
-function adjustTopPadding(){
-  var nav=document.getElementById('aog-nav');
-  var cbar=document.getElementById('customer-bar');
-  var offline=document.getElementById('aog-offline');
-  var tb=document.getElementById('tb');
-  if(!nav||!tb) return;
-  var h=nav.offsetHeight+(cbar?cbar.offsetHeight:0)+((offline&&offline.classList.contains('show'))?offline.offsetHeight:0);
-  // tb is position:fixed-ish in flex column — push it down by setting its top margin
-  // Actually body is flex column so just keep nav heights flowing naturally
-  // The nav is position:fixed so we need padding on tb
-  tb.style.marginTop=h+'px';
-  // Also adjust viewport
-  var vp=document.getElementById('main');
-  if(vp) vp.style.paddingTop='0';
-}
-window.addEventListener('resize',adjustTopPadding);
-window.addEventListener('load',adjustTopPadding);
-setTimeout(adjustTopPadding,50);
-setTimeout(adjustTopPadding,400);
+// ── No top padding JS needed — nav and customer bar are in the flex flow ──
 </script>
 </body>
 </html>
