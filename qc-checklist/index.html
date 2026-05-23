@@ -1009,7 +1009,6 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   <a class="ab-btn" href="../">🏠 HOME</a>
   <a class="ab-btn" onclick="printForm()" style="cursor:pointer;">📄 PDF</a>
   <a class="ab-btn" onclick="clearForm()" style="cursor:pointer;">🗑 CLEAR</a>
-  <a class="ab-btn" id="debug-btn" onclick="dbgToggle()" style="cursor:pointer;">🐛 OFF</a>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode" onclick="toggleTheme()">
     <svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
@@ -1644,103 +1643,9 @@ window.addEventListener('afterprint', function() {
 });
 
 
-// ══════════════════════════════════════════════
-//  SAFARI PRINT DEBUGGER
-//  Tap 🐛 DEBUG in action bar to enable/disable
-// ══════════════════════════════════════════════
-var _debugEnabled = false;
-var _debugLog = [];
-var _debugT0 = 0;
-
-function dbgToggle() {
-  _debugEnabled = !_debugEnabled;
-  var btn = document.getElementById('debug-btn');
-  if (btn) btn.textContent = _debugEnabled ? '🐛 ON' : '🐛 OFF';
-  if (!_debugEnabled) { var p = document.getElementById('debug-panel'); if(p) p.remove(); _debugLog = []; }
-}
-
-function dbg(msg, color) {
-  if (!_debugEnabled) return;
-  var now = performance.now();
-  var elapsed = _debugT0 ? '+' + (now - _debugT0).toFixed(0) + 'ms' : '0ms';
-  var entry = elapsed + '  ' + msg;
-  _debugLog.push({ text: entry, color: color || '#0f0' });
-  _renderDebug();
-}
-
-function _renderDebug() {
-  var panel = document.getElementById('debug-panel');
-  if (!panel) {
-    panel = document.createElement('div');
-    panel.id = 'debug-panel';
-    panel.style.cssText = [
-      'position:fixed;bottom:0;left:0;right:0;z-index:999999;',
-      'background:#0a0a0a;border-top:2px solid #0f0;',
-      'font-family:monospace;font-size:11px;',
-      'max-height:45vh;overflow-y:auto;-webkit-overflow-scrolling:touch;',
-      'padding:6px 8px;'
-    ].join('');
-
-    var toolbar = document.createElement('div');
-    toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:4px;';
-
-    var title = document.createElement('span');
-    title.style.cssText = 'color:#ff0;font-weight:bold;font-size:12px;';
-    title.textContent = '🐛 SAFARI PRINT DEBUGGER';
-
-    var btns = document.createElement('div');
-    btns.style.cssText = 'display:flex;gap:6px;';
-
-    var copyBtn = document.createElement('button');
-    copyBtn.textContent = '📋 COPY';
-    copyBtn.style.cssText = 'background:#222;color:#0f0;border:1px solid #0f0;padding:3px 8px;font-size:10px;border-radius:3px;cursor:pointer;';
-    copyBtn.onclick = function() {
-      var txt = _debugLog.map(function(e){ return e.text; }).join('\n');
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(txt).then(function(){ copyBtn.textContent='✓'; setTimeout(function(){copyBtn.textContent='📋 COPY';},2000); });
-      } else {
-        var ta = document.createElement('textarea');
-        ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-        copyBtn.textContent='✓'; setTimeout(function(){copyBtn.textContent='📋 COPY';},2000);
-      }
-    };
-
-    var clearBtn = document.createElement('button');
-    clearBtn.textContent = '🗑 CLEAR';
-    clearBtn.style.cssText = 'background:#222;color:#f80;border:1px solid #f80;padding:3px 8px;font-size:10px;border-radius:3px;cursor:pointer;';
-    clearBtn.onclick = function() { _debugLog = []; _debugT0 = 0; _renderDebug(); };
-
-    var closeBtn = document.createElement('button');
-    closeBtn.textContent = '✕';
-    closeBtn.style.cssText = 'background:#222;color:#f00;border:1px solid #f00;padding:3px 8px;font-size:10px;border-radius:3px;cursor:pointer;';
-    closeBtn.onclick = function() { panel.remove(); };
-
-    btns.appendChild(copyBtn); btns.appendChild(clearBtn); btns.appendChild(closeBtn);
-    toolbar.appendChild(title); toolbar.appendChild(btns);
-    panel.appendChild(toolbar);
-
-    var log = document.createElement('div');
-    log.id = 'debug-log';
-    panel.appendChild(log);
-    document.body.appendChild(panel);
-  }
-
-  var log = document.getElementById('debug-log');
-  if (!log) return;
-  log.innerHTML = '';
-  _debugLog.forEach(function(e) {
-    var line = document.createElement('div');
-    line.style.cssText = 'color:' + e.color + ';border-bottom:1px solid #1a1a1a;padding:2px 0;white-space:pre;';
-    line.textContent = e.text;
-    log.appendChild(line);
-  });
-  panel.scrollTop = panel.scrollHeight;
-}
-
 function printForm() {
   _debugT0 = performance.now();
-  dbg('printForm() START', '#ff0');
-  dbg('isMobileSafari=' + document.body.classList.contains('mobile-safari') + ' innerW=' + window.innerWidth, '#0ff');
+
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var wasDark        = document.body.classList.contains('dark-mode');
 
@@ -1833,8 +1738,6 @@ function printForm() {
 
   // ── RESTORE function (defined before use) ──
   function restore() {
-    dbg('restore() called — dialog closed', '#f80');
-    var showSelf = document.getElementById('debug-panel'); if(showSelf) showSelf.style.display='';
     document.title = prevTitle;
     // viewport not changed — no restore needed
     var f  = document.getElementById('safari-print-fix');  if(f)  f.remove();
@@ -1855,7 +1758,6 @@ function printForm() {
   }
 
   if (isMobileSafari && vp) {
-    dbg('skipping viewport change — using CSS scale instead', '#ff0');
 
     // Build safari-page-fix style
     var fix = document.createElement('style');
@@ -1899,11 +1801,9 @@ function printForm() {
     ].join('\n');
 
 
-    dbg('forcing layout flush via getBoundingClientRect', '#ff0');
     void document.getElementById('page1').getBoundingClientRect();
     void document.getElementById('page2').getBoundingClientRect();
 
-    dbg('safari-print-fix injected', '#0f0');
     document.head.appendChild(fix);
 
     // Hide continued title
@@ -1919,8 +1819,6 @@ function printForm() {
     }
 
     requestAnimationFrame(function() {
-      dbg('requestAnimationFrame fired → calling window.print()', '#0f0');
-      var hideSelf = document.getElementById('debug-panel'); if(hideSelf) hideSelf.style.display='none';
       window.print();
     });
 
@@ -1956,7 +1854,6 @@ function printForm() {
     setTimeout(function() { _tryRestore(); }, 2000);
 
   } else {
-    dbg('non-Safari → window.print()', '#0ff');
     window.addEventListener('afterprint', restore);
     window.print();
   }
