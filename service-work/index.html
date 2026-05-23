@@ -366,7 +366,7 @@ body.offline { padding-top: 50px; }
 .page-header { display: flex; align-items: flex-start; gap: 12px; border-bottom: 1.5px solid var(--cyan); padding: var(--pd-phone-header); margin-bottom: 10px; }
 .logo-img { width: 52px; height: 52px; object-fit: contain; flex-shrink: 0; }
 .header-right { flex: 1; }
-.company-name { font-family: var(--font-display); font-size: var(--fs-phone-company); color: var(--cyan); letter-spacing: 2px; font-weight: 700; line-height: 1.2; }
+.company-name { font-family: var(--font-display); font-size: var(--fs-phone-company); color: var(--cyan); letter-spacing: 2px; font-weight: 700; line-height: 1.2; word-break: break-word; }
 .doc-title { font-family: var(--font-display); font-size: var(--fs-phone-title); color: var(--text); letter-spacing: 1px; font-weight: 500; margin-top: 2px; }
 
 /* ── EMERGENCY ROW ── */
@@ -384,7 +384,7 @@ body.offline { padding-top: 50px; }
   font-family: var(--font-display); font-size: var(--fs-phone-emergency);
   color: var(--text); letter-spacing: 1px; font-weight: 600; text-transform: uppercase;
 }
-.control-wrap { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.control-wrap { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-width: 0; }
 .control-label { font-family: var(--font-display); font-size: var(--fs-phone-info-label); color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
 .control-input { border: none; border-bottom: 1.5px solid rgba(217,119,6,0.4); font-family: var(--font-mono); font-size: var(--fs-phone-info-input); color: var(--text); background: transparent; outline: none; min-height: var(--h-phone-info-input); padding: var(--pd-phone-info-input); width: 120px; }
 
@@ -393,7 +393,7 @@ body.offline { padding-top: 50px; }
 .info-row { display: flex; align-items: flex-end; gap: 4px; }
 .info-row.full { grid-column: 1 / -1; }
 .info-label { font-family: var(--font-display); font-size: var(--fs-phone-info-label); color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0; }
-.info-input { flex: 1; border: none; border-bottom: 1.5px solid rgba(217,119,6,0.4); font-family: var(--font-mono); font-size: var(--fs-phone-info-input); color: var(--text); background: transparent; outline: none; min-height: var(--h-phone-info-input); padding: var(--pd-phone-info-input); }
+.info-input { flex: 1; min-width: 0; border: none; border-bottom: 1.5px solid rgba(217,119,6,0.4); font-family: var(--font-mono); font-size: var(--fs-phone-info-input); color: var(--text); background: transparent; outline: none; min-height: var(--h-phone-info-input); padding: var(--pd-phone-info-input); }
 .info-input.short { max-width: 80px; flex: none; }
 
 /* ── FIELD BLOCKS (Issue / Found / Fixed / Materials) ── */
@@ -405,17 +405,31 @@ body.offline { padding-top: 50px; }
   border-left: 3px solid var(--cyan); padding-left: 8px;
 }
 .field-textarea {
-  width: 100%; min-height: var(--h-phone-field);
+  width: 100%; height: var(--h-phone-field); min-height: var(--h-phone-field); max-height: var(--h-phone-field);
   border: none; border-bottom: 1.5px solid rgba(217,119,6,0.3);
   background: transparent; font-family: var(--font-body);
   font-size: var(--fs-phone-field-input); color: var(--text);
   padding: var(--pd-phone-field); outline: none; resize: none;
-  line-height: 1.6;
+  overflow-y: auto; line-height: 1.6; box-sizing: border-box;
 }
 .field-textarea::placeholder { color: var(--text-dim); font-size: 0.85em; }
 
+/* ── SMALL SCREEN RESPONSIVE ── */
+@media screen and (max-width: 500px) {
+  .info-grid { grid-template-columns: 1fr; }
+  .info-row { grid-column: 1 / -1; }
+  .control-wrap { margin-left: 0; margin-top: 6px; }
+  .emergency-row { flex-wrap: wrap; }
+  .bottom-row { flex-direction: column; gap: 8px; }
+  .info-input.short { max-width: none; width: 100%; }
+}
+@media screen and (max-width: 380px) {
+  .page { padding: 8px 8px; }
+  .emergency-row { padding: 4px 6px; }
+}
+
 /* ── BOTTOM ROW (Time Out / Run Hours / Firmware) ── */
-.bottom-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border); }
+.bottom-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border); }
 .bottom-item { display: flex; align-items: flex-end; gap: 4px; }
 
 /* ── PAGE FOOTER ── */
