@@ -408,9 +408,8 @@ body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg)
 
 /* ── CRITICAL: Force light mode in print for Chrome ── */
 @media print {
-  html, body,
-  body.dark-mode,
-  html.dark-mode-pending body {
+  html.dark-mode-pending body,
+  body.dark-mode {
     background: #ffffff !important;
     color: #1F2937 !important;
     color-scheme: light !important;
@@ -826,7 +825,6 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; transition: none !important; }
   body { background: #fff !important; }
   .action-bar, #save-status, #offline-banner { display: none !important; }
-  #meter-items, #meter-main-items { display: block !important; }
   .meter-toggle-header span:last-child { display: none !important; }
   .wrapper { padding-top: 0 !important; gap: 0 !important; background: #fff !important; display: block !important; }
   .page {
@@ -847,7 +845,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   #addr-elec-row { flex-wrap: nowrap !important; }
   #tech-crew-row { flex-wrap: nowrap !important; }
   .section       { margin-bottom: var(--gap-print-phone-sections) !important; }
-  .section-header{ font-size: var(--fs-print-desktop-section) !important; padding: var(--pd-print-desktop-section) !important; margin-bottom: 1px !important; }
+  .section-header{ font-size: var(--fs-print-desktop-section) !important; padding: var(--pd-print-desktop-section) !important; margin-bottom: 1px !important; color: #D97706 !important; background: #f5f5f5 !important; border-left-color: #D97706 !important; }
   .check-item    { min-height: var(--h-print-desktop-item) !important; padding: var(--pd-print-desktop-item) !important; border-bottom-color: rgba(217,119,6,0.1) !important; flex-wrap: nowrap !important; }
   .item-label    { font-size: var(--fs-print-desktop-item) !important; }
   .item-num      { font-size: var(--fs-print-desktop-option) !important; }
@@ -1544,17 +1542,23 @@ window.addEventListener('beforeprint', function() {
   if (ds) ds.disabled = true;
   var ct = document.getElementById('doc-title-continued');
   if (ct) ct.style.setProperty('display', 'none', 'important');
+  // Force only active meter tab visible
+  var mI = document.getElementById('meter-items');
+  var mmI = document.getElementById('meter-main-items');
+  if (mI && mmI) {
+    mI.style.setProperty('display',  _meterTab === 'meter' ? '' : 'none', 'important');
+    mmI.style.setProperty('display', _meterTab === 'meter-main' ? '' : 'none', 'important');
+  }
 });
 window.addEventListener('afterprint', function() {
   document.documentElement.style.colorScheme = '';
   document.body.style.colorScheme = '';
   var ds = document.getElementById('dark-mode-style');
   if (ds) ds.disabled = false;
-  var wasDark = false;
-  try { wasDark = localStorage.getItem('aog_theme_preference') === 'dark'; } catch(e) {}
-  if (wasDark) document.body.classList.add('dark-mode');
   var ct = document.getElementById('doc-title-continued');
   if (ct) ct.style.removeProperty('display');
+  // Note: dark mode restore is handled by printForm's restore() function
+  // Do NOT re-add dark mode here — it causes flicker if user is in light mode
 });
 
 function printForm() {
@@ -1583,7 +1587,8 @@ function printForm() {
   if (docTitle)  docTitle.setAttribute('style',  'color:#1F2937!important;text-shadow:none!important;');
   footerEls.forEach(function(el){ el.setAttribute('style','color:#9CA3AF!important;text-shadow:none!important;'); });
 
-  // ── Inject force-print-light ──
+  // ── Inject force-print-light (only needed in dark mode) ──
+  if (wasDark) {
   var printStyle = document.createElement('style');
   printStyle.id  = 'force-print-light';
   printStyle.textContent = [
@@ -1594,6 +1599,8 @@ function printForm() {
     'input[type="checkbox"] { accent-color:#D97706!important; }',
     '@media print {',
     '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;border-color:rgba(217,119,6,0.4)!important;animation:none!important;transition:none!important; }',
+    '  .section-header, .section-header * { color:#D97706!important; background:#f5f5f5!important; border-left-color:#D97706!important; }',
+    '  .section-header::before { background:#D97706!important; }',
     '  html,body { background:white!important; }',
     '  .page { border:1.5pt solid #D97706!important;background:white!important; }',
     '  .company-name { color:#D97706!important; }',
@@ -1630,12 +1637,15 @@ function printForm() {
     '}'
   ].join('\n');
   document.head.appendChild(printStyle);
+  } // end wasDark
 
-  // ── Force light vars ──
+  // ── Force light vars (only needed in dark mode) ──
   var lightVars = document.createElement('style');
   lightVars.id = 'force-light-vars';
+  if (wasDark) {
   lightVars.textContent = ':root, body { --cyan:#D97706!important; --bg:#FFFFFF!important; --bg3:#F8F8F8!important; --panel:#FFFFFF!important; --text:#1F2937!important; --text-muted:#6B7280!important; --text-dim:#9CA3AF!important; --border:rgba(217,119,6,0.25)!important; --border-bright:rgba(217,119,6,0.5)!important; }';
   document.head.appendChild(lightVars);
+  } // end wasDark
 
   var vp = document.querySelector('meta[name="viewport"]');
   var origVP = vp ? vp.getAttribute('content') : null;
@@ -1651,11 +1661,14 @@ function printForm() {
     document.body.style.colorScheme = '';
     if (_darkStyleEl) _darkStyleEl.disabled = false;
     if (wasDark) { document.body.classList.add('dark-mode'); document.documentElement.setAttribute('data-theme','dark'); }
+    else { document.body.classList.remove('dark-mode'); document.documentElement.setAttribute('data-theme','light'); }
     var ct = document.getElementById('doc-title-continued');
     if (ct) ct.style.removeProperty('display');
     if (compName)  compName.removeAttribute('style');
     if (docTitle)  docTitle.removeAttribute('style');
     footerEls.forEach(function(el){ el.removeAttribute('style'); });
+    // Restore meter tab visibility
+    applyMeterTab();
   }
 
   if (isMobileSafari && vp) {
@@ -1681,7 +1694,7 @@ function printForm() {
       '  .doc-title      { font-size:var(--fs-print-ipad-title)!important; }',
       '  .info-label     { font-size:var(--fs-print-ipad-info-label)!important; }',
       '  .info-input     { font-size:var(--fs-print-ipad-info-input)!important; min-height:var(--h-print-ipad-info-input)!important; }',
-      '  .section-header { font-size:var(--fs-print-ipad-section)!important; padding:var(--pd-print-ipad-section)!important; }',
+      '  .section-header { font-size:var(--fs-print-ipad-section)!important; padding:var(--pd-print-ipad-section)!important; color:#D97706!important; background:#f5f5f5!important; border-left-color:#D97706!important; }',
       '  .item-label     { font-size:var(--fs-print-ipad-item)!important; }',
       '  .item-num       { font-size:var(--fs-print-ipad-option)!important; }',
       '  .opt            { font-size:var(--fs-print-ipad-option)!important; }',
@@ -1707,6 +1720,14 @@ function printForm() {
     // Hide continued title
     var ct = document.getElementById('doc-title-continued');
     if (ct) ct.style.setProperty('display', 'none', 'important');
+
+    // Force only active meter tab visible in print
+    var mItems  = document.getElementById('meter-items');
+    var mmItems = document.getElementById('meter-main-items');
+    if (mItems && mmItems) {
+      mItems.style.setProperty('display',  _meterTab === 'meter' ? '' : 'none', 'important');
+      mmItems.style.setProperty('display', _meterTab === 'meter-main' ? '' : 'none', 'important');
+    }
 
     requestAnimationFrame(function() {
       window.print();
