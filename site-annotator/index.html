@@ -1064,79 +1064,157 @@ viewport.addEventListener('dragleave',function(){ viewport.style.outline=''; });
 viewport.addEventListener('drop',function(e){ e.preventDefault(); viewport.style.outline=''; var f=e.dataTransfer.files[0]; if(f) loadFile(f); });
 
 function loadFile(f){
-  var name = (f.name||'').toLowerCase();
-  var type = (f.type||'').toLowerCase();
+  var name=(f.name||'').toLowerCase();
+  var type=(f.type||'').toLowerCase();
   if(type==='application/pdf'||name.endsWith('.pdf')){ loadPDF(f); return; }
-  // Detect HEIC/HEIF (iPhone native format)
-  var isHEIC = name.endsWith('.heic')||name.endsWith('.heif')||
-               type==='image/heic'||type==='image/heif'||
-               type==='image/heif-sequence'||type==='image/heic-sequence';
-  if(isHEIC){ loadHEIC(f); return; }
-  // All other image types
-  if(type.startsWith('image/')||name.match(/\.(png|jpg|jpeg|gif|webp|bmp|tiff?|svg|svgz)$/)){
+  // All image types — HEIC detection happens AFTER load via pixel check
+  if(type.startsWith('image/')||
+     name.match(/\.(png|jpg|jpeg|gif|webp|bmp|tiff?|svg|svgz|heic|heif)$/)||
+     f.size<50*1024*1024){
     loadImageBlob(f); return;
   }
-  if(f.size<50*1024*1024){ loadImageBlob(f); return; }
-  toast('Unsupported file type: '+(f.type||name.split('.').pop()),'warn');
+  toast('Unsupported file type: '+(type||name.split('.').pop()),'warn');
 }
 
-// ── HEIC handler: lazy-load heic2any then convert to JPEG ────
-function loadHEIC(f){
-  toast('Converting HEIC image…','',0); // persistent until replaced
-  loadHeic2Any(function(err){
+// ── Lazy-load heic2any only when needed ─────────────────────
+var _h2aState = 'idle'; // 'idle'|'loading'|'ready'|'failed'
+var _h2aQueue = [];
+function requireHeic2Any(cb){
+  if(_h2aState==='ready'){ cb(null); return; }
+  if(_h2aState==='failed'){ cb(new Error('unavailable')); return; }
+  _h2aQueue.push(cb);
+  if(_h2aState==='loading') return;
+  _h2aState='loading';
+  var s=document.createElement('script');
+  // Try jsdelivr first, fall back to unpkg
+  s.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+  s.onload=function(){
+    _h2aState='ready';
+    _h2aQueue.forEach(function(fn){ fn(null); });
+    _h2aQueue=[];
+  };
+  s.onerror=function(){
+    // Try unpkg fallback
+    var s2=document.createElement('script');
+    s2.src='https://unpkg.com/heic2any@0.0.4/dist/heic2any.min.js';
+    s2.onload=function(){
+      _h2aState='ready';
+      _h2aQueue.forEach(function(fn){ fn(null); });
+      _h2aQueue=[];
+    };
+    s2.onerror=function(){
+      _h2aState='failed';
+      _h2aQueue.forEach(function(fn){ fn(new Error('CDN unavailable')); });
+      _h2aQueue=[];
+    };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+}
+
+// ── Convert HEIC blob → JPEG blob, then call cb(jpegBlob) ───
+function convertHEIC(blob, cb){
+  requireHeic2Any(function(err){
     if(err){
-      // heic2any library unavailable — try native (Safari on macOS/iOS may handle it)
-      toast('Loading HEIC natively (may not work on all browsers)','warn',4000);
-      loadImageBlob(f);
+      cb(null, blob); // fall back to original blob
       return;
     }
-    heic2any({blob:f, toType:'image/jpeg', quality:0.92})
+    heic2any({blob:blob, toType:'image/jpeg', quality:0.92})
       .then(function(result){
-        var blob = Array.isArray(result) ? result[0] : result;
-        toast('HEIC converted ✓','ok',2000);
-        loadImageBlob(blob);
+        var out=Array.isArray(result)?result[0]:result;
+        cb(null, out);
       })
-      .catch(function(convErr){
-        console.warn('[HEIC] heic2any error:', convErr);
-        // Try native as last resort
-        toast('Conversion failed — trying native decode…','warn',3000);
-        loadImageBlob(f);
+      .catch(function(e){
+        console.warn('[HEIC] conversion error:',e);
+        cb(e, null);
       });
   });
 }
 
-// ── Lazy-load heic2any library only when a HEIC file is opened ──
-var _heic2anyLoaded = false;
-function loadHeic2Any(cb){
-  if(typeof heic2any !== 'undefined'){ _heic2anyLoaded=true; cb(null); return; }
-  if(_heic2anyLoaded){ cb(new Error('heic2any did not initialise')); return; }
-  var script=document.createElement('script');
-  script.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
-  script.onload=function(){ _heic2anyLoaded=true; cb(null); };
-  script.onerror=function(){ cb(new Error('heic2any CDN unavailable')); };
-  document.head.appendChild(script);
+// ── Check if a drawn canvas is blank (all-transparent pixels) ─
+function isCanvasBlank(ctx, w, h){
+  try{
+    var step=Math.max(1,Math.floor(Math.min(w,h)/20));
+    var d=ctx.getImageData(0,0,w,h).data;
+    for(var i=3;i<d.length;i+=step*4){
+      if(d[i]>10) return false;  // found a non-transparent pixel
+    }
+    return true;
+  }catch(e){ return false; }
 }
 
-function loadImageBlob(f){
-  var url=URL.createObjectURL(f);
+// ── Core image loader ────────────────────────────────────────
+function loadImageBlob(blob, _retried){
+  var name=(blob.name||'').toLowerCase();
+  var url=URL.createObjectURL(blob);
   var img=new Image();
+
   img.onload=function(){
-    // Blank-image guard: some formats (HEIC, TIFF) load with 0 dimensions
     if(img.naturalWidth===0||img.naturalHeight===0){
       URL.revokeObjectURL(url);
-      toast('Image decoded but has no pixels. Try exporting as JPEG from your Photos app.','warn',5000);
+      if(!_retried) tryHEICFallback(blob, name);
+      else showImageError(name);
       return;
     }
+    var scale=Math.min(1,IOS_MAX_PX/Math.max(img.naturalWidth,img.naturalHeight));
+    var w=Math.round(img.naturalWidth*scale);
+    var h=Math.round(img.naturalHeight*scale);
     pdfDoc=null; pgGrp(false);
-    var scale=Math.min(1, IOS_MAX_PX/Math.max(img.naturalWidth,img.naturalHeight));
-    var w=Math.round(img.naturalWidth*scale), h=Math.round(img.naturalHeight*scale);
     resize(w,h);
+    bCtx.clearRect(0,0,w,h);
     bCtx.drawImage(img,0,0,w,h);
-    afterLoad();
     URL.revokeObjectURL(url);
+
+    // ── BLANK CANVAS CHECK ──────────────────────────────────
+    // img.onload fired but canvas is still empty — common with HEIC
+    // on browsers that "support" HEIC in <img> but not in canvas.
+    if(isCanvasBlank(bCtx,w,h)){
+      console.warn('[Load] Canvas blank after drawImage — retrying with heic2any');
+      if(!_retried) tryHEICFallback(blob, name);
+      else showImageError(name);
+      return;
+    }
+    // ── SUCCESS ─────────────────────────────────────────────
+    afterLoad();
   };
+
+  img.onerror=function(){
+    URL.revokeObjectURL(url);
+    if(!_retried) tryHEICFallback(blob, name);
+    else showImageError(name);
+  };
+
   img.src=url;
 }
+
+// ── HEIC fallback: convert then retry draw ───────────────────
+function tryHEICFallback(blob, name){
+  var looksHEIC=name.endsWith('.heic')||name.endsWith('.heif')||
+                (blob.type||'').includes('heic')||(blob.type||'').includes('heif');
+  if(!looksHEIC && !isCanvasBlank(bCtx,1,1)){
+    showImageError(name); return;
+  }
+  toast('Converting image format…','',0);
+  convertHEIC(blob, function(err, jpegBlob){
+    if(err||!jpegBlob){
+      toast('Conversion failed. Share as JPEG from your Photos app.','warn',6000);
+      return;
+    }
+    toast('Converting image format… done','ok',2000);
+    loadImageBlob(jpegBlob, true); // retry with converted blob, no more retries
+  });
+}
+
+function showImageError(name){
+  if((name||'').match(/\.(tiff?|tif)$/)){
+    toast('TIFF not supported on mobile. Export as JPEG or PNG first.','warn',6000);
+  } else if((name||'').match(/\.(heic|heif)$/)){
+    toast('Could not convert HEIC. In Photos: tap Share → Save as JPEG, then open that file.','warn',7000);
+  } else {
+    toast('Could not load image. Try saving as JPEG or PNG first.','warn',5000);
+  }
+}
+
 
 function loadPDF(f){
   if(typeof pdfjsLib==='undefined'){ toast('PDF support requires an internet connection.','warn'); return; }
