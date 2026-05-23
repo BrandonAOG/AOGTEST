@@ -104,12 +104,11 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 .cat-btn.active { color: var(--bg-dark); background: linear-gradient(135deg, var(--yellow-bright), var(--orange)); border-color: transparent; box-shadow: 0 0 20px rgba(251,191,36,0.28), 0 4px 12px rgba(0,0,0,0.3); }
 .category-title { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 5px; color: var(--yellow-bright); text-align: center; margin-bottom: 18px; opacity: 0.45; text-transform: uppercase; }
 
-/* FORMS GRID */
-.forms-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 44px; flex: 1; }
-@media (max-width: 700px) { .forms-grid { grid-template-columns: 1fr; gap: 10px; } }
+/* FORMS GRID — mobile first: single col, scales up */
+.forms-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 44px; flex: 1; }
 
-/* FORM CARD */
-.form-card { position: relative; display: flex; flex-direction: column; justify-content: center; text-decoration: none; padding: 26px 22px; background: rgba(13,20,40,0.82); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), box-shadow 0.28s, border-color 0.28s, background 0.28s; cursor: pointer; min-height: 110px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+/* FORM CARD — base size = phone size, same on every phone */
+.form-card { position: relative; display: flex; flex-direction: column; justify-content: center; text-decoration: none; padding: 18px 16px; background: rgba(13,20,40,0.82); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), box-shadow 0.28s, border-color 0.28s, background 0.28s; cursor: pointer; min-height: 95px; height: 95px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .form-card::before { content: ''; position: absolute; top: 0; left: -100%; width: 55%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.035), transparent); transition: left 0.5s ease; z-index: 1; }
 .form-card:hover::before { left: 150%; }
 .form-card:hover { transform: translateY(-3px); border-color: rgba(251,191,36,0.22); background: rgba(17,26,52,0.95); box-shadow: 0 0 0 1px rgba(251,191,36,0.08), 0 10px 36px rgba(0,0,0,0.55), 0 0 50px rgba(251,191,36,0.07), inset 0 1px 0 rgba(255,255,255,0.05); }
@@ -121,27 +120,41 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 .glow-strip { position: absolute; top: 0; left: 12%; right: 12%; height: 1px; background: linear-gradient(90deg, transparent, rgba(251,191,36,0.7), rgba(249,115,22,0.5), transparent); opacity: 0; transition: opacity 0.28s; }
 .form-card:hover .glow-strip { opacity: 1; }
 
-.form-card-content { display: flex; align-items: center; gap: 16px; position: relative; z-index: 2; }
-.form-icon-wrap { flex-shrink: 0; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.18); border-radius: 10px; transition: all 0.28s; }
+/* Base icon size = phone size */
+.form-card-content { display: flex; align-items: center; gap: 13px; position: relative; z-index: 2; }
+.form-icon-wrap { flex-shrink: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.18); border-radius: 8px; transition: all 0.28s; }
 .form-card:hover .form-icon-wrap { background: rgba(251,191,36,0.13); border-color: rgba(251,191,36,0.38); box-shadow: 0 0 18px rgba(251,191,36,0.18); transform: scale(1.07); }
-.form-icon-wrap svg { width: 26px; height: 26px; stroke: var(--yellow-bright); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.28s, filter 0.28s; opacity: 0.8; }
+.form-icon-wrap svg { width: 22px; height: 22px; stroke: var(--yellow-bright); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.28s, filter 0.28s; opacity: 0.8; }
 .form-card:hover .form-icon-wrap svg { stroke: var(--orange-bright); opacity: 1; filter: drop-shadow(0 0 5px rgba(249,115,22,0.45)); }
 
 .form-text { flex: 1; min-width: 0; }
-.form-title { font-family: var(--font-display); font-size: clamp(0.62rem, 1.5vw, 0.9rem); font-weight: 700; letter-spacing: clamp(1px,0.3vw,2px); color: var(--text); text-transform: uppercase; margin-bottom: 5px; transition: color 0.28s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form-title { font-family: var(--font-display); font-size: 0.72rem; font-weight: 700; letter-spacing: 1.5px; color: var(--text); text-transform: uppercase; margin-bottom: 4px; transition: color 0.28s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .form-card:hover .form-title { color: var(--yellow-bright); }
-.form-desc { font-family: var(--font-mono); font-size: clamp(0.55rem, 1vw, 0.67rem); color: var(--text-dim); letter-spacing: 0.2px; line-height: 1.55; }
-.form-arrow { position: absolute; bottom: 13px; right: 16px; font-family: var(--font-mono); font-size: 0.58rem; color: var(--blue-electric); letter-spacing: 2px; opacity: 0; transform: translateX(-8px); transition: all 0.28s; z-index: 2; }
+.form-desc { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.2px; line-height: 1.5; }
+.form-arrow { position: absolute; bottom: 10px; right: 14px; font-family: var(--font-mono); font-size: 0.55rem; color: var(--blue-electric); letter-spacing: 2px; opacity: 0; transform: translateX(-8px); transition: all 0.28s; z-index: 2; }
 .form-card:hover .form-arrow { opacity: 0.65; transform: translateX(0); }
 
 /* CARD GROUP LAYOUT */
 .card-group { display: contents; }
 .card-group.hidden { display: none; }
+
+/* iPad (701–1024px): 2-col grid, fixed card height matching phone proportions */
 @media (min-width: 701px) and (max-width: 1024px) {
-  .forms-grid { display: block; }
+  .forms-grid { display: block; gap: 0; }
   .card-group:not(.hidden) { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-  .card-group[data-group="maintenance"]:not(.hidden) { grid-template-columns: repeat(2, minmax(0, 400px)); justify-content: center; }
-  .card-group:not(.hidden) .form-card { min-height: 120px; height: 120px; }
+  .card-group[data-group=maintenance]:not(.hidden) { grid-template-columns: repeat(2, minmax(0, 400px)); justify-content: center; }
+  .card-group:not(.hidden) .form-card { min-height: 95px; height: 95px; }
+}
+
+/* Desktop (1025px+): 2-col grid, slightly taller cards */
+@media (min-width: 1025px) {
+  .forms-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .form-card { padding: 22px 20px; min-height: 110px; height: 110px; }
+  .form-card-content { gap: 16px; }
+  .form-icon-wrap { width: 50px; height: 50px; border-radius: 10px; }
+  .form-icon-wrap svg { width: 25px; height: 25px; }
+  .form-title { font-size: 0.85rem; letter-spacing: 2px; }
+  .form-desc { font-size: 0.65rem; }
 }
 
 /* FOOTER */
@@ -150,24 +163,24 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 .footer-version { font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-dim); letter-spacing: 2px; opacity: 0.28; }
 .footer-version span { color: var(--blue-electric); }
 
-/* RESPONSIVE */
-@media (max-width: 600px) {
+/* Small phones (under 380px): only thing that shrinks further */
+@media (max-width: 379px) {
+  .form-card { padding: 14px 13px; min-height: 84px; height: 84px; }
+  .form-icon-wrap { width: 38px; height: 38px; }
+  .form-icon-wrap svg { width: 19px; height: 19px; }
+  .form-title { font-size: 0.65rem; }
+  .form-desc { font-size: 0.55rem; }
+}
+
+/* Other phone/tablet shared responsive fixes */
+@media (max-width: 700px) {
   .container { padding: 26px 14px 30px; }
   .logo-img { width: 72px; height: 72px; }
   .status-bar { border-radius: 8px; }
   .status-item { padding: 11px 8px; font-size: 0.56rem; letter-spacing: 0.5px; }
   .cat-btn { padding: 10px 12px; font-size: 0.56rem; letter-spacing: 1.5px; flex: 1; min-width: 0; text-align: center; }
   .category-nav { padding: 4px; gap: 5px; }
-  .form-card { padding: 18px 16px; min-height: 95px; }
-  .form-icon-wrap { width: 44px; height: 44px; border-radius: 8px; }
-  .form-icon-wrap svg { width: 22px; height: 22px; }
-  .form-card-content { gap: 13px; }
   #update-toast { left: 12px; right: 12px; bottom: 16px; max-width: 100%; width: auto; }
-}
-@media (min-width: 481px) and (max-width: 900px) {
-  .form-card { padding: 20px 18px; min-height: 102px; }
-  .form-icon-wrap { width: 48px; height: 48px; }
-  .form-icon-wrap svg { width: 24px; height: 24px; }
 }
 </style>
 </head>
