@@ -211,8 +211,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 }
 #font-size-sel:focus{border-color:var(--acc)}
 /* SELECTION OVERLAY CANVAS */
-#txt-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:1}
-#sel-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:2}
+#shapes-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:1}
+#txt-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:2}
+#sel-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:3}
 
 /* SAVE INDICATOR */
 #save-indicator{
@@ -575,6 +576,7 @@ body{display:flex;flex-direction:column;}
       <div id="canvas-wrap">
         <canvas id="base-cv"></canvas>
         <canvas id="draw-cv"></canvas>
+        <canvas id="shapes-cv"></canvas>
         <canvas id="txt-cv"></canvas>
         <canvas id="sel-cv"></canvas>
         <canvas id="grid-cv"></canvas>
@@ -850,6 +852,8 @@ var selCv=document.getElementById('sel-cv');
 var selCtx=selCv.getContext('2d');
 var tCv=document.getElementById('txt-cv');
 var tCtx=tCv.getContext('2d');
+var shCv=document.getElementById('shapes-cv');
+var shCtx=shCv.getContext('2d');
 var fontSizeSel=document.getElementById('font-size-sel');
 
 // ── iOS GESTURE & PULL-TO-REFRESH PREVENTION ────────────────
@@ -933,6 +937,8 @@ function resizeLayers(w,h){
 function composite(){
   dCtx.clearRect(0,0,drawCv.width,drawCv.height);
   layers.forEach(function(l){ if(l.visible) dCtx.drawImage(l.canvas,0,0); });
+  // shapes-cv and txt-cv render on their own canvases above draw-cv — no need to blit here
+  // (they are separate absolutely-positioned canvases in the DOM)
 }
 
 function lctx(){ return layers[activeLayerIdx].ctx; }
@@ -944,9 +950,10 @@ function pushUndo(){
     // Store only the ACTIVE layer's ImageData — 5× less memory than storing all layers.
     // Each step: ~33MB instead of ~165MB. With MAX_UNDO=5 on iPhone: 165MB vs 825MB.
     var snap={
-      idx:      activeLayerIdx,
-      data:     lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
-      textObjs: JSON.parse(JSON.stringify(textObjs)) // include text objects
+      idx:       activeLayerIdx,
+      data:      lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
+      textObjs:  JSON.parse(JSON.stringify(textObjs)),
+      shapeObjs: JSON.parse(JSON.stringify(shapeObjs))
     };
     undoStack.push(snap);
     if(undoStack.length>MAX_UNDO) undoStack.shift();
@@ -982,6 +989,7 @@ function undoFn(){
     lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height);
     lc.ctx.putImageData(snap.data,0,0);
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; renderTextObjs(); }
+    if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
     composite();
   }catch(ex){ console.warn('undoFn failed:',ex); }
 }
@@ -1000,6 +1008,7 @@ function redoFn(){
     lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height);
     lc.ctx.putImageData(snap.data,0,0);
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; renderTextObjs(); }
+    if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
     composite();
   }catch(ex){ console.warn('redoFn failed:',ex); }
 }
@@ -1335,16 +1344,17 @@ function renderPDFPage(n){
 }
 
 function resize(w,h){
-  baseCv.width=drawCv.width=gridCv.width=tCv.width=w;
-  baseCv.height=drawCv.height=gridCv.height=tCv.height=h;
+  baseCv.width=drawCv.width=gridCv.width=tCv.width=shCv.width=w;
+  baseCv.height=drawCv.height=gridCv.height=tCv.height=shCv.height=h;
   selCv.width=1; selCv.height=1;
   canvasWrap.style.width=w+'px'; canvasWrap.style.height=h+'px';
 }
 
 function afterLoad(){
   initLayers(baseCv.width,baseCv.height);
-  undoStack=[]; redoStack=[]; textObjs=[]; editingObj=null;
+  undoStack=[]; redoStack=[]; textObjs=[]; editingObj=null; shapeObjs=[]; editShapeObj=null;
   tCtx.clearRect(0,0,tCv.width,tCv.height);
+  shCtx.clearRect(0,0,shCv.width,shCv.height);
   baseLoaded=true;
   dropZone.classList.add('hidden'); document.getElementById('compass').style.display='block';
   canvasWrap.style.display='inline-block';
@@ -1389,6 +1399,13 @@ var layerTmps=layers.map(function(l){
   // Rotate text object positions to match new canvas orientation
   var rw=baseCv.width, rh=baseCv.height; // after resize these are swapped
   // deg is -90 or 90; transform each text object position
+  shapeObjs.forEach(function(s){
+    var ox=s.cx, oy=s.cy;
+    if(deg===90){ s.cx=rh-oy; s.cy=ox; }
+    else         { s.cx=oy;   s.cy=rw-ox; }
+    s.angle+=deg*Math.PI/180;
+  });
+  renderShapeObjs();
   textObjs.forEach(function(obj){
     if(deg===90){
       var nx=rw-obj.y; var ny=obj.x;  // wrong without orig dims
@@ -1480,6 +1497,26 @@ function onDown(e){
   if(tool==='polygon'){ return; }
   if(tool==='leader'){ return; }
   if(tool==='stamp'){ handleStamp(e); return; }
+
+  // Re-select existing shape object when rect/ellipse tool is active
+  if(tool==='rect'||tool==='ellipse'){
+    var hit=findShapeObjAt(sp.x,sp.y);
+    if(hit){
+      e.preventDefault();
+      // Pull it back into selection mode
+      editShapeObj=hit;
+      hit._editing=true;
+      renderShapeObjs();
+      selectedShape={type:hit.type,cx:hit.cx,cy:hit.cy,
+        w:hit.w,h:hit.h,angle:hit.angle,
+        color:hit.color,strokeW:hit.strokeW,opacity:hit.opacity,
+        fill:hit.fill,lineStyle:hit.lineStyle};
+      selHandle=-1; selDragStart=null;
+      renderSelection();
+      return;
+    }
+  }
+
   e.preventDefault();
   drawing=true;
   var p=snapPt(getPos(e).x,getPos(e).y); startX=p.x; startY=p.y;
@@ -1901,6 +1938,13 @@ var editingObj = null;     // text object currently being edited
 // ── Render all text objects onto txt-cv ──────────────────────
 function renderTextObjs(){
   tCtx.clearRect(0,0,tCv.width,tCv.height);
+  shapeObjs.forEach(function(s){
+    var ox=s.cx, oy=s.cy;
+    if(deg===90){ s.cx=rh-oy; s.cy=ox; }
+    else         { s.cx=oy;   s.cy=rw-ox; }
+    s.angle+=deg*Math.PI/180;
+  });
+  renderShapeObjs();
   textObjs.forEach(function(obj){
     if(obj._editing) return; // hidden while actively editing
     var layer=layers[obj.layerIdx];
@@ -1937,6 +1981,57 @@ function findTextObjAt(x,y){
 
 // ══════════════════════════════════════════════════════════════
 // END LIVE TEXT OBJECT SYSTEM
+// ══════════════════════════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════
+// LIVE SHAPE OBJECT SYSTEM
+// Rect and ellipse stay as editable vector objects — never burned
+// to pixels. Tap any shape with the rect/ellipse tool to re-select.
+// ══════════════════════════════════════════════════════════════
+var shapeObjs  = [];    // [{id,type,cx,cy,w,h,angle,color,strokeW,opacity,fill,lineStyle,layerIdx}]
+var editShapeObj = null; // shape being pulled back into selection mode
+
+function renderShapeObjs(){
+  shCtx.clearRect(0,0,shCv.width,shCv.height);
+  shapeObjs.forEach(function(s){
+    if(s._editing) return;
+    var layer=layers[s.layerIdx];
+    if(layer&&!layer.visible) return;
+    shCtx.save();
+    shCtx.translate(s.cx,s.cy); shCtx.rotate(s.angle);
+    shCtx.strokeStyle=s.color; shCtx.fillStyle=s.color;
+    shCtx.lineWidth=s.strokeW; shCtx.lineCap='round'; shCtx.lineJoin='round';
+    shCtx.globalAlpha=s.opacity;
+    if(s.lineStyle==='dashed') shCtx.setLineDash([s.strokeW*4,s.strokeW*3]);
+    else if(s.lineStyle==='dotted') shCtx.setLineDash([s.strokeW,s.strokeW*2.5]);
+    else shCtx.setLineDash([]);
+    if(s.type==='rect'){
+      if(s.fill){shCtx.globalAlpha=s.opacity*.25;shCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);shCtx.globalAlpha=s.opacity;}
+      shCtx.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
+    } else if(s.type==='ellipse'){
+      shCtx.beginPath();shCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
+      if(s.fill){shCtx.globalAlpha=s.opacity*.25;shCtx.fill();shCtx.globalAlpha=s.opacity;}
+      shCtx.stroke();
+    }
+    shCtx.restore();
+  });
+}
+
+// Hit test — find shape object at canvas position
+function findShapeObjAt(x,y){
+  for(var i=shapeObjs.length-1;i>=0;i--){
+    var s=shapeObjs[i];
+    if(s._editing) continue;
+    var layer=layers[s.layerIdx];
+    if(layer&&!layer.visible) continue;
+    if(isInsideShape(s,x,y)) return s;
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// END LIVE SHAPE OBJECT SYSTEM
 // ══════════════════════════════════════════════════════════════
 
 // ── TEXT CURSOR INDICATOR ────────────────────────────────────
@@ -2299,33 +2394,37 @@ function renderSelection(){
 function commitSelection(){
   if(!selectedShape) return;
   var s=selectedShape;
-  var lc=lctx();
-  lc.save();
-  lc.translate(s.cx,s.cy); lc.rotate(s.angle);
-  lc.strokeStyle=s.color; lc.fillStyle=s.color;
-  lc.lineWidth=s.strokeW; lc.lineCap='round'; lc.lineJoin='round';
-  lc.globalAlpha=s.opacity;
-  if(s.lineStyle==='dashed') lc.setLineDash([s.strokeW*4,s.strokeW*3]);
-  else if(s.lineStyle==='dotted') lc.setLineDash([s.strokeW,s.strokeW*2.5]);
-  else lc.setLineDash([]);
-  if(s.type==='rect'){
-    if(s.fill){lc.globalAlpha=s.opacity*.25;lc.fillRect(-s.w/2,-s.h/2,s.w,s.h);lc.globalAlpha=s.opacity;}
-    lc.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
-  } else if(s.type==='ellipse'){
-    lc.beginPath();lc.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
-    if(s.fill){lc.globalAlpha=s.opacity*.25;lc.fill();lc.globalAlpha=s.opacity;}
-    lc.stroke();
+  if(editShapeObj){
+    // Updating an existing shape object — replace it in place
+    editShapeObj._editing=false;
+    editShapeObj.cx=s.cx; editShapeObj.cy=s.cy;
+    editShapeObj.w=s.w;   editShapeObj.h=s.h;
+    editShapeObj.angle=s.angle;
+    editShapeObj.color=s.color; editShapeObj.strokeW=s.strokeW;
+    editShapeObj.opacity=s.opacity; editShapeObj.fill=s.fill;
+    editShapeObj.lineStyle=s.lineStyle;
+    editShapeObj=null;
+  } else {
+    // New shape — store as live object (not burned to pixels)
+    shapeObjs.push({
+      id:Date.now(),
+      type:s.type, cx:s.cx, cy:s.cy, w:s.w, h:s.h, angle:s.angle,
+      color:s.color, strokeW:s.strokeW, opacity:s.opacity,
+      fill:s.fill, lineStyle:s.lineStyle,
+      layerIdx:activeLayerIdx
+    });
   }
-  lc.restore(); lc.globalAlpha=1; lc.setLineDash([]);
   selectedShape=null; selHandle=-1; selDragStart=null;
   selCv.width=1; selCv.height=1;
+  renderShapeObjs();
   composite(); pushUndo();
 }
 
 function cancelSelection(){
+  if(editShapeObj){ editShapeObj._editing=false; editShapeObj=null; }
   selectedShape=null; selHandle=-1; selDragStart=null;
   selCv.width=1; selCv.height=1;
-  composite();
+  renderShapeObjs(); composite();
 }
 
 // Resize / rotate cursors for each handle
@@ -2345,7 +2444,12 @@ drawCv.addEventListener('mousemove',function(e){
   var p=getPos(e);
   if(tool==='text'&&!_txtCursorActive&&baseLoaded){ showTextHover(p.x,p.y); }
   else if(tool!=='text'){ clearTextHover(); }
-  if(selectedShape&&selHandle===-1){ updateSelCursor(p.x,p.y); }
+  if(selectedShape&&selHandle===-1){ updateSelCursor(p.x,p.y); return; }
+  // Show move cursor when hovering over re-selectable shape
+  if((tool==='rect'||tool==='ellipse')&&!selectedShape&&baseLoaded){
+    var hit=findShapeObjAt(p.x,p.y);
+    drawCv.style.cursor=hit?'move':'crosshair';
+  }
 },{passive:true});
 
 // ══════════════════════════════════════════════════════════════
@@ -2493,6 +2597,36 @@ function compositeExport(maxPx){
   var ctx=out.getContext('2d');
   ctx.drawImage(baseCv,0,0,w,h);
   layers.forEach(function(l){ if(l.visible) ctx.drawImage(l.canvas,0,0,w,h); });
+  // Render shape objects (they live on shapes-cv but re-render here for full res)
+  shapeObjs.forEach(function(s){
+    if(s._editing) return;
+    var layer=layers[s.layerIdx]; if(layer&&!layer.visible) return;
+    ctx.save();
+    ctx.translate(s.cx*scale,s.cy*scale); ctx.rotate(s.angle);
+    ctx.strokeStyle=s.color; ctx.fillStyle=s.color;
+    ctx.lineWidth=s.strokeW*scale; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.globalAlpha=s.opacity;
+    if(s.lineStyle==='dashed') ctx.setLineDash([s.strokeW*4*scale,s.strokeW*3*scale]);
+    else if(s.lineStyle==='dotted') ctx.setLineDash([s.strokeW*scale,s.strokeW*2.5*scale]);
+    else ctx.setLineDash([]);
+    var sw=s.w/2*scale, sh=s.h/2*scale;
+    if(s.type==='rect'){
+      if(s.fill){ctx.globalAlpha=s.opacity*.25;ctx.fillRect(-sw,-sh,sw*2,sh*2);ctx.globalAlpha=s.opacity;}
+      ctx.strokeRect(-sw,-sh,sw*2,sh*2);
+    } else if(s.type==='ellipse'){
+      ctx.beginPath();ctx.ellipse(0,0,Math.max(1,sw),Math.max(1,sh),0,0,Math.PI*2);
+      if(s.fill){ctx.globalAlpha=s.opacity*.25;ctx.fill();ctx.globalAlpha=s.opacity;}
+      ctx.stroke();
+    }
+    ctx.restore(); ctx.setLineDash([]); ctx.globalAlpha=1;
+  });
+  shapeObjs.forEach(function(s){
+    var ox=s.cx, oy=s.cy;
+    if(deg===90){ s.cx=rh-oy; s.cy=ox; }
+    else         { s.cx=oy;   s.cy=rw-ox; }
+    s.angle+=deg*Math.PI/180;
+  });
+  renderShapeObjs();
   textObjs.forEach(function(obj){
     var layer=layers[obj.layerIdx];
     if(layer&&!layer.visible) return;
@@ -2785,6 +2919,7 @@ function doRestore(rec){
             activeLayerIdx=Math.min(rec.activeLayerIdx||0,layers.length-1);
             // Restore scale
             if(rec.textObjs){ textObjs=rec.textObjs; renderTextObjs(); }
+            if(rec.shapeObjs){ shapeObjs=rec.shapeObjs; renderShapeObjs(); }
             if(rec.scaleSet){ scaleSet=true; ppu=rec.ppu; scaleUnit=rec.scaleUnit;
               ppuIn.value=(1/ppu).toFixed(4); unitIn.value=scaleUnit;
               scaleStatus.textContent='1 px = '+(1/ppu).toFixed(4)+' '+scaleUnit; }
