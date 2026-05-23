@@ -45,7 +45,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans
 .clr-wrap{position:relative;flex-shrink:0;width:30px;height:30px;}
 #clr-swatch{width:30px;height:30px;border-radius:50%;border:2.5px solid var(--b2);cursor:pointer;transition:border-color .15s;display:block;}
 #clr-swatch:hover{border-color:var(--txt)}
-#clr-input{
+#clr-input, #fill-clr-input{
   position:absolute;inset:0;
   opacity:0.01;         /* NOT 0 — iOS needs >0 to allow tap */
   width:100%;height:100%;
@@ -181,7 +181,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 #tb-dlg h3{font-size:13px;margin-bottom:12px;color:var(--txt)}
 /* MOBILE */
 @media(max-width:700px){
-  .side-panel{position:fixed;bottom:0;left:0;right:0;width:100% !important;height:55vh;border-radius:14px 14px 0 0;z-index:50;transform:translateY(100%);transition:transform .25s;border-right:none;border-top:1px solid var(--b2)}
+  .side-panel{position:fixed;bottom:0;left:0;right:0;width:100% !important;height:42vh;max-height:360px;border-radius:14px 14px 0 0;z-index:50;transform:translateY(100%);transition:transform .25s;border-right:none;border-top:1px solid var(--b2)}
   .side-panel.right{left:0}
   .side-panel.collapsed{width:100% !important;transform:translateY(100%) !important;opacity:1;pointer-events:none}
   .side-panel:not(.collapsed){transform:translateY(0)}
@@ -264,6 +264,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .label-item.ats:hover{background:rgba(168,85,247,.25);border-color:#a855f7;}
 .label-item.appliance{border-color:rgba(249,115,22,.35);color:#fdba74;background:rgba(249,115,22,.08);}
 .label-item.appliance:hover{background:rgba(249,115,22,.25);border-color:#f97316;}
+.label-item.electrical{border-color:rgba(103,232,249,.35);color:#67e8f9;background:rgba(103,232,249,.08);}
+.label-item.electrical:hover{background:rgba(103,232,249,.25);border-color:#22d3ee;}
 /* Mobile: labels panel is a bottom sheet */
 @media(max-width:700px){#labels-panel{width:100%!important;}}
 
@@ -563,6 +565,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <button class="tb-btn active" data-tool="pen" title="Pen — draw freehand curves. Arc length is shown after each stroke."><svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg><span class="lbl">Pen</span></button>
   <button class="tb-btn" data-tool="line"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/></svg><span class="lbl">Line</span></button>
   <button class="tb-btn" data-tool="arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg><span class="lbl">Arrow</span></button>
+  <button class="tb-btn" data-tool="polyline" title="Polyline — click to add points, double-click or Enter to finish"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,20 8,10 14,15 21,5"/><circle cx="3" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="14" cy="15" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="5" r="1.5" fill="currentColor" stroke="none"/></svg><span class="lbl">Polyline</span></button>
   <button class="tb-btn" data-tool="rect"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/></svg><span class="lbl">Rect</span></button>
   <button class="tb-btn" data-tool="ellipse"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg><span class="lbl">Ellipse</span></button>
   <button class="tb-btn" data-tool="cloud"><svg viewBox="0 0 24 24"><path d="M3 18c0-2 1.5-3.5 3-3.5.3-2.5 2.5-4.5 5-4.5 2 0 3.8 1.1 4.7 2.8.2 0 .5-.1.8-.1 1.9 0 3.5 1.6 3.5 3.5 0 2-1.6 3.5-3.5 3.5H6C4.3 19.7 3 18.9 3 18z"/></svg><span class="lbl">Cloud</span></button>
@@ -612,8 +615,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     </div>
   </div>
   <div class="sl-wrap" style="min-width:48px">
-    <input type="range" id="fill-op-sl" min="0" max="100" value="25">
-    <span id="fill-op-val" style="font-size:8px">25%</span>
+    <input type="range" id="fill-op-sl" min="0" max="100" value="40">
+    <span id="fill-op-val" style="font-size:8px">40%</span>
   </div>
   <div class="sep"></div>
   <!-- STROKE WIDTH -->
@@ -724,7 +727,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <div class="prop-section">
         <div class="prop-title" style="color:#d8b4fe">🔌 ATS</div>
         <div class="label-grid">
-          <button class="label-item ats" data-preset="ATS 100A">ATS 100A</button>
+          <button class="label-item ats" data-preset="ATS 100S">ATS 100S</button>
           <button class="label-item ats" data-preset="ATS 150A">ATS 150A</button>
           <button class="label-item ats" data-preset="ATS 200A">ATS 200A</button>
           <button class="label-item ats" data-preset="ATS 300A">ATS 300A</button>
@@ -735,11 +738,18 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       </div>
 
       <div class="prop-section">
+        <div class="prop-title" style="color:#67e8f9">⚡ Electrical</div>
+        <div class="label-grid">
+          <button class="label-item electrical" data-preset="METER">METER</button>
+          <button class="label-item electrical" data-preset="Meter-Main">Meter-Main</button>
+          <button class="label-item electrical" data-preset="Panel">Panel</button>
+        </div>
+      </div>
+
+      <div class="prop-section">
         <div class="prop-title" style="color:#fdba74">🏠 Appliances</div>
         <div class="label-grid">
-          <button class="label-item appliance" data-preset="Meter">Meter</button>
-          <button class="label-item appliance" data-preset="Panel">Panel</button>
-          <button class="label-item appliance" data-preset="NG Meter">NG Meter</button>
+          <button class="label-item appliance" data-preset="NG METER">NG METER</button>
           <button class="label-item appliance" data-preset="Water Heater">Water Heater</button>
           <button class="label-item appliance" data-preset="Pool Heater">Pool Heater</button>
           <button class="label-item appliance" data-preset="Cooktop">Cooktop</button>
@@ -1115,7 +1125,7 @@ document.addEventListener('touchmove', function(e){
 
 // ── APP STATE ──
 var tool='pen', color='#ef4444', strokeW=2, opacity=1, lineStyle='solid', fillShape=false;
-var fillColor='#ef4444', fillOpacity=0.25; // separate fill (inner) color and opacity
+var fillColor='#ef4444', fillOpacity=0.4; // separate fill (inner) color and opacity
 var stampType='north';
 var layers=[], activeLayerIdx=0;
 var zoom=1, panX=0, panY=0;
@@ -1208,7 +1218,8 @@ function captureState(){
       textObjs:   JSON.parse(JSON.stringify(textObjs)),
       shapeObjs:  JSON.parse(JSON.stringify(shapeObjs)),
       measureObjs:JSON.parse(JSON.stringify(measureObjs)),
-      pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs))
+      pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs)),
+      polylineObjs:JSON.parse(JSON.stringify(polylineObjs))
     };
   }catch(ex){ _preOp=null; }
 }
@@ -1229,7 +1240,8 @@ function pushUndo(){
           textObjs:   JSON.parse(JSON.stringify(textObjs)),
           shapeObjs:  JSON.parse(JSON.stringify(shapeObjs)),
           measureObjs:JSON.parse(JSON.stringify(measureObjs)),
-          pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs))
+          pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs)),
+          polylineObjs:JSON.parse(JSON.stringify(polylineObjs))
         };
       }catch(ex2){ return; }
     }
@@ -1290,6 +1302,7 @@ function undoFn(){
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
     if(snap.measureObjs!==undefined){ measureObjs=snap.measureObjs; renderMeasureObjs(); }
     if(snap.pathMeasureObjs!==undefined){ pathMeasureObjs=snap.pathMeasureObjs; }
+    if(snap.polylineObjs!==undefined){ polylineObjs=snap.polylineObjs; }
     renderShapeAndMeasure();
     composite();
   }catch(ex){ console.warn('undoFn failed:',ex); }
@@ -1312,6 +1325,7 @@ function redoFn(){
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
     if(snap.measureObjs!==undefined){ measureObjs=snap.measureObjs; renderMeasureObjs(); }
     if(snap.pathMeasureObjs!==undefined){ pathMeasureObjs=snap.pathMeasureObjs; }
+    if(snap.polylineObjs!==undefined){ polylineObjs=snap.polylineObjs; }
     renderShapeAndMeasure();
     composite();
   }catch(ex){ console.warn('redoFn failed:',ex); }
@@ -1329,7 +1343,9 @@ function clearFn(){
   textObjs  = textObjs.filter(function(obj){ return obj.layerIdx!==activeLayerIdx; });
   measureObjs = measureObjs.filter(function(m){ return m.layerIdx!==activeLayerIdx; });
   pathMeasureObjs = pathMeasureObjs.filter(function(pm){ return pm.layerIdx!==activeLayerIdx; });
+  polylineObjs    = polylineObjs.filter(function(pl){ return pl.layerIdx!==activeLayerIdx; });
   pathMeasureObjs = pathMeasureObjs.filter(function(pm){ return pm.layerIdx!==activeLayerIdx; });
+  polylineObjs    = polylineObjs.filter(function(pl){ return pl.layerIdx!==activeLayerIdx; });
   // Cancel any in-progress selection on the cleared layer
   if(selectedShape){
     var tobj=selectedShape._textObj;
@@ -1688,6 +1704,7 @@ function afterLoad(){
   undoStack=[]; redoStack=[]; textObjs=[]; editingObj=null; shapeObjs=[]; editShapeObj=null;
   measureObjs=[]; selectedMeasure=null; measureDragHandle=-1; measureDragStart=null;
   pathMeasureObjs=[]; pmPoints=[]; pmActive=false;
+  polylineObjs=[]; plPoints=[]; plActive=false;
   penPathPoints=[];
   tCtx.clearRect(0,0,tCv.width,tCv.height);
   shCtx.clearRect(0,0,shCv.width,shCv.height);
@@ -1813,6 +1830,18 @@ function onDown(e){
 
   // ── If a shape is selected, handle transform interaction first ──
   var _isTouchEvt = !!(e.touches && e.touches.length);
+
+  // Tapping any existing text object with non-text/non-eraser tools → enter transform mode
+  if(!selectedShape && tool!=='text' && tool!=='eraser' && tool!=='pan' && !drawing){
+    var _anyText=findTextObjAt(sp.x,sp.y);
+    if(_anyText){
+      e.preventDefault();
+      commitText(); commitSelection(); commitMeasureSelection();
+      enterTextTransformMode(_anyText);
+      return;
+    }
+  }
+
   if(selectedShape && tool!=='measure'){
     var sh=getHandleAt(sp.x,sp.y,_isTouchEvt);
     if(sh>=0){
@@ -2007,6 +2036,8 @@ function onMove(e){
     lastPenX=x; lastPenY=y;
   } else if(tool==='eraser'){
     lc.save(); lc.globalCompositeOperation='destination-out'; lc.lineWidth=strokeW*4; lc.lineCap='round'; lc.lineTo(x,y); lc.stroke(); lc.restore();
+    // Also erase vector objects the eraser passes over
+    eraseVectorAt(x, y, strokeW*2);
     composite();
   } else if(tool==='measure'){
     // Measure preview handled by dedicated mousemove listener — nothing here
@@ -2045,6 +2076,29 @@ function onUp(e){
     penPathPoints=[];
     composite();
   } else if(tool==='eraser'){ composite(); }
+  else if(tool==='line'){
+    // Line = editable vector line (no distance label, committed immediately)
+    var lpx=Math.hypot(p.x-startX,p.y-startY);
+    if(lpx>4){
+      var isLTouch=!!(e.changedTouches&&e.changedTouches.length);
+      var newLine={
+        id:Date.now(), x1:startX,y1:startY,x2:p.x,y2:p.y,
+        color:color,strokeW:strokeW,opacity:opacity,lineStyle:lineStyle,
+        layerIdx:activeLayerIdx,showLabel:false,_editing:false
+      };
+      measureObjs.push(newLine);
+      if(isLTouch){
+        // Touch: brief edit mode so endpoints can be dragged to fine-tune
+        newLine._editing=true; selectedMeasure=newLine;
+        measureDragHandle=-1; measureDragStart=null;
+        renderShapeAndMeasure(); renderMeasureSelection();
+      } else {
+        // Desktop: commit straight away — line is visible immediately
+        renderShapeAndMeasure();
+      }
+    } else { renderShapeAndMeasure(); }
+    composite(); pushUndo();
+  }
   else if(tool==='measure'){
     var px=Math.hypot(p.x-startX,p.y-startY);
     if(px>4){
@@ -2134,8 +2188,53 @@ function drawShapeOnCtx(ctx,t,x1,y1,x2,y2,final){
   }
 }
 
+
+// ── Erase vector objects (shapes, text, measures) under the eraser ──
+function eraseVectorAt(x, y, radius){
+  var erased=false;
+  // Use eraser radius as tolerance so edges are hit, not just interior
+  var slop=Math.max(radius, 12/zoom);
+  // Shapes — check if eraser overlaps shape bounding box (works at any angle)
+  for(var i=shapeObjs.length-1;i>=0;i--){
+    var s=shapeObjs[i];
+    if(s._editing) continue;
+    var layer=layers[s.layerIdx]; if(layer&&!layer.visible) continue;
+    var rcos=Math.cos(-s.angle), rsin=Math.sin(-s.angle);
+    var lx=(x-s.cx)*rcos-(y-s.cy)*rsin;
+    var ly=(x-s.cx)*rsin+(y-s.cy)*rcos;
+    if(Math.abs(lx)<=s.w/2+slop && Math.abs(ly)<=s.h/2+slop){
+      shapeObjs.splice(i,1); erased=true;
+    }
+  }
+  // Text objects
+  var tHit=findTextObjAt(x,y);
+  if(tHit&&!tHit._editing){
+    textObjs=textObjs.filter(function(o){ return o!==tHit; });
+    erased=true;
+  }
+  // Measure lines
+  var mHit=findMeasureObjAt(x,y,false);
+  if(mHit&&!mHit._editing){
+    measureObjs=measureObjs.filter(function(m){ return m!==mHit; });
+    erased=true;
+  }
+  // Path measures
+  var pmHit=findPathMeasureObjAt(x,y,false);
+  if(pmHit){
+    pathMeasureObjs=pathMeasureObjs.filter(function(pm){ return pm!==pmHit; });
+    erased=true;
+  }
+  // Polyline objects
+  var plHit=findPolylineObjAt(x,y,false);
+  if(plHit){
+    polylineObjs=polylineObjs.filter(function(pl){ return pl!==plHit; });
+    erased=true;
+  }
+  if(erased){ renderShapeObjs(); renderTextObjs(); renderShapeAndMeasure(); }
+}
+
 // ── CLOUD SHAPE ──
-function drawCloud(ctx,x1,y1,x2,y2){
+function drawCloud(ctx,x1,y1,x2,y2,fillInfo){
   var minX=Math.min(x1,x2),maxX=Math.max(x1,x2);
   var minY=Math.min(y1,y2),maxY=Math.max(y1,y2);
   var bumpR=Math.max(8,Math.min(18,Math.min(maxX-minX,maxY-minY)/6));
@@ -2156,7 +2255,9 @@ function drawCloud(ctx,x1,y1,x2,y2){
   steps=Math.max(2,Math.round((maxY-minY)/(bumpR*2)));
   step=(maxY-minY)/steps;
   for(var i=steps;i>0;i--) ctx.arc(minX,minY+step*i-step/2,step/2,Math.PI/2,-Math.PI/2,false);
-  ctx.closePath(); ctx.stroke();
+  ctx.closePath();
+  if(fillInfo){ ctx.save(); ctx.fillStyle=fillInfo.color; ctx.globalAlpha=fillInfo.opacity; ctx.fill(); ctx.restore(); }
+  ctx.stroke();
 }
 
 // ── MEASURE LINE (shared draw function — used by render + export) ──
@@ -2208,6 +2309,8 @@ function drawMeasureObjOnCtx(ctx, m, highlight){
   else ctx.setLineDash([]);
   // main line
   ctx.beginPath(); ctx.moveTo(m.x1,m.y1); ctx.lineTo(m.x2,m.y2); ctx.stroke();
+  // Plain line: no ticks or label
+  if(m.showLabel===false){ ctx.restore(); return; }
   // tick marks
   ctx.setLineDash([]);
   var perp=ang+Math.PI/2, tk=Math.max(5,m.strokeW*2.5);
@@ -2262,7 +2365,7 @@ function renderShapeAndMeasure(){
       if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;shCtx.fill();shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
       shCtx.stroke();
     } else if(s.type==='cloud'){
-      drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2);
+      drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25}:null);
     }
     shCtx.restore();
   });
@@ -2278,6 +2381,12 @@ function renderShapeAndMeasure(){
     var layer=layers[pm.layerIdx];
     if(layer&&!layer.visible) return;
     drawPathMeasureOnCtx(shCtx, pm, 1);
+  });
+  // Polyline objects
+  polylineObjs.forEach(function(pl){
+    var layer=layers[pl.layerIdx];
+    if(layer&&!layer.visible) return;
+    drawPolylineOnCtx(shCtx, pl, 1);
   });
 }
 
@@ -2354,7 +2463,8 @@ function renderMeasureSelection(){
   selCtx.font=(Math.max(10,11/zoom))+'px Arial,sans-serif';
   selCtx.textAlign='center'; selCtx.textBaseline='top';
   var midX=(m.x1+m.x2)/2, midY=Math.min(m.y1,m.y2)-20/zoom;
-  selCtx.fillText('Drag endpoints or line · Click away to commit',midX,midY);
+  var hintTxt=m.showLabel===false?'Drag endpoints · Click away to commit':'Drag endpoints or line · Click away to commit';
+  selCtx.fillText(hintTxt,midX,midY);
   selCtx.restore();
 }
 
@@ -2432,6 +2542,9 @@ function formatLength(px){
 var pathMeasureObjs = [];  // committed path measures
 var pmPoints   = [];       // waypoints being placed (in-progress)
 var pmActive   = false;    // true while placing points
+var polylineObjs = [];     // committed polyline paths (open, no labels)
+var plPoints     = [];     // in-progress polyline waypoints
+var plActive     = false;  // true while placing polyline points
 
 // ── Draw a committed path measure onto a canvas context ──────
 function drawPathMeasureOnCtx(ctx, pm, sc){
@@ -2627,6 +2740,13 @@ drawCv.addEventListener('touchend',function(e){
     else { pmPoints.push(p); pmActive=true; redrawPathMeasurePreview(p.x,p.y); }
     return;
   }
+  if(tool==='polyline'){
+    var isDoubleTapPL=(now-lastTap<350);
+    lastTap=now;
+    if(isDoubleTapPL&&plPoints.length>=2){ setTimeout(closePolyline,0); }
+    else { plPoints.push(p); plActive=true; redrawPolylinePreview(p.x,p.y); }
+    return;
+  }
   lastTap=now;
   if(tool==='leader'){ handleLeaderClick(p.x,p.y,fakeE); }
 },{passive:true});
@@ -2640,11 +2760,15 @@ drawCv.addEventListener('click',function(e){
     pmPoints.push(p); pmActive=true;
     redrawPathMeasurePreview(p.x,p.y);
   }
+  else if(tool==='polyline'){
+    plPoints.push(p); plActive=true; redrawPolylinePreview(p.x,p.y);
+  }
   else if(tool==='leader'){ handleLeaderClick(p.x,p.y,e); }
 });
 drawCv.addEventListener('dblclick',function(e){
   if(tool==='polygon'&&polyPoints.length>=3){ e.preventDefault(); closePolygon(); }
   else if(tool==='pathmeasure'&&pmPoints.length>=2){ e.preventDefault(); closePathMeasure(); }
+  else if(tool==='polyline'&&plPoints.length>=2){ e.preventDefault(); closePolyline(); }
 });
 
 drawCv.addEventListener('mousemove',function(e){
@@ -2658,6 +2782,11 @@ drawCv.addEventListener('mousemove',function(e){
   if(tool==='pathmeasure'&&pmActive&&pmPoints.length>=1){
     var mpos=getPos(e);
     redrawPathMeasurePreview(mpos.x,mpos.y);
+    return;
+  }
+  if(tool==='polyline'&&plActive&&plPoints.length>=1){
+    var plPos=getPos(e);
+    redrawPolylinePreview(plPos.x,plPos.y);
     return;
   }
   // Live measurement preview — draw on shCv (z-index:1, above draw-cv)
@@ -2696,7 +2825,7 @@ drawCv.addEventListener('mousemove',function(e){
         shCtx.beginPath();shCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
         if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;shCtx.fill();shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
         shCtx.stroke();
-      } else if(s.type==='cloud'){ drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2); }
+      } else if(s.type==='cloud'){ drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25}:null); }
       shCtx.restore();
     });
     measureObjs.forEach(function(m){
@@ -3338,7 +3467,7 @@ function renderSelection(){
     if(s.fill){selCtx.fillStyle=s.fillColor||s.color;selCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;selCtx.fill();selCtx.globalAlpha=s.opacity;selCtx.fillStyle=s.color;}
     selCtx.stroke();
   } else if(s.type==='cloud'){
-    drawCloud(selCtx,-s.w/2,-s.h/2,s.w/2,s.h/2);
+    drawCloud(selCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25}:null);
   } else if(s.type==='text'){
     // Text selection: draw text at its position/angle for live preview
     if(s._textObj){
@@ -3354,6 +3483,7 @@ function renderSelection(){
       var estH2=lines2.length*to.fontSize*1.35;
       var localY2=to.fontSize - estH2/2;
       lines2.forEach(function(line,i){ selCtx.fillText(line,-estW2/2,localY2+i*to.fontSize*1.35); });
+
     }
   }
   selCtx.restore();
@@ -3616,7 +3746,15 @@ function holdFire(){
     return;
   }
 
-  // 1c. Path measure objects
+  // 1c. Polyline objects
+  var plHit2=findPolylineObjAt(x,y,true);
+  if(plHit2){
+    captureState();
+    polylineObjs=polylineObjs.filter(function(pl){ return pl!==plHit2; });
+    renderShapeAndMeasure(); composite(); pushUndo();
+    toast('Polyline deleted','',1500); drawing=false; return;
+  }
+  // 1d. Path measure objects
   var pmHit=findPathMeasureObjAt(x,y,true);
   if(pmHit){
     captureState();
@@ -3683,11 +3821,100 @@ function stopHoldRipple(){
 }
 // ── END HOLD-TO-DELETE ─────────────────────────────────────────
 
+
+// ══════════════════════════════════════════════════════════════
+// POLYLINE TOOL — click to add points, dbl-click/Enter to finish
+// Open path, solid line, no measurement labels.
+// Stored in polylineObjs[] — survives undo/redo/save/export.
+// ══════════════════════════════════════════════════════════════
+
+function drawPolylineOnCtx(ctx, pl, sc){
+  sc=sc||1;
+  if(!pl.pts||pl.pts.length<2) return;
+  ctx.save();
+  ctx.globalAlpha=pl.opacity;
+  ctx.strokeStyle=pl.color;
+  ctx.lineWidth=pl.strokeW*sc;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  if(pl.lineStyle==='dashed') ctx.setLineDash([pl.strokeW*4*sc,pl.strokeW*3*sc]);
+  else if(pl.lineStyle==='dotted') ctx.setLineDash([pl.strokeW*sc,pl.strokeW*2.5*sc]);
+  else ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(pl.pts[0].x*sc, pl.pts[0].y*sc);
+  for(var i=1;i<pl.pts.length;i++) ctx.lineTo(pl.pts[i].x*sc, pl.pts[i].y*sc);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function findPolylineObjAt(x,y,isTouch){
+  var thresh=isTouch?18:8;
+  for(var i=polylineObjs.length-1;i>=0;i--){
+    var pl=polylineObjs[i];
+    var layer=layers[pl.layerIdx]; if(layer&&!layer.visible) continue;
+    for(var j=1;j<pl.pts.length;j++){
+      var dx=pl.pts[j].x-pl.pts[j-1].x, dy=pl.pts[j].y-pl.pts[j-1].y;
+      var len2=dx*dx+dy*dy; if(len2<1) continue;
+      var t=Math.max(0,Math.min(1,((x-pl.pts[j-1].x)*dx+(y-pl.pts[j-1].y)*dy)/len2));
+      if(Math.hypot(pl.pts[j-1].x+t*dx-x, pl.pts[j-1].y+t*dy-y)<thresh+(pl.strokeW||2)/2) return pl;
+    }
+  }
+  return null;
+}
+
+function redrawPolylinePreview(mx,my){
+  if(!plActive||plPoints.length<1) return;
+  renderShapeAndMeasure();
+  var pts=plPoints.concat(mx!=null?[{x:mx,y:my}]:[]);
+  if(pts.length<2) return;
+  shCtx.save();
+  shCtx.globalAlpha=opacity;
+  shCtx.strokeStyle=color;
+  shCtx.lineWidth=Math.max(1.5,strokeW);
+  shCtx.lineCap='round'; shCtx.lineJoin='round';
+  if(lineStyle==='dashed') shCtx.setLineDash([strokeW*4,strokeW*3]);
+  else if(lineStyle==='dotted') shCtx.setLineDash([strokeW,strokeW*2.5]);
+  else shCtx.setLineDash([]);
+  shCtx.beginPath();
+  shCtx.moveTo(pts[0].x,pts[0].y);
+  for(var i=1;i<pts.length;i++) shCtx.lineTo(pts[i].x,pts[i].y);
+  shCtx.stroke();
+  shCtx.setLineDash([]);
+  // Waypoint dots
+  shCtx.fillStyle=color;
+  plPoints.forEach(function(pt){
+    shCtx.beginPath(); shCtx.arc(pt.x,pt.y,Math.max(3,strokeW*1.5),0,Math.PI*2); shCtx.fill();
+  });
+  // Cursor hint
+  if(mx!=null){
+    shCtx.globalAlpha=1;
+    shCtx.font='10px Arial,sans-serif';
+    shCtx.fillStyle='rgba(255,255,255,0.7)';
+    shCtx.fillText('Dbl-click or Enter to finish · '+plPoints.length+' pts',mx+12,my+14);
+  }
+  shCtx.restore();
+}
+
+function closePolyline(){
+  if(plPoints.length<2){ plPoints=[]; plActive=false; renderShapeAndMeasure(); return; }
+  captureState();
+  polylineObjs.push({
+    id:Date.now(), pts:plPoints.slice(),
+    color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
+    layerIdx:activeLayerIdx
+  });
+  plPoints=[]; plActive=false;
+  renderShapeAndMeasure(); composite(); pushUndo();
+  toast('Polyline committed · Hold to delete','ok',2000);
+}
+
+// ── END POLYLINE TOOL ────────────────────────────────────────
+
 // ── TOOL BUTTONS ──
 document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
   btn.addEventListener('click',function(){
     if(tool==='polygon'&&polyActive){ closePolygon(); }
     if(tool==='pathmeasure'&&pmActive){ closePathMeasure(); }
+    if(tool==='polyline'&&plActive){ closePolyline(); }
     commitText(); commitSelection(); commitMeasureSelection(); leaderStep=0;
     stopTextCursor(); clearTextHover();
     tool=btn.dataset.tool;
@@ -3733,7 +3960,14 @@ document.querySelectorAll('.ls-btn').forEach(function(btn){
   });
 });
 
-fillBtn.addEventListener('click',function(){ fillShape=!fillShape; fillBtn.classList.toggle('active',fillShape); });
+fillBtn.addEventListener('click',function(){
+  fillShape=!fillShape; fillBtn.classList.toggle('active',fillShape);
+  // Update selected shape live
+  if(selectedShape&&selectedShape.type!=='text'){
+    selectedShape.fill=fillShape; renderSelection();
+    if(editShapeObj) editShapeObj.fill=fillShape;
+  }
+});
 
 // ── COLOR / SLIDERS ──
 // Color swatch click handled by overlaid input (iOS-compatible)
@@ -3767,21 +4001,27 @@ opSl.addEventListener('input',function(e){
 // Fill color + opacity pickers
 fillClrInput.addEventListener('input',function(e){
   fillColor=e.target.value; updateFillSwatch();
+  // Auto-enable fill when user picks a fill color
+  fillShape=true; fillBtn.classList.add('active');
   if(selectedShape&&selectedShape.type!=='text'){
-    selectedShape.fillColor=fillColor; renderSelection();
-    // Also update the committed shape if re-editing
-    if(editShapeObj) editShapeObj.fillColor=fillColor;
+    selectedShape.fillColor=fillColor; selectedShape.fill=true; renderSelection();
+    if(editShapeObj){ editShapeObj.fillColor=fillColor; editShapeObj.fill=true; }
   }
 });
 fillOpSl.addEventListener('input',function(e){
   fillOpacity=parseInt(e.target.value)/100; fillOpVal.textContent=e.target.value+'%'; updateFillSwatch();
+  // Auto-enable fill when user adjusts opacity (0 = transparent = disable fill)
+  var shouldFill=(fillOpacity>0);
+  fillShape=shouldFill; fillBtn.classList.toggle('active',shouldFill);
   if(selectedShape&&selectedShape.type!=='text'){
-    selectedShape.fillOpacity=fillOpacity; renderSelection();
-    if(editShapeObj) editShapeObj.fillOpacity=fillOpacity;
+    selectedShape.fillOpacity=fillOpacity; selectedShape.fill=shouldFill; renderSelection();
+    if(editShapeObj){ editShapeObj.fillOpacity=fillOpacity; editShapeObj.fill=shouldFill; }
   }
 });
-attachSliderTouch(fillOpSl,function(v){ fillOpacity=Math.round(v)/100; fillOpVal.textContent=Math.round(v)+'%'; updateFillSwatch();
-  if(selectedShape&&selectedShape.type!=='text'){ selectedShape.fillOpacity=fillOpacity; renderSelection(); }
+attachSliderTouch(fillOpSl,function(v){
+  fillOpacity=Math.round(v)/100; fillOpVal.textContent=Math.round(v)+'%'; updateFillSwatch();
+  var shouldFill=(fillOpacity>0); fillShape=shouldFill; fillBtn.classList.toggle('active',shouldFill);
+  if(selectedShape&&selectedShape.type!=='text'){ selectedShape.fillOpacity=fillOpacity; selectedShape.fill=shouldFill; renderSelection(); }
 });
 
 function attachSliderTouch(sl,onVal){
@@ -3887,7 +4127,7 @@ function compositeExport(maxPx){
         if(s.fill){ctx.fillStyle=s.fillColor||s.color;ctx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;ctx.fill();ctx.globalAlpha=s.opacity;ctx.fillStyle=s.color;}
         ctx.stroke();
       } else if(s.type==='cloud'){
-        drawCloud(ctx,-sw,-sh_,sw,sh_);
+        drawCloud(ctx,-sw,-sh_,sw,sh_,s.fill?{color:s.fillColor||s.color,opacity:s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25}:null);
       }
       ctx.restore(); ctx.setLineDash([]); ctx.globalAlpha=1;
     });
@@ -3959,6 +4199,13 @@ function compositeExport(maxPx){
       drawPathMeasureOnCtx(ctx, pm, scale);
     });
   }catch(ex){ console.warn('[Export] pathMeasureObjs:',ex); }
+  // Polyline objects
+  try{
+    polylineObjs.forEach(function(pl){
+      var layer=layers[pl.layerIdx]; if(layer&&!layer.visible) return;
+      drawPolylineOnCtx(ctx, pl, scale);
+    });
+  }catch(ex){ console.warn('[Export] polylineObjs:',ex); }
   return out;
 }
 
@@ -4152,7 +4399,8 @@ function doSave(){
     textObjs:       JSON.parse(JSON.stringify(textObjs)),
     shapeObjs:      JSON.parse(JSON.stringify(shapeObjs)),
     measureObjs:    JSON.parse(JSON.stringify(measureObjs)),
-    pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs))
+    pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs)),
+    polylineObjs:   JSON.parse(JSON.stringify(polylineObjs))
   };
 
   // Step 1: encode base image
@@ -4284,6 +4532,7 @@ function doRestore(rec){
             if(rec.shapeObjs){ shapeObjs=rec.shapeObjs; renderShapeObjs(); }
             if(rec.measureObjs){ measureObjs=rec.measureObjs; }
             if(rec.pathMeasureObjs){ pathMeasureObjs=rec.pathMeasureObjs; }
+            if(rec.polylineObjs){ polylineObjs=rec.polylineObjs; }
             renderShapeAndMeasure();
             if(rec.scaleSet){ scaleSet=true; ppu=rec.ppu; scaleUnit=rec.scaleUnit;
               ppuIn.value=(1/ppu).toFixed(4); unitIn.value=scaleUnit;
@@ -4366,6 +4615,7 @@ document.addEventListener('keydown',function(e){
     stopTextCursor(); clearTextHover();
     if(selectedMeasure){ commitMeasureSelection(); return; }
     if(tool==='pathmeasure'&&pmActive){ closePathMeasure(); return; }
+    if(tool==='polyline'&&plActive){ closePolyline(); return; }
     if(selectedShape){ commitSelection(); return; }
     if(tool==='polygon'&&polyActive){ closePolygon(); return; }
     leaderStep=0;
@@ -4378,7 +4628,8 @@ document.addEventListener('keydown',function(e){
   }
   if(e.key==='Enter'&&selectedShape){ commitSelection(); return; }
   if(e.key==='Enter'&&tool==='pathmeasure'&&pmActive){ closePathMeasure(); return; }
-  var map={q:'pen',l:'line',a:'arrow',r:'rect',e:'ellipse',c:'cloud',m:'measure',v:'pathmeasure',g:'polygon',t:'text',x:'eraser',h:'pan'};
+  if(e.key==='Enter'&&tool==='polyline'&&plActive){ closePolyline(); return; }
+  var map={q:'pen',l:'line',a:'arrow',r:'rect',e:'ellipse',c:'cloud',m:'measure',v:'pathmeasure',g:'polygon',w:'polyline',t:'text',x:'eraser',h:'pan'};
   if(map[e.key]){ var b=document.querySelector('.tb-btn[data-tool="'+map[e.key]+'"]'); if(b) b.click(); }
 });
 document.addEventListener('keyup',function(e){ if(e.code==='Space'){ spaceDown=false; viewport.style.cursor=''; hideHint(); } });
