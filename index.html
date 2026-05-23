@@ -12,7 +12,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AOG Hub">
-
 <style>
 :root {
   --yellow: #FCD34D;
@@ -24,735 +23,172 @@
   --blue-bright: #3B82F6;
   --blue-deep: #1E3A8A;
   --blue-electric: #00D4FF;
-  --bg-dark: #0A0E27;
-  --bg-mid: #0F1535;
-  --bg-light: #1A2847;
+  --green: #10B981;
+  --bg-dark: #060913;
+  --bg-mid: #0B1023;
+  --bg-card: #0D1428;
   --text: #F1F5F9;
-  --text-dim: #94A3B8;
+  --text-dim: #7A8BA8;
   --font-display: 'Orbitron', monospace;
   --font-mono: 'Share Tech Mono', monospace;
   --font-body: 'Exo 2', sans-serif;
 }
-
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; overflow-x: hidden; }
+body { font-family: var(--font-body); background: var(--bg-dark); color: var(--text); min-height: 100vh; position: relative; }
+#bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 
-body {
-  font-family: var(--font-body);
-  background: linear-gradient(135deg, #0A0E27 0%, #0F1535 25%, #1A2847 50%, #0F1535 75%, #0A0E27 100%);
-  background-size: 400% 400%;
-  color: var(--text);
-  min-height: 100vh;
-  position: relative;
-  animation: bgShift 20s ease infinite;
-}
-
-@keyframes bgShift {
-  0%, 100% { background-position: 0% 50%; }
-  50%       { background-position: 100% 50%; }
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background-image:
-    linear-gradient(rgba(251, 191, 36, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
-  background-size: 50px 50px;
-  pointer-events: none;
-  z-index: 1;
-  animation: gridMove 40s linear infinite;
-}
-
-@keyframes gridMove {
-  0%   { background-position: 0 0; }
-  100% { background-position: 50px 50px; }
-}
-
-body::after {
-  content: '';
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background:
-    radial-gradient(circle at 20% 30%, rgba(251, 191, 36, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(249, 115, 22, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* ===== OFFLINE BANNER ===== */
-#offline-banner {
-  display: none;
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 9999;
-  padding: 10px 20px;
-  background: linear-gradient(90deg, rgba(10,14,39,0.97), rgba(15,21,53,0.97));
-  border-bottom: 2px solid var(--orange);
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 3px;
-  color: var(--orange-bright);
-  text-transform: uppercase;
-  text-shadow: 0 0 8px rgba(249,115,22,0.5);
-  animation: bannerPulse 2s ease-in-out infinite;
-}
-
+/* OFFLINE BANNER */
+#offline-banner { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 9999; padding: 10px 20px; background: rgba(6,9,19,0.97); border-bottom: 1px solid var(--orange); text-align: center; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 3px; color: var(--orange-bright); text-transform: uppercase; animation: bannerPulse 2s ease-in-out infinite; }
 #offline-banner.visible { display: block; }
+@keyframes bannerPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+#offline-banner::before { content: 'WARNING  '; color: var(--yellow-bright); }
+#offline-banner::after  { content: '  WARNING'; color: var(--yellow-bright); }
 
-@keyframes bannerPulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.75; }
-}
-
-#offline-banner::before { content: '⚠ '; color: var(--yellow-bright); }
-#offline-banner::after  { content: ' ⚠'; color: var(--yellow-bright); }
-
-/* ===== UPDATE TOAST ===== */
-#update-toast {
-  display: none;
-  position: fixed;
-  bottom: 24px; right: 24px;
-  z-index: 9998;
-  padding: 20px 22px;
-  background: linear-gradient(135deg, rgba(15,21,53,0.99), rgba(26,40,71,0.99));
-  border: 1px solid var(--yellow-bright);
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 2px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  max-width: 360px;
-  width: calc(100vw - 48px);
-  box-shadow:
-    0 0 24px rgba(251,191,36,0.25),
-    0 0 48px rgba(249,115,22,0.12);
-  clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
-  animation: toastSlideIn 0.4s cubic-bezier(0.4,0,0.2,1) forwards;
-}
-
-@keyframes toastSlideIn {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
+/* UPDATE TOAST */
+#update-toast { display: none; position: fixed; bottom: 24px; right: 24px; z-index: 9998; padding: 20px 22px; background: rgba(11,16,35,0.98); border: 1px solid rgba(251,191,36,0.4); border-radius: 10px; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; max-width: 360px; width: calc(100vw - 48px); box-shadow: 0 0 40px rgba(251,191,36,0.12), 0 20px 60px rgba(0,0,0,0.6); animation: toastIn 0.4s cubic-bezier(0.4,0,0.2,1) forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 #update-toast.visible { display: flex; flex-direction: column; gap: 14px; }
-
-#update-toast-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-#update-toast-title {
-  font-family: var(--font-display);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 3px;
-  color: var(--yellow-bright);
-  text-shadow: 0 0 10px rgba(251,191,36,0.5);
-  margin-bottom: 4px;
-}
-
-#update-toast-version {
-  font-size: 0.62rem;
-  letter-spacing: 2px;
-  color: var(--blue-electric);
-  text-shadow: 0 0 6px rgba(0,212,255,0.4);
-}
-
-#update-dismiss-btn {
-  flex-shrink: 0;
-  background: none;
-  border: 1px solid rgba(148,163,184,0.3);
-  border-radius: 2px;
-  color: var(--text-dim);
-  font-size: 0.8rem;
-  cursor: pointer;
-  padding: 2px 7px;
-  line-height: 1.4;
-  transition: all 0.2s;
-}
-#update-dismiss-btn:hover {
-  border-color: var(--orange);
-  color: var(--orange-bright);
-}
-
-#update-toast-divider {
-  height: 1px;
-  background: linear-gradient(90deg, rgba(251,191,36,0.4), rgba(249,115,22,0.2), transparent);
-}
-
-#update-toast-changelog {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-#update-toast-changelog li {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 0.7rem;
-  letter-spacing: 1px;
-  line-height: 1.6;
-  color: var(--text);
-}
-
-#update-toast-changelog li::before {
-  content: '▸';
-  color: var(--orange-bright);
-  flex-shrink: 0;
-  margin-top: 1px;
-  text-shadow: 0 0 6px rgba(249,115,22,0.5);
-}
-
-#update-toast-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding-top: 4px;
-  border-top: 1px solid rgba(251,191,36,0.15);
-}
-
-#update-toast-later {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 2px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 4px 0;
-  transition: color 0.2s;
-}
+#update-toast-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+#update-toast-title { font-family: var(--font-display); font-size: 0.8rem; font-weight: 700; letter-spacing: 3px; color: var(--yellow-bright); margin-bottom: 4px; }
+#update-toast-version { font-size: 0.62rem; letter-spacing: 2px; color: var(--blue-electric); }
+#update-dismiss-btn { flex-shrink: 0; background: none; border: 1px solid rgba(148,163,184,0.2); border-radius: 4px; color: var(--text-dim); font-size: 0.8rem; cursor: pointer; padding: 2px 7px; line-height: 1.4; transition: all 0.2s; }
+#update-dismiss-btn:hover { border-color: var(--orange); color: var(--orange-bright); }
+#update-toast-divider { height: 1px; background: linear-gradient(90deg, rgba(251,191,36,0.3), rgba(249,115,22,0.15), transparent); }
+#update-toast-changelog { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+#update-toast-changelog li { display: flex; align-items: flex-start; gap: 8px; font-size: 0.7rem; letter-spacing: 1px; line-height: 1.6; color: var(--text); }
+#update-toast-changelog li::before { content: '▸'; color: var(--orange-bright); flex-shrink: 0; margin-top: 1px; }
+#update-toast-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px; border-top: 1px solid rgba(251,191,36,0.1); }
+#update-toast-later { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; cursor: pointer; background: none; border: none; padding: 4px 0; transition: color 0.2s; }
 #update-toast-later:hover { color: var(--orange-bright); }
+#update-reload-btn { padding: 9px 20px; background: linear-gradient(135deg, var(--yellow-bright), var(--orange)); border: none; border-radius: 6px; font-family: var(--font-display); font-size: 0.6rem; font-weight: 700; letter-spacing: 2px; color: var(--bg-dark); cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+#update-reload-btn:hover { box-shadow: 0 0 24px rgba(251,191,36,0.5); transform: scale(1.03); }
 
-#update-reload-btn {
-  padding: 9px 22px;
-  background: linear-gradient(135deg, var(--yellow-bright), var(--orange));
-  border: none;
-  border-radius: 2px;
-  font-family: var(--font-display);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 3px;
-  color: var(--bg-dark);
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: all 0.2s;
-  clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
-}
-#update-reload-btn:hover {
-  box-shadow: 0 0 20px rgba(251,191,36,0.6);
-  transform: scale(1.04);
-}
-#update-reload-btn:active { transform: scale(0.98); }
+/* LAYOUT */
+.container { position: relative; z-index: 10; max-width: 1100px; margin: 0 auto; padding: 48px 28px 40px; min-height: 100vh; display: flex; flex-direction: column; }
 
-/* ===== LAYOUT ===== */
-.container {
-  position: relative;
-  z-index: 10;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 24px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ===== HEADER ===== */
-.header {
-  text-align: center;
-  margin-bottom: 50px;
-  padding: 40px 20px 30px;
-  position: relative;
-}
-
-.header::before, .header::after {
-  content: '';
-  position: absolute;
-  height: 2px;
-  width: 80%;
-  left: 10%;
-  background: linear-gradient(90deg, transparent, var(--yellow-bright), var(--orange), var(--blue-electric), transparent);
-}
-
-.header::before { top: 0;    animation: scanline 4s linear infinite; }
-.header::after  { bottom: 0; animation: scanline 4s linear infinite reverse; }
-
-@keyframes scanline {
-  0%   { opacity: 0; transform: scaleX(0); }
-  50%  { opacity: 1; transform: scaleX(1); }
-  100% { opacity: 0; transform: scaleX(0); }
-}
-
-.logo-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
-
-.logo-img {
-  width: 110px; height: 110px;
-  object-fit: contain;
-  filter:
-    drop-shadow(0 0 12px rgba(251,191,36,0.6))
-    drop-shadow(0 0 24px rgba(249,115,22,0.4))
-    brightness(1.1);
-  animation: logoPulse 3s ease-in-out infinite;
-}
-
-@keyframes logoPulse {
-  0%, 100% {
-    filter:
-      drop-shadow(0 0 12px rgba(251,191,36,0.6))
-      drop-shadow(0 0 24px rgba(249,115,22,0.4))
-      brightness(1.1);
-  }
-  50% {
-    filter:
-      drop-shadow(0 0 18px rgba(251,191,36,0.8))
-      drop-shadow(0 0 36px rgba(249,115,22,0.6))
-      brightness(1.2);
-  }
-}
-
+/* HEADER */
+.header { text-align: center; margin-bottom: 36px; padding-bottom: 32px; position: relative; }
+.header-rule { height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.5) 25%, rgba(249,115,22,0.5) 50%, rgba(0,212,255,0.35) 75%, transparent 100%); margin-bottom: 34px; position: relative; }
+.header-rule::before { content: 'AOG'; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); background: var(--bg-dark); padding: 0 14px; font-family: var(--font-display); font-size: 0.5rem; font-weight: 700; letter-spacing: 4px; color: rgba(251,191,36,0.5); }
+.logo-wrap { display: flex; align-items: center; justify-content: center; gap: 28px; flex-wrap: wrap; margin-bottom: 18px; }
+.logo-img { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(251,191,36,0.5)) drop-shadow(0 0 30px rgba(249,115,22,0.3)) brightness(1.1); animation: logoPulse 4s ease-in-out infinite; }
+@keyframes logoPulse { 0%, 100% { filter: drop-shadow(0 0 10px rgba(251,191,36,0.45)) brightness(1.05); } 50% { filter: drop-shadow(0 0 22px rgba(251,191,36,0.8)) drop-shadow(0 0 44px rgba(249,115,22,0.45)) brightness(1.2); } }
 .title-block { text-align: left; }
 @media (max-width: 600px) { .title-block { text-align: center; } }
+.company-name { font-family: var(--font-display); font-size: clamp(1.5rem, 5vw, 2.5rem); font-weight: 900; letter-spacing: clamp(2px,0.5vw,5px); line-height: 1.05; background: linear-gradient(135deg, #fff 0%, var(--yellow-bright) 35%, var(--orange) 75%, var(--orange-deep) 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+.tagline { font-family: var(--font-mono); font-size: clamp(0.55rem,1.3vw,0.75rem); letter-spacing: 4px; color: var(--blue-electric); text-transform: uppercase; opacity: 0.75; }
+.subtitle { display: inline-flex; align-items: center; gap: 12px; margin-top: 16px; font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 5px; color: var(--text-dim); text-transform: uppercase; opacity: 0.6; }
+.subtitle::before, .subtitle::after { content: ''; display: block; width: 36px; height: 1px; background: linear-gradient(90deg, transparent, rgba(122,139,168,0.5)); }
+.subtitle::after { transform: scaleX(-1); }
+.subtitle span { color: var(--orange-bright); opacity: 1; }
 
-.company-name {
-  font-family: var(--font-display);
-  font-size: 2.4rem;
-  font-weight: 900;
-  letter-spacing: 4px;
-  line-height: 1;
-  background: linear-gradient(135deg, var(--yellow-bright) 0%, var(--orange) 50%, var(--orange-deep) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 8px;
-}
+/* STATUS BAR */
+.status-bar { display: flex; justify-content: center; align-items: stretch; margin-bottom: 40px; background: rgba(13,20,40,0.75); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); overflow: hidden; }
+.status-item { display: flex; align-items: center; gap: 8px; color: var(--text-dim); font-family: var(--font-mono); font-size: 0.63rem; letter-spacing: 1.5px; text-transform: uppercase; padding: 13px 18px; flex: 1; justify-content: center; position: relative; }
+.status-item + .status-item::before { content: ''; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: rgba(255,255,255,0.07); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green), 0 0 14px rgba(16,185,129,0.4); animation: dotPulse 2.5s ease-in-out infinite; flex-shrink: 0; }
+.status-dot.yellow { background: var(--yellow-bright); box-shadow: 0 0 6px var(--yellow-bright); }
+.status-dot.orange { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+.status-dot.blue   { background: var(--blue-electric); box-shadow: 0 0 6px var(--blue-electric); }
+.status-dot.offline-dot { background: #4B5563; box-shadow: none; animation: none; }
+@keyframes dotPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.7); } }
 
-.tagline {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  letter-spacing: 6px;
-  color: var(--blue-electric);
-  text-transform: uppercase;
-  text-shadow: 0 0 8px rgba(0,212,255,0.5);
-}
+/* SECTION LABEL */
+.forms-section-label { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 5px; color: var(--text-dim); text-align: center; margin-bottom: 18px; text-transform: uppercase; opacity: 0.45; }
 
-.subtitle {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  letter-spacing: 8px;
-  color: var(--text-dim);
-  margin-top: 16px;
-  text-transform: uppercase;
-  font-weight: 400;
-}
+/* CATEGORY NAV */
+.category-nav { display: flex; gap: 6px; margin-bottom: 24px; justify-content: center; flex-wrap: wrap; padding: 5px; background: rgba(13,20,40,0.7); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.cat-btn { position: relative; padding: 11px 22px; font-family: var(--font-display); font-size: 0.63rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.22s cubic-bezier(0.4,0,0.2,1); -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+.cat-btn:hover { color: var(--yellow-bright); background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.18); }
+.cat-btn.active { color: var(--bg-dark); background: linear-gradient(135deg, var(--yellow-bright), var(--orange)); border-color: transparent; box-shadow: 0 0 20px rgba(251,191,36,0.28), 0 4px 12px rgba(0,0,0,0.3); }
+.category-title { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 5px; color: var(--yellow-bright); text-align: center; margin-bottom: 18px; opacity: 0.45; text-transform: uppercase; }
 
-.subtitle span {
-  color: var(--orange-bright);
-  text-shadow: 0 0 8px rgba(249,115,22,0.5);
-}
+/* FORMS GRID */
+.forms-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 44px; flex: 1; }
+@media (max-width: 700px) { .forms-grid { grid-template-columns: 1fr; gap: 10px; } }
 
-/* ===== STATUS BAR ===== */
-.status-bar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-  padding: 12px 24px;
-  margin-bottom: 40px;
-  background: rgba(15,21,53,0.6);
-  border: 1px solid rgba(251,191,36,0.25);
-  border-radius: 4px;
-  backdrop-filter: blur(8px);
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
+/* FORM CARD */
+.form-card { position: relative; display: flex; flex-direction: column; justify-content: center; text-decoration: none; padding: 26px 22px; background: rgba(13,20,40,0.82); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), box-shadow 0.28s, border-color 0.28s, background 0.28s; cursor: pointer; min-height: 110px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.form-card::before { content: ''; position: absolute; top: 0; left: -100%; width: 55%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.035), transparent); transition: left 0.5s ease; z-index: 1; }
+.form-card:hover::before { left: 150%; }
+.form-card:hover { transform: translateY(-3px); border-color: rgba(251,191,36,0.22); background: rgba(17,26,52,0.95); box-shadow: 0 0 0 1px rgba(251,191,36,0.08), 0 10px 36px rgba(0,0,0,0.55), 0 0 50px rgba(251,191,36,0.07), inset 0 1px 0 rgba(255,255,255,0.05); }
+.form-card:active { transform: translateY(-1px); }
 
-.status-item { display: flex; align-items: center; gap: 8px; color: var(--text-dim); }
+.form-card-accent { position: absolute; left: 0; top: 18%; bottom: 18%; width: 3px; border-radius: 0 2px 2px 0; background: linear-gradient(180deg, var(--yellow-bright), var(--orange)); opacity: 0.45; transition: opacity 0.28s, top 0.28s, bottom 0.28s; }
+.form-card:hover .form-card-accent { opacity: 1; top: 10%; bottom: 10%; }
 
-.status-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: #10B981;
-  box-shadow: 0 0 8px #10B981;
-  animation: pulse 2s ease-in-out infinite;
-}
-.status-dot.yellow { background: var(--yellow-bright); box-shadow: 0 0 8px var(--yellow-bright); }
-.status-dot.orange { background: var(--orange);        box-shadow: 0 0 8px var(--orange); }
-.status-dot.blue   { background: var(--blue-electric); box-shadow: 0 0 8px var(--blue-electric); }
-.status-dot.offline-dot { background: #6B7280; box-shadow: 0 0 8px #6B7280; animation: none; }
+.glow-strip { position: absolute; top: 0; left: 12%; right: 12%; height: 1px; background: linear-gradient(90deg, transparent, rgba(251,191,36,0.7), rgba(249,115,22,0.5), transparent); opacity: 0; transition: opacity 0.28s; }
+.form-card:hover .glow-strip { opacity: 1; }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.5; transform: scale(0.8); }
-}
+.form-card-content { display: flex; align-items: center; gap: 16px; position: relative; z-index: 2; }
+.form-icon-wrap { flex-shrink: 0; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.18); border-radius: 10px; transition: all 0.28s; }
+.form-card:hover .form-icon-wrap { background: rgba(251,191,36,0.13); border-color: rgba(251,191,36,0.38); box-shadow: 0 0 18px rgba(251,191,36,0.18); transform: scale(1.07); }
+.form-icon-wrap svg { width: 26px; height: 26px; stroke: var(--yellow-bright); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.28s, filter 0.28s; opacity: 0.8; }
+.form-card:hover .form-icon-wrap svg { stroke: var(--orange-bright); opacity: 1; filter: drop-shadow(0 0 5px rgba(249,115,22,0.45)); }
 
-/* ===== FORMS GRID ===== */
-.forms-section-label {
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  letter-spacing: 6px;
-  color: var(--yellow-bright);
-  text-align: center;
-  margin-bottom: 32px;
-  text-transform: uppercase;
-  text-shadow: 0 0 10px rgba(251,191,36,0.4);
-}
+.form-text { flex: 1; min-width: 0; }
+.form-title { font-family: var(--font-display); font-size: clamp(0.62rem, 1.5vw, 0.9rem); font-weight: 700; letter-spacing: clamp(1px,0.3vw,2px); color: var(--text); text-transform: uppercase; margin-bottom: 5px; transition: color 0.28s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form-card:hover .form-title { color: var(--yellow-bright); }
+.form-desc { font-family: var(--font-mono); font-size: clamp(0.55rem, 1vw, 0.67rem); color: var(--text-dim); letter-spacing: 0.2px; line-height: 1.55; }
+.form-arrow { position: absolute; bottom: 13px; right: 16px; font-family: var(--font-mono); font-size: 0.58rem; color: var(--blue-electric); letter-spacing: 2px; opacity: 0; transform: translateX(-8px); transition: all 0.28s; z-index: 2; }
+.form-card:hover .form-arrow { opacity: 0.65; transform: translateX(0); }
 
-.forms-section-label::before,
-.forms-section-label::after { content: '◆'; color: var(--orange); margin: 0 16px; font-size: 0.7rem; vertical-align: middle; }
-
-.forms-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
-  margin-bottom: 50px;
-  flex: 1;
-}
-
-@media (max-width: 700px) { .forms-grid { grid-template-columns: 1fr; } }
-
-/* ===== FORM CARD ===== */
-.form-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-decoration: none;
-  padding: 32px 28px;
-  background: linear-gradient(135deg, rgba(15,21,53,0.9) 0%, rgba(26,40,71,0.7) 100%);
-  border: 2px solid rgba(251,191,36,0.3);
-  border-radius: 4px;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
-  cursor: pointer;
-  min-height: 180px;
-  clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
-}
-
-.form-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 20px; height: 20px;
-  border-top: 2px solid var(--yellow-bright);
-  border-left: 2px solid var(--yellow-bright);
-  transition: all 0.3s;
-}
-
-.form-card::after {
-  content: '';
-  position: absolute;
-  bottom: 0; right: 0;
-  width: 20px; height: 20px;
-  border-bottom: 2px solid var(--blue-electric);
-  border-right: 2px solid var(--blue-electric);
-  transition: all 0.3s;
-}
-
-.form-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--orange);
-  background: linear-gradient(135deg, rgba(26,40,71,0.95) 0%, rgba(36,52,88,0.85) 100%);
-  box-shadow:
-    0 0 30px rgba(251,191,36,0.3),
-    0 0 60px rgba(249,115,22,0.2),
-    inset 0 0 30px rgba(251,191,36,0.05);
-}
-
-.form-card:hover::before { width: 28px; height: 28px; border-color: var(--orange-bright); }
-.form-card:hover::after  { width: 28px; height: 28px; border-color: var(--blue-bright); }
-.form-card:active { transform: translateY(-2px); }
-
-.form-card .glow-strip {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--yellow-bright), var(--orange), var(--blue-electric), transparent);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.form-card:hover .glow-strip {
-  opacity: 1;
-  animation: stripScan 1.5s linear infinite;
-}
-
-@keyframes stripScan {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-.form-card-content { display: flex; align-items: center; gap: 20px; position: relative; z-index: 2; }
-
-.form-icon-wrap {
-  flex-shrink: 0;
-  width: 64px; height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(249,115,22,0.1));
-  border: 1px solid rgba(251,191,36,0.4);
-  border-radius: 4px;
-  transition: all 0.3s;
-}
-
-.form-card:hover .form-icon-wrap {
-  background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(249,115,22,0.2));
-  border-color: var(--orange);
-  transform: rotate(5deg) scale(1.05);
-  box-shadow: 0 0 20px rgba(251,191,36,0.4);
-}
-
-.form-icon-wrap svg {
-  width: 36px; height: 36px;
-  stroke: var(--yellow-bright);
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: stroke 0.3s;
-}
-
-.form-card:hover .form-icon-wrap svg { stroke: var(--orange-bright); }
-
-.form-text { flex: 1; }
-
-.form-title {
-  font-family: var(--font-display);
-  font-size: clamp(0.72rem, 1.8vw, 1.1rem);
-  font-weight: 700;
-  letter-spacing: clamp(1px, 0.4vw, 3px);
-  color: var(--yellow-bright);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-  text-shadow: 0 0 8px rgba(251,191,36,0.3);
-  transition: all 0.3s;
-}
-
-.form-card:hover .form-title {
-  color: var(--orange-bright);
-  text-shadow: 0 0 12px rgba(249,115,22,0.5);
-  letter-spacing: 4px;
-}
-
-.form-desc {
-  font-family: var(--font-mono);
-  font-size: clamp(0.62rem, 1.3vw, 0.78rem);
-  color: var(--text-dim);
-  letter-spacing: clamp(0px, 0.2vw, 1px);
-  line-height: 1.5;
-}
-
-.form-arrow {
-  position: absolute;
-  bottom: 16px; right: 20px;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--blue-electric);
-  letter-spacing: 2px;
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: all 0.3s;
-}
-
-.form-card:hover .form-arrow {
-  opacity: 1;
-  transform: translateX(0);
-  text-shadow: 0 0 8px rgba(0,212,255,0.6);
-}
-
-/* ===== FOOTER ===== */
-.footer {
-  margin-top: auto;
-  padding-top: 32px;
-  text-align: center;
-  border-top: 1px solid rgba(251,191,36,0.2);
-  position: relative;
-}
-
-.footer::before {
-  content: '';
-  position: absolute;
-  top: -1px; left: 50%;
-  transform: translateX(-50%);
-  width: 60%; height: 1px;
-  background: linear-gradient(90deg, transparent, var(--orange), transparent);
-}
-
-.footer-text {
-  font-family: var(--font-display);
-  font-size: 0.7rem;
-  letter-spacing: 4px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.footer-version {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: var(--orange-bright);
-  letter-spacing: 2px;
-  opacity: 0.7;
-}
-
-.footer-version span { color: var(--blue-electric); }
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 600px) {
-  .container { padding: 24px 14px; }
-  .company-name { font-size: 1.6rem; letter-spacing: 2px; }
-  .tagline { font-size: 0.7rem; letter-spacing: 3px; }
-  .logo-img { width: 80px; height: 80px; }
-  .form-card { padding: 24px 20px; min-height: 150px; }
-  .form-title { font-size: 0.95rem; letter-spacing: 2px; }
-  .form-icon-wrap { width: 52px; height: 52px; }
-  .form-icon-wrap svg { width: 28px; height: 28px; }
-  .status-bar { gap: 12px; padding: 10px 14px; font-size: 0.6rem; letter-spacing: 1px; }
-  #update-toast { left: 12px; right: 12px; bottom: 16px; max-width: 100%; width: auto; }
-}
-
-/* ══════════════════════════════════════
-   CATEGORY NAVIGATION
-   ══════════════════════════════════════ */
-.category-nav {
-  display: flex; gap: 10px; flex-wrap: wrap;
-  margin-bottom: 24px; justify-content: center;
-}
-.cat-btn {
-  position: relative;
-  padding: 12px 24px;
-  font-family: 'Orbitron', monospace;
-  font-size: 0.72rem; font-weight: 700;
-  letter-spacing: 2.5px; text-transform: uppercase;
-  color: var(--yellow-bright);
-  background: linear-gradient(135deg, rgba(15,21,53,0.9), rgba(26,40,71,0.7));
-  border: 1.5px solid rgba(251,191,36,0.35);
-  cursor: pointer; transition: all 0.25s;
-  clip-path: polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
-  -webkit-tap-highlight-color: transparent;
-}
-.cat-btn::before {
-  content: ''; position: absolute;
-  top: 0; left: 0; right: 0; height: 1.5px;
-  background: linear-gradient(90deg, transparent, var(--yellow-bright), transparent);
-  opacity: 0; transition: opacity 0.25s;
-}
-.cat-btn:hover { border-color: var(--orange); color: var(--orange-bright);
-  box-shadow: 0 0 20px rgba(249,115,22,0.25); }
-.cat-btn:hover::before { opacity: 1; }
-.cat-btn.active {
-  background: linear-gradient(135deg, rgba(251,191,36,0.18), rgba(249,115,22,0.12));
-  border-color: var(--yellow-bright);
-  color: #fff;
-  box-shadow: 0 0 24px rgba(251,191,36,0.3), inset 0 0 16px rgba(251,191,36,0.06);
-}
-.cat-btn.active::before { opacity: 1; }
-
-/* Category label above grid */
-.category-title {
-  font-family: 'Orbitron', monospace;
-  font-size: 0.6rem; letter-spacing: 4px; color: var(--yellow-bright);
-  text-align: center; margin-bottom: 16px; opacity: 0.7;
-}
-
-/* Hide/show card groups */
+/* CARD GROUP LAYOUT */
 .card-group { display: contents; }
 .card-group.hidden { display: none; }
-
-/* Maintenance (2-card group): keep cards side-by-side and centered on tablet */
 @media (min-width: 701px) {
-  .card-group[data-group="maintenance"]:not(.hidden) {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 420px));
-    gap: 24px;
-    justify-content: center;
-    grid-column: 1 / -1;
-  }
-  /* When maintenance is active, reset forms-grid to single-row passthrough */
-  .forms-grid:has(.card-group[data-group="maintenance"]:not(.hidden)) {
-    display: block;
-  }
+  .card-group[data-group="maintenance"]:not(.hidden) { display: grid; grid-template-columns: repeat(2, minmax(0, 440px)); gap: 14px; justify-content: center; }
+  .forms-grid:has(.card-group[data-group="maintenance"]:not(.hidden)) { display: flex; justify-content: center; }
+  .card-group[data-group="installs"]:not(.hidden) { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .forms-grid:has(.card-group[data-group="installs"]:not(.hidden)) { display: block; }
 }
 
-/* Installs (3-card group): same treatment so it doesn't leave a wide orphan */
-@media (min-width: 701px) {
-  .card-group[data-group="installs"]:not(.hidden) {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-    grid-column: 1 / -1;
-  }
-  .forms-grid:has(.card-group[data-group="installs"]:not(.hidden)) {
-    display: block;
-  }
-}
+/* FOOTER */
+.footer { margin-top: auto; padding-top: 26px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); }
+.footer-text { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 5px; opacity: 0.4; }
+.footer-version { font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-dim); letter-spacing: 2px; opacity: 0.28; }
+.footer-version span { color: var(--blue-electric); }
 
-@media (max-width: 480px) {
-  .cat-btn { padding: 10px 16px; font-size: 0.65rem; letter-spacing: 2px; flex: 1; min-width: 0; text-align: center; }
-  .category-nav { gap: 6px; }
+/* RESPONSIVE */
+@media (max-width: 600px) {
+  .container { padding: 26px 14px 30px; }
+  .logo-img { width: 72px; height: 72px; }
+  .status-bar { border-radius: 8px; }
+  .status-item { padding: 11px 8px; font-size: 0.56rem; letter-spacing: 0.5px; }
+  .cat-btn { padding: 10px 12px; font-size: 0.56rem; letter-spacing: 1.5px; flex: 1; min-width: 0; text-align: center; }
+  .category-nav { padding: 4px; gap: 5px; }
+  .form-card { padding: 18px 16px; min-height: 95px; }
+  .form-icon-wrap { width: 44px; height: 44px; border-radius: 8px; }
+  .form-icon-wrap svg { width: 22px; height: 22px; }
+  .form-card-content { gap: 13px; }
+  #update-toast { left: 12px; right: 12px; bottom: 16px; max-width: 100%; width: auto; }
 }
-
-/* iPad range — tighten card internals so nothing overflows */
 @media (min-width: 481px) and (max-width: 900px) {
-  .form-card { padding: 22px 18px; min-height: 140px; }
-  .form-icon-wrap { width: 52px; height: 52px; }
-  .form-icon-wrap svg { width: 28px; height: 28px; }
-  .form-card-content { gap: 14px; }
+  .form-card { padding: 20px 18px; min-height: 102px; }
+  .form-icon-wrap { width: 48px; height: 48px; }
+  .form-icon-wrap svg { width: 24px; height: 24px; }
 }
 </style>
 </head>
 <body>
-
-<!-- OFFLINE BANNER -->
+<canvas id="bg-canvas"></canvas>
 <div id="offline-banner">No network connection · Hub available offline</div>
-
-<!-- UPDATE TOAST -->
 <div id="update-toast">
   <div id="update-toast-header">
-    <div>
-      <div id="update-toast-title">⚡ Update Available</div>
-      <div id="update-toast-version"></div>
-    </div>
-    <button id="update-dismiss-btn" title="Dismiss">✕</button>
+    <div><div id="update-toast-title">Update Available</div><div id="update-toast-version"></div></div>
+    <button id="update-dismiss-btn" title="Dismiss">x</button>
   </div>
   <div id="update-toast-divider"></div>
   <ul id="update-toast-changelog"></ul>
   <div id="update-toast-footer">
     <button id="update-toast-later">Remind me later</button>
-    <button id="update-reload-btn">⚡ Update Now</button>
+    <button id="update-reload-btn">Update Now</button>
   </div>
 </div>
-
 <div class="container">
-
-  <!-- HEADER -->
   <div class="header">
+    <div class="header-rule"></div>
     <div class="logo-wrap">
       <img src="./logo.png" alt="Always On Generators Logo" class="logo-img">
       <div class="title-block">
@@ -763,525 +199,167 @@ body::after {
     <div class="subtitle">Field <span>Operations</span> Hub</div>
   </div>
 
-  <!-- STATUS BAR -->
   <div class="status-bar">
-    <div class="status-item">
-      <span class="status-dot"></span>
-      <span>System Online</span>
-    </div>
-    <div class="status-item">
-      <span class="status-dot yellow"></span>
-      <span>11 Tools Active</span>
-    </div>
-    <div class="status-item">
-      <span class="status-dot orange"></span>
-      <span>Field Ready</span>
-    </div>
-    <div class="status-item" id="sw-status-item">
-      <span class="status-dot blue" id="sw-status-dot"></span>
-      <span id="sw-status-label">Sync Enabled</span>
-    </div>
+    <div class="status-item"><span class="status-dot"></span><span>System Online</span></div>
+    <div class="status-item"><span class="status-dot yellow"></span><span>11 Tools Active</span></div>
+    <div class="status-item"><span class="status-dot orange"></span><span>Field Ready</span></div>
+    <div class="status-item" id="sw-status-item"><span class="status-dot blue" id="sw-status-dot"></span><span id="sw-status-label">Sync Enabled</span></div>
   </div>
 
-  <!-- FORMS SECTION -->
-  <div class="forms-section-label">Select Category</div>
+  <div class="forms-section-label">Select a Category</div>
 
-  <!-- CATEGORY NAV -->
   <div class="category-nav" id="category-nav">
-    <button class="cat-btn active" data-cat="estimate">⚡ Estimate</button>
-    <button class="cat-btn" data-cat="installs">🔧 Installs</button>
-    <button class="cat-btn" data-cat="maintenance">🔁 Maintenance</button>
-    <button class="cat-btn" data-cat="tools">🛠 Tools</button>
+    <button class="cat-btn active" data-cat="estimate">Estimate</button>
+    <button class="cat-btn" data-cat="installs">Installs</button>
+    <button class="cat-btn" data-cat="maintenance">Maintenance</button>
+    <button class="cat-btn" data-cat="tools">Tools</button>
   </div>
-
   <div class="category-title" id="category-title">ESTIMATE</div>
 
   <div class="forms-grid">
-
-    <!-- ══ ESTIMATE CATEGORY ══ -->
+    <!-- ESTIMATE -->
     <div class="card-group" data-group="estimate">
+      <a href="#" class="form-card" data-form="estimate"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 2h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v0a2 2 0 0 1 2-2z"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></div><div class="form-text"><div class="form-title">Estimate Form</div><div class="form-desc">Quote &amp; pricing forms for new estimates</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="site-visits"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 1 8 8c0 5.25-8 14-8 14S4 15.25 4 10a8 8 0 0 1 8-8z"/></svg></div><div class="form-text"><div class="form-title">Site Visit Form</div><div class="form-desc">Pre-install site assessment &amp; documentation</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="load-calc"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h4M7 12h2M13 8l2 4 2-4"/></svg></div><div class="form-text"><div class="form-title">Load Calculation</div><div class="form-desc">Electrical load sizing &amp; generator selection</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="site-annotator"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z" stroke-width="1.5"/><path d="M3 9h18M9 3v18"/><path d="M14 14l3 3M17 14l-3 3"/></svg></div><div class="form-text"><div class="form-title">Site Plan / Annotator</div><div class="form-desc">Draw, annotate &amp; mark up site plans &amp; diagrams</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+    </div>
 
-    <!-- ESTIMATE FORM -->
-    <a href="#" class="form-card" data-form="estimate">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M9 2h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v0a2 2 0 0 1 2-2z"/>
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-            <line x1="9" y1="12" x2="15" y2="12"/>
-            <line x1="9" y1="16" x2="13" y2="16"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Estimate Form</div>
-          <div class="form-desc">Quote &amp; pricing forms for new estimates</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- SITE VISIT -->
-    <a href="#" class="form-card" data-form="site-visits">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 1 8 8c0 5.25-8 14-8 14S4 15.25 4 10a8 8 0 0 1 8-8z"/></svg></div>
-        <div class="form-text"><div class="form-title">Site Visit Form</div><div class="form-desc">Pre-install site assessment &amp; documentation</div></div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-    <!-- LOAD CALCULATION -->
-    <a href="#" class="form-card" data-form="load-calc">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h4M7 12h2M13 8l2 4 2-4"/></svg></div>
-        <div class="form-text"><div class="form-title">Load Calculation</div><div class="form-desc">Electrical load sizing &amp; generator selection</div></div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-    <!-- SITE PLAN / ANNOTATOR -->
-    <a href="#" class="form-card" data-form="site-annotator">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z" stroke-width="1.5"/><path d="M3 9h18M9 3v18"/><path d="M14 14l3 3M17 14l-3 3"/></svg></div>
-        <div class="form-text"><div class="form-title">Site Plan / Annotator</div><div class="form-desc">Draw, annotate &amp; mark up site plans &amp; diagrams</div></div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-    </div><!-- /estimate -->
-
-    <!-- ══ INSTALLS CATEGORY ══ -->
+    <!-- INSTALLS -->
     <div class="card-group hidden" data-group="installs">
+      <a href="#" class="form-card" data-form="install"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div class="form-text"><div class="form-title">Electrical Install</div><div class="form-desc">New generator installation paperwork &amp; checklists</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="gas-install"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 2C8 6 6 10 8 14c1 2 3 3 4 3s3-1 4-3c2-4 0-8-4-12z"/><path d="M8 14c-2 1-3 3-3 5h14c0-2-1-4-3-5"/><line x1="12" y1="17" x2="12" y2="19"/></svg></div><div class="form-text"><div class="form-title">Gas Installation</div><div class="form-desc">Gas line hookup, connection &amp; installation paperwork</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="qc-checklist"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 2h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v0a2 2 0 0 1 2-2z"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><polyline points="9 11 11 13 15 9"/></svg></div><div class="form-text"><div class="form-title">QC Checklist</div><div class="form-desc">Quality control inspection for completed installations</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+    </div>
 
-    <!-- ELECTRICAL INSTALL -->
-    <a href="#" class="form-card" data-form="install">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Electrical Install</div>
-          <div class="form-desc">New generator installation paperwork &amp; checklists</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- GAS INSTALL -->
-    <a href="#" class="form-card" data-form="gas-install">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 2C8 6 6 10 8 14c1 2 3 3 4 3s3-1 4-3c2-4 0-8-4-12z"/>
-            <path d="M8 14c-2 1-3 3-3 5h14c0-2-1-4-3-5"/>
-            <line x1="12" y1="17" x2="12" y2="19"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Gas Installation</div>
-          <div class="form-desc">Gas line hookup, connection &amp; installation paperwork</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- QC CHECKLIST (installs) -->
-    <a href="#" class="form-card" data-form="qc-checklist">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M9 2h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v0a2 2 0 0 1 2-2z"/>
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-            <polyline points="9 11 11 13 15 9"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">QC Checklist</div>
-          <div class="form-desc">Quality control inspection for completed installations</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    </div><!-- /installs -->
-
-    <!-- ══ MAINTENANCE CATEGORY ══ -->
+    <!-- MAINTENANCE -->
     <div class="card-group hidden" data-group="maintenance">
+      <a href="#" class="form-card" data-form="maintenance"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div><div class="form-text"><div class="form-title">Maintenance Form</div><div class="form-desc">Service logs, PMs &amp; repair documentation</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="service-work"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div class="form-text"><div class="form-title">Service Work</div><div class="form-desc">Service call documentation &amp; repair forms</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+    </div>
 
-    <!-- MAINTENANCE FORM -->
-    <a href="#" class="form-card" data-form="maintenance">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Maintenance Form</div>
-          <div class="form-desc">Service logs, PMs &amp; repair documentation</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- SERVICE WORK (new) -->
-    <a href="#" class="form-card" data-form="service-work">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Service Work</div>
-          <div class="form-desc">Service call documentation &amp; repair forms</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    </div><!-- /maintenance -->
-
-    <!-- ══ TOOLS CATEGORY ══ -->
+    <!-- TOOLS -->
     <div class="card-group hidden" data-group="tools">
-
-    <!-- LOAD CALCULATION -->
-    <a href="#" class="form-card" data-form="load-calc">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h4M7 12h2M13 8l2 4 2-4"/></svg></div>
-        <div class="form-text"><div class="form-title">Load Calculation</div><div class="form-desc">Electrical load sizing &amp; generator selection</div></div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- SKETCH PAD -->
-    <a href="#" class="form-card" data-form="sketch-pad">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 20h9"/>
-            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Sketch Pad</div>
-          <div class="form-desc">Freehand diagrams, site sketches &amp; field drawings</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- CONDUIT FILL -->
-    <a href="#" class="form-card" data-form="conduit-fill">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 2v20M2 12h20"/>
-            <path d="M7 7h10v10H7z"/>
-            <circle cx="12" cy="12" r="2"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Conduit Fill</div>
-          <div class="form-desc">NEC Chapter 9 conduit sizing &amp; fill calculations</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- GAS CALCULATOR -->
-    <a href="#" class="form-card" data-form="gas-calc">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-            <circle cx="18" cy="5" r="2"/>
-            <path d="M20 3v4M18 5h4"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Gas Calculator</div>
-          <div class="form-desc">BTU sizing, pipe sizing &amp; Generac model selection · 10–150kW</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- SITE PLAN / ANNOTATOR -->
-    <a href="#" class="form-card" data-form="site-annotator">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <path d="M3 3h18v18H3z" stroke-width="1.5"/>
-            <path d="M3 9h18M9 3v18"/>
-            <path d="M14 14l3 3M17 14l-3 3"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Site Plan / Annotator</div>
-          <div class="form-desc">Draw, annotate &amp; mark up site plans &amp; diagrams</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- BREAKER & CONDUCTOR -->
-    <a href="#" class="form-card" data-form="breaker-sizing">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-            <line x1="12" y1="12" x2="12" y2="16"/>
-            <line x1="10" y1="14" x2="14" y2="14"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Breaker &amp; Conductor</div>
-          <div class="form-desc">NEC conductor sizing, derating, EGC &amp; parallel sets</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    <!-- SPEC VIEWER -->
-    <a href="#" class="form-card" data-form="spec-viewer">
-      <div class="glow-strip"></div>
-      <div class="form-card-content">
-        <div class="form-icon-wrap">
-          <svg viewBox="0 0 24 24">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <path d="M9 9h6M9 12h6M9 15h4"/>
-            <circle cx="19" cy="5" r="4" fill="none"/>
-            <path d="M17 5h4M19 3v4"/>
-          </svg>
-        </div>
-        <div class="form-text">
-          <div class="form-title">Spec Viewer</div>
-          <div class="form-desc">Generac generator &amp; ATS full spec lookup · 10–150kW · All transfer switches</div>
-        </div>
-      </div>
-      <div class="form-arrow">▶ ENTER</div>
-    </a>
-
-    </div><!-- /tools -->
-
+      <a href="#" class="form-card" data-form="load-calc"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h4M7 12h2M13 8l2 4 2-4"/></svg></div><div class="form-text"><div class="form-title">Load Calculation</div><div class="form-desc">Electrical load sizing &amp; generator selection</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="sketch-pad"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div class="form-text"><div class="form-title">Sketch Pad</div><div class="form-desc">Freehand diagrams, site sketches &amp; field drawings</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="conduit-fill"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/><path d="M7 7h10v10H7z"/><circle cx="12" cy="12" r="2"/></svg></div><div class="form-text"><div class="form-title">Conduit Fill</div><div class="form-desc">NEC Chapter 9 conduit sizing &amp; fill calculations</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="gas-calc"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/><circle cx="18" cy="5" r="2"/><path d="M20 3v4M18 5h4"/></svg></div><div class="form-text"><div class="form-title">Gas Calculator</div><div class="form-desc">BTU sizing, pipe sizing &amp; Generac model selection</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="site-annotator"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z" stroke-width="1.5"/><path d="M3 9h18M9 3v18"/><path d="M14 14l3 3M17 14l-3 3"/></svg></div><div class="form-text"><div class="form-title">Site Plan / Annotator</div><div class="form-desc">Draw, annotate &amp; mark up site plans &amp; diagrams</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="breaker-sizing"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg></div><div class="form-text"><div class="form-title">Breaker &amp; Conductor</div><div class="form-desc">NEC conductor sizing, derating, EGC &amp; parallel sets</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="spec-viewer"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/><circle cx="19" cy="5" r="4" fill="none"/><path d="M17 5h4M19 3v4"/></svg></div><div class="form-text"><div class="form-title">Spec Viewer</div><div class="form-desc">Generac generator &amp; ATS full spec lookup 10-150kW</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+    </div>
   </div>
 
-  <!-- FOOTER -->
   <div class="footer">
-    <div class="footer-text">Always On Generators · Field Operations Portal</div>
-    <div class="footer-version">SYSTEM <span>v1.0</span> · OFFLINE READY · GITHUB PAGES</div>
+    <div class="footer-text">Always On Generators &middot; Field Operations Portal</div>
+    <div class="footer-version">SYSTEM <span>v1.0</span> &middot; OFFLINE READY &middot; GITHUB PAGES</div>
   </div>
-
 </div>
 
 <script>
+// Animated Background
+(function() {
+  var canvas = document.getElementById('bg-canvas');
+  var ctx = canvas.getContext('2d');
+  var W, H, particles;
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  function rand(a, b) { return Math.random() * (b - a) + a; }
+  function initP() {
+    var n = Math.min(55, Math.floor(W * H / 18000));
+    particles = [];
+    for (var i = 0; i < n; i++) {
+      particles.push({ x: rand(0,W), y: rand(0,H), vx: rand(-0.13,0.13), vy: rand(-0.13,0.13), r: rand(0.7,1.8), alpha: rand(0.07,0.25), color: Math.random()>0.6?'251,191,36':Math.random()>0.5?'249,115,22':'0,212,255' });
+    }
+  }
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    var bg = ctx.createRadialGradient(W*.5,H*.3,0,W*.5,H*.5,Math.max(W,H)*.8);
+    bg.addColorStop(0,'rgba(14,20,46,1)'); bg.addColorStop(.5,'rgba(8,12,28,1)'); bg.addColorStop(1,'rgba(4,6,14,1)');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    var g1=ctx.createRadialGradient(W*.15,H*.2,0,W*.15,H*.2,W*.35); g1.addColorStop(0,'rgba(251,191,36,0.055)'); g1.addColorStop(1,'transparent'); ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+    var g2=ctx.createRadialGradient(W*.85,H*.75,0,W*.85,H*.75,W*.28); g2.addColorStop(0,'rgba(249,115,22,0.045)'); g2.addColorStop(1,'transparent'); ctx.fillStyle=g2; ctx.fillRect(0,0,W,H);
+    particles.forEach(function(p) {
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle='rgba('+p.color+','+p.alpha+')'; ctx.fill();
+    });
+    for(var i=0;i<particles.length;i++) for(var j=i+1;j<particles.length;j++) {
+      var dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y, d=Math.sqrt(dx*dx+dy*dy);
+      if(d<130) { ctx.beginPath(); ctx.moveTo(particles[i].x,particles[i].y); ctx.lineTo(particles[j].x,particles[j].y); ctx.strokeStyle='rgba(251,191,36,'+(0.035*(1-d/130))+')'; ctx.lineWidth=0.5; ctx.stroke(); }
+    }
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',function(){resize();initP();});
+  resize(); initP(); draw();
+})();
 
-// ── Category Navigation ───────────────────────────────────────
-const catTitles = {
-  estimate:    'ESTIMATE',
-  installs:    'INSTALLS',
-  maintenance: 'MAINTENANCE',
-  tools:       'TOOLS',
-};
-
+// Category Nav
+var catTitles = { estimate:'ESTIMATE', installs:'INSTALLS', maintenance:'MAINTENANCE', tools:'TOOLS' };
 document.querySelectorAll('.cat-btn').forEach(function(btn) {
   btn.addEventListener('click', function() {
-    const cat = this.getAttribute('data-cat');
-
-    // Update active button
-    document.querySelectorAll('.cat-btn').forEach(function(b) { b.classList.remove('active'); });
+    var cat = this.getAttribute('data-cat');
+    document.querySelectorAll('.cat-btn').forEach(function(b){b.classList.remove('active');});
     this.classList.add('active');
-
-    // Update title
-    document.getElementById('category-title').textContent = catTitles[cat] || cat.toUpperCase();
-
-    // Show/hide card groups
-    document.querySelectorAll('.card-group').forEach(function(g) {
-      if (g.getAttribute('data-group') === cat) {
-        g.classList.remove('hidden');
-      } else {
-        g.classList.add('hidden');
-      }
-    });
-
-    // Re-run entrance animation on visible cards
-    document.querySelectorAll('.card-group[data-group="' + cat + '"] .form-card').forEach(function(card, i) {
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(20px)';
-      setTimeout(function() {
-        card.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.4,0,0.2,1)';
-        card.style.opacity = '1';
-        card.style.transform = 'translateY(0)';
-      }, 50 + (i * 80));
+    document.getElementById('category-title').textContent = catTitles[cat]||cat.toUpperCase();
+    document.querySelectorAll('.card-group').forEach(function(g){g.classList.toggle('hidden',g.getAttribute('data-group')!==cat);});
+    document.querySelectorAll('.card-group[data-group="'+cat+'"] .form-card').forEach(function(card,i){
+      card.style.opacity='0'; card.style.transform='translateY(12px)';
+      setTimeout(function(){ card.style.transition='opacity 0.32s ease, transform 0.32s cubic-bezier(0.4,0,0.2,1), box-shadow 0.28s, border-color 0.28s, background 0.28s'; card.style.opacity='1'; card.style.transform='translateY(0)'; },35+(i*55));
     });
   });
 });
 
-// ── Form URL routing ──────────────────────────────────────────
-const FORM_URLS = {
-  'install':        './elect-install/',
-  'gas-install':    './gas-install/',
-  'gas-calc':       './gas-calc/',
-  'estimate':       './estimate/',
-  'maintenance':    './maintenance/',
-  'site-visits':    './site-visit/',
-  'sketch-pad':     './sketch-pad/',
-  'conduit-fill':   './conduit-fill/',
-  'load-calc':      './load-calcs/',
-  'breaker-sizing': './breaker-conductor/',
-  'spec-viewer':    './spec-viewer/',
-  'qc-checklist':   './qc-checklist/',
-  'service-work':    './service-work/',
-  'site-annotator':  './site-annotator/',
-};
-
+// URL Routing
+var FORM_URLS = { 'install':'./elect-install/','gas-install':'./gas-install/','gas-calc':'./gas-calc/','estimate':'./estimate/','maintenance':'./maintenance/','site-visits':'./site-visit/','sketch-pad':'./sketch-pad/','conduit-fill':'./conduit-fill/','load-calc':'./load-calcs/','breaker-sizing':'./breaker-conductor/','spec-viewer':'./spec-viewer/','qc-checklist':'./qc-checklist/','service-work':'./service-work/','site-annotator':'./site-annotator/' };
 document.querySelectorAll('.form-card').forEach(function(card) {
-  const formKey = card.getAttribute('data-form');
-  const url = FORM_URLS[formKey];
-  if (url) card.setAttribute('href', url);
-  card.addEventListener('click', function(e) {
-    if (!url) {
-      e.preventDefault();
-      const title = this.querySelector('.form-title').textContent;
-      alert('🔧 ' + title + ' — URL not yet configured.\n\nEdit FORM_URLS in index.html.');
-    }
+  var key=card.getAttribute('data-form'), url=FORM_URLS[key];
+  if(url) card.setAttribute('href',url);
+  card.addEventListener('click',function(e){ if(!url){e.preventDefault();alert('URL not configured for: '+this.querySelector('.form-title').textContent);} });
+});
+
+// Entrance
+window.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('.card-group:not(.hidden) .form-card').forEach(function(card,i){
+    card.style.opacity='0'; card.style.transform='translateY(14px)';
+    setTimeout(function(){ card.style.transition='opacity 0.45s ease,transform 0.45s cubic-bezier(0.4,0,0.2,1),box-shadow 0.28s,border-color 0.28s,background 0.28s'; card.style.opacity='1'; card.style.transform='translateY(0)'; },100+(i*75));
   });
 });
 
-// ── Card entrance animation ───────────────────────────────────
-window.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('.form-card').forEach(function(card, i) {
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(20px)';
-    setTimeout(function() {
-      card.style.transition = 'opacity 0.6s ease, transform 0.6s cubic-bezier(0.4,0,0.2,1)';
-      card.style.opacity = '1';
-      card.style.transform = 'translateY(0)';
-    }, 100 + (i * 100));
+// Online/Offline
+var offlineBanner=document.getElementById('offline-banner'), swDot=document.getElementById('sw-status-dot'), swLabel=document.getElementById('sw-status-label');
+function setOnline(){offlineBanner.classList.remove('visible');swDot.classList.remove('offline-dot');swDot.classList.add('blue');swLabel.textContent='Sync Enabled';}
+function setOffline(){offlineBanner.classList.add('visible');swDot.classList.remove('blue');swDot.classList.add('offline-dot');swLabel.textContent='Offline Mode';}
+window.addEventListener('online',setOnline); window.addEventListener('offline',setOffline);
+if(!navigator.onLine) setOffline();
+
+// Service Worker
+if('serviceWorker' in navigator){
+  var waitingWorker=null;
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(function(reg){
+      if(reg.active){swDot.classList.add('blue');swLabel.textContent=navigator.onLine?'Sync Enabled':'Offline Mode';}
+      function askAndShowToast(worker){
+        waitingWorker=worker;
+        var ch=new MessageChannel();
+        ch.port1.onmessage=function(e){
+          var ver=e.data.version||'', log=e.data.changelog||[];
+          document.getElementById('update-toast-version').textContent=ver;
+          var list=document.getElementById('update-toast-changelog'); list.innerHTML='';
+          log.forEach(function(item){var li=document.createElement('li');li.textContent=item;list.appendChild(li);});
+          document.getElementById('update-toast').classList.add('visible');
+        };
+        worker.postMessage({action:'GET_CHANGELOG'},[ch.port2]);
+      }
+      if(reg.waiting) askAndShowToast(reg.waiting);
+      reg.addEventListener('updatefound',function(){var nw=reg.installing;nw.addEventListener('statechange',function(){if(nw.state==='installed'&&navigator.serviceWorker.controller)askAndShowToast(nw);});});
+      console.log('[SW] Registered');
+    }).catch(function(err){console.warn('[SW] Failed:',err);});
+    navigator.serviceWorker.addEventListener('controllerchange',function(){window.location.reload();});
   });
-});
-
-// ── Online / Offline banner ───────────────────────────────────
-const offlineBanner = document.getElementById('offline-banner');
-const swDot         = document.getElementById('sw-status-dot');
-const swLabel       = document.getElementById('sw-status-label');
-
-function setOnline()  {
-  offlineBanner.classList.remove('visible');
-  swDot.classList.remove('offline-dot');
-  swDot.classList.add('blue');
-  swLabel.textContent = 'Sync Enabled';
-}
-function setOffline() {
-  offlineBanner.classList.add('visible');
-  swDot.classList.remove('blue');
-  swDot.classList.add('offline-dot');
-  swLabel.textContent = 'Offline Mode';
-}
-
-window.addEventListener('online',  setOnline);
-window.addEventListener('offline', setOffline);
-if (!navigator.onLine) setOffline();
-
-// ── Service Worker + Update Toast ────────────────────────────
-if ('serviceWorker' in navigator) {
-
-  var waitingWorker = null;
-
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('./sw.js', { scope: './' })
-      .then(function(reg) {
-
-        if (reg.active) {
-          swDot.classList.add('blue');
-          swLabel.textContent = navigator.onLine ? 'Sync Enabled' : 'Offline Mode';
-        }
-
-        // Ask the waiting SW what changed, then show the toast
-        function askAndShowToast(worker) {
-          waitingWorker = worker;
-          var channel = new MessageChannel();
-          channel.port1.onmessage = function(e) {
-            var version   = e.data.version   || '';
-            var changelog = e.data.changelog || [];
-
-            document.getElementById('update-toast-version').textContent = version;
-
-            var list = document.getElementById('update-toast-changelog');
-            list.innerHTML = '';
-            changelog.forEach(function(item) {
-              var li = document.createElement('li');
-              li.textContent = item;
-              list.appendChild(li);
-            });
-
-            // Show toast — stays until user acts. No auto-reload.
-            document.getElementById('update-toast').classList.add('visible');
-          };
-          worker.postMessage({ action: 'GET_CHANGELOG' }, [channel.port2]);
-        }
-
-        // Waiting worker already there on page load
-        if (reg.waiting) {
-          askAndShowToast(reg.waiting);
-        }
-
-        // New worker found while page is open
-        reg.addEventListener('updatefound', function() {
-          var newWorker = reg.installing;
-          newWorker.addEventListener('statechange', function() {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              askAndShowToast(newWorker);
-            }
-          });
-        });
-
-        console.log('[SW] Registered, scope:', reg.scope);
-      })
-      .catch(function(err) {
-        console.warn('[SW] Registration failed:', err);
-      });
-
-    // Only reload once the new SW actually takes control
-    navigator.serviceWorker.addEventListener('controllerchange', function() {
-      window.location.reload();
-    });
-  });
-
-  // "Update Now" — send SKIP_WAITING, page reloads via controllerchange above
-  document.getElementById('update-reload-btn').addEventListener('click', function() {
-    if (waitingWorker) {
-      waitingWorker.postMessage({ action: 'SKIP_WAITING' });
-    }
-  });
-
-  // "Remind me later" — just hide the toast, SW stays waiting
-  document.getElementById('update-toast-later').addEventListener('click', function() {
-    document.getElementById('update-toast').classList.remove('visible');
-  });
-
-  // ✕ dismiss — same as later
-  document.getElementById('update-dismiss-btn').addEventListener('click', function() {
-    document.getElementById('update-toast').classList.remove('visible');
-  });
+  document.getElementById('update-reload-btn').addEventListener('click',function(){if(waitingWorker)waitingWorker.postMessage({action:'SKIP_WAITING'});});
+  document.getElementById('update-toast-later').addEventListener('click',function(){document.getElementById('update-toast').classList.remove('visible');});
+  document.getElementById('update-dismiss-btn').addEventListener('click',function(){document.getElementById('update-toast').classList.remove('visible');});
 }
 </script>
-
 </body>
 </html>
