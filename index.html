@@ -264,27 +264,129 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 </div>
 
 <script>
-// Animated Background
+// Animated Background + Lightning Storm
 (function() {
   var canvas = document.getElementById('bg-canvas');
   var ctx = canvas.getContext('2d');
-  var W, H, particles;
+  var W, H, particles, bolts, frameCount;
+
   function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
   function rand(a, b) { return Math.random() * (b - a) + a; }
+  function randInt(a, b) { return Math.floor(rand(a, b)); }
+
+  // ── Particles ──
   function initP() {
     var n = Math.min(55, Math.floor(W * H / 18000));
     particles = [];
     for (var i = 0; i < n; i++) {
       particles.push({ x: rand(0,W), y: rand(0,H), vx: rand(-0.13,0.13), vy: rand(-0.13,0.13), r: rand(0.7,1.8), alpha: rand(0.07,0.25), color: Math.random()>0.6?'251,191,36':Math.random()>0.5?'249,115,22':'0,212,255' });
     }
+    bolts = [];
+    frameCount = 0;
   }
+
+  // ── Lightning bolt builder — jagged recursive segments ──
+  function buildBolt(x1, y1, x2, y2, depth) {
+    if (depth === 0) return [[x1,y1,x2,y2]];
+    var mx = (x1+x2)/2 + rand(-1,1) * Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1)) * 0.35;
+    var my = (y1+y2)/2 + rand(-1,1) * Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1)) * 0.35;
+    var segs = [];
+    var a = buildBolt(x1,y1,mx,my,depth-1);
+    var b = buildBolt(mx,my,x2,y2,depth-1);
+    for(var i=0;i<a.length;i++) segs.push(a[i]);
+    for(var i=0;i<b.length;i++) segs.push(b[i]);
+    // occasional branch
+    if (depth === 2 && Math.random() > 0.5) {
+      var bx = mx + rand(-80,80), by = my + rand(40,120);
+      var br = buildBolt(mx,my,bx,by,depth-2);
+      for(var i=0;i<br.length;i++) segs.push(br[i]);
+    }
+    return segs;
+  }
+
+  // ── Spawn a new bolt anywhere on screen ──
+  function spawnBolt() {
+    var startX = rand(W*0.05, W*0.95);
+    var startY = rand(-20, H*0.25);                // always strikes from top area
+    var endX   = startX + rand(-120, 120);
+    var endY   = startY + rand(H*0.3, H*0.8);     // reaches into lower screen
+    // pick amber or electric-blue to match the palette
+    var isAmber = Math.random() > 0.4;
+    var coreColor   = isAmber ? '255,220,80'  : '0,212,255';
+    var glowColor   = isAmber ? '251,191,36'  : '0,212,255';
+    var flashColor  = isAmber ? '255,240,160' : '160,240,255';
+    bolts.push({
+      segs: buildBolt(startX, startY, endX, endY, 4),
+      life: 1.0,         // 1 = fully visible, counts down to 0
+      decay: rand(0.04, 0.09),
+      flicker: Math.random() > 0.5,
+      flickerTimer: 0,
+      coreColor: coreColor,
+      glowColor: glowColor,
+      flashColor: flashColor,
+      flashX: startX, flashY: startY,
+      flashR: rand(60, 140)
+    });
+  }
+
+  // ── Draw one bolt ──
+  function drawBolt(b) {
+    var a = b.life;
+    if (a <= 0) return;
+
+    // Flash bloom at origin
+    var fg = ctx.createRadialGradient(b.flashX, b.flashY, 0, b.flashX, b.flashY, b.flashR);
+    fg.addColorStop(0, 'rgba('+b.flashColor+','+(a*0.18)+')');
+    fg.addColorStop(1, 'transparent');
+    ctx.fillStyle = fg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Outer glow pass
+    ctx.save();
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = 'rgba('+b.glowColor+','+(a*0.8)+')';
+    ctx.strokeStyle = 'rgba('+b.glowColor+','+(a*0.25)+')';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (var i=0; i<b.segs.length; i++) {
+      ctx.moveTo(b.segs[i][0], b.segs[i][1]);
+      ctx.lineTo(b.segs[i][2], b.segs[i][3]);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // Core bright line
+    ctx.save();
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = 'rgba('+b.coreColor+',1)';
+    ctx.strokeStyle = 'rgba('+b.coreColor+','+(a*0.95)+')';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (var i=0; i<b.segs.length; i++) {
+      ctx.moveTo(b.segs[i][0], b.segs[i][1]);
+      ctx.lineTo(b.segs[i][2], b.segs[i][3]);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Main draw loop ──
   function draw() {
+    frameCount++;
     ctx.clearRect(0,0,W,H);
+
+    // Background
     var bg = ctx.createRadialGradient(W*.5,H*.3,0,W*.5,H*.5,Math.max(W,H)*.8);
-    bg.addColorStop(0,'rgba(14,20,46,1)'); bg.addColorStop(.5,'rgba(8,12,28,1)'); bg.addColorStop(1,'rgba(4,6,14,1)');
+    bg.addColorStop(0,'rgba(12,18,42,1)'); bg.addColorStop(.5,'rgba(7,11,26,1)'); bg.addColorStop(1,'rgba(3,5,12,1)');
     ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
-    var g1=ctx.createRadialGradient(W*.15,H*.2,0,W*.15,H*.2,W*.35); g1.addColorStop(0,'rgba(251,191,36,0.055)'); g1.addColorStop(1,'transparent'); ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
-    var g2=ctx.createRadialGradient(W*.85,H*.75,0,W*.85,H*.75,W*.28); g2.addColorStop(0,'rgba(249,115,22,0.045)'); g2.addColorStop(1,'transparent'); ctx.fillStyle=g2; ctx.fillRect(0,0,W,H);
+
+    // Subtle ambient glows
+    var g1=ctx.createRadialGradient(W*.15,H*.2,0,W*.15,H*.2,W*.35); g1.addColorStop(0,'rgba(251,191,36,0.045)'); g1.addColorStop(1,'transparent'); ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+    var g2=ctx.createRadialGradient(W*.85,H*.75,0,W*.85,H*.75,W*.28); g2.addColorStop(0,'rgba(249,115,22,0.038)'); g2.addColorStop(1,'transparent'); ctx.fillStyle=g2; ctx.fillRect(0,0,W,H);
+
+    // Particles + connections
     particles.forEach(function(p) {
       p.x+=p.vx; p.y+=p.vy;
       if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0;
@@ -292,10 +394,28 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     });
     for(var i=0;i<particles.length;i++) for(var j=i+1;j<particles.length;j++) {
       var dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y, d=Math.sqrt(dx*dx+dy*dy);
-      if(d<130) { ctx.beginPath(); ctx.moveTo(particles[i].x,particles[i].y); ctx.lineTo(particles[j].x,particles[j].y); ctx.strokeStyle='rgba(251,191,36,'+(0.035*(1-d/130))+')'; ctx.lineWidth=0.5; ctx.stroke(); }
+      if(d<130) { ctx.beginPath(); ctx.moveTo(particles[i].x,particles[i].y); ctx.lineTo(particles[j].x,particles[j].y); ctx.strokeStyle='rgba(251,191,36,'+(0.03*(1-d/130))+')'; ctx.lineWidth=0.5; ctx.stroke(); }
     }
+
+    // Lightning bolts — spawn randomly, avg one every ~2.5s at 60fps
+    if (Math.random() < 0.007) spawnBolt();
+
+    // Occasional double-strike for drama
+    if (Math.random() < 0.001) spawnBolt();
+
+    // Draw & age bolts
+    for (var i = bolts.length-1; i >= 0; i--) {
+      var b = bolts[i];
+      // flicker effect: randomly skip a frame near end of life
+      if (b.flicker && b.life < 0.5 && Math.random() > 0.6) { b.life -= b.decay; continue; }
+      drawBolt(b);
+      b.life -= b.decay;
+      if (b.life <= 0) bolts.splice(i, 1);
+    }
+
     requestAnimationFrame(draw);
   }
+
   window.addEventListener('resize',function(){resize();initP();});
   resize(); initP(); draw();
 })();
