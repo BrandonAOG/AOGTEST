@@ -943,18 +943,39 @@ function composite(){
 
 function lctx(){ return layers[activeLayerIdx].ctx; }
 
-function pushUndo(){
+// ── PRE-OPERATION SNAPSHOT ──────────────────────────────────
+// captureState() is called BEFORE any operation changes state.
+// pushUndo() commits that pre-op snapshot to the undo stack.
+var _preOp = null;
+
+function captureState(){
+  var lc=layers[activeLayerIdx];
+  if(!lc||!lc.canvas.width||!lc.canvas.height){ _preOp=null; return; }
   try{
-    var lc=layers[activeLayerIdx];
-    if(!lc||!lc.canvas.width||!lc.canvas.height) return;
-    // Store only the ACTIVE layer's ImageData — 5× less memory than storing all layers.
-    // Each step: ~33MB instead of ~165MB. With MAX_UNDO=5 on iPhone: 165MB vs 825MB.
-    var snap={
+    _preOp={
       idx:       activeLayerIdx,
       data:      lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
       textObjs:  JSON.parse(JSON.stringify(textObjs)),
       shapeObjs: JSON.parse(JSON.stringify(shapeObjs))
     };
+  }catch(ex){ _preOp=null; }
+}
+
+function pushUndo(){
+  try{
+    var snap=_preOp;
+    _preOp=null;
+    if(!snap){
+      // Fallback if captureState wasn't called first (e.g. clearFn)
+      var lc=layers[activeLayerIdx];
+      if(!lc||!lc.canvas.width||!lc.canvas.height) return;
+      snap={
+        idx:       activeLayerIdx,
+        data:      lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
+        textObjs:  JSON.parse(JSON.stringify(textObjs)),
+        shapeObjs: JSON.parse(JSON.stringify(shapeObjs))
+      };
+    }
     undoStack.push(snap);
     if(undoStack.length>MAX_UNDO) undoStack.shift();
     redoStack=[];
@@ -979,13 +1000,15 @@ function undoFn(){
     var snap=undoStack.pop();
     var lc=layers[snap.idx];
     if(!lc) return;
-    // Save current state of this layer to redo stack
+    // Save current state (with shapes+text) to redo stack
     redoStack.push({
-      idx:  snap.idx,
-      data: lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height)
+      idx:       snap.idx,
+      data:      lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
+      textObjs:  JSON.parse(JSON.stringify(textObjs)),
+      shapeObjs: JSON.parse(JSON.stringify(shapeObjs))
     });
     if(redoStack.length>MAX_UNDO) redoStack.shift();
-    // Restore
+    // Restore pre-op state
     lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height);
     lc.ctx.putImageData(snap.data,0,0);
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; renderTextObjs(); }
@@ -1001,8 +1024,10 @@ function redoFn(){
     var lc=layers[snap.idx];
     if(!lc) return;
     undoStack.push({
-      idx:  snap.idx,
-      data: lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height)
+      idx:       snap.idx,
+      data:      lc.ctx.getImageData(0,0,lc.canvas.width,lc.canvas.height),
+      textObjs:  JSON.parse(JSON.stringify(textObjs)),
+      shapeObjs: JSON.parse(JSON.stringify(shapeObjs))
     });
     if(undoStack.length>MAX_UNDO) undoStack.shift();
     lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height);
@@ -1015,8 +1040,22 @@ function redoFn(){
 
 function clearFn(){
   if(!baseLoaded) return;
+  // captureState then pushUndo = save pre-clear state before any changes
+  captureState();
   pushUndo();
+  // Clear active layer canvas pixels
   lctx().clearRect(0,0,layers[activeLayerIdx].canvas.width,layers[activeLayerIdx].canvas.height);
+  // Also remove shapes and text belonging to the active layer
+  shapeObjs = shapeObjs.filter(function(s){ return s.layerIdx!==activeLayerIdx; });
+  textObjs  = textObjs.filter(function(obj){ return obj.layerIdx!==activeLayerIdx; });
+  // Cancel any in-progress selection on the cleared layer
+  if(selectedShape){
+    var tobj=selectedShape._textObj;
+    var sobj=editShapeObj;
+    var isOnLayer=(tobj&&tobj.layerIdx===activeLayerIdx)||(sobj&&sobj.layerIdx===activeLayerIdx);
+    if(isOnLayer||!selectedShape._textObj&&!editShapeObj) cancelSelection();
+  }
+  renderShapeObjs(); renderTextObjs();
   composite();
 }
 
@@ -1461,6 +1500,8 @@ function onDown(e){
 
   // Compute canvas position ONCE at top — used by both the selection block and shape re-select
   var sp=snapPt(getPos(e).x,getPos(e).y);
+  // Capture pre-operation state for undo (before anything changes)
+  if(tool!=='pan'&&!spaceDown) captureState();
 
   // ── If a shape is selected, handle transform interaction first ──
   if(selectedShape){
@@ -1810,6 +1851,7 @@ function redrawPolyPreview(mx,my){
 
 function closePolygon(){
   if(polyPoints.length<3){ polyPoints=[]; polyActive=false; composite(); return; }
+  captureState(); // save before polygon is committed
   var lc=lctx();
   setupCtx(lc);
   lc.beginPath();
@@ -1881,6 +1923,7 @@ function handleLeaderClick(x,y,e){
 
 // ── STAMPS ──
 function handleStamp(e){
+  captureState(); // save before stamp is placed
   var p=snapPt(getPos(e).x,getPos(e).y);
   var lc=lctx();
   var sz=Math.max(20,Math.min(60,40/zoom));
