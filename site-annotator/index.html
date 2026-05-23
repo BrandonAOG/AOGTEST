@@ -1940,24 +1940,25 @@ var editingObj = null;     // text object currently being edited
 // ── Render all text objects onto txt-cv ──────────────────────
 function renderTextObjs(){
   tCtx.clearRect(0,0,tCv.width,tCv.height);
-  shapeObjs.forEach(function(s){
-    var ox=s.cx, oy=s.cy;
-    if(deg===90){ s.cx=rh-oy; s.cy=ox; }
-    else         { s.cx=oy;   s.cy=rw-ox; }
-    s.angle+=deg*Math.PI/180;
-  });
-  renderShapeObjs();
   textObjs.forEach(function(obj){
-    if(obj._editing) return; // hidden while actively editing
+    if(obj._editing) return;
     var layer=layers[obj.layerIdx];
-    if(layer&&!layer.visible) return; // respect layer visibility
+    if(layer&&!layer.visible) return;
     tCtx.save();
     tCtx.globalAlpha=obj.opacity;
     tCtx.fillStyle=obj.color;
     tCtx.font='bold '+obj.fontSize+'px Arial,sans-serif';
-    obj.text.split('\n').forEach(function(line,i){
-      tCtx.fillText(line,obj.x,obj.y+i*obj.fontSize*1.3);
-    });
+    if(obj.angle){
+      tCtx.translate(obj.x,obj.y);
+      tCtx.rotate(obj.angle);
+      obj.text.split('\n').forEach(function(line,i){
+        tCtx.fillText(line,0,i*obj.fontSize*1.35);
+      });
+    } else {
+      obj.text.split('\n').forEach(function(line,i){
+        tCtx.fillText(line,obj.x,obj.y+i*obj.fontSize*1.35);
+      });
+    }
     tCtx.restore();
   });
 }
@@ -2161,23 +2162,34 @@ function clearTextHover(){
 // ── END TEXT CURSOR INDICATOR ────────────────────────────────
 
 // ── TEXT TOOL ──
+var _txtTapTime=0, _txtTapObj=null;
 function handleText(e){
   var p=getPos(e);
   var existing=findTextObjAt(p.x,p.y);
+  var now=Date.now();
+
   if(existing){
-    // ── Edit existing text object ──
-    commitText(); // commit any open text first
-    editingObj=existing;
-    existing._editing=true; // hide from renderer while editing
-    renderTextObjs();
-    textX=existing.x; textY=existing.y;
-    startTextCursor(existing.x, existing.y);
-    showTextOverlay(existing.x, existing.y);
-    textOv.value=existing.text; // pre-fill with current text
-    // resize textarea to fit existing text
-    setTimeout(function(){ textOv.style.width=(Math.max(80,existing.text.length*existing.fontSize*0.62*zoom))+'px'; },0);
+    var isDouble=(now-_txtTapTime<380 && _txtTapObj===existing);
+    _txtTapTime=now; _txtTapObj=existing;
+    if(isDouble){
+      // Double-tap = edit text content
+      commitText();
+      stopTextCursor();
+      cancelSelection(); // close transform handles
+      editingObj=existing;
+      existing._editing=true;
+      renderTextObjs();
+      textX=existing.x; textY=existing.y;
+      startTextCursor(existing.x, existing.y);
+      showTextOverlay(existing.x, existing.y);
+      textOv.value=existing.text;
+    } else {
+      // Single tap = enter transform mode (move/rotate)
+      commitText();
+      enterTextTransformMode(existing);
+    }
   } else {
-    // ── Place new text ──
+    _txtTapTime=now; _txtTapObj=null;
     commitText();
     editingObj=null;
     textX=p.x; textY=p.y;
@@ -2187,25 +2199,42 @@ function handleText(e){
 }
 
 function showTextOverlay(cx,cy){
-  // cx,cy are in canvas coordinates. Convert to viewport coordinates:
-  var vr  = viewport.getBoundingClientRect();
-  var sx  = panX + cx * zoom - vr.left + viewport.offsetLeft;
-  var sy  = panY + cy * zoom - vr.top  + viewport.offsetTop;
-  // Visual font size on screen
-  var screenSize = FONT_SIZE * zoom;
-  // We set font-size to max(16,screenSize) to stop iOS Safari auto-zooming.
-  // If screenSize < 16, we use CSS scale() to shrink it visually.
-  var renderSize = Math.max(16, screenSize);
-  var scaleVal   = screenSize / renderSize;
+  // Store canvas coords so we can reposition when keyboard appears
+  textOv._canvasCx = cx; textOv._canvasCy = cy;
+  repositionTextOverlay();
+  if(document.activeElement!==textOv){ textOv.value=''; textOv.focus(); }
+}
 
-  textOv.style.display    = 'block';
-  textOv.style.left       = sx + 'px';
-  textOv.style.top        = (sy - screenSize) + 'px';
-  textOv.style.fontSize   = renderSize + 'px';
-  textOv.style.transform  = scaleVal < 1 ? 'scale('+scaleVal.toFixed(4)+')' : 'none';
-  textOv.style.color      = color;
-  textOv.style.opacity    = opacity;
-  textOv.value = ''; textOv.focus();
+function repositionTextOverlay(){
+  if(textOv.style.display==='none') return;
+  var cx=textOv._canvasCx||textX, cy=textOv._canvasCy||textY;
+  // Use visualViewport to account for keyboard offset on iOS
+  var vv=window.visualViewport;
+  var vvOffTop  = vv ? vv.offsetTop  : 0;
+  var vvOffLeft = vv ? vv.offsetLeft : 0;
+  var sx = panX + cx*zoom + vvOffLeft;
+  var sy = panY + cy*zoom - FONT_SIZE*zoom + vvOffTop;
+  // Keep textarea on screen (don't let keyboard push it out of view)
+  if(vv){ sy=Math.min(sy, vv.height-60); }
+  textOv.style.display  = 'block';
+  textOv.style.left     = sx+'px';
+  textOv.style.top      = sy+'px';
+  // Font size = FONT_SIZE * zoom on screen. Min 16px to prevent iOS zoom.
+  // Use transform:scale for smaller sizes so preview matches canvas output.
+  var screenSz = FONT_SIZE * zoom;
+  var renderSz = Math.max(16, screenSz);
+  var scaleV   = screenSz / renderSz;
+  textOv.style.fontSize  = renderSz+'px';
+  textOv.style.transform = scaleV<0.99 ? 'scale('+scaleV.toFixed(3)+')' : 'none';
+  textOv.style.transformOrigin='top left';
+  textOv.style.color   = color;
+  textOv.style.opacity = opacity;
+}
+
+// Listen for keyboard appearance / viewport resize on iOS
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',  repositionTextOverlay);
+  window.visualViewport.addEventListener('scroll',  repositionTextOverlay);
 }
 
 textOv.addEventListener('keydown',function(e){
@@ -2224,17 +2253,40 @@ function commitText(){
     if(val.trim()===''){
       var di=textObjs.indexOf(editingObj); if(di>-1) textObjs.splice(di,1);
       toast('Text deleted','',1500);
+      editingObj=null; renderTextObjs(); pushUndo();
     } else {
       editingObj.text=val; editingObj.color=color;
       editingObj.fontSize=FONT_SIZE; editingObj.opacity=opacity;
+      var upd=editingObj; editingObj=null;
+      renderTextObjs(); pushUndo();
+      enterTextTransformMode(upd); // allow repositioning/rotating after edit
     }
-    editingObj=null; renderTextObjs(); pushUndo();
   } else {
     if(!val.trim()) return;
-    var obj={id:Date.now(),x:textX,y:textY,text:val,
+    var obj={id:Date.now(),x:textX,y:textY,text:val,angle:0,
              color:color,fontSize:FONT_SIZE,opacity:opacity,layerIdx:activeLayerIdx};
     textObjs.push(obj); renderTextObjs(); pushUndo();
+    enterTextTransformMode(obj); // immediately allow move+rotate
   }
+}
+
+// Enter selection mode for a text object (move + rotate, no resize)
+function enterTextTransformMode(obj){
+  if(!obj) return;
+  var lines=obj.text.split('\n');
+  var estW=lines.reduce(function(m,l){ return Math.max(m,l.length); },0)*obj.fontSize*0.6;
+  var estH=lines.length*obj.fontSize*1.35;
+  // Use the same selectedShape mechanism — type:'text' gets special handling
+  selectedShape={
+    type:'text', _textObj:obj,
+    cx: obj.x+estW/2, cy: obj.y-obj.fontSize+estH/2,
+    w: Math.max(estW,30), h: Math.max(estH,obj.fontSize),
+    angle: obj.angle||0,
+    color: obj.color, strokeW:1.5, opacity:obj.opacity,
+    fill:false, lineStyle:'solid'
+  };
+  selHandle=-1; selDragStart=null;
+  renderSelection();
 }
 
 
@@ -2293,7 +2345,7 @@ function isInsideShape(s,x,y){
   var cos=Math.cos(-s.angle),sin=Math.sin(-s.angle);
   var lx=(x-s.cx)*cos-(y-s.cy)*sin;
   var ly=(x-s.cx)*sin+(y-s.cy)*cos;
-  if(s.type==='rect'||s.type==='cloud') return Math.abs(lx)<=s.w/2+4/zoom&&Math.abs(ly)<=s.h/2+4/zoom;
+  if(s.type==='rect'||s.type==='cloud'||s.type==='text') return Math.abs(lx)<=s.w/2+4/zoom&&Math.abs(ly)<=s.h/2+4/zoom;
   if(s.type==='ellipse') return (lx/(s.w/2+4/zoom))*(lx/(s.w/2+4/zoom))+(ly/(s.h/2+4/zoom))*(ly/(s.h/2+4/zoom))<=1;
   return false;
 }
@@ -2327,6 +2379,20 @@ function renderSelection(){
     selCtx.stroke();
   } else if(s.type==='cloud'){
     drawCloud(selCtx,-s.w/2,-s.h/2,s.w/2,s.h/2);
+  } else if(s.type==='text'){
+    // Text selection: draw text at its position/angle for live preview
+    if(s._textObj){
+      var to=s._textObj;
+      selCtx.restore(); // undo translate/rotate so we can re-render text
+      selCtx.save();
+      selCtx.globalAlpha=to.opacity;
+      selCtx.fillStyle=to.color;
+      selCtx.font='bold '+to.fontSize+'px Arial,sans-serif';
+      selCtx.translate(s.cx,s.cy); selCtx.rotate(s.angle);
+      var lines2=to.text.split('\n');
+      var estW2=lines2.reduce(function(m,l){return Math.max(m,l.length);},0)*to.fontSize*0.6;
+      lines2.forEach(function(line,i){ selCtx.fillText(line,-estW2/2,-to.fontSize/2+i*to.fontSize*1.35); });
+    }
   }
   selCtx.restore();
 
@@ -2345,17 +2411,19 @@ function renderSelection(){
   var hs=HANDLE_SIZE/zoom;
   selCtx.setLineDash([]); selCtx.globalAlpha=1;
 
-  // Resize handles 0-7
-  for(var i=0;i<=7;i++){
-    var h=handles[i];
-    selCtx.save();
-    selCtx.fillStyle='#fff'; selCtx.strokeStyle='#00D4FF';
-    selCtx.lineWidth=lw*1.5;
-    selCtx.beginPath();
-    if(selCtx.roundRect) selCtx.roundRect(h.x-hs/2,h.y-hs/2,hs,hs,hs*.25);
-    else selCtx.rect(h.x-hs/2,h.y-hs/2,hs,hs);
-    selCtx.fill(); selCtx.stroke();
-    selCtx.restore();
+  // Resize handles 0-7 (hidden for text — only rotation makes sense)
+  if(s.type!=='text'){
+    for(var i=0;i<=7;i++){
+      var h=handles[i];
+      selCtx.save();
+      selCtx.fillStyle='#fff'; selCtx.strokeStyle='#00D4FF';
+      selCtx.lineWidth=lw*1.5;
+      selCtx.beginPath();
+      if(selCtx.roundRect) selCtx.roundRect(h.x-hs/2,h.y-hs/2,hs,hs,hs*.25);
+      else selCtx.rect(h.x-hs/2,h.y-hs/2,hs,hs);
+      selCtx.fill(); selCtx.stroke();
+      selCtx.restore();
+    }
   }
 
   // Rotation handles 8-11 — deep pink circles with curved arrow
@@ -2400,8 +2468,27 @@ function renderSelection(){
 function commitSelection(){
   if(!selectedShape) return;
   var s=selectedShape;
+
+  // ── Text object: sync position+angle back to the text object ──
+  if(s.type==='text' && s._textObj){
+    var obj=s._textObj;
+    // Derive text origin from selection center + angle
+    var lines=obj.text.split('\n');
+    var estW=lines.reduce(function(m,l){ return Math.max(m,l.length); },0)*obj.fontSize*0.6;
+    var estH=lines.length*obj.fontSize*1.35;
+    // Centre of selection → text origin (top-left baseline)
+    var cos=Math.cos(s.angle), sin=Math.sin(s.angle);
+    obj.x=s.cx - (estW/2)*cos + ((estH/2-obj.fontSize)*1)*sin;
+    obj.y=s.cy - (estW/2)*sin - ((estH/2-obj.fontSize)*1)*cos + obj.fontSize;
+    obj.angle=s.angle;
+    renderTextObjs();
+    selectedShape=null; selHandle=-1; selDragStart=null;
+    selCv.width=1; selCv.height=1;
+    composite(); pushUndo();
+    return;
+  }
+
   if(editShapeObj){
-    // Updating an existing shape object — replace it in place
     editShapeObj._editing=false;
     editShapeObj.cx=s.cx; editShapeObj.cy=s.cy;
     editShapeObj.w=s.w;   editShapeObj.h=s.h;
@@ -2411,7 +2498,6 @@ function commitSelection(){
     editShapeObj.lineStyle=s.lineStyle;
     editShapeObj=null;
   } else {
-    // New shape — store as live object (not burned to pixels)
     shapeObjs.push({
       id:Date.now(),
       type:s.type, cx:s.cx, cy:s.cy, w:s.w, h:s.h, angle:s.angle,
@@ -2641,9 +2727,17 @@ function compositeExport(maxPx){
     ctx.save();
     ctx.globalAlpha=obj.opacity; ctx.fillStyle=obj.color;
     ctx.font='bold '+Math.round(obj.fontSize*scale)+'px Arial,sans-serif';
-    obj.text.split('\n').forEach(function(line,i){
-      ctx.fillText(line,Math.round(obj.x*scale),Math.round((obj.y+i*obj.fontSize*1.3)*scale));
-    });
+    if(obj.angle){
+      ctx.translate(Math.round(obj.x*scale),Math.round(obj.y*scale));
+      ctx.rotate(obj.angle);
+      obj.text.split('\n').forEach(function(line,i){
+        ctx.fillText(line,0,Math.round(i*obj.fontSize*1.35*scale));
+      });
+    } else {
+      obj.text.split('\n').forEach(function(line,i){
+        ctx.fillText(line,Math.round(obj.x*scale),Math.round((obj.y+i*obj.fontSize*1.35)*scale));
+      });
+    }
     ctx.restore();
   });
   return out;
