@@ -282,7 +282,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   max-width:900px;margin:0 auto;
   box-shadow:0 4px 32px rgba(0,0,0,0.6);
 }
-#print-page img{display:block;width:100%;height:auto}
+#print-page img{display:block;width:100%;height:auto;transition:opacity .3s}
 #print-titleblock{
   display:grid;grid-template-columns:1fr 1fr 1fr;
   border-top:2px solid #000;padding:8px 12px;
@@ -2482,82 +2482,127 @@ ppuIn.addEventListener('change',function(){
 unitIn.addEventListener('change',function(){ scaleUnit=unitIn.value.trim()||'m'; });
 
 // ── EXPORT ──
-function compositeExport(){
-  var out=document.createElement('canvas'); out.width=baseCv.width; out.height=baseCv.height;
+// compositeExport(maxPx) — maxPx=0 means full resolution
+// Returns a canvas; caller MUST call releaseCanvas(result) when done.
+function compositeExport(maxPx){
+  var srcW=baseCv.width, srcH=baseCv.height;
+  var scale=1;
+  if(maxPx&&maxPx>0) scale=Math.min(1,maxPx/Math.max(srcW,srcH));
+  var w=Math.round(srcW*scale), h=Math.round(srcH*scale);
+  var out=document.createElement('canvas'); out.width=w; out.height=h;
   var ctx=out.getContext('2d');
-  ctx.drawImage(baseCv,0,0);
-  layers.forEach(function(l){ if(l.visible) ctx.drawImage(l.canvas,0,0); });
-  // Render text objects onto export (they live on txt-cv but we re-render for full res)
+  ctx.drawImage(baseCv,0,0,w,h);
+  layers.forEach(function(l){ if(l.visible) ctx.drawImage(l.canvas,0,0,w,h); });
   textObjs.forEach(function(obj){
     var layer=layers[obj.layerIdx];
     if(layer&&!layer.visible) return;
     ctx.save();
-    ctx.globalAlpha=obj.opacity;
-    ctx.fillStyle=obj.color;
-    ctx.font='bold '+obj.fontSize+'px Arial,sans-serif';
+    ctx.globalAlpha=obj.opacity; ctx.fillStyle=obj.color;
+    ctx.font='bold '+Math.round(obj.fontSize*scale)+'px Arial,sans-serif';
     obj.text.split('\n').forEach(function(line,i){
-      ctx.fillText(line,obj.x,obj.y+i*obj.fontSize*1.3);
+      ctx.fillText(line,Math.round(obj.x*scale),Math.round((obj.y+i*obj.fontSize*1.3)*scale));
     });
     ctx.restore();
   });
   return out;
 }
 
+// Async wrapper — uses toBlob (faster, less memory than toDataURL)
+function exportToBlob(maxPx, mimeType, quality, cb){
+  var c=compositeExport(maxPx);
+  c.toBlob(function(blob){
+    releaseCanvas(c);
+    cb(blob);
+  }, mimeType||'image/jpeg', quality||0.92);
+}
+
 document.getElementById('btn-shortcuts').addEventListener('click',function(){
   document.getElementById('shortcuts').classList.toggle('show');
 });
 btnPng.addEventListener('click',function(){
-  var c=compositeExport();
-  var a=document.createElement('a'); a.download='site-plan.png'; a.href=c.toDataURL('image/png'); a.click();
+  if(!baseLoaded){ toast('Open a file first','warn'); return; }
+  toast('Preparing PNG…','',0);
+  exportToBlob(0,'image/png',1,function(blob){
+    if(!blob){ toast('Export failed — try again','err'); return; }
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.download='site-plan.png'; a.href=url; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); },30000);
+    toast('Saved as PNG ✓','ok',2500);
+  });
 });
 
 btnPdf.addEventListener('click',function(){
-  if(typeof window.jspdf==='undefined'&&typeof jsPDF==='undefined'){ toast('PDF export requires an internet connection.','warn'); return; }
-  var JSPDF=window.jspdf?window.jspdf.jsPDF:jsPDF;
-  var c=compositeExport();
-  var wMM=297,hMM=Math.round(c.height/c.width*297);
-  var orientation=c.width>c.height?'landscape':'portrait';
-  var doc=new JSPDF({orientation:orientation,unit:'mm',format:[Math.max(wMM,hMM),Math.min(wMM,hMM)]});
-  var imgData=c.toDataURL('image/jpeg',0.92);
-  var pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
-  // title block height 18mm
-  var tbH=18;
-  var imgH=ph-tbH-4;
-  var imgW=pw-4;
-  var aspect=c.height/c.width;
-  if(imgH/imgW<aspect){ imgW=imgH/aspect; }
-  doc.addImage(imgData,'JPEG',2,2,imgW,imgH);
-  // Title block
-  var proj=document.getElementById('tb-proj').value||'Site Plan';
-  var drwn=document.getElementById('tb-drwn').value||'';
-  var date=document.getElementById('tb-date').value||new Date().toISOString().slice(0,10);
-  var scText=document.getElementById('tb-scale').value||(scaleSet?'1px='+ppu.toFixed(4)+scaleUnit:'NTS');
-  doc.setFillColor(255,255,255); doc.rect(0,ph-tbH,pw,tbH,'F');
-  doc.setDrawColor(0); doc.line(0,ph-tbH,pw,ph-tbH);
-  doc.line(pw/3,ph-tbH,pw/3,ph); doc.line(2*pw/3,ph-tbH,2*pw/3,ph);
-  doc.setFontSize(11); doc.setFont(undefined,'bold'); doc.text(proj,pw/6,ph-tbH+8,{align:'center'});
-  doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.text(drwn,pw/6,ph-tbH+14,{align:'center'});
-  doc.setFontSize(9); doc.text('Scale: '+scText,pw/2,ph-tbH+10,{align:'center'});
-  doc.setFontSize(8); doc.text(date,5*pw/6,ph-tbH+10,{align:'center'});
-  doc.save('site-plan.pdf');
+  if(!baseLoaded){ toast('Open a file first','warn'); return; }
+  if(typeof window.jspdf==='undefined'&&typeof jsPDF==='undefined'){
+    toast('PDF export needs an internet connection','warn'); return;
+  }
+  toast('Preparing PDF…','',0);
+  exportToBlob(0,'image/jpeg',0.92,function(blob){
+    if(!blob){ toast('Export failed','err'); return; }
+    var JSPDF=window.jspdf?window.jspdf.jsPDF:jsPDF;
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var imgData=e.target.result;
+      var cw=baseCv.width, ch=baseCv.height;
+      var orientation=cw>ch?'landscape':'portrait';
+      var doc=new JSPDF({orientation:orientation,unit:'mm',format:'a3'});
+      var pw=doc.internal.pageSize.getWidth(), ph=doc.internal.pageSize.getHeight();
+      var tbH=18, imgH=ph-tbH-4, imgW=pw-4;
+      if(imgH/imgW<ch/cw) imgW=imgH/(ch/cw);
+      doc.addImage(imgData,'JPEG',2,2,imgW,imgH);
+      var proj=document.getElementById('tb-proj').value||'Site Plan';
+      var drwn=document.getElementById('tb-drwn').value||'';
+      var date=document.getElementById('tb-date').value||new Date().toISOString().slice(0,10);
+      var scTxt=document.getElementById('tb-scale').value||(scaleSet?'1px='+ppu.toFixed(4)+scaleUnit:'NTS');
+      doc.setFillColor(255,255,255); doc.rect(0,ph-tbH,pw,tbH,'F');
+      doc.setDrawColor(0); doc.line(0,ph-tbH,pw,ph-tbH);
+      doc.line(pw/3,ph-tbH,pw/3,ph); doc.line(2*pw/3,ph-tbH,2*pw/3,ph);
+      doc.setFontSize(11); doc.setFont(undefined,'bold'); doc.text(proj,pw/6,ph-tbH+8,{align:'center'});
+      doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.text(drwn,pw/6,ph-tbH+14,{align:'center'});
+      doc.setFontSize(9); doc.text('Scale: '+scTxt,pw/2,ph-tbH+10,{align:'center'});
+      doc.setFontSize(8); doc.text(date,5*pw/6,ph-tbH+10,{align:'center'});
+      doc.save('site-plan.pdf');
+      toast('Saved as PDF ✓','ok',2500);
+    };
+    reader.readAsDataURL(blob);
+  });
 });
 
+
 btnPrint.addEventListener('click',function(){
-  var c=compositeExport();
+  if(!baseLoaded){ toast('Open a file first','warn'); return; }
   var proj=document.getElementById('tb-proj').value||'Site Plan';
   var drwn=document.getElementById('tb-drwn').value||'';
   var date=document.getElementById('tb-date').value||new Date().toISOString().slice(0,10);
   var scText=document.getElementById('tb-scale').value||(scaleSet?'1px='+ppu.toFixed(4)+scaleUnit:'NTS');
 
-  // Populate the in-app print overlay (no window.open — PWA has no browser chrome)
-  document.getElementById('print-img').src=c.toDataURL('image/jpeg',0.92);
+  // Populate title block immediately
   document.getElementById('ptb-proj').textContent=proj;
   document.getElementById('ptb-drwn').textContent=drwn;
   document.getElementById('ptb-scale').textContent='Scale: '+scText;
   document.getElementById('ptb-date').textContent=date;
+
+  // Show overlay right away with loading state — don't make user wait
+  var img=document.getElementById('print-img');
+  img.src=''; img.style.opacity='0';
   document.getElementById('print-overlay').style.display='flex';
   document.title=proj+' — Print Preview';
+
+  // Generate preview at 1200px (fast) for display, full res when Print is tapped
+  toast('Generating preview…','',0);
+  exportToBlob(1200,'image/jpeg',0.88,function(blob){
+    if(!blob){ toast('Preview failed','err'); return; }
+    var url=URL.createObjectURL(blob);
+    img.onload=function(){
+      img.style.opacity='1';
+      URL.revokeObjectURL(url);
+      toast('','',0); // clear toast
+    };
+    img.src=url;
+  });
 });
+
 
 
 
@@ -2844,7 +2889,21 @@ document.getElementById('print-close-btn').addEventListener('click',function(){
   document.title='Site Annotator · Always On Generators';
 });
 document.getElementById('print-go-btn').addEventListener('click',function(){
-  window.print();
+  // Swap preview image with full-res before printing
+  toast('Preparing full resolution…','',0);
+  exportToBlob(0,'image/jpeg',0.95,function(blob){
+    if(!blob){ window.print(); return; } // fall back to whatever is displayed
+    var img=document.getElementById('print-img');
+    var oldSrc=img.src;
+    var url=URL.createObjectURL(blob);
+    img.onload=function(){
+      toast('','',0);
+      window.print();
+      // Restore preview-res after print dialog closes
+      setTimeout(function(){ URL.revokeObjectURL(url); },60000);
+    };
+    img.src=url;
+  });
 });
 document.getElementById('shortcuts').addEventListener('click',function(e){
   if(e.target===this) this.classList.remove('show');
