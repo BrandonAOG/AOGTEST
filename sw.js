@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v1.0.65
+var CACHE_NAME = 'aog-forms-v1.0.65';
 var DEV_MODE   = false; // ← SET TRUE during development/testing
 
 // ============================================================
@@ -28,17 +28,21 @@ var PRECACHE_URLS = [
   '../',
   '../index.html',
   '../offline.html',
+  '../manifest.json',
   '../logo.png',
   '../sw.js',
+  '../estimate/',
   '../maintenance/',
   '../site-visit/',
   '../gas-install/',
   '../elect-install/',
+  '../qc-checklist/',
   '../load-calcs/',
   '../breaker-conductor/',
   '../conduit-fill/',
   '../sketch-pad/',
-  '../gas-calc/'
+  '../gas-calc/',
+  '../spec-viewer/'
 ];
 
 var CACHE_CDN = [
