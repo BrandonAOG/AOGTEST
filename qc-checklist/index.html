@@ -1924,17 +1924,35 @@ function printForm() {
     });
 
     // Detect when print dialog closes
-    var wentHidden = false;
-    document.addEventListener('visibilitychange', function _iosVis() {
-      if (document.hidden) {
-        wentHidden = true;
-      } else if (wentHidden) {
-        document.removeEventListener('visibilitychange', _iosVis);
-        restore();
-      }
+    var _restored = false;
+    function _tryRestore() {
+      if (_restored) return;
+      _restored = true;
+      document.removeEventListener('visibilitychange', _visHandler);
+      window.removeEventListener('focus', _focusHandler);
+      restore();
+    }
+
+    // visibilitychange — fires on most iOS versions when dialog closes
+    function _visHandler() {
+      if (document.hidden) { _wentHidden = true; }
+      else if (_wentHidden) { _tryRestore(); }
+    }
+    var _wentHidden = false;
+    document.addEventListener('visibilitychange', _visHandler);
+
+    // focus — fires on iPhone when returning from print dialog
+    function _focusHandler() { if (_wentHidden) _tryRestore(); }
+    window.addEventListener('focus', _focusHandler);
+
+    // pageshow — another Safari event that fires on return
+    window.addEventListener('pageshow', function _psHandler() {
+      window.removeEventListener('pageshow', _psHandler);
+      setTimeout(function() { _tryRestore(); }, 300);
     });
-    // Fallback restore after 8s if visibility never changes
-    setTimeout(function() { if (!wentHidden) restore(); }, 8000);
+
+    // Fallback — shortened to 2s just in case nothing else fires
+    setTimeout(function() { _tryRestore(); }, 2000);
 
   } else {
     dbg('non-Safari → window.print()', '#0ff');
