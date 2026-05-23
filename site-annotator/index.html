@@ -1520,8 +1520,9 @@ function onDown(e){
   if(tool!=='pan'&&!spaceDown) captureState();
 
   // ── If a shape is selected, handle transform interaction first ──
+  var _isTouchEvt = !!(e.touches && e.touches.length);
   if(selectedShape){
-    var sh=getHandleAt(sp.x,sp.y);
+    var sh=getHandleAt(sp.x,sp.y,_isTouchEvt);
     if(sh>=0){
       e.preventDefault();
       selHandle=sh;
@@ -1537,7 +1538,7 @@ function onDown(e){
       selDragStart={x:sp.x,y:sp.y,shape:snapObj,rotAngleOffset:rotOff};
       return;
     }
-    if(isInsideShape(selectedShape,sp.x,sp.y)){
+    if(isInsideShape(selectedShape,sp.x,sp.y,_isTouchEvt)){
       // Start move
       e.preventDefault();
       selHandle=-2;
@@ -1559,7 +1560,7 @@ function onDown(e){
 
   // Re-select existing shape object when rect/ellipse tool is active
   if(tool==='rect'||tool==='ellipse'||tool==='cloud'){
-    var hit=findShapeObjAt(sp.x,sp.y);
+    var hit=findShapeObjAt(sp.x,sp.y,_isTouchEvt);
     if(hit){
       e.preventDefault();
       // Pull it back into selection mode
@@ -2100,13 +2101,13 @@ function renderShapeObjs(){
 }
 
 // Hit test — find shape object at canvas position
-function findShapeObjAt(x,y){
+function findShapeObjAt(x,y,isTouch){
   for(var i=shapeObjs.length-1;i>=0;i--){
     var s=shapeObjs[i];
     if(s._editing) continue;
     var layer=layers[s.layerIdx];
     if(layer&&!layer.visible) continue;
-    if(isInsideShape(s,x,y)) return s;
+    if(isInsideShape(s,x,y,isTouch)) return s;
   }
   return null;
 }
@@ -2418,10 +2419,14 @@ function getHandlePositions(s){
   });
 }
 
-function getHandleAt(x,y){
+function getHandleAt(x,y,isTouch){
   if(!selectedShape) return -1;
   var handles=getHandlePositions(selectedShape);
-  var hitR=(HANDLE_SIZE+5)/zoom;
+  // On touch, use a minimum of 28px screen-space slop converted to canvas coords.
+  // At high zoom the formula (HANDLE_SIZE+5)/zoom can shrink to <3 canvas px —
+  // way too small for a fingertip. Guarantee at least 28 screen-px in canvas units.
+  var minSlop = isTouch ? Math.max((HANDLE_SIZE+5)/zoom, 28/zoom) : (HANDLE_SIZE+5)/zoom;
+  var hitR = minSlop;
   // Check rotation handles first (8-11) — they're further out so check before resize
   for(var i=8;i<=11;i++){
     if(Math.hypot(x-handles[i].x,y-handles[i].y)<hitR) return i;
@@ -2433,12 +2438,15 @@ function getHandleAt(x,y){
   return -1;
 }
 
-function isInsideShape(s,x,y){
+function isInsideShape(s,x,y,isTouch){
   var cos=Math.cos(-s.angle),sin=Math.sin(-s.angle);
   var lx=(x-s.cx)*cos-(y-s.cy)*sin;
   var ly=(x-s.cx)*sin+(y-s.cy)*cos;
-  if(s.type==='rect'||s.type==='cloud'||s.type==='text') return Math.abs(lx)<=s.w/2+4/zoom&&Math.abs(ly)<=s.h/2+4/zoom;
-  if(s.type==='ellipse') return (lx/(s.w/2+4/zoom))*(lx/(s.w/2+4/zoom))+(ly/(s.h/2+4/zoom))*(ly/(s.h/2+4/zoom))<=1;
+  // On touch, guarantee at least 16 screen-px of canvas-space padding so that
+  // tapping inside a shape zoomed in doesn't miss. On desktop 4/zoom is enough.
+  var pad = isTouch ? Math.max(4/zoom, 16/zoom) : 4/zoom;
+  if(s.type==='rect'||s.type==='cloud'||s.type==='text') return Math.abs(lx)<=s.w/2+pad&&Math.abs(ly)<=s.h/2+pad;
+  if(s.type==='ellipse') return (lx/(s.w/2+pad))*(lx/(s.w/2+pad))+(ly/(s.h/2+pad))*(ly/(s.h/2+pad))<=1;
   return false;
 }
 
@@ -2618,9 +2626,9 @@ var HANDLE_CURSORS=['nw-resize','n-resize','ne-resize','e-resize',
 
 function updateSelCursor(x,y){
   if(!selectedShape){ drawCv.style.cursor='crosshair'; return; }
-  var h=getHandleAt(x,y);
+  var h=getHandleAt(x,y,false);
   if(h>=0){ drawCv.style.cursor=HANDLE_CURSORS[h]; return; }
-  if(isInsideShape(selectedShape,x,y)){ drawCv.style.cursor='move'; return; }
+  if(isInsideShape(selectedShape,x,y,false)){ drawCv.style.cursor='move'; return; }
   drawCv.style.cursor='crosshair';
 }
 
@@ -2631,7 +2639,7 @@ drawCv.addEventListener('mousemove',function(e){
   if(selectedShape&&selHandle===-1){ updateSelCursor(p.x,p.y); return; }
   // Show move cursor when hovering over re-selectable shape
   if((tool==='rect'||tool==='ellipse'||tool==='cloud')&&!selectedShape&&baseLoaded){
-    var hit=findShapeObjAt(p.x,p.y);
+    var hit=findShapeObjAt(p.x,p.y,false);
     drawCv.style.cursor=hit?'move':'crosshair';
   }
 },{passive:true});
@@ -3034,7 +3042,9 @@ function doSave(){
     ppu:            ppu,
     scaleUnit:      scaleUnit,
     gridEnabled:    gridEnabled,
-    gridSize:       gridSize
+    gridSize:       gridSize,
+    textObjs:       JSON.parse(JSON.stringify(textObjs)),
+    shapeObjs:      JSON.parse(JSON.stringify(shapeObjs))
   };
 
   // Step 1: encode base image
@@ -3056,11 +3066,13 @@ function encodeLayerSequential(i, record){
     try{
       // JPEG for session saves: far less memory than PNG during encoding.
       // Drawings restore perfectly at 0.88 quality. Final exports always use PNG.
+      // Layers MUST use PNG — JPEG kills transparency (blank areas → black).
+      // Base image uses JPEG (no transparency) but layers need lossless alpha.
       record.layers.push({
         name:    layers[i].name,
         color:   layers[i].color,
         visible: layers[i].visible,
-        data:    layers[i].canvas.toDataURL('image/jpeg', JPEG_QUALITY)
+        data:    layers[i].canvas.toDataURL('image/png')
       });
     } catch(ex){
       // If a layer fails to encode (memory), store empty and continue
@@ -3131,6 +3143,15 @@ function doRestore(rec){
     resize(w,h);
     bCtx.drawImage(img,0,0,w,h);
 
+    // ── iOS BLANK CHECK ────────────────────────────────────────
+    // On Safari, drawing a large JPEG data URL can silently produce
+    // a blank canvas (HEIC or memory pressure). Detect and abort so
+    // the user sees an error instead of a blank white canvas.
+    if(isCanvasBlank(bCtx,w,h)){
+      toast('Session image failed to load (blank). Please open your file again.','warn',7000);
+      return;
+    }
+
     // Restore layers
     if(rec.layers&&rec.layers.length){
       // Release old canvases
@@ -3142,6 +3163,8 @@ function doRestore(rec){
         var lc=c.getContext('2d');
         var li=new Image();
         li.onload=function(){
+          lc.globalCompositeOperation='source-over';
+          lc.clearRect(0,0,w,h);
           lc.drawImage(li,0,0,w,h);
           layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:c,ctx:lc};
           pending--;
