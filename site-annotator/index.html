@@ -146,13 +146,15 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   caret-color:var(--acc);
   font-family:'Segoe UI',system-ui,sans-serif;
   outline:none;resize:none;overflow:hidden;
-  min-width:80px;min-height:24px;
+  /* Large enough to receive input at any font size */
+  min-width:200px;min-height:40px;
+  width:auto;height:auto;
   z-index:25;white-space:pre;
-  /* CRITICAL: ≥16px prevents iOS Safari viewport auto-zoom on focus */
-  font-size:16px !important;
+  /* 16px base; JS sets style.fontSize directly (no !important so it works) */
+  font-size:16px;
   touch-action:manipulation;
   transform-origin:top left;
-  /* Subtle selection highlight */
+  pointer-events:auto;
   -webkit-user-select:text;user-select:text;
 }
 /* STAMP PICKER */
@@ -480,6 +482,9 @@ body{display:flex;flex-direction:column;}
     <option value="32">32</option><option value="36">36</option>
     <option value="48">48</option><option value="60">60</option>
     <option value="72">72</option><option value="96">96</option>
+    <option value="120">120</option><option value="144">144</option>
+    <option value="180">180</option><option value="216">216</option>
+    <option value="240">240</option><option value="300">300</option>
   </select>
   <button class="tb-btn" data-tool="eraser"><svg viewBox="0 0 24 24"><path d="M20 20H7L3 16l10-10 7 7-3 3"/><path d="M6 10l8 8"/></svg><span class="lbl">Erase</span></button>
   <button class="tb-btn" data-tool="pan"><svg viewBox="0 0 24 24"><path d="M18 11V8a2 2 0 0 0-4 0v3"/><path d="M14 11V6a2 2 0 0 0-4 0v5"/><path d="M10 11V5a2 2 0 0 0-4 0v9"/><path d="M6 14a4 4 0 0 0 3.67 4h2.5c1.74 0 3.83-.82 3.83-4v-3"/></svg><span class="lbl">Pan</span></button>
@@ -1498,11 +1503,15 @@ function onDown(e){
   if(tool==='pan'){ var _px=e.touches&&e.touches.length?e.touches[0].clientX:e.clientX; var _py=e.touches&&e.touches.length?e.touches[0].clientY:e.clientY; startPan(_px,_py); return; }
   if(spaceDown) return;
   if(e.touches&&e.touches.length>1) return;
-  // iOS keyboard: .focus() MUST be called synchronously inside the touch handler
-  // or the system won't show the keyboard. Pre-focus here before any async work.
-  if(tool==='text' && baseLoaded){
+  // iOS keyboard: .focus() MUST be called synchronously inside the touch handler.
+  // Only pre-focus on touch (mobile) — on desktop focus happens in showTextOverlay.
+  // Also blur textOv if switching away from text tool so keys go to document.
+  if(tool==='text' && baseLoaded && e.touches && e.touches.length){
     textOv.style.display='block';
     textOv.focus();
+  } else if(tool!=='text' && document.activeElement===textOv){
+    textOv.blur();
+    textOv.style.display='none';
   }
 
   // Compute canvas position ONCE at top — used by both the selection block and shape re-select
@@ -1656,7 +1665,7 @@ function onUp(e){
   }
   else {
     dCtx.putImageData(compositedSnap,0,0);
-    drawFinalShape(lc,startX,startY,p.x,p.y);
+    drawFinalShape(lc,startX,startY,p.x,p.y, !!(e.changedTouches&&e.changedTouches.length));
     composite();
   }
   pushUndo();
@@ -1668,20 +1677,37 @@ function previewShape(ctx,x1,y1,x2,y2){
   resetCtx(ctx);
 }
 
-function drawFinalShape(ctx,x1,y1,x2,y2){
-  // rect and ellipse enter selection mode instead of immediately committing
+function drawFinalShape(ctx,x1,y1,x2,y2,isTouch){
+  // rect/ellipse/cloud: on touch → enter selection/transform mode so user can reposition.
+  // On desktop (mouse) → commit immediately so there's no delay.
   if(tool==='rect'||tool==='ellipse'||tool==='cloud'){
-    selectedShape={
-      type:tool,
-      cx:(x1+x2)/2, cy:(y1+y2)/2,
-      w:Math.max(4,Math.abs(x2-x1)), h:Math.max(4,Math.abs(y2-y1)),
-      angle:0,
-      color:color, strokeW:strokeW, opacity:opacity,
-      fill:fillShape, lineStyle:lineStyle
-    };
-    selHandle=-1; selDragStart=null;
-    renderSelection();
-    return; // don't commit yet
+    if(isTouch){
+      selectedShape={
+        type:tool,
+        cx:(x1+x2)/2, cy:(y1+y2)/2,
+        w:Math.max(4,Math.abs(x2-x1)), h:Math.max(4,Math.abs(y2-y1)),
+        angle:0,
+        color:color, strokeW:strokeW, opacity:opacity,
+        fill:fillShape, lineStyle:lineStyle
+      };
+      selHandle=-1; selDragStart=null;
+      renderSelection();
+      return; // don't commit yet — let user position then tap Enter/elsewhere
+    } else {
+      // Desktop: commit straight to shapeObjs
+      shapeObjs.push({
+        id:Date.now(),
+        type:tool,
+        cx:(x1+x2)/2, cy:(y1+y2)/2,
+        w:Math.max(4,Math.abs(x2-x1)), h:Math.max(4,Math.abs(y2-y1)),
+        angle:0,
+        color:color, strokeW:strokeW, opacity:opacity,
+        fill:fillShape, lineStyle:lineStyle,
+        layerIdx:activeLayerIdx
+      });
+      renderShapeObjs(); composite();
+      return;
+    }
   }
   setupCtx(ctx);
   drawShapeOnCtx(ctx,tool,x1,y1,x2,y2,true);
@@ -2252,9 +2278,10 @@ function handleText(e){
 function showTextOverlay(cx,cy){
   // Store canvas coords so we can reposition when keyboard appears
   textOv._canvasCx = cx; textOv._canvasCy = cy;
+  // Must set display=block BEFORE repositionTextOverlay (it returns early if none)
+  textOv.style.display = 'block';
   repositionTextOverlay();
-  // Focus already called synchronously in onDown for iOS keyboard trust.
-  // Fallback for mouse clicks and double-tap edit path.
+  // iOS: focus already called in onDown. Desktop + double-tap edit path: focus here.
   if(document.activeElement!==textOv){
     textOv.focus();
     setTimeout(function(){ if(document.activeElement!==textOv) textOv.focus(); }, 0);
@@ -2270,8 +2297,10 @@ function repositionTextOverlay(){
   var vvOffLeft = vv ? vv.offsetLeft : 0;
   var sx = panX + cx*zoom + vvOffLeft;
   var sy = panY + cy*zoom - FONT_SIZE*zoom + vvOffTop;
-  // Keep textarea on screen (don't let keyboard push it out of view)
-  if(vv){ sy=Math.min(sy, vv.height-60); }
+  // Keep textarea on screen
+  var vpH = vv ? vv.height : viewport.clientHeight;
+  sy = Math.min(sy, vpH - 60);
+  sx = Math.max(0, sx);
   textOv.style.display  = 'block';
   textOv.style.left     = sx+'px';
   textOv.style.top      = sy+'px';
@@ -2281,10 +2310,14 @@ function repositionTextOverlay(){
   var renderSz = Math.max(16, screenSz);
   var scaleV   = screenSz / renderSz;
   textOv.style.fontSize  = renderSz+'px';
+  textOv.style.lineHeight = '1.2';
   textOv.style.transform = scaleV<0.99 ? 'scale('+scaleV.toFixed(3)+')' : 'none';
   textOv.style.transformOrigin='top left';
   textOv.style.color   = color;
   textOv.style.opacity = opacity;
+  // Ensure textarea is wide enough to show text at any font size
+  textOv.style.width   = Math.max(200, viewport.clientWidth * 0.5) + 'px';
+  textOv.style.height  = Math.max(40, renderSz * 2) + 'px';
 }
 
 // Listen for keyboard appearance / viewport resize on iOS
@@ -2293,6 +2326,8 @@ if(window.visualViewport){
   window.visualViewport.addEventListener('scroll',  repositionTextOverlay);
 }
 
+// Stop mousedown on the textarea from propagating to canvas handlers
+textOv.addEventListener('mousedown', function(e){ e.stopPropagation(); });
 textOv.addEventListener('keydown',function(e){
   if(e.key==='Escape'){ textOv.style.display='none'; return; }
   if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); commitText(); }
@@ -2303,6 +2338,7 @@ function commitText(){
   stopTextCursor();
   var val=textOv.value;
   textOv.style.display='none';
+  textOv.blur(); // release focus so keyboard shortcuts work again
 
   if(editingObj){
     editingObj._editing=false;
@@ -2612,7 +2648,11 @@ drawCv.addEventListener('touchstart',function(e){
 
 drawCv.addEventListener('touchmove',function(e){ if(e.touches.length>=2||pinching){ return; } onMove(e); },{passive:false});
 drawCv.addEventListener('touchend',function(e){ if(pinching) return; onUp(e); },{passive:false});
-drawCv.addEventListener('mousedown',onDown);
+drawCv.addEventListener('mousedown', function(e){
+  // When text tool active, prevent canvas from reclaiming focus after we give it to textOv
+  if(tool==='text') e.preventDefault();
+  onDown(e);
+});
 drawCv.addEventListener('mousemove',onMove);
 drawCv.addEventListener('mouseup',onUp);
 drawCv.addEventListener('mouseleave',onUp);
@@ -3179,7 +3219,8 @@ initSaveDB(checkForSavedSession);
 
 // ── KEYBOARD ──
 document.addEventListener('keydown',function(e){
-  if(e.target===textOv) return;
+  // Block tool shortcuts whenever the text textarea is active (focused or visible)
+  if(e.target===textOv || document.activeElement===textOv) return;
   if(e.ctrlKey||e.metaKey){
     if(e.key==='z'){ e.preventDefault(); e.shiftKey?redoFn():undoFn(); return; }
     if(e.key==='y'){ e.preventDefault(); redoFn(); return; }
