@@ -1498,6 +1498,12 @@ function onDown(e){
   if(tool==='pan'){ var _px=e.touches&&e.touches.length?e.touches[0].clientX:e.clientX; var _py=e.touches&&e.touches.length?e.touches[0].clientY:e.clientY; startPan(_px,_py); return; }
   if(spaceDown) return;
   if(e.touches&&e.touches.length>1) return;
+  // iOS keyboard: .focus() MUST be called synchronously inside the touch handler
+  // or the system won't show the keyboard. Pre-focus here before any async work.
+  if(tool==='text' && baseLoaded){
+    textOv.style.display='block';
+    textOv.focus();
+  }
 
   // Compute canvas position ONCE at top — used by both the selection block and shape re-select
   var sp=snapPt(getPos(e).x,getPos(e).y);
@@ -2238,6 +2244,7 @@ function handleText(e){
     editingObj=null;
     textX=p.x; textY=p.y;
     startTextCursor(p.x,p.y);
+    textOv.value=''; // clear for new text entry
     showTextOverlay(p.x,p.y);
   }
 }
@@ -2246,7 +2253,12 @@ function showTextOverlay(cx,cy){
   // Store canvas coords so we can reposition when keyboard appears
   textOv._canvasCx = cx; textOv._canvasCy = cy;
   repositionTextOverlay();
-  if(document.activeElement!==textOv){ textOv.value=''; textOv.focus(); }
+  // Focus already called synchronously in onDown for iOS keyboard trust.
+  // Fallback for mouse clicks and double-tap edit path.
+  if(document.activeElement!==textOv){
+    textOv.focus();
+    setTimeout(function(){ if(document.activeElement!==textOv) textOv.focus(); }, 0);
+  }
 }
 
 function repositionTextOverlay(){
