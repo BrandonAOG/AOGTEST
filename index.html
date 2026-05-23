@@ -544,9 +544,9 @@ body::after {
 
 .form-title {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: clamp(0.72rem, 1.8vw, 1.1rem);
   font-weight: 700;
-  letter-spacing: 3px;
+  letter-spacing: clamp(1px, 0.4vw, 3px);
   color: var(--yellow-bright);
   text-transform: uppercase;
   margin-bottom: 6px;
@@ -562,9 +562,9 @@ body::after {
 
 .form-desc {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: clamp(0.62rem, 1.3vw, 0.78rem);
   color: var(--text-dim);
-  letter-spacing: 1px;
+  letter-spacing: clamp(0px, 0.2vw, 1px);
   line-height: 1.5;
 }
 
@@ -685,9 +685,45 @@ body::after {
 .card-group { display: contents; }
 .card-group.hidden { display: none; }
 
+/* Maintenance (2-card group): keep cards side-by-side and centered on tablet */
+@media (min-width: 701px) {
+  .card-group[data-group="maintenance"]:not(.hidden) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 420px));
+    gap: 24px;
+    justify-content: center;
+    grid-column: 1 / -1;
+  }
+  /* When maintenance is active, reset forms-grid to single-row passthrough */
+  .forms-grid:has(.card-group[data-group="maintenance"]:not(.hidden)) {
+    display: block;
+  }
+}
+
+/* Installs (3-card group): same treatment so it doesn't leave a wide orphan */
+@media (min-width: 701px) {
+  .card-group[data-group="installs"]:not(.hidden) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    grid-column: 1 / -1;
+  }
+  .forms-grid:has(.card-group[data-group="installs"]:not(.hidden)) {
+    display: block;
+  }
+}
+
 @media (max-width: 480px) {
   .cat-btn { padding: 10px 16px; font-size: 0.65rem; letter-spacing: 2px; flex: 1; min-width: 0; text-align: center; }
   .category-nav { gap: 6px; }
+}
+
+/* iPad range — tighten card internals so nothing overflows */
+@media (min-width: 481px) and (max-width: 900px) {
+  .form-card { padding: 22px 18px; min-height: 140px; }
+  .form-icon-wrap { width: 52px; height: 52px; }
+  .form-icon-wrap svg { width: 28px; height: 28px; }
+  .form-card-content { gap: 14px; }
 }
 </style>
 </head>
