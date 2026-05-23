@@ -1882,9 +1882,9 @@ function onDown(e){
   if(tool==='leader'){ return; }
   if(tool==='stamp'){ handleStamp(e); return; }
 
-  // ── Measure object: re-select or start drag ──
-  if(tool==='measure'){
-    // Check if we're clicking on the currently selected measure
+  // ── Measure / Line object: re-select or start drag ──
+  if(tool==='measure'||tool==='line'){
+    // Check if we're clicking on the currently selected measure/line
     if(selectedMeasure){
       var mh=getMeasureHandleAt(selectedMeasure,sp.x,sp.y,_isTouchEvt);
       if(mh!==-1){
@@ -1896,9 +1896,11 @@ function onDown(e){
       // Click outside selected — commit it, then check for another hit
       commitMeasureSelection();
     }
-    // Check if clicking on an existing measure object
+    // Check if clicking on an existing measure/line object
+    // Line tool only re-selects plain lines (showLabel===false)
+    // Measure tool only re-selects measure lines (showLabel!==false)
     var mHit=findMeasureObjAt(sp.x,sp.y,_isTouchEvt);
-    if(mHit){
+    if(mHit && (tool==='line'?mHit.showLabel===false:mHit.showLabel!==false)){
       e.preventDefault();
       mHit._editing=true;
       selectedMeasure=mHit;
@@ -1907,7 +1909,7 @@ function onDown(e){
       syncPickersToSelected();
       return;
     }
-    // Otherwise fall through to normal draw (new measure line)
+    // Otherwise fall through to normal draw (new measure/line)
   }
 
   // Re-select existing shape object when rect/ellipse tool is active
@@ -2077,25 +2079,19 @@ function onUp(e){
     composite();
   } else if(tool==='eraser'){ composite(); }
   else if(tool==='line'){
-    // Line = editable vector line (no distance label, committed immediately)
+    // Line = committed vector line; no auto-enter-edit on mouseup.
+    // Hold-to-edit (long press) handled separately in onDown touch path.
     var lpx=Math.hypot(p.x-startX,p.y-startY);
     if(lpx>4){
-      var isLTouch=!!(e.changedTouches&&e.changedTouches.length);
       var newLine={
         id:Date.now(), x1:startX,y1:startY,x2:p.x,y2:p.y,
         color:color,strokeW:strokeW,opacity:opacity,lineStyle:lineStyle,
         layerIdx:activeLayerIdx,showLabel:false,_editing:false
       };
       measureObjs.push(newLine);
-      if(isLTouch){
-        // Touch: brief edit mode so endpoints can be dragged to fine-tune
-        newLine._editing=true; selectedMeasure=newLine;
-        measureDragHandle=-1; measureDragStart=null;
-        renderShapeAndMeasure(); renderMeasureSelection();
-      } else {
-        // Desktop: commit straight away — line is visible immediately
-        renderShapeAndMeasure();
-      }
+      // Commit immediately — no edit mode on mouseup
+      selectedMeasure=null;
+      renderShapeAndMeasure();
     } else { renderShapeAndMeasure(); }
     composite(); pushUndo();
   }
@@ -2434,37 +2430,54 @@ function renderMeasureSelection(){
   }
   selCtx.clearRect(0,0,selCv.width,selCv.height);
   var m=selectedMeasure;
+  var isPlainLine=m.showLabel===false;
   // Draw highlighted line
-  drawMeasureObjOnCtx(selCtx, m, true);
+  drawMeasureObjOnCtx(selCtx, m, !isPlainLine);
   // Endpoint drag handles
   var hs=Math.max(8,10/zoom);
-  [[m.x1,m.y1,'#00D4FF'],[m.x2,m.y2,'#FBBF24']].forEach(function(pt,idx){
-    selCtx.save();
-    selCtx.fillStyle=pt[2];
-    selCtx.strokeStyle='#fff';
-    selCtx.lineWidth=1.5/zoom;
-    selCtx.shadowColor=pt[2];
-    selCtx.shadowBlur=6/zoom;
-    selCtx.setLineDash([]);
-    selCtx.beginPath();
-    selCtx.arc(pt[0],pt[1],hs,0,Math.PI*2);
-    selCtx.fill(); selCtx.stroke();
-    // Label: P1 / P2
-    selCtx.shadowBlur=0;
-    selCtx.fillStyle='#fff';
-    selCtx.font='bold '+(Math.max(9,10/zoom))+'px Arial,sans-serif';
-    selCtx.textAlign='center'; selCtx.textBaseline='middle';
-    selCtx.fillText(idx===0?'P1':'P2',pt[0],pt[1]);
-    selCtx.restore();
-  });
+  if(isPlainLine){
+    // Plain line: simple white square handles, no P1/P2 labels
+    [[m.x1,m.y1],[m.x2,m.y2]].forEach(function(pt){
+      selCtx.save();
+      selCtx.fillStyle='rgba(108,99,255,0.9)';
+      selCtx.strokeStyle='#fff';
+      selCtx.lineWidth=1.5/zoom;
+      selCtx.shadowColor='rgba(108,99,255,0.7)';
+      selCtx.shadowBlur=6/zoom;
+      selCtx.setLineDash([]);
+      selCtx.beginPath();
+      selCtx.arc(pt[0],pt[1],hs,0,Math.PI*2);
+      selCtx.fill(); selCtx.stroke();
+      selCtx.restore();
+    });
+  } else {
+    [[m.x1,m.y1,'#00D4FF'],[m.x2,m.y2,'#FBBF24']].forEach(function(pt,idx){
+      selCtx.save();
+      selCtx.fillStyle=pt[2];
+      selCtx.strokeStyle='#fff';
+      selCtx.lineWidth=1.5/zoom;
+      selCtx.shadowColor=pt[2];
+      selCtx.shadowBlur=6/zoom;
+      selCtx.setLineDash([]);
+      selCtx.beginPath();
+      selCtx.arc(pt[0],pt[1],hs,0,Math.PI*2);
+      selCtx.fill(); selCtx.stroke();
+      // Label: P1 / P2
+      selCtx.shadowBlur=0;
+      selCtx.fillStyle='#fff';
+      selCtx.font='bold '+(Math.max(9,10/zoom))+'px Arial,sans-serif';
+      selCtx.textAlign='center'; selCtx.textBaseline='middle';
+      selCtx.fillText(idx===0?'P1':'P2',pt[0],pt[1]);
+      selCtx.restore();
+    });
+  }
   // Commit/cancel hint
   selCtx.save();
-  selCtx.fillStyle='rgba(0,212,255,0.8)';
+  selCtx.fillStyle=isPlainLine?'rgba(157,151,255,0.8)':'rgba(0,212,255,0.8)';
   selCtx.font=(Math.max(10,11/zoom))+'px Arial,sans-serif';
   selCtx.textAlign='center'; selCtx.textBaseline='top';
   var midX=(m.x1+m.x2)/2, midY=Math.min(m.y1,m.y2)-20/zoom;
-  var hintTxt=m.showLabel===false?'Drag endpoints · Click away to commit':'Drag endpoints or line · Click away to commit';
-  selCtx.fillText(hintTxt,midX,midY);
+  selCtx.fillText('Drag endpoints · Click away to commit',midX,midY);
   selCtx.restore();
 }
 
@@ -2740,13 +2753,8 @@ drawCv.addEventListener('touchend',function(e){
     else { pmPoints.push(p); pmActive=true; redrawPathMeasurePreview(p.x,p.y); }
     return;
   }
-  if(tool==='polyline'){
-    var isDoubleTapPL=(now-lastTap<350);
-    lastTap=now;
-    if(isDoubleTapPL&&plPoints.length>=2){ setTimeout(closePolyline,0); }
-    else { plPoints.push(p); plActive=true; redrawPolylinePreview(p.x,p.y); }
-    return;
-  }
+  // polyline is handled by the dedicated touchstart/touchmove/touchend above
+  if(tool==='polyline') return;
   lastTap=now;
   if(tool==='leader'){ handleLeaderClick(p.x,p.y,fakeE); }
 },{passive:true});
@@ -2787,6 +2795,26 @@ drawCv.addEventListener('mousemove',function(e){
   if(tool==='polyline'&&plActive&&plPoints.length>=1){
     var plPos=getPos(e);
     redrawPolylinePreview(plPos.x,plPos.y);
+    return;
+  }
+  // Live line preview — draw on shCv so it's visible above draw-cv
+  if(tool==='line'&&drawing&&compositedSnap){
+    var lpos=getPos(e);
+    dCtx.putImageData(compositedSnap,0,0);
+    if(shCv.width!==drawCv.width||shCv.height!==drawCv.height){
+      shCv.width=drawCv.width; shCv.height=drawCv.height;
+    }
+    renderShapeAndMeasure(); // redraw committed objects underneath
+    shCtx.save();
+    shCtx.globalAlpha=opacity;
+    shCtx.strokeStyle=color;
+    shCtx.lineWidth=Math.max(1.5,strokeW);
+    shCtx.lineCap='round'; shCtx.lineJoin='round';
+    if(lineStyle==='dashed') shCtx.setLineDash([strokeW*4,strokeW*3]);
+    else if(lineStyle==='dotted') shCtx.setLineDash([strokeW,strokeW*2.5]);
+    else shCtx.setLineDash([]);
+    shCtx.beginPath(); shCtx.moveTo(startX,startY); shCtx.lineTo(lpos.x,lpos.y); shCtx.stroke();
+    shCtx.restore();
     return;
   }
   // Live measurement preview — draw on shCv (z-index:1, above draw-cv)
@@ -3659,13 +3687,83 @@ drawCv.addEventListener('mousemove',function(e){
 
 // ── CANVAS TOUCH EVENTS ──
 drawCv.addEventListener('touchstart',function(e){
+  // ── Polyline: 1-finger drag preview + 2nd-finger tap to anchor ──
+  if(tool==='polyline' && plActive){
+    e.preventDefault();
+    if(e.touches.length===2){
+      // Second finger landed — anchor a point at the FIRST finger's current position
+      var t0=e.touches[0];
+      var anchorPos=getPos({clientX:t0.clientX,clientY:t0.clientY,touches:[t0]});
+      var anchorPt=snapPt(anchorPos.x,anchorPos.y);
+      plPoints.push(anchorPt);
+      // Update preview with first finger still as the cursor
+      redrawPolylinePreview(anchorPt.x,anchorPt.y);
+      // Brief flash on the new waypoint dot as feedback
+      shCtx.save();
+      shCtx.fillStyle='#fff';
+      shCtx.globalAlpha=0.9;
+      shCtx.beginPath();
+      shCtx.arc(anchorPt.x,anchorPt.y,Math.max(5,strokeW*2),0,Math.PI*2);
+      shCtx.fill();
+      shCtx.restore();
+      setTimeout(function(){ redrawPolylinePreview(anchorPt.x,anchorPt.y); },120);
+    } else {
+      // First finger — start or continue drag preview
+      holdCancel();
+      var t=e.touches[0];
+      var pos=getPos({clientX:t.clientX,clientY:t.clientY,touches:[t]});
+      if(plPoints.length===0){
+        // Place the very first anchor immediately on first touch
+        var sp=snapPt(pos.x,pos.y);
+        plPoints.push(sp);
+      }
+      redrawPolylinePreview(pos.x,pos.y);
+    }
+    return;
+  }
+  // ── Polyline not yet started: first touch plants the first point ──
+  if(tool==='polyline' && !plActive && e.touches.length===1){
+    e.preventDefault();
+    holdCancel();
+    var t=e.touches[0];
+    var pos=getPos({clientX:t.clientX,clientY:t.clientY,touches:[t]});
+    var sp=snapPt(pos.x,pos.y);
+    plPoints.push(sp); plActive=true;
+    redrawPolylinePreview(sp.x,sp.y);
+    return;
+  }
   if(e.touches.length>=2){ e.preventDefault(); if(drawing){drawing=false;if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; return; }
   holdStartTouch(e);
   onDown(e);
 },{passive:false});
 
-drawCv.addEventListener('touchmove',function(e){ if(e.touches.length>=2||pinching){ return; } holdCancel(); onMove(e); },{passive:false});
-drawCv.addEventListener('touchend',function(e){ holdCancel(); if(pinching) return; onUp(e); },{passive:false});
+drawCv.addEventListener('touchmove',function(e){
+  // ── Polyline: first finger drag updates the rubber-band preview ──
+  if(tool==='polyline' && plActive){
+    e.preventDefault();
+    // Only track the first touch for preview
+    var t=e.touches[0];
+    var pos=getPos({clientX:t.clientX,clientY:t.clientY,touches:[t]});
+    redrawPolylinePreview(pos.x,pos.y);
+    return;
+  }
+  if(e.touches.length>=2||pinching){ return; } holdCancel(); onMove(e); },{passive:false});
+
+drawCv.addEventListener('touchend',function(e){
+  // ── Polyline: lift all fingers = commit if only 1 point left, else ignore ──
+  if(tool==='polyline' && plActive){
+    e.preventDefault();
+    // Double-tap with one finger to commit
+    if(e.touches.length===0 && e.changedTouches.length===1){
+      var now=Date.now();
+      var isDoubleTap=(now-lastTap<350);
+      lastTap=now;
+      if(isDoubleTap && plPoints.length>=2){ setTimeout(closePolyline,0); }
+      // Single lift: do nothing — point was already anchored on touchstart
+    }
+    return;
+  }
+  holdCancel(); if(pinching) return; onUp(e); },{passive:false});
 drawCv.addEventListener('mousedown', function(e){
   // When text tool active, prevent canvas from reclaiming focus after we give it to textOv
   if(tool==='text') e.preventDefault();
@@ -3697,7 +3795,13 @@ function holdStartTouch(e){
   _holdCx=p.x; _holdCy=p.y;
   _holdStart=Date.now();
   _holdTimer=setTimeout(function(){ holdFire(); },HOLD_MS);
-  startHoldRipple(_holdSx,_holdSy);
+  // Purple ripple for line-tool hold-to-edit, red for hold-to-delete
+  var rippleCol='#ef4444';
+  if(tool==='line' && findMeasureObjAt(_holdCx,_holdCy,true)){
+    var hit=findMeasureObjAt(_holdCx,_holdCy,true);
+    if(hit && hit.showLabel===false) rippleCol='#6c63ff';
+  }
+  startHoldRipple(_holdSx,_holdSy,rippleCol);
 }
 
 function holdStartMouse(e){
@@ -3734,9 +3838,21 @@ function holdFire(){
     return;
   }
 
-  // 1b. Measure objects
+  // 1b. Measure / Line objects
   var mHit=findMeasureObjAt(x,y,true);
   if(mHit){
+    // Line tool + hold on a line = enter edit mode (drag endpoints)
+    if(tool==='line' && mHit.showLabel===false){
+      drawing=false;
+      if(selectedMeasure && selectedMeasure!==mHit) commitMeasureSelection();
+      mHit._editing=true;
+      selectedMeasure=mHit;
+      measureDragHandle=-1; measureDragStart=null;
+      renderMeasureSelection();
+      syncPickersToSelected();
+      toast('Hold & drag endpoints to adjust','',2000);
+      return;
+    }
     captureState();
     if(selectedMeasure===mHit){ cancelMeasureSelection(); }
     measureObjs=measureObjs.filter(function(m){ return m!==mHit; });
@@ -3792,12 +3908,14 @@ function holdFire(){
   drawing=false;
 }
 
-// Ripple animation — a red ring expanding from the hold point as a countdown cue
-function startHoldRipple(sx,sy){
+// Ripple animation — a colored ring expanding from the hold point as a countdown cue
+function startHoldRipple(sx,sy,col){
+  col=col||'#ef4444';
+  var colDark=col==='#ef4444'?'#b91c1c':'#7c3aed';
   _holdRipple=null; // will use requestAnimationFrame
   var el=document.createElement('div');
   el.id='_hold_ripple';
-  el.style.cssText='position:fixed;border-radius:50%;border:2.5px solid #ef4444;pointer-events:none;z-index:999;transform:translate(-50%,-50%);opacity:0.9;';
+  el.style.cssText='position:fixed;border-radius:50%;border:2.5px solid '+col+';pointer-events:none;z-index:999;transform:translate(-50%,-50%);opacity:0.9;';
   el.style.left=sx+'px'; el.style.top=sy+'px';
   document.body.appendChild(el);
   var t0=Date.now();
@@ -3808,7 +3926,7 @@ function startHoldRipple(sx,sy){
     var sz=Math.round(20+prog*28);
     el2.style.width=sz+'px'; el2.style.height=sz+'px';
     el2.style.opacity=(0.9*(1-prog*0.4)).toFixed(2);
-    el2.style.borderColor=prog>0.7?'#b91c1c':'#ef4444';
+    el2.style.borderColor=prog>0.7?colDark:col;
     if(prog<1) _holdRipple=requestAnimationFrame(frame);
   }
   _holdRipple=requestAnimationFrame(frame);
@@ -3889,7 +4007,10 @@ function redrawPolylinePreview(mx,my){
     shCtx.globalAlpha=1;
     shCtx.font='10px Arial,sans-serif';
     shCtx.fillStyle='rgba(255,255,255,0.7)';
-    shCtx.fillText('Dbl-click or Enter to finish · '+plPoints.length+' pts',mx+12,my+14);
+    var hint=('ontouchstart' in window)
+      ? '2nd finger to anchor · Dbl-tap to finish · '+plPoints.length+' pts'
+      : 'Dbl-click or Enter to finish · '+plPoints.length+' pts';
+    shCtx.fillText(hint,mx+12,my+14);
   }
   shCtx.restore();
 }
