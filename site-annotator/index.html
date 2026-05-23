@@ -1065,34 +1065,71 @@ viewport.addEventListener('drop',function(e){ e.preventDefault(); viewport.style
 
 function loadFile(f){
   var name = (f.name||'').toLowerCase();
-  var type = f.type.toLowerCase();
-  // PDF
-  if(type==='application/pdf' || name.endsWith('.pdf')){
-    loadPDF(f); return;
+  var type = (f.type||'').toLowerCase();
+  if(type==='application/pdf'||name.endsWith('.pdf')){ loadPDF(f); return; }
+  // Detect HEIC/HEIF (iPhone native format)
+  var isHEIC = name.endsWith('.heic')||name.endsWith('.heif')||
+               type==='image/heic'||type==='image/heif'||
+               type==='image/heif-sequence'||type==='image/heic-sequence';
+  if(isHEIC){ loadHEIC(f); return; }
+  // All other image types
+  if(type.startsWith('image/')||name.match(/\.(png|jpg|jpeg|gif|webp|bmp|tiff?|svg|svgz)$/)){
+    loadImageBlob(f); return;
   }
-  // Standard images + HEIC/HEIF (iPhone) + WebP + BMP + TIFF + SVG
-  if(type.startsWith('image/') ||
-     name.endsWith('.heic') || name.endsWith('.heif') ||
-     name.endsWith('.tiff') || name.endsWith('.tif')  ||
-     name.endsWith('.bmp')  || name.endsWith('.webp') ||
-     name.endsWith('.svg')  || name.endsWith('.svgz')){
-    loadImage(f); return;
-  }
-  // Try as image anyway (browser will handle what it can)
-  if(f.size < 50*1024*1024){ // under 50MB
-    loadImage(f); return;
-  }
-  toast('Unsupported file type: ' + (f.type||name.split('.').pop()),'warn');
+  if(f.size<50*1024*1024){ loadImageBlob(f); return; }
+  toast('Unsupported file type: '+(f.type||name.split('.').pop()),'warn');
 }
 
-function loadImage(f){
+// ── HEIC handler: lazy-load heic2any then convert to JPEG ────
+function loadHEIC(f){
+  toast('Converting HEIC image…','',0); // persistent until replaced
+  loadHeic2Any(function(err){
+    if(err){
+      // heic2any library unavailable — try native (Safari on macOS/iOS may handle it)
+      toast('Loading HEIC natively (may not work on all browsers)','warn',4000);
+      loadImageBlob(f);
+      return;
+    }
+    heic2any({blob:f, toType:'image/jpeg', quality:0.92})
+      .then(function(result){
+        var blob = Array.isArray(result) ? result[0] : result;
+        toast('HEIC converted ✓','ok',2000);
+        loadImageBlob(blob);
+      })
+      .catch(function(convErr){
+        console.warn('[HEIC] heic2any error:', convErr);
+        // Try native as last resort
+        toast('Conversion failed — trying native decode…','warn',3000);
+        loadImageBlob(f);
+      });
+  });
+}
+
+// ── Lazy-load heic2any library only when a HEIC file is opened ──
+var _heic2anyLoaded = false;
+function loadHeic2Any(cb){
+  if(typeof heic2any !== 'undefined'){ _heic2anyLoaded=true; cb(null); return; }
+  if(_heic2anyLoaded){ cb(new Error('heic2any did not initialise')); return; }
+  var script=document.createElement('script');
+  script.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+  script.onload=function(){ _heic2anyLoaded=true; cb(null); };
+  script.onerror=function(){ cb(new Error('heic2any CDN unavailable')); };
+  document.head.appendChild(script);
+}
+
+function loadImageBlob(f){
   var url=URL.createObjectURL(f);
   var img=new Image();
   img.onload=function(){
+    // Blank-image guard: some formats (HEIC, TIFF) load with 0 dimensions
+    if(img.naturalWidth===0||img.naturalHeight===0){
+      URL.revokeObjectURL(url);
+      toast('Image decoded but has no pixels. Try exporting as JPEG from your Photos app.','warn',5000);
+      return;
+    }
     pdfDoc=null; pgGrp(false);
-    // Cap canvas size on iOS to stay under the ~384MB canvas memory limit
-    var scale=Math.min(1, IOS_MAX_PX/Math.max(img.width,img.height));
-    var w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+    var scale=Math.min(1, IOS_MAX_PX/Math.max(img.naturalWidth,img.naturalHeight));
+    var w=Math.round(img.naturalWidth*scale), h=Math.round(img.naturalHeight*scale);
     resize(w,h);
     bCtx.drawImage(img,0,0,w,h);
     afterLoad();
