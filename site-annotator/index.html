@@ -314,82 +314,103 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 }
 #print-block{display:none}
 
-/* ── AOG NAV BAR ── */
+/* ══ THEME VARIABLES ══ */
+:root{
+  --theme-bg-nav:#0F1535;
+  --theme-border:rgba(251,191,36,0.25);
+  --theme-btn-bg:rgba(251,191,36,0.07);
+  --theme-btn-color:#FBBF24;
+  --theme-btn-border:rgba(251,191,36,0.4);
+  --theme-input-bg:rgba(10,14,39,0.8);
+  --theme-input-color:#F1F5F9;
+  --theme-input-border:rgba(251,191,36,0.3);
+  --theme-dim:#94A3B8;
+}
+[data-theme="light"]{
+  --theme-bg-nav:#fff;
+  --theme-border:rgba(217,119,6,0.3);
+  --theme-btn-bg:rgba(217,119,6,0.05);
+  --theme-btn-color:#D97706;
+  --theme-btn-border:rgba(217,119,6,0.4);
+  --theme-input-bg:rgba(255,255,255,0.95);
+  --theme-input-color:#1A2640;
+  --theme-input-border:rgba(217,119,6,0.35);
+  --theme-dim:#4A5A7A;
+}
+
+/* ── ACTION BAR — matches spec viewer exactly ── */
 #aog-nav{
-  position:relative;z-index:20;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:0 14px;height:62px;flex-shrink:0;
-  background:linear-gradient(90deg,#0A0E27 0%,#0F1535 50%,#0A0E27 100%);
-  border-bottom:2px solid #FBBF24;
-  box-shadow:0 0 24px rgba(251,191,36,0.25),0 2px 12px rgba(0,0,0,0.5);
+  position:fixed;top:0;left:0;right:0;
+  z-index:99999;
+  width:100%;
+  background:var(--theme-bg-nav);
+  padding:4px 8px;
+  display:flex;gap:4px;flex-wrap:nowrap;align-items:center;
+  box-shadow:0 4px 18px rgba(0,0,0,0.4);
+  border-bottom:1px solid var(--theme-border);
+  box-sizing:border-box;
+  /* Safe area for iOS notch/home-bar */
+  padding-top:max(4px, env(safe-area-inset-top));
+  padding-left:max(8px, env(safe-area-inset-left));
+  padding-right:max(8px, env(safe-area-inset-right));
 }
-/* Logo + name block */
-.aog-brand{
-  display:flex;align-items:center;gap:10px;
-  position:absolute;left:50%;transform:translateX(-50%);
-  pointer-events:none;
-}
-.aog-logo{
-  width:38px;height:38px;object-fit:contain;
-  filter:drop-shadow(0 0 8px rgba(251,191,36,0.55)) drop-shadow(0 0 16px rgba(249,115,22,0.35));
-  animation:aogLogoPulse 3s ease-in-out infinite;flex-shrink:0;
-}
-@keyframes aogLogoPulse{
-  0%,100%{filter:drop-shadow(0 0 8px rgba(251,191,36,0.55)) drop-shadow(0 0 16px rgba(249,115,22,0.35))}
-  50%{filter:drop-shadow(0 0 14px rgba(251,191,36,0.8)) drop-shadow(0 0 28px rgba(249,115,22,0.55))}
-}
-.aog-name-block{display:flex;flex-direction:column;align-items:flex-start;gap:1px;}
-.aog-company{
-  font-family:'Orbitron',monospace;font-size:0.78rem;font-weight:900;
-  letter-spacing:2.5px;text-transform:uppercase;line-height:1;
-  background:linear-gradient(135deg,#FBBF24 0%,#F97316 60%,#EA580C 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  white-space:nowrap;
-}
-.aog-tool{
-  font-family:'Share Tech Mono',monospace;font-size:0.55rem;
-  letter-spacing:3px;text-transform:uppercase;color:#00D4FF;
-  text-shadow:0 0 6px rgba(0,212,255,0.45);white-space:nowrap;
-}
-/* Hide name on very small screens, keep logo */
-@media(max-width:420px){
-  .aog-company{font-size:0.62rem;letter-spacing:1.5px;}
-  .aog-tool{display:none;}
-  .aog-logo{width:30px;height:30px;}
-}
-@media(max-width:340px){.aog-company{display:none;}}
-#aog-nav::after{
-  content:'';position:absolute;bottom:-2px;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,#F97316,transparent);
-  pointer-events:none;
-}
-.aog-back{
-  display:flex;align-items:center;gap:8px;
-  font-family:'Orbitron',monospace;font-size:0.62rem;font-weight:700;
-  letter-spacing:2.5px;text-transform:uppercase;
-  color:#FBBF24;text-decoration:none;
-  padding:6px 12px;
-  border:1.5px solid rgba(251,191,36,0.35);
-  border-radius:2px;
-  background:linear-gradient(135deg,rgba(15,21,53,0.9),rgba(26,40,71,0.7));
+
+/* Action bar buttons — identical to spec viewer .ab-btn */
+.ab-btn{
+  padding:6px 8px;font-size:10px;font-weight:bold;letter-spacing:0.5px;
+  border:1px solid var(--theme-btn-border);background:var(--theme-btn-bg);
+  border-radius:0;cursor:pointer;color:var(--theme-btn-color);text-transform:uppercase;
+  font-family:Arial,sans-serif;white-space:nowrap;flex:1;min-width:0;
+  text-align:center;text-decoration:none;
+  display:inline-flex;align-items:center;justify-content:center;gap:4px;
   clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
-  transition:all 0.2s;
-  -webkit-tap-highlight-color:transparent;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  overflow:hidden;text-overflow:ellipsis;transition:all 0.15s ease;
+  height:34px;
 }
-.aog-back:hover{border-color:#F97316;color:#FB923C;box-shadow:0 0 14px rgba(249,115,22,0.3);}
-.aog-back svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.aog-nav-title{
-  font-family:'Orbitron',monospace;font-size:0.7rem;font-weight:700;
-  letter-spacing:4px;text-transform:uppercase;
-  background:linear-gradient(135deg,#FBBF24,#F97316);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  text-shadow:none;
+.ab-btn:hover{border-color:var(--theme-btn-color);box-shadow:0 0 8px rgba(251,191,36,0.3);}
+.ab-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* Theme toggle button */
+.theme-toggle-ab{
+  width:34px;height:34px;padding:6px;flex-shrink:0;
+  border:1px solid var(--theme-btn-border);background:var(--theme-btn-bg);
+  border-radius:4px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--theme-btn-color);font-size:16px;transition:all 0.2s;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
 }
-.aog-nav-right{
-  font-family:'Share Tech Mono',monospace;font-size:0.6rem;
-  letter-spacing:2px;color:#94A3B8;text-transform:uppercase;
-  display:flex;align-items:center;gap:6px;
+.theme-toggle-ab:hover{border-color:var(--theme-btn-color);box-shadow:0 0 8px rgba(251,191,36,0.3);}
+
+/* Customer bar — second row */
+#customer-bar{
+  display:flex;align-items:center;gap:6px;padding:3px 8px;
+  background:var(--theme-bg-nav);
+  border-bottom:1px solid var(--theme-border);
+  flex-shrink:0;
+  padding-left:max(8px, env(safe-area-inset-left));
+  padding-right:max(8px, env(safe-area-inset-right));
 }
+#customer-bar label{
+  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--theme-dim);white-space:nowrap;flex-shrink:0;
+}
+.cust-input{
+  flex:1;min-width:60px;max-width:240px;
+  background:var(--theme-input-bg);
+  border:1px solid var(--theme-input-border);
+  color:var(--theme-input-color);
+  border-radius:3px;padding:3px 7px;
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  letter-spacing:0.5px;outline:none;
+  clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
+  transition:border-color 0.15s;
+  height:26px;
+}
+.cust-input:focus{border-color:var(--theme-btn-color);}
+.cust-sep{width:1px;height:20px;background:var(--theme-border);flex-shrink:0;margin:0 2px;}
+
+/* Status dot */
 .aog-status-dot{
   width:7px;height:7px;border-radius:50%;
   background:#10B981;box-shadow:0 0 6px #10B981;
@@ -397,9 +418,10 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 }
 .aog-status-dot.offline{background:#6B7280;box-shadow:0 0 6px #6B7280;animation:none;}
 @keyframes aogPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
-/* Offline banner (same pattern as hub) */
+
+/* Offline banner */
 #aog-offline{
-  display:none;padding:8px 16px;
+  display:none;padding:7px 16px;
   background:linear-gradient(90deg,rgba(10,14,39,0.97),rgba(15,21,53,0.97));
   border-bottom:1.5px solid #F97316;
   text-align:center;font-family:'Share Tech Mono',monospace;
@@ -409,49 +431,101 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 }
 #aog-offline.show{display:block;}
 @keyframes aogOfflinePulse{0%,100%{opacity:1}50%{opacity:0.7}}
-/* CDN warning (shown when offline + PDF tools attempted) */
+
+/* CDN warning */
 #cdn-warn{
   display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
   background:linear-gradient(135deg,rgba(15,21,53,0.98),rgba(26,40,71,0.98));
   border:1px solid #F97316;border-radius:4px;
-  padding:12px 18px;z-index:999;
+  padding:12px 18px;z-index:9999;
   font-family:'Share Tech Mono',monospace;font-size:0.68rem;letter-spacing:1.5px;
   color:#FB923C;text-align:center;max-width:320px;width:calc(100vw - 32px);
   box-shadow:0 0 24px rgba(249,115,22,0.3);
   clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
 }
 #cdn-warn.show{display:block;}
-/* shift body down to make room for nav */
+
+/* Watermark on canvas */
+#wm-canvas{position:absolute;bottom:12px;right:12px;pointer-events:none;z-index:4;opacity:0.55;text-align:right;}
+#wm-canvas .wm-name{font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:1.5px;color:#FBBF24;text-shadow:0 1px 4px rgba(0,0,0,0.7);line-height:1.3;}
+#wm-canvas .wm-addr{font-family:'Share Tech Mono',monospace;font-size:9.5px;letter-spacing:0.8px;color:#94A3B8;text-shadow:0 1px 3px rgba(0,0,0,0.7);line-height:1.3;}
+#wm-canvas .wm-brand{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#F97316;margin-top:2px;opacity:0.8;}
+
+/* Light theme overrides */
+[data-theme="light"] #aog-nav{background:#fff;}
+[data-theme="light"] #aog-offline{background:rgba(255,255,255,0.97);}
+[data-theme="light"] .wm-name{color:#D97706!important;}
+[data-theme="light"] .wm-addr{color:#4A5A7A!important;}
+[data-theme="light"] .wm-brand{color:#EA580C!important;}
+
+/* Light theme: toolbar and body */
+[data-theme="light"] #tb{background:#f0f4ff;border-bottom-color:rgba(217,119,6,0.2);}
+[data-theme="light"] #sb{background:#f0f4ff;}
+[data-theme="light"] body{background:#EDF2FF;}
+[data-theme="light"] .tb-btn{color:#4A5A7A;}
+[data-theme="light"] .tb-btn:hover{background:#dde8ff;color:#1A2640;}
+[data-theme="light"] .tb-btn.active{background:rgba(217,119,6,0.15);border-color:#D97706;color:#D97706;}
+
+/* shift body down to make room for nav rows */
 body{display:flex;flex-direction:column;}
 #toolbar{flex-shrink:0}
+
+@media(max-width:480px){
+  #aog-nav{padding:4px 4px;gap:3px;}
+  .ab-btn{padding:6px 4px;font-size:9px;}
+  .ab-btn .ab-label{display:none;}
+  .ab-btn .ab-icon{display:inline;}
+}
+@media(min-width:481px){
+  .ab-icon-only{display:none;}
+}
+@media print{#aog-nav,#customer-bar{display:none!important;}}
 </style>
 </head>
 <body>
 
-<!-- AOG NAV BAR -->
+<!-- ACTION BAR — matches spec viewer style -->
 <nav id="aog-nav">
-  <!-- Left: back button -->
-  <a class="aog-back" href="../" id="back-btn">
-    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-    Home
+  <a class="ab-btn" href="../" style="max-width:72px;flex:0 0 auto;">
+    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span class="ab-label">HOME</span>
   </a>
 
-  <!-- Centre: logo + company name -->
-  <div class="aog-brand">
-    <img src="../logo.png" alt="Always On Generators" class="aog-logo">
-    <div class="aog-name-block">
-      <span class="aog-company">Always On Generators</span>
-      <span class="aog-tool">Site Plan Annotator</span>
+  <!-- Logo + name -->
+  <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;margin:0 4px;">
+    <img src="../logo.png" alt="AOG" style="width:26px;height:26px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(251,191,36,0.6));"
+         onerror="this.style.display='none'">
+    <div style="display:flex;flex-direction:column;line-height:1;">
+      <span style="font-family:'Orbitron',monospace;font-size:9px;font-weight:900;letter-spacing:2px;background:linear-gradient(135deg,#FBBF24,#F97316);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;">Always On Generators</span>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:7.5px;letter-spacing:2.5px;text-transform:uppercase;color:#00D4FF;white-space:nowrap;">Site Annotator</span>
     </div>
   </div>
 
-  <!-- Right: online status -->
-  <div id="save-indicator" title="Auto-save status"></div>
-  <div class="aog-nav-right">
+  <!-- Spacer -->
+  <div style="flex:1"></div>
+
+  <!-- Save indicator -->
+  <div id="save-indicator" title="Auto-save status" style="flex-shrink:0"></div>
+
+  <!-- Online status -->
+  <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-right:4px;">
     <span class="aog-status-dot" id="aog-dot"></span>
-    <span id="aog-net-lbl">Online</span>
+    <span id="aog-net-lbl" style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1.5px;color:var(--theme-dim);text-transform:uppercase;">Online</span>
   </div>
+
+  <!-- Theme toggle -->
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
 </nav>
+
+<!-- CUSTOMER BAR -->
+<div id="customer-bar">
+  <label>Customer</label>
+  <input class="cust-input" id="cust-name" type="text" placeholder="Customer name…" maxlength="60" style="max-width:200px;">
+  <div class="cust-sep"></div>
+  <label>Address</label>
+  <input class="cust-input" id="cust-addr" type="text" placeholder="Job address…" maxlength="80" style="max-width:280px;flex:2;">
+</div>
+
 <div id="aog-offline">⚠ &nbsp; No network · PDF &amp; export features need connection</div>
 <div id="cdn-warn">⚠ &nbsp; PDF support requires an internet connection</div>
 
@@ -463,13 +537,13 @@ body{display:flex;flex-direction:column;}
   <input type="file" id="camera-in" accept="image/*" capture="environment" style="display:none">
   <div class="sep"></div>
   <!-- DRAW TOOLS -->
-  <button class="tb-btn active" data-tool="pen"><svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg><span class="lbl">Pen</span></button>
+  <button class="tb-btn active" data-tool="pen" title="Pen — draw freehand curves. Arc length is shown after each stroke."><svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg><span class="lbl">Pen</span></button>
   <button class="tb-btn" data-tool="line"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/></svg><span class="lbl">Line</span></button>
   <button class="tb-btn" data-tool="arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg><span class="lbl">Arrow</span></button>
   <button class="tb-btn" data-tool="rect"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/></svg><span class="lbl">Rect</span></button>
   <button class="tb-btn" data-tool="ellipse"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg><span class="lbl">Ellipse</span></button>
   <button class="tb-btn" data-tool="cloud"><svg viewBox="0 0 24 24"><path d="M3 18c0-2 1.5-3.5 3-3.5.3-2.5 2.5-4.5 5-4.5 2 0 3.8 1.1 4.7 2.8.2 0 .5-.1.8-.1 1.9 0 3.5 1.6 3.5 3.5 0 2-1.6 3.5-3.5 3.5H6C4.3 19.7 3 18.9 3 18z"/></svg><span class="lbl">Cloud</span></button>
-  <button class="tb-btn" data-tool="measure"><svg viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="3"/><line x1="3" y1="21" x2="3" y2="17"/><line x1="21" y1="3" x2="17" y2="3"/><line x1="8" y1="16" x2="8" y2="13"/><line x1="13" y1="11" x2="16" y2="11"/></svg><span class="lbl">Measure</span></button>
+  <button class="tb-btn" data-tool="measure" title="Measure — draw a line to measure distance. Tap existing measure to edit endpoints."><svg viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="3"/><line x1="3" y1="21" x2="3" y2="17"/><line x1="21" y1="3" x2="17" y2="3"/><line x1="8" y1="16" x2="8" y2="13"/><line x1="13" y1="11" x2="16" y2="11"/></svg><span class="lbl">Measure</span></button>
   <button class="tb-btn" data-tool="polygon"><svg viewBox="0 0 24 24"><polygon points="12,3 21,9 17,19 7,19 3,9"/></svg><span class="lbl">Area</span></button>
   <button class="tb-btn" data-tool="leader"><svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="14" y2="10"/><polyline points="14 4 14 10 8 10"/></svg><span class="lbl">Leader</span></button>
   <button class="tb-btn" data-tool="stamp" id="stamp-tool-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20h16v-2a8 8 0 0 0-16 0v2z"/></svg><span class="lbl">Stamp</span></button>
@@ -585,6 +659,12 @@ body{display:flex;flex-direction:column;}
         <canvas id="txt-cv"></canvas>
         <canvas id="sel-cv"></canvas>
         <canvas id="grid-cv"></canvas>
+        <!-- Watermark overlay -->
+        <div id="wm-canvas">
+          <div class="wm-name" id="wm-name-el"></div>
+          <div class="wm-addr" id="wm-addr-el"></div>
+          <div class="wm-brand">Always On Generators</div>
+        </div>
       </div>
     </div>
     <svg id="compass" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:none">
@@ -892,6 +972,15 @@ var compositedSnap=null;
 var undoStack=[], redoStack=[];
 var polyPoints=[], polyActive=false;
 var leaderStep=0;
+// ── MEASURE OBJECTS (editable, vector) ──
+// Each: {id, x1,y1,x2,y2, color, strokeW, opacity, lineStyle, layerIdx, _editing}
+var measureObjs=[];
+var selectedMeasure=null; // currently selected measure object
+var measureDragHandle=-1; // -1=none, 0=p1 endpoint, 1=p2 endpoint, -2=move whole line
+var measureDragStart=null; // {x,y,orig:{x1,y1,x2,y2}}
+// ── PEN PATH MEASUREMENT ──
+// Track points of the current pen stroke so we can measure arc length
+var penPathPoints=[];
 var scalingMode=false, refLinePixels=0;
 var scaleSet=false, ppu=1, scaleUnit='m';
 var gridEnabled=false, gridSize=50, snapEnabled=false;
@@ -965,7 +1054,8 @@ function captureState(){
       layerData:  snaps,
       activeIdx:  activeLayerIdx,
       textObjs:   JSON.parse(JSON.stringify(textObjs)),
-      shapeObjs:  JSON.parse(JSON.stringify(shapeObjs))
+      shapeObjs:  JSON.parse(JSON.stringify(shapeObjs)),
+      measureObjs:JSON.parse(JSON.stringify(measureObjs))
     };
   }catch(ex){ _preOp=null; }
 }
@@ -984,7 +1074,8 @@ function pushUndo(){
           }),
           activeIdx:  activeLayerIdx,
           textObjs:   JSON.parse(JSON.stringify(textObjs)),
-          shapeObjs:  JSON.parse(JSON.stringify(shapeObjs))
+          shapeObjs:  JSON.parse(JSON.stringify(shapeObjs)),
+          measureObjs:JSON.parse(JSON.stringify(measureObjs))
         };
       }catch(ex2){ return; }
     }
@@ -1020,7 +1111,8 @@ function _snapCurrentState(){
     }),
     activeIdx:  activeLayerIdx,
     textObjs:   JSON.parse(JSON.stringify(textObjs)),
-    shapeObjs:  JSON.parse(JSON.stringify(shapeObjs))
+    shapeObjs:  JSON.parse(JSON.stringify(shapeObjs)),
+    measureObjs:JSON.parse(JSON.stringify(measureObjs))
   };
 }
 
@@ -1041,6 +1133,7 @@ function undoFn(){
     }
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; renderTextObjs(); }
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
+    if(snap.measureObjs!==undefined){ measureObjs=snap.measureObjs; renderMeasureObjs(); }
     composite();
   }catch(ex){ console.warn('undoFn failed:',ex); }
 }
@@ -1060,6 +1153,7 @@ function redoFn(){
     }
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; renderTextObjs(); }
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
+    if(snap.measureObjs!==undefined){ measureObjs=snap.measureObjs; renderMeasureObjs(); }
     composite();
   }catch(ex){ console.warn('redoFn failed:',ex); }
 }
@@ -1074,6 +1168,7 @@ function clearFn(){
   // Also remove shapes and text belonging to the active layer
   shapeObjs = shapeObjs.filter(function(s){ return s.layerIdx!==activeLayerIdx; });
   textObjs  = textObjs.filter(function(obj){ return obj.layerIdx!==activeLayerIdx; });
+  measureObjs = measureObjs.filter(function(m){ return m.layerIdx!==activeLayerIdx; });
   // Cancel any in-progress selection on the cleared layer
   if(selectedShape){
     var tobj=selectedShape._textObj;
@@ -1418,6 +1513,8 @@ function resize(w,h){
 function afterLoad(){
   initLayers(baseCv.width,baseCv.height);
   undoStack=[]; redoStack=[]; textObjs=[]; editingObj=null; shapeObjs=[]; editShapeObj=null;
+  measureObjs=[]; selectedMeasure=null; measureDragHandle=-1; measureDragStart=null;
+  penPathPoints=[];
   tCtx.clearRect(0,0,tCv.width,tCv.height);
   shCtx.clearRect(0,0,shCv.width,shCv.height);
   baseLoaded=true;
@@ -1542,7 +1639,7 @@ function onDown(e){
 
   // ── If a shape is selected, handle transform interaction first ──
   var _isTouchEvt = !!(e.touches && e.touches.length);
-  if(selectedShape){
+  if(selectedShape && tool!=='measure'){
     var sh=getHandleAt(sp.x,sp.y,_isTouchEvt);
     if(sh>=0){
       e.preventDefault();
@@ -1579,6 +1676,33 @@ function onDown(e){
   if(tool==='leader'){ return; }
   if(tool==='stamp'){ handleStamp(e); return; }
 
+  // ── Measure object: re-select or start drag ──
+  if(tool==='measure'){
+    // Check if we're clicking on the currently selected measure
+    if(selectedMeasure){
+      var mh=getMeasureHandleAt(selectedMeasure,sp.x,sp.y,_isTouchEvt);
+      if(mh!==-1){
+        e.preventDefault();
+        measureDragHandle=mh;
+        measureDragStart={x:sp.x,y:sp.y,orig:{x1:selectedMeasure.x1,y1:selectedMeasure.y1,x2:selectedMeasure.x2,y2:selectedMeasure.y2}};
+        return;
+      }
+      // Click outside selected — commit it, then check for another hit
+      commitMeasureSelection();
+    }
+    // Check if clicking on an existing measure object
+    var mHit=findMeasureObjAt(sp.x,sp.y,_isTouchEvt);
+    if(mHit){
+      e.preventDefault();
+      mHit._editing=true;
+      selectedMeasure=mHit;
+      measureDragHandle=-1; measureDragStart=null;
+      renderMeasureSelection();
+      return;
+    }
+    // Otherwise fall through to normal draw (new measure line)
+  }
+
   // Re-select existing shape object when rect/ellipse tool is active
   if(tool==='rect'||tool==='ellipse'||tool==='cloud'){
     var hit=findShapeObjAt(sp.x,sp.y,_isTouchEvt);
@@ -1610,10 +1734,29 @@ function onDown(e){
     lc2.beginPath(); lc2.moveTo(startX,startY);
     dCtx.beginPath(); dCtx.moveTo(startX,startY);
     lastPenX=startX; lastPenY=startY;
+    if(tool==='pen') penPathPoints=[{x:startX,y:startY}];
   }
 }
 
 function onMove(e){
+  // ── Measure endpoint/body drag ──
+  if(selectedMeasure && measureDragHandle!==-1 && measureDragStart && !pinching){
+    if(e.cancelable) e.preventDefault();
+    var tp=getPos(e);
+    var p=snapPt(tp.x,tp.y);
+    var orig=measureDragStart.orig;
+    if(measureDragHandle===0){
+      selectedMeasure.x1=p.x; selectedMeasure.y1=p.y;
+    } else if(measureDragHandle===1){
+      selectedMeasure.x2=p.x; selectedMeasure.y2=p.y;
+    } else if(measureDragHandle===-2){
+      var dx=p.x-measureDragStart.x, dy=p.y-measureDragStart.y;
+      selectedMeasure.x1=orig.x1+dx; selectedMeasure.y1=orig.y1+dy;
+      selectedMeasure.x2=orig.x2+dx; selectedMeasure.y2=orig.y2+dy;
+    }
+    renderMeasureSelection();
+    return;
+  }
   // ── Shape transform drag ──
   if(selHandle!==-1 && selDragStart && !pinching){
     if(e.cancelable) e.preventDefault();
@@ -1652,6 +1795,7 @@ function onMove(e){
     var mx=(lastPenX+x)/2, my=(lastPenY+y)/2;
     setupCtx(lc); lc.quadraticCurveTo(lastPenX,lastPenY,mx,my); lc.stroke(); resetCtx(lc);
     setupCtx(dCtx); dCtx.quadraticCurveTo(lastPenX,lastPenY,mx,my); dCtx.stroke(); resetCtx(dCtx);
+    penPathPoints.push({x:x,y:y});
     lastPenX=x; lastPenY=y;
   } else if(tool==='eraser'){
     lc.save(); lc.globalCompositeOperation='destination-out'; lc.lineWidth=strokeW*4; lc.lineCap='round'; lc.lineTo(x,y); lc.stroke(); lc.restore();
@@ -1664,6 +1808,12 @@ function onMove(e){
 }
 
 function onUp(e){
+  // End measure endpoint drag
+  if(selectedMeasure && measureDragHandle!==-1){
+    measureDragHandle=-1; measureDragStart=null;
+    renderMeasureSelection();
+    return;
+  }
   // End shape transform drag
   if(selHandle!==-1){
     selHandle=-1; selDragStart=null;
@@ -1676,14 +1826,35 @@ function onUp(e){
   dCtx.beginPath();
   var p=snapPt(getPos(e).x,getPos(e).y);
   var lc=lctx();
-  if(tool==='pen'){ composite(); }
-  else if(tool==='eraser'){ composite(); }
-  else if(tool==='measure'){
-    // draw to layer with length label
-    var px=Math.hypot(p.x-startX,p.y-startY);
-    drawMeasureLine(lc,startX,startY,p.x,p.y,px);
+  if(tool==='pen'){
+    // Draw pen path length label onto the layer canvas
+    penPathPoints.push({x:p.x,y:p.y});
+    if(penPathPoints.length>1){
+      drawPenPathLabel(lc, penPathPoints, color, opacity, strokeW);
+    }
+    penPathPoints=[];
     composite();
-    if(scalingMode){ refLinePixels=px; document.getElementById('ref-px-info').textContent='Line drawn: '+Math.round(px)+' pixels'; showScaleDlg(); scalingMode=false; }
+  } else if(tool==='eraser'){ composite(); }
+  else if(tool==='measure'){
+    // Create a new measure object (editable vector)
+    var px=Math.hypot(p.x-startX,p.y-startY);
+    if(px>4){
+      var newM={
+        id:Date.now(),
+        x1:startX, y1:startY, x2:p.x, y2:p.y,
+        color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
+        layerIdx:activeLayerIdx,
+        _editing:true
+      };
+      measureObjs.push(newM);
+      selectedMeasure=newM;
+      measureDragHandle=-1; measureDragStart=null;
+      renderShapeAndMeasure();
+      renderMeasureSelection();
+      // Also handle calibration mode
+      if(scalingMode){ refLinePixels=px; document.getElementById('ref-px-info').textContent='Line drawn: '+Math.round(px)+' pixels'; showScaleDlg(); scalingMode=false; commitMeasureSelection(); }
+    }
+    composite();
   }
   else {
     dCtx.putImageData(compositedSnap,0,0);
@@ -1768,7 +1939,7 @@ function drawCloud(ctx,x1,y1,x2,y2){
   ctx.closePath(); ctx.stroke();
 }
 
-// ── MEASURE LINE ──
+// ── MEASURE LINE (shared draw function — used by render + export) ──
 function drawMeasureLine(ctx,x1,y1,x2,y2,px){
   setupCtx(ctx);
   ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
@@ -1801,6 +1972,223 @@ function drawMeasureLine(ctx,x1,y1,x2,y2,px){
   ctx.fillText(label,0,-8);
   ctx.restore();
   resetCtx(ctx);
+}
+
+// Draw a measure line for a stored object (respects its own color/strokeW)
+function drawMeasureObjOnCtx(ctx, m, highlight){
+  var px=Math.hypot(m.x2-m.x1,m.y2-m.y1);
+  var ang=Math.atan2(m.y2-m.y1,m.x2-m.x1);
+  ctx.save();
+  ctx.globalAlpha=m.opacity;
+  ctx.strokeStyle=highlight?'#00D4FF':m.color;
+  ctx.lineWidth=m.strokeW;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  if(m.lineStyle==='dashed') ctx.setLineDash([m.strokeW*4,m.strokeW*3]);
+  else if(m.lineStyle==='dotted') ctx.setLineDash([m.strokeW,m.strokeW*2.5]);
+  else ctx.setLineDash([]);
+  // main line
+  ctx.beginPath(); ctx.moveTo(m.x1,m.y1); ctx.lineTo(m.x2,m.y2); ctx.stroke();
+  // tick marks
+  ctx.setLineDash([]);
+  var perp=ang+Math.PI/2, tk=Math.max(5,m.strokeW*2.5);
+  [[m.x1,m.y1],[m.x2,m.y2]].forEach(function(pt){
+    ctx.beginPath();
+    ctx.moveTo(pt[0]+Math.cos(perp)*tk, pt[1]+Math.sin(perp)*tk);
+    ctx.lineTo(pt[0]-Math.cos(perp)*tk, pt[1]-Math.sin(perp)*tk);
+    ctx.stroke();
+  });
+  // label
+  var midX=(m.x1+m.x2)/2, midY=(m.y1+m.y2)/2;
+  var label=scaleSet?formatLength(px):(Math.round(px)+'px');
+  ctx.globalAlpha=1;
+  ctx.font='bold 13px Arial,sans-serif';
+  ctx.textAlign='center';
+  ctx.translate(midX,midY); ctx.rotate(ang);
+  ctx.lineWidth=3; ctx.strokeStyle='#000'; ctx.setLineDash([]);
+  ctx.strokeText(label,0,-8);
+  ctx.fillStyle=highlight?'#00D4FF':m.color; ctx.lineWidth=0;
+  ctx.fillText(label,0,-8);
+  ctx.restore();
+}
+
+// ── MEASURE OBJECTS SYSTEM ──────────────────────────────────────
+// Render all measure objects onto shapes-cv (same canvas as shape objects)
+function renderMeasureObjs(){
+  // We share shCv/shCtx — renderShapeObjs also draws there.
+  // Re-render everything together.
+  renderShapeAndMeasure();
+}
+
+function renderShapeAndMeasure(){
+  shCtx.clearRect(0,0,shCv.width,shCv.height);
+  // Shape objects
+  shapeObjs.forEach(function(s){
+    if(s._editing) return;
+    var layer=layers[s.layerIdx];
+    if(layer&&!layer.visible) return;
+    shCtx.save();
+    shCtx.translate(s.cx,s.cy); shCtx.rotate(s.angle);
+    shCtx.strokeStyle=s.color; shCtx.fillStyle=s.color;
+    shCtx.lineWidth=s.strokeW; shCtx.lineCap='round'; shCtx.lineJoin='round';
+    shCtx.globalAlpha=s.opacity;
+    if(s.lineStyle==='dashed') shCtx.setLineDash([s.strokeW*4,s.strokeW*3]);
+    else if(s.lineStyle==='dotted') shCtx.setLineDash([s.strokeW,s.strokeW*2.5]);
+    else shCtx.setLineDash([]);
+    if(s.type==='rect'){
+      if(s.fill){shCtx.globalAlpha=s.opacity*.25;shCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);shCtx.globalAlpha=s.opacity;}
+      shCtx.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
+    } else if(s.type==='ellipse'){
+      shCtx.beginPath();shCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
+      if(s.fill){shCtx.globalAlpha=s.opacity*.25;shCtx.fill();shCtx.globalAlpha=s.opacity;}
+      shCtx.stroke();
+    } else if(s.type==='cloud'){
+      drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2);
+    }
+    shCtx.restore();
+  });
+  // Measure objects
+  measureObjs.forEach(function(m){
+    if(m._editing) return;
+    var layer=layers[m.layerIdx];
+    if(layer&&!layer.visible) return;
+    drawMeasureObjOnCtx(shCtx, m, false);
+  });
+}
+
+// Hit test: find measure object near a canvas point
+function findMeasureObjAt(x,y,isTouch){
+  var thresh=isTouch?18:8;
+  for(var i=measureObjs.length-1;i>=0;i--){
+    var m=measureObjs[i];
+    if(m._editing) continue;
+    var layer=layers[m.layerIdx];
+    if(layer&&!layer.visible) continue;
+    // Distance from point to line segment
+    var dx=m.x2-m.x1, dy=m.y2-m.y1;
+    var len2=dx*dx+dy*dy;
+    if(len2<1) continue;
+    var t=Math.max(0,Math.min(1,((x-m.x1)*dx+(y-m.y1)*dy)/len2));
+    var px=m.x1+t*dx-x, py=m.y1+t*dy-y;
+    if(Math.hypot(px,py)<thresh+(m.strokeW||2)/2) return m;
+  }
+  return null;
+}
+
+// Determine which handle of a selected measure is near x,y:
+// returns 0 (p1), 1 (p2), -2 (body/move), or -1 (miss)
+function getMeasureHandleAt(m, x, y, isTouch){
+  var slop=isTouch?Math.max(14,20/zoom):Math.max(8,10/zoom);
+  if(Math.hypot(x-m.x1,y-m.y1)<slop) return 0;
+  if(Math.hypot(x-m.x2,y-m.y2)<slop) return 1;
+  // check body
+  var dx=m.x2-m.x1, dy=m.y2-m.y1;
+  var len2=dx*dx+dy*dy;
+  if(len2>1){
+    var t=Math.max(0,Math.min(1,((x-m.x1)*dx+(y-m.y1)*dy)/len2));
+    var nearX=m.x1+t*dx, nearY=m.y1+t*dy;
+    if(Math.hypot(x-nearX,y-nearY)<(isTouch?18:8)+(m.strokeW||2)/2) return -2;
+  }
+  return -1;
+}
+
+// Draw selection overlay for the selected measure object
+function renderMeasureSelection(){
+  if(!selectedMeasure){ return; }
+  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
+    selCv.width=drawCv.width; selCv.height=drawCv.height;
+  }
+  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  var m=selectedMeasure;
+  // Draw highlighted line
+  drawMeasureObjOnCtx(selCtx, m, true);
+  // Endpoint drag handles
+  var hs=Math.max(8,10/zoom);
+  [[m.x1,m.y1,'#00D4FF'],[m.x2,m.y2,'#FBBF24']].forEach(function(pt,idx){
+    selCtx.save();
+    selCtx.fillStyle=pt[2];
+    selCtx.strokeStyle='#fff';
+    selCtx.lineWidth=1.5/zoom;
+    selCtx.shadowColor=pt[2];
+    selCtx.shadowBlur=6/zoom;
+    selCtx.setLineDash([]);
+    selCtx.beginPath();
+    selCtx.arc(pt[0],pt[1],hs,0,Math.PI*2);
+    selCtx.fill(); selCtx.stroke();
+    // Label: P1 / P2
+    selCtx.shadowBlur=0;
+    selCtx.fillStyle='#fff';
+    selCtx.font='bold '+(Math.max(9,10/zoom))+'px Arial,sans-serif';
+    selCtx.textAlign='center'; selCtx.textBaseline='middle';
+    selCtx.fillText(idx===0?'P1':'P2',pt[0],pt[1]);
+    selCtx.restore();
+  });
+  // Commit/cancel hint
+  selCtx.save();
+  selCtx.fillStyle='rgba(0,212,255,0.8)';
+  selCtx.font=(Math.max(10,11/zoom))+'px Arial,sans-serif';
+  selCtx.textAlign='center'; selCtx.textBaseline='top';
+  var midX=(m.x1+m.x2)/2, midY=Math.min(m.y1,m.y2)-20/zoom;
+  selCtx.fillText('Drag endpoints or line · Click away to commit',midX,midY);
+  selCtx.restore();
+}
+
+function commitMeasureSelection(){
+  if(!selectedMeasure) return;
+  var m=selectedMeasure;
+  m._editing=false;
+  selectedMeasure=null; measureDragHandle=-1; measureDragStart=null;
+  if(selCv.width>1){ selCv.width=1; selCv.height=1; }
+  renderShapeAndMeasure(); composite(); pushUndo();
+}
+
+function cancelMeasureSelection(){
+  if(selectedMeasure){ selectedMeasure._editing=false; selectedMeasure=null; }
+  measureDragHandle=-1; measureDragStart=null;
+  if(selCv.width>1){ selCv.width=1; selCv.height=1; }
+  renderShapeAndMeasure(); composite();
+}
+
+// ── PEN PATH MEASUREMENT helper ──────────────────────────────────
+// Compute arc length of a list of {x,y} points
+function arcLength(pts){
+  var total=0;
+  for(var i=1;i<pts.length;i++) total+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);
+  return total;
+}
+
+// Draw a pen-path length label on a layer context
+function drawPenPathLabel(ctx, pts, col, op, sw){
+  if(!pts||pts.length<2) return;
+  var len=arcLength(pts);
+  var label=(scaleSet?formatLength(len):(Math.round(len)+'px'))+' ↗';
+  // Place label near the midpoint of the path
+  var half=len/2, acc=0, mx=pts[0].x, my=pts[0].y;
+  for(var i=1;i<pts.length;i++){
+    var seg=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);
+    if(acc+seg>=half){
+      var t=(half-acc)/seg;
+      mx=pts[i-1].x+(pts[i].x-pts[i-1].x)*t;
+      my=pts[i-1].y+(pts[i].y-pts[i-1].y)*t;
+      break;
+    }
+    acc+=seg;
+  }
+  ctx.save();
+  ctx.globalAlpha=1;
+  ctx.font='bold 12px Arial,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='bottom';
+  // White outline
+  ctx.strokeStyle='#000'; ctx.lineWidth=3; ctx.setLineDash([]);
+  ctx.strokeText(label,mx,my-6);
+  // Colored fill
+  ctx.fillStyle=col||'#ef4444';
+  ctx.fillText(label,mx,my-6);
+  // Small dot at label anchor
+  ctx.beginPath();
+  ctx.arc(mx,my,3,0,Math.PI*2);
+  ctx.fillStyle=col||'#ef4444';
+  ctx.fill();
+  ctx.restore();
 }
 
 function formatLength(px){
@@ -2079,31 +2467,7 @@ var shapeObjs  = [];    // [{id,type,cx,cy,w,h,angle,color,strokeW,opacity,fill,
 var editShapeObj = null; // shape being pulled back into selection mode
 
 function renderShapeObjs(){
-  shCtx.clearRect(0,0,shCv.width,shCv.height);
-  shapeObjs.forEach(function(s){
-    if(s._editing) return;
-    var layer=layers[s.layerIdx];
-    if(layer&&!layer.visible) return;
-    shCtx.save();
-    shCtx.translate(s.cx,s.cy); shCtx.rotate(s.angle);
-    shCtx.strokeStyle=s.color; shCtx.fillStyle=s.color;
-    shCtx.lineWidth=s.strokeW; shCtx.lineCap='round'; shCtx.lineJoin='round';
-    shCtx.globalAlpha=s.opacity;
-    if(s.lineStyle==='dashed') shCtx.setLineDash([s.strokeW*4,s.strokeW*3]);
-    else if(s.lineStyle==='dotted') shCtx.setLineDash([s.strokeW,s.strokeW*2.5]);
-    else shCtx.setLineDash([]);
-    if(s.type==='rect'){
-      if(s.fill){shCtx.globalAlpha=s.opacity*.25;shCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);shCtx.globalAlpha=s.opacity;}
-      shCtx.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
-    } else if(s.type==='ellipse'){
-      shCtx.beginPath();shCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
-      if(s.fill){shCtx.globalAlpha=s.opacity*.25;shCtx.fill();shCtx.globalAlpha=s.opacity;}
-      shCtx.stroke();
-    } else if(s.type==='cloud'){
-      drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2);
-    }
-    shCtx.restore();
-  });
+  renderShapeAndMeasure();
 }
 
 // Hit test — find shape object at canvas position
@@ -2647,11 +3011,23 @@ drawCv.addEventListener('mousemove',function(e){
   var p=getPos(e);
   if(tool==='text'&&!_txtCursorActive&&baseLoaded){ showTextHover(p.x,p.y); }
   else if(tool!=='text'){ clearTextHover(); }
+  if(selectedMeasure&&measureDragHandle===-1){
+    var mh=getMeasureHandleAt(selectedMeasure,p.x,p.y,false);
+    if(mh===0||mh===1) drawCv.style.cursor='crosshair';
+    else if(mh===-2) drawCv.style.cursor='move';
+    else drawCv.style.cursor='default';
+    return;
+  }
   if(selectedShape&&selHandle===-1){ updateSelCursor(p.x,p.y); return; }
   // Show move cursor when hovering over re-selectable shape
   if((tool==='rect'||tool==='ellipse'||tool==='cloud')&&!selectedShape&&baseLoaded){
     var hit=findShapeObjAt(p.x,p.y,false);
     drawCv.style.cursor=hit?'move':'crosshair';
+  }
+  // Show pointer cursor when hovering measure with measure tool
+  if(tool==='measure'&&!selectedMeasure&&baseLoaded){
+    var mh2=findMeasureObjAt(p.x,p.y,false);
+    drawCv.style.cursor=mh2?'move':'crosshair';
   }
 },{passive:true});
 
@@ -2736,6 +3112,18 @@ function holdFire(){
     return;
   }
 
+  // 1b. Measure objects
+  var mHit=findMeasureObjAt(x,y,true);
+  if(mHit){
+    captureState();
+    if(selectedMeasure===mHit){ cancelMeasureSelection(); }
+    measureObjs=measureObjs.filter(function(m){ return m!==mHit; });
+    renderShapeAndMeasure(); composite(); pushUndo();
+    toast('Measure deleted','',1500);
+    drawing=false;
+    return;
+  }
+
   // 2. Text objects
   var tHit=findTextObjAt(x,y);
   if(tHit){
@@ -2786,7 +3174,7 @@ function stopHoldRipple(){
 document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
   btn.addEventListener('click',function(){
     if(tool==='polygon'&&polyActive){ closePolygon(); }
-    commitText(); commitSelection(); leaderStep=0;
+    commitText(); commitSelection(); commitMeasureSelection(); leaderStep=0;
     stopTextCursor(); clearTextHover();
     tool=btn.dataset.tool;
     document.querySelectorAll('.tb-btn[data-tool]').forEach(function(b){ b.classList.remove('active'); });
@@ -2970,6 +3358,45 @@ function compositeExport(maxPx){
       ctx.restore();
     });
   }catch(ex){ console.warn('[Export] textObjs:',ex); }
+  // Measure objects (live vector)
+  try{
+    measureObjs.forEach(function(m){
+      var layer=layers[m.layerIdx]; if(layer&&!layer.visible) return;
+      var sc=scale;
+      // Draw scaled measure line
+      var x1=m.x1*sc, y1=m.y1*sc, x2=m.x2*sc, y2=m.y2*sc;
+      var px=Math.hypot(x2-x1,y2-y1)/sc; // real canvas px for label
+      var ang=Math.atan2(y2-y1,x2-x1);
+      ctx.save();
+      ctx.globalAlpha=m.opacity;
+      ctx.strokeStyle=m.color; ctx.lineWidth=m.strokeW*sc;
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      if(m.lineStyle==='dashed') ctx.setLineDash([m.strokeW*4*sc,m.strokeW*3*sc]);
+      else if(m.lineStyle==='dotted') ctx.setLineDash([m.strokeW*sc,m.strokeW*2.5*sc]);
+      else ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      ctx.setLineDash([]);
+      var tk=Math.max(5,m.strokeW*2.5)*sc;
+      var perp=ang+Math.PI/2;
+      [[x1,y1],[x2,y2]].forEach(function(pt){
+        ctx.beginPath();
+        ctx.moveTo(pt[0]+Math.cos(perp)*tk,pt[1]+Math.sin(perp)*tk);
+        ctx.lineTo(pt[0]-Math.cos(perp)*tk,pt[1]-Math.sin(perp)*tk);
+        ctx.stroke();
+      });
+      var midX=(x1+x2)/2, midY=(y1+y2)/2;
+      var label=scaleSet?formatLength(px):(Math.round(px)+'px');
+      ctx.globalAlpha=1;
+      ctx.font='bold '+(13*sc)+'px Arial,sans-serif';
+      ctx.textAlign='center';
+      ctx.translate(midX,midY); ctx.rotate(ang);
+      ctx.lineWidth=3*sc; ctx.strokeStyle='#000'; ctx.setLineDash([]);
+      ctx.strokeText(label,0,-8*sc);
+      ctx.fillStyle=m.color; ctx.lineWidth=0;
+      ctx.fillText(label,0,-8*sc);
+      ctx.restore();
+    });
+  }catch(ex){ console.warn('[Export] measureObjs:',ex); }
   return out;
 }
 
@@ -3370,6 +3797,7 @@ document.addEventListener('keydown',function(e){
   if(e.code==='Space'&&e.target===document.body){ e.preventDefault(); spaceDown=true; viewport.style.cursor='grab'; showHint(); return; }
   if(e.key==='Escape'){
     stopTextCursor(); clearTextHover();
+    if(selectedMeasure){ commitMeasureSelection(); return; }
     if(selectedShape){ commitSelection(); return; }
     if(tool==='polygon'&&polyActive){ closePolygon(); return; }
     leaderStep=0;
@@ -3488,6 +3916,104 @@ if('serviceWorker' in navigator){
     }
   });
 }
+
+// ── THEME TOGGLE ──────────────────────────────────────────────
+function toggleTheme(){
+  var html=document.documentElement;
+  var dark=html.getAttribute('data-theme')==='dark';
+  html.setAttribute('data-theme',dark?'light':'dark');
+  var btn=document.getElementById('themeBtn');
+  if(btn) btn.textContent=dark?'☀️':'🌙';
+  try{localStorage.setItem('aog_annotator_theme',dark?'light':'dark');}catch(e){}
+}
+(function initTheme(){
+  try{
+    var t=localStorage.getItem('aog_annotator_theme');
+    if(t){ document.documentElement.setAttribute('data-theme',t); }
+    var btn=document.getElementById('themeBtn');
+    if(btn) btn.textContent=(document.documentElement.getAttribute('data-theme')==='dark')?'🌙':'☀️';
+  }catch(e){}
+})();
+
+// ── WATERMARK UPDATE ──────────────────────────────────────────
+function updateWatermark(){
+  var nm=document.getElementById('cust-name');
+  var ad=document.getElementById('cust-addr');
+  var nmEl=document.getElementById('wm-name-el');
+  var adEl=document.getElementById('wm-addr-el');
+  if(nmEl) nmEl.textContent=nm?nm.value:'';
+  if(adEl) adEl.textContent=ad?ad.value:'';
+}
+(function(){
+  var nm=document.getElementById('cust-name');
+  var ad=document.getElementById('cust-addr');
+  if(nm){ nm.addEventListener('input',updateWatermark); nm.addEventListener('mousedown',function(e){e.stopPropagation();}); nm.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
+  if(ad){ ad.addEventListener('input',updateWatermark); ad.addEventListener('mousedown',function(e){e.stopPropagation();}); ad.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
+})();
+
+// Burn watermark text onto export canvas
+(function patchCompositeExportForWatermark(){
+  var _origExport = compositeExport;
+  compositeExport = function(maxPx){
+    var out = _origExport(maxPx);
+    if(!out) return out;
+    var nmVal = (document.getElementById('cust-name')||{}).value||'';
+    var adVal = (document.getElementById('cust-addr')||{}).value||'';
+    if(!nmVal && !adVal) return out;
+    var ctx = out.getContext('2d');
+    var sc = out.width / (baseCv.width||out.width);
+    // Watermark in bottom-right
+    var margin = Math.round(14*sc);
+    var lineH = Math.round(16*sc);
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    var y = out.height - margin;
+    if(adVal){
+      ctx.font = 'bold '+(Math.round(11*sc))+'px "Share Tech Mono",monospace';
+      ctx.fillStyle='#94A3B8';
+      ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=3;
+      ctx.fillText(adVal, out.width-margin, y);
+      y -= lineH;
+    }
+    if(nmVal){
+      ctx.font = 'bold '+(Math.round(14*sc))+'px "Orbitron",monospace';
+      ctx.fillStyle='#FBBF24';
+      ctx.shadowColor='rgba(0,0,0,0.8)'; ctx.shadowBlur=4;
+      ctx.fillText(nmVal, out.width-margin, y);
+      y -= Math.round(13*sc);
+    }
+    // Brand line
+    ctx.font = (Math.round(9*sc))+'px "Share Tech Mono",monospace';
+    ctx.fillStyle='#F97316';
+    ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=2;
+    ctx.fillText('Always On Generators', out.width-margin, out.height - margin + Math.round(12*sc));
+    ctx.restore();
+    return out;
+  };
+})();
+
+// ── TOP PADDING — accounts for fixed nav + customer bar ───────
+function adjustTopPadding(){
+  var nav=document.getElementById('aog-nav');
+  var cbar=document.getElementById('customer-bar');
+  var offline=document.getElementById('aog-offline');
+  var tb=document.getElementById('tb');
+  if(!nav||!tb) return;
+  var h=nav.offsetHeight+(cbar?cbar.offsetHeight:0)+((offline&&offline.classList.contains('show'))?offline.offsetHeight:0);
+  // tb is position:fixed-ish in flex column — push it down by setting its top margin
+  // Actually body is flex column so just keep nav heights flowing naturally
+  // The nav is position:fixed so we need padding on tb
+  tb.style.marginTop=h+'px';
+  // Also adjust viewport
+  var vp=document.getElementById('main');
+  if(vp) vp.style.paddingTop='0';
+}
+window.addEventListener('resize',adjustTopPadding);
+window.addEventListener('load',adjustTopPadding);
+setTimeout(adjustTopPadding,50);
+setTimeout(adjustTopPadding,400);
 </script>
 </body>
 </html>
