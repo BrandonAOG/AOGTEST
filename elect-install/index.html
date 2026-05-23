@@ -339,6 +339,44 @@ body.dark-mode table.mat-table td.row-label { background: rgba(36,52,88,0.6); co
 body.dark-mode #fittings-table tr.repeat-header th { background: #1E3A5F; color: #00FFC8; border-color: rgba(0,255,200,0.2); }
 #wireway-table  td.row-label { font-size: 10px; min-width: 110px; }
 #polaris-table  td.row-label { font-size: 10px; min-width: 110px; }
+
+/* Full-width Other field — last item on page 2 */
+.footer-other-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+  width: 100%;
+}
+.footer-other-label {
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: Arial, sans-serif;
+}
+.footer-other-input {
+  flex: 1;
+  width: 100% !important;
+  min-width: 0;
+  border: none !important;
+  border-bottom: 1px solid rgba(217,119,6,0.4) !important;
+  background: transparent !important;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  color: var(--text);
+  padding: 2px 4px;
+}
+body.dark-mode .footer-other-label { color: #E0F7FF; }
+body.dark-mode .footer-other-input { border-bottom-color: rgba(0,255,200,0.3) !important; color: #E0F7FF; }
+#wireway-table td input[type="text"],
+#polaris-table td input[type="text"] {
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  text-align: center;
+}
 @media screen {
 body.dark-mode #fittings-table td.row-label,
 body.dark-mode #wireway-table  td.row-label,
@@ -770,8 +808,12 @@ body.dark-mode .notice { color: #7DD3FC; }
 
   #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td.row-label { width: 68px !important; min-width: 0 !important; }
   #page2 #fittings-table td.row-label { width: 100px !important; min-width: 0 !important; }
-  #page2 #wireway-table  td.row-label { width: 85px !important; min-width: 0 !important; }
-  #page2 #polaris-table  td.row-label { width: 85px !important; min-width: 0 !important; }
+  #page2 #wireway-table  td.row-label { width: 80px !important; min-width: 0 !important; }
+  #page2 #polaris-table  td.row-label { width: 80px !important; min-width: 0 !important; }
+
+  /* Keep wireway + polaris side by side in print */
+  #page2 .wireway-polaris-row { display: flex !important; gap: 8px !important; align-items: flex-start !important; }
+  #page2 .wireway-polaris-row .grid-section { flex: 1 !important; min-width: 0 !important; overflow: visible !important; }
 
   #page2 table.mat-table td input[type="text"] {
     width: 100% !important; border: none !important; background: transparent !important;
@@ -786,6 +828,9 @@ body.dark-mode .notice { color: #7DD3FC; }
     height: auto !important; line-height: 1.2 !important;
   }
 
+  #page2 .footer-other-row { display: flex !important; align-items: flex-end !important; gap: 4px !important; width: 100% !important; margin-top: 3px !important; }
+  #page2 .footer-other-label { font-size: 10px !important; font-weight: bold !important; white-space: nowrap !important; flex-shrink: 0 !important; color: #1F2937 !important; }
+  #page2 .footer-other-input { flex: 1 !important; width: 100% !important; border: none !important; border-bottom: 1px solid #333 !important; background: transparent !important; font-size: 10px !important; color: #1F2937 !important; padding: 0 !important; }
   #page2 .footer-fields { margin-top: 5px !important; padding-top: 4px !important; border-top: 1px solid #555 !important; font-size: 10px !important; }
   #page2 .footer-row { display: flex !important; flex-wrap: wrap !important; gap: 2px 12px !important; margin-bottom: 3px !important; align-items: flex-end !important; }
   #page2 .footer-field { display: inline-flex !important; align-items: flex-end !important; gap: 3px !important; white-space: nowrap !important; }
@@ -1287,24 +1332,28 @@ body.dark-mode .ft-label { color: #7DD3FC; }
       </table>
     </div>
 
-    <div class="grid-section">
-      <table class="mat-table" id="wireway-table">
-        <thead><tr>
-          <th style="width:100px;">WIREWAY</th>
-          <th>2'</th><th>3'</th><th>4'</th><th>5'</th><th>6'</th>
-        </tr></thead>
-        <tbody id="wireway-body"></tbody>
-      </table>
-    </div>
+    <div class="wireway-polaris-row" style="display:flex;gap:10px;align-items:flex-start;">
 
-    <div class="grid-section">
-      <table class="mat-table" id="polaris-table">
-        <thead><tr>
-          <th style="width:100px;">POLARIS TAPS</th>
-          <th>Straights</th><th>2-Port</th><th>3-Port</th><th>4-Port</th><th>5-Port</th>
-        </tr></thead>
-        <tbody id="polaris-body"></tbody>
-      </table>
+      <div class="grid-section" style="flex:1;min-width:0;">
+        <table class="mat-table" id="wireway-table">
+          <thead><tr>
+            <th style="width:80px;">WIREWAY</th>
+            <th>2'</th><th>3'</th><th>4'</th><th>5'</th><th>6'</th>
+          </tr></thead>
+          <tbody id="wireway-body"></tbody>
+        </table>
+      </div>
+
+      <div class="grid-section" style="flex:1;min-width:0;">
+        <table class="mat-table" id="polaris-table">
+          <thead><tr>
+            <th style="width:80px;">POLARIS TAPS</th>
+            <th>Straights</th><th>2-Port</th><th>3-Port</th><th>4-Port</th><th>5-Port</th>
+          </tr></thead>
+          <tbody id="polaris-body"></tbody>
+        </table>
+      </div>
+
     </div>
 
     <div class="footer-fields">
@@ -1317,7 +1366,6 @@ body.dark-mode .ft-label { color: #7DD3FC; }
       <div class="footer-row">
         <div class="footer-field"><label>Shallow Strut (length):</label><input type="text" class="wide" inputmode="numeric"></div>
         <div class="footer-field"><label>Deep Strut (length):</label><input type="text" class="wide" inputmode="numeric"></div>
-        <div class="footer-field" style="flex:1;"><label>Other:</label><input type="text" style="width:100%;min-width:120px;"></div>
       </div>
       <div class="footer-row">
         <div class="footer-field"><label>100A Disconnects (Qty):</label><input type="text" class="short" inputmode="numeric"></div>
@@ -1328,6 +1376,10 @@ body.dark-mode .ft-label { color: #7DD3FC; }
         <div class="footer-field"><label>Surge Protectors (Qty):</label><input type="text" class="short" inputmode="numeric"></div>
         <div class="footer-field"><label>PSP Load Shed Modules(60A) (Qty):</label><input type="text" class="short" inputmode="numeric"></div>
         <div class="footer-field"><label>PSP Load Shed Modules(100A) (Qty):</label><input type="text" class="short" inputmode="numeric"></div>
+      </div>
+      <div class="footer-other-row">
+        <label class="footer-other-label">Other:</label>
+        <input type="text" class="footer-other-input">
       </div>
     </div>
 
