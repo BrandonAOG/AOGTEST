@@ -2376,6 +2376,10 @@ function capturePageToCanvas() {
     seasonalClasses.forEach(function(c) { document.body.classList.remove(c); });
     var wasDarkCapture = document.body.classList.contains('dark-mode');
     document.body.classList.remove('dark-mode');
+    document.documentElement.classList.remove('dark-mode');
+    // Remove seasonal-styles tag from live DOM before clone so it doesn't carry into clone
+    var seasonalStyleTag = document.getElementById('seasonal-styles');
+    if (seasonalStyleTag) seasonalStyleTag.parentNode.removeChild(seasonalStyleTag);
     var seasonalCanvas = document.getElementById('seasonal-canvas');
     if (seasonalCanvas) seasonalCanvas.style.display = 'none';
 
@@ -2442,16 +2446,37 @@ function capturePageToCanvas() {
       '.grid-2 { grid-template-columns: 1fr 1fr !important; }',
       '.grid-3 { grid-template-columns: 1fr 1fr 1fr !important; }',
       '.grid-4 { grid-template-columns: repeat(4, 1fr) !important; }',
-      '.logo-img { width: 48px !important; height: 48px !important; object-fit: contain !important; display: block !important; }'
+      '.logo-img { width: 48px !important; height: 48px !important; object-fit: contain !important; display: block !important; }',
+      '.section-header::before, .col-label::before { display: none !important; content: none !important; }',
     ].join('\n');
     document.head.appendChild(forceStyle);
+
+    // Force a layout flush so forceStyle takes effect before cloning
+    void document.body.offsetHeight;
+
+    // Replace ::before dots with real spans on live DOM BEFORE html2canvas clones
+    // ::before pseudo-elements carry computed styles into clone — real spans carry inline styles
+    var injectedDots = [];
+    document.querySelectorAll('.section-header, .col-label').forEach(function(el) {
+      var dot = document.createElement('span');
+      dot.setAttribute('data-capture-dot', '1');
+      dot.style.cssText = 'display:inline-block;width:6px;height:6px;min-width:6px;min-height:6px;background:#D97706;box-shadow:none;flex-shrink:0;align-self:center;margin-right:0;';
+      el.insertBefore(dot, el.firstChild);
+      injectedDots.push(dot);
+    });
 
     var restored = false;
     var restore = function() {
       if (restored) return;
       restored = true;
+      // Remove injected dots
+      injectedDots.forEach(function(d) { if (d.parentNode) d.parentNode.removeChild(d); });
+      injectedDots = [];
       // ── PATCH: Restore seasonal theme classes, dark-mode, and canvas ──
       seasonalClasses.forEach(function(c) { document.body.classList.add(c); });
+      document.documentElement.classList.remove('dark-mode');
+      // Re-inject seasonal-styles tag
+      if (seasonalStyleTag) document.head.appendChild(seasonalStyleTag);
       if (wasDarkCapture) document.body.classList.add('dark-mode');
       if (seasonalCanvas) seasonalCanvas.style.display = '';
       page.style.width     = prevWidth;
@@ -2470,6 +2495,16 @@ function capturePageToCanvas() {
           scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false,
           width: CAPTURE_W, height: CAPTURE_H, windowWidth: CAPTURE_W, scrollX: 0, scrollY: 0,
           onclone: function(clonedDoc) {
+            // Strip dark-mode and seasonal classes + their style tags from clone
+            var cb = clonedDoc.body;
+            cb.classList.remove('dark-mode');
+            var rem = [];
+            cb.classList.forEach(function(c){ if(c.indexOf('seasonal-')===0) rem.push(c); });
+            rem.forEach(function(c){ cb.classList.remove(c); });
+            clonedDoc.documentElement.classList.remove('dark-mode');
+            var seasonalSt = clonedDoc.getElementById('seasonal-styles');
+            if (seasonalSt) seasonalSt.parentNode.removeChild(seasonalSt);
+
             // Replace checkboxes/radios with amber spans — html2canvas ignores accent-color
             clonedDoc.querySelectorAll('.check-item input[type=checkbox], .check-item input[type=radio]').forEach(function(input) {
               var isChecked = input.checked;
