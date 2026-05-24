@@ -442,7 +442,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   background:#10B981;box-shadow:0 0 6px #10B981;
   animation:aogPulse 2s ease-in-out infinite;flex-shrink:0;
 }
-.aog-status-dot.offline{background:#6B7280;box-shadow:0 0 6px #6B7280;animation:none;}
+.aog-status-dot.offline{background:#E84118;box-shadow:0 0 6px #E84118;animation:none;}
 @keyframes aogPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
 
 /* Offline banner */
@@ -529,8 +529,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <!-- Spacer -->
   <div style="flex:1"></div>
 
-  <!-- Save indicator -->
-  <div id="save-indicator" title="Auto-save status" style="flex-shrink:0"></div>
+  <!-- Save indicator (hidden from nav — status shown via aog-dot) -->
+  <div id="save-indicator" title="Auto-save status" style="flex-shrink:0;display:none"></div>
 
   <!-- Online status -->
   <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-right:4px;">
@@ -2055,8 +2055,10 @@ function onUp(e){
   if(selectedMeasure && measureDragHandle!==-1){
     measureDragHandle=-1; measureDragStart=null;
     var isTouch=!!(e.changedTouches&&e.changedTouches.length);
-    if(!isTouch){
-      // Desktop: commit immediately on mouseup
+    // Commit on release for both touch and desktop (drop on release)
+    if(isTouch && tool==='line'){
+      commitMeasureSelection();
+    } else if(!isTouch){
       commitMeasureSelection();
     } else {
       renderMeasureSelection();
@@ -2477,7 +2479,7 @@ function renderMeasureSelection(){
   selCtx.font=(Math.max(10,11/zoom))+'px Arial,sans-serif';
   selCtx.textAlign='center'; selCtx.textBaseline='top';
   var midX=(m.x1+m.x2)/2, midY=Math.min(m.y1,m.y2)-20/zoom;
-  selCtx.fillText('Drag endpoints · Click away to commit',midX,midY);
+  selCtx.fillText('Drag endpoints · Release to drop',midX,midY);
   selCtx.restore();
 }
 
