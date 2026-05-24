@@ -2469,6 +2469,32 @@ function capturePageToCanvas() {
         html2canvas(page, {
           scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false,
           width: CAPTURE_W, height: CAPTURE_H, windowWidth: CAPTURE_W, scrollX: 0, scrollY: 0,
+          onclone: function(clonedDoc) {
+            // Replace checkboxes/radios with amber spans — html2canvas ignores accent-color
+            clonedDoc.querySelectorAll('.check-item input[type=checkbox], .check-item input[type=radio]').forEach(function(input) {
+              var isChecked = input.checked;
+              var isRadio   = input.type === 'radio';
+              // Hide real input
+              input.style.cssText = 'opacity:0!important;position:absolute!important;width:0!important;height:0!important;';
+              if (isChecked) {
+                var box = clonedDoc.createElement('span');
+                box.style.cssText = 'display:inline-flex!important;width:13px!important;height:13px!important;min-width:13px!important;min-height:13px!important;background:#D97706!important;border:1.5px solid #D97706!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;flex-shrink:0!important;vertical-align:middle!important;margin-right:3px!important;box-sizing:border-box!important;align-items:center!important;justify-content:center!important;';
+                var mark = clonedDoc.createElement('span');
+                if (isRadio) {
+                  mark.style.cssText = 'display:block!important;width:5px!important;height:5px!important;background:#ffffff!important;border-radius:50%!important;';
+                } else {
+                  mark.style.cssText = 'display:block!important;width:7px!important;height:4px!important;border-left:2px solid #ffffff!important;border-bottom:2px solid #ffffff!important;transform:rotate(-45deg)!important;margin-top:-2px!important;';
+                }
+                box.appendChild(mark);
+                input.parentNode.insertBefore(box, input);
+              } else {
+                // Unchecked — show empty box
+                var emptyBox = clonedDoc.createElement('span');
+                emptyBox.style.cssText = 'display:inline-block!important;width:13px!important;height:13px!important;min-width:13px!important;min-height:13px!important;background:#ffffff!important;border:1.5px solid #9CA3AF!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;flex-shrink:0!important;vertical-align:middle!important;margin-right:3px!important;box-sizing:border-box!important;';
+                input.parentNode.insertBefore(emptyBox, input);
+              }
+            });
+          },
           ignoreElements: function(el) {
             return el.id === 'theme-toggle-btn' ||
                    el.classList.contains('toolbar') ||
