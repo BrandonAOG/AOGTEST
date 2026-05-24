@@ -376,7 +376,7 @@ body.dark-mode .check-item:hover { background: rgba(36,52,88,0.6); border-color:
 .check-item:has(input:checked) { background: rgba(217,119,6,0.12); border-color: rgba(217,119,6,0.6); box-shadow: 0 0 6px rgba(217,119,6,0.15), inset 0 0 6px rgba(217,119,6,0.04); }
 body.dark-mode .check-item:has(input:checked) { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.4); box-shadow: 0 0 8px rgba(0,255,200,0.15), inset 0 0 8px rgba(0,255,200,0.05); }
 .check-item input[type="checkbox"], .check-item input[type="radio"] { width: 14px !important; height: 14px !important; min-height: 14px !important; min-width: 14px !important; accent-color: var(--cyan); cursor: pointer; flex-shrink: 0; border: none; border-bottom: none; padding: 0; background: none; transition: all 0.3s ease; }
-body.dark-mode .check-item input[type="checkbox"], body.dark-mode .check-item input[type="radio"] { accent-color: #92400E; }
+body.dark-mode .check-item input[type="checkbox"], body.dark-mode .check-item input[type="radio"] { accent-color: #00FFC8; }
 .check-item span { font-family: var(--font-display); font-size: 0.6rem; font-weight: 500; letter-spacing: 1px; color: var(--text); text-transform: uppercase; transition: color 0.15s; }
 body.dark-mode .check-item span { color: #E0F7FF; }
 .check-item:has(input:checked) span { color: var(--cyan); text-shadow: 0 0 4px rgba(217,119,6,0.3); }
@@ -741,7 +741,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
     <div class="top-grid">
       <div class="top-col">
         <div class="col-label">
-          <svg width="22" height="22" viewBox="0 0 122 122" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 122 122" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" fill="none" stroke="currentColor" aria-hidden="true">
             <path d="M61 10 C76 10 88 22 88 38 C88 54 76 66 61 66 C46 66 34 54 34 38 C34 22 46 10 61 10 M26 114 C26 90 44 74 61 74 C78 74 96 90 96 114 M26 114 H96 M20 52 L10 42 L20 32 M102 52 L112 42 L102 32" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           Customer Info
@@ -769,7 +769,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 
       <div class="top-col">
         <div class="col-label">
-          <svg width="22" height="22" viewBox="0 0 122 114" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 122 114" xmlns="http://www.w3.org/2000/svg" class="icon-themed" style="flex-shrink:0;" fill="none" stroke="currentColor" aria-hidden="true">
             <path d="M61 4 L8 48 M61 4 L114 48 M15 56 V112 H107 V56 M30 76 H56 V98 H30 V76 M68 74 H92 V112 H68 V74 M60 36 A6 6 0 1 1 60 48 A6 6 0 1 1 60 36" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           Property Info
@@ -1364,7 +1364,14 @@ function capturePageToCanvas() {
       reject(new Error('html2canvas not loaded'));
       return;
     }
-    var page = document.getElementById('page');
+
+    // ── Pre-convert logo to data URL so html2canvas never fetches it ──
+    // Avoids file:// CORS errors locally and taint issues on deployed site
+    var logoImg = document.querySelector('.logo-img');
+    var logoOrigSrc = logoImg ? logoImg.src : null;
+
+    function doCapture() {
+      var page = document.getElementById('page');
     var prevWidth    = page.style.width;
     var prevMaxWidth = page.style.maxWidth;
     var prevMinH     = page.style.minHeight;
@@ -1447,6 +1454,9 @@ function capturePageToCanvas() {
       '* { animation: none !important; transition: none !important; }',
       '.logo-img { width: 48px !important; height: 48px !important; object-fit: contain !important; display: block !important; }',
       '.section-header::before, .col-label::before { display: none !important; }',
+      '.col-label svg, .col-label svg *, .col-label svg path, .col-label svg line, .col-label svg circle, .col-label svg rect { stroke: #D97706 !important; color: #D97706 !important; fill: none !important; }',
+      '.section-header svg, .section-header svg *, .section-header svg path, .section-header svg line, .section-header svg circle { stroke: #D97706 !important; color: #D97706 !important; fill: none !important; }',
+      '.icon-themed, .icon-themed * { stroke: #D97706 !important; color: #D97706 !important; }',
       '.header::after { display: none !important; }',
       'body { max-width: ' + CAPTURE_W + 'px !important; }',
       '#page { width: ' + CAPTURE_W + 'px !important; max-width: ' + CAPTURE_W + 'px !important; height: auto !important; min-height: ' + PAPER_H + 'px !important; overflow: visible !important; display: flex !important; flex-direction: column !important; }',
@@ -1457,12 +1467,16 @@ function capturePageToCanvas() {
       '.grid-3 { grid-template-columns: 1fr 1fr 1fr !important; }',
       '.grid-4 { grid-template-columns: repeat(4, 1fr) !important; }'
     ].join('\n');
-    document.head.appendChild(forceStyle);
+
+    // ── Declare injectedSpans FIRST so restore() can always reference it ──
+    var injectedSpans = [];
 
     var restored = false;
     var restore = function() {
       if (restored) return;
       restored = true;
+      // ── Restore logo src if it was converted to data URL ──
+      if (logoImg && logoOrigSrc) { logoImg.src = logoOrigSrc; logoImg.style.visibility = ''; }
       // ── Remove injected capture dots ──
       injectedSpans.forEach(function(s) { if (s.parentNode) s.parentNode.removeChild(s); });
       injectedSpans = [];
@@ -1477,25 +1491,115 @@ function capturePageToCanvas() {
       page.style.overflow  = prevOverflow;
       document.body.style.padding = prevBodyPad;
       var fs = document.getElementById('capture-force-style'); if (fs) fs.remove();
+
+      // ── Restore SVG inline styles AFTER forceStyle is removed ──
+      // Must be after removal — computed styles were read while forceStyle was active
+      // so inlined values need to be cleared after CSS cascade returns to normal
+      document.querySelectorAll('[data-capture-stroke]').forEach(function(shape) {
+        shape.setAttribute('stroke', 'currentColor');
+        shape.style.stroke = '';
+        shape.style.fill = '';
+        shape.style.color = '';
+        shape.removeAttribute('data-capture-stroke');
+      });
+      page.querySelectorAll('svg path, svg line, svg circle, svg rect, svg polyline, svg ellipse, svg polygon').forEach(function(shape) {
+        // Clear inline styles
+        shape.style.stroke = '';
+        shape.style.fill = '';
+        shape.style.color = '';
+        // Restore SVG attributes back to currentColor — attributes override CSS
+        if (shape.hasAttribute('stroke')) shape.setAttribute('stroke', 'currentColor');
+        if (shape.hasAttribute('fill') && shape.getAttribute('fill') !== 'none') shape.setAttribute('fill', 'none');
+      });
+      page.querySelectorAll('.col-label svg, .section-header svg').forEach(function(svg) {
+        svg.style.color = '';
+        svg.style.stroke = '';
+        svg.removeAttribute('color');
+        // Restore SVG-level stroke attribute to currentColor
+        if (svg.hasAttribute('stroke')) svg.setAttribute('stroke', 'currentColor');
+      });
     };
 
-    // ── Replace ::before pseudo-element squares with real spans so html2canvas sees them ──
-    var injectedSpans = [];
+    // ── Append force style FIRST so ::before hide is active before we inject spans ──
+    document.head.appendChild(forceStyle);
+
+    // ── Inline computed styles onto all SVG elements so html2canvas clones them correctly ──
+    // This must run on the LIVE DOM before html2canvas clones — inlined styles carry into clone
+    // CSS classes and currentColor are NOT transferred into the clone, inlined styles ARE
+    var svgProps = ['fill', 'stroke', 'color'];
+    page.querySelectorAll('svg, svg *').forEach(function(el) {
+      if (!el.style) return;
+      var computed = window.getComputedStyle(el);
+      svgProps.forEach(function(prop) {
+        var val = computed.getPropertyValue(prop);
+        if (val && val !== '' && val !== 'none' && val !== 'currentcolor') {
+          el.style[prop] = val; // no !important — invalid in serialized SVG images
+        }
+      });
+    });
+    // Force amber on icon-themed SVGs — NO !important, invalid in SVG-as-image serialization
+    page.querySelectorAll('.col-label svg, .section-header svg').forEach(function(svg) {
+      svg.setAttribute('color', '#D97706');
+      svg.querySelectorAll('path, line, circle, rect, polyline, ellipse, polygon').forEach(function(shape) {
+        // Use setAttribute directly — bypasses !important issue in serialized SVG images
+        shape.setAttribute('stroke', '#D97706');
+        shape.setAttribute('fill', 'none');
+        // Also set via style WITHOUT !important
+        shape.style.stroke = '#D97706';
+        shape.style.fill = 'none';
+      });
+    });
+    // Inject dot spans into live DOM
     document.querySelectorAll('.section-header, .col-label').forEach(function(el) {
       var span = document.createElement('span');
-      span.style.cssText = 'display:inline-block;width:6px;height:6px;background:#D97706;box-shadow:none;flex-shrink:0;margin-right:6px;border-radius:0;';
+      span.style.cssText = 'display:inline-block!important;width:6px!important;height:6px!important;min-width:6px!important;min-height:6px!important;background:#D97706!important;box-shadow:none!important;flex-shrink:0!important;margin-right:5px!important;border-radius:0!important;vertical-align:middle!important;';
       span.setAttribute('data-capture-dot', '1');
-      el.insertBefore(span, el.firstChild);
+      var svgEl = el.querySelector('svg');
+      if (svgEl && svgEl.nextSibling) { el.insertBefore(span, svgEl.nextSibling); }
+      else if (svgEl) { el.appendChild(span); }
+      else { el.insertBefore(span, el.firstChild); }
       injectedSpans.push(span);
     });
 
     requestAnimationFrame(function() { requestAnimationFrame(function() {
       var CAPTURE_H = Math.max(page.scrollHeight, PAPER_H);
+      console.log('[CAPTURE] Starting html2canvas. W:', CAPTURE_W, 'H:', CAPTURE_H);
+      console.log('[CAPTURE] injectedSpans at render time:', injectedSpans.length);
+      console.log('[CAPTURE] dark-mode at render time:', document.body.classList.contains('dark-mode'));
+      // Log first col-label to verify state
+      var firstLabel = document.querySelector('.col-label');
+      if (firstLabel) {
+        console.log('[CAPTURE] First col-label innerHTML snippet:', firstLabel.innerHTML.substring(0, 200));
+        var dots = firstLabel.querySelectorAll('[data-capture-dot]');
+        console.log('[CAPTURE] First col-label capture dots:', dots.length);
+        var svgs = firstLabel.querySelectorAll('svg');
+        if (svgs.length) {
+          var p = svgs[0].querySelector('path');
+          if (p) console.log('[CAPTURE] First SVG path stroke attr:', p.getAttribute('stroke'));
+        }
+      }
       try {
         html2canvas(page, {
-          scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false,
+          scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: true,
           width: CAPTURE_W, height: CAPTURE_H, windowWidth: CAPTURE_W, scrollX: 0, scrollY: 0,
-          ignoreElements: function(el) {
+          onclone: function(clonedDoc) {
+            // Hide ::before pseudo-elements in clone
+            var st = clonedDoc.createElement('style');
+            st.textContent = '.section-header::before,.col-label::before{display:none!important;content:none!important;width:0!important;height:0!important;}';
+            clonedDoc.head.appendChild(st);
+            // Dots already injected into live DOM pre-clone — just ensure they are in clone too
+            clonedDoc.querySelectorAll('.section-header, .col-label').forEach(function(el) {
+              if (!el.querySelector('[data-capture-dot]')) {
+                var dot = clonedDoc.createElement('span');
+                dot.style.cssText = 'display:inline-block!important;width:6px!important;height:6px!important;min-width:6px!important;min-height:6px!important;background:#D97706!important;flex-shrink:0!important;margin-right:5px!important;vertical-align:middle!important;';
+                var svgEl = el.querySelector('svg');
+                if (svgEl && svgEl.nextSibling) el.insertBefore(dot, svgEl.nextSibling);
+                else if (svgEl) el.appendChild(dot);
+                else el.insertBefore(dot, el.firstChild);
+              }
+            });
+          },
+                    ignoreElements: function(el) {
             return el.id === 'theme-toggle-btn' ||
                    el.classList.contains('toolbar') ||
                    el.classList.contains('theme-toggle-btn') ||
@@ -1521,6 +1625,33 @@ function capturePageToCanvas() {
         reject(syncErr);
       }
     }); });
+    } // end doCapture
+
+    // Pre-fetch logo as data URL, then run capture
+    if (logoImg && logoOrigSrc && !logoOrigSrc.startsWith('data:')) {
+      fetch(logoOrigSrc)
+        .then(function(r) { return r.blob(); })
+        .then(function(blob) {
+          return new Promise(function(res, rej) {
+            var fr = new FileReader();
+            fr.onload = function() { res(fr.result); };
+            fr.onerror = rej;
+            fr.readAsDataURL(blob);
+          });
+        })
+        .then(function(dataUrl) {
+          logoImg.src = dataUrl;
+          doCapture();
+        })
+        .catch(function() {
+          // Fetch failed (e.g. file:// locally) — hide logo and proceed
+          console.warn('[CAPTURE] Logo fetch failed — hiding for capture');
+          if (logoImg) logoImg.style.visibility = 'hidden';
+          doCapture();
+        });
+    } else {
+      doCapture();
+    }
   });
 }
 
