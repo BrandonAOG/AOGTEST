@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.0.6';
+var CACHE_NAME = 'aog-forms-v2.0.7';
 var DEV_MODE   = false;
 
 // Stores last known cache progress so late-loading pages can request it
@@ -55,6 +55,21 @@ var PRECACHE_URLS = [
   './spec-viewer/'
 ];
 
+// CDN assets that must be cached on install for 100% offline support
+var PRECACHE_CDN = [
+  'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+];
+
+// Google Fonts CSS URLs — cached on install so fonts load offline
+// Font files themselves are cached on first visit via staleWhileRevalidate
+var PRECACHE_FONTS = [
+  'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap',
+  'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap',
+  'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap',
+  'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap',
+  'https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap',
+];
+
 var CACHE_CDN = [
   'https://api.mapbox.com',
   'https://fonts.googleapis.com',
@@ -85,12 +100,16 @@ self.addEventListener('install', function(event) {
         var completed = 0;
         var scope = self.registration.scope; // e.g. https://brandonaog.github.io/AOGTEST/
 
+        // Combine all URLs to cache: app pages + CDN assets + fonts
+        var allUrls = PRECACHE_URLS.concat(PRECACHE_CDN).concat(PRECACHE_FONTS);
+        total = allUrls.length;
+
         // Sequential caching so progress is accurate and stored for polling
-        return PRECACHE_URLS.reduce(function(chain, url) {
+        return allUrls.reduce(function(chain, url) {
           return chain.then(function() {
-            // Convert relative ../path to absolute using scope
+            // CDN and font URLs are already absolute; convert relative ones using scope
             var absUrl = url.startsWith('http') ? url : new URL(url, scope).href;
-            var label = absUrl.replace(scope,'').replace(/\/$/,'') || 'hub';
+            var label = absUrl.replace(scope,'').replace(/\/$/,'') || absUrl.split('/').pop() || 'cdn';
             return cache.add(absUrl)
               .then(function() {
                 completed++;
