@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v1.0.0
+//  Service Worker  |  sw.js  |  Version: aog-forms-v2.0.0
 //  Scope: root (../)
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v1.0.66';
+var CACHE_NAME = 'aog-forms-v2.0.0';
 var DEV_MODE   = false; // ← SET TRUE during development/testing
 
 // ============================================================
@@ -17,10 +17,15 @@ var DEV_MODE   = false; // ← SET TRUE during development/testing
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  'testing estimate sheet 38',
-  'fixed image capture bug on estimate form',
-  'add more 1st stage and 2nd stage regulators for more variance',
-  'testing est 4'
+  'Major hub redesign — new dark industrial UI',
+  'Added 40 random animated background themes',
+  'Cards now fully transparent with no blur',
+  'All cards uniform size across every device & category',
+  'Full mobile & tablet responsive fixes across all themes',
+  'Added QC Checklist form',
+  'Added Service Work form',
+  'Added Site Plan / Annotator tool',
+  'Offline page updated to match new hub design',
 ];
 // ============================================================
 
@@ -37,6 +42,8 @@ var PRECACHE_URLS = [
   '../gas-install/',
   '../elect-install/',
   '../qc-checklist/',
+  '../service-work/',
+  '../site-annotator/',
   '../load-calcs/',
   '../breaker-conductor/',
   '../conduit-fill/',
