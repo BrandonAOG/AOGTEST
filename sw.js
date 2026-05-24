@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.0.4';
+var CACHE_NAME = 'aog-forms-v2.0.5';
 var DEV_MODE   = false;
 
 // Stores last known cache progress so late-loading pages can request it
@@ -52,7 +52,22 @@ var PRECACHE_URLS = [
   './conduit-fill/',
   './sketch-pad/',
   './gas-calc/',
-  './spec-viewer/'
+  './spec-viewer/',
+  // Logo cached under every subdirectory so all forms find it offline
+  './estimate/logo.png',
+  './maintenance/logo.png',
+  './site-visit/logo.png',
+  './gas-install/logo.png',
+  './elect-install/logo.png',
+  './qc-checklist/logo.png',
+  './service-work/logo.png',
+  './site-annotator/logo.png',
+  './load-calcs/logo.png',
+  './breaker-conductor/logo.png',
+  './conduit-fill/logo.png',
+  './sketch-pad/logo.png',
+  './gas-calc/logo.png',
+  './spec-viewer/logo.png'
 ];
 
 var CACHE_CDN = [
