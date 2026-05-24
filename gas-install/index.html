@@ -19,7 +19,6 @@
    CSS CUSTOM PROPERTIES
    ============================================================ */
 :root {
-  color-scheme: light;
   --cyan: #D97706;
   --bg: #FFFFFF;
   --panel: #FFFFFF;
@@ -35,7 +34,6 @@
   --row-label-bg: #fafafa;
 }
 body.dark-mode {
-  color-scheme: dark;
   --bg: #0A0E27;
   --panel: #0F1535;
   --border: rgba(0,255,200,0.08);
@@ -1116,7 +1114,7 @@ body.dark-mode .miscues-textarea {
    ============================================================ */
 @media print and (max-device-width: 1024px) {
 
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-scheme: light !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
   input::placeholder, textarea::placeholder,
   *::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }
@@ -1328,7 +1326,7 @@ body.dark-mode .miscues-textarea {
 <!-- ========== ACTION BAR ========== -->
 <div class="action-bar" id="action-bar">
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
-  <button class="btn" onclick="openPrintPreview()">📄 PDF</button>
+  <button class="btn" onclick="(function(){ document.title = buildFileName('pdf', null).replace('.pdf',''); const wasDark = document.body.classList.contains('dark-mode'); document.body.classList.remove('dark-mode'); setTimeout(function(){ window.print(); setTimeout(function(){ if(wasDark) document.body.classList.add('dark-mode'); }, 1000); }, 100); })()">📄 PDF</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPHONE</button>
   <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 ANDROID</button>
@@ -2295,128 +2293,67 @@ function setStatus(msg) {
    Switch to light for print, restore dark after (with fallback timer
    in case afterprint never fires on Mobile Safari)
 ================================================================ */
-// ── PRINT: full Safari-proof light-mode + inline-style nuke ─────────────────
-function openPrintPreview() {
-  const bar    = document.querySelector('.action-bar');
-  const note   = document.querySelector('.notice');
-  const status = document.getElementById('save-status');
-  const wasDark = document.body.classList.contains('dark-mode');
+(function() {
+  var wasDark = false;
+  var restoreTimer = null;
+  var restored = false;
 
-  // STEP 1: flip to light mode visibly on screen
-  if (wasDark) document.body.classList.remove('dark-mode');
-  document.documentElement.style.setProperty('background', '#ffffff', 'important');
-  document.body.style.setProperty('background', '#ffffff', 'important');
-  document.documentElement.style.setProperty('color-scheme', 'light', 'important');
-  document.body.style.setProperty('color-scheme', 'light', 'important');
-
-  if (bar)    bar.style.display    = 'none';
-  if (note)   note.style.display   = 'none';
-  if (status) status.style.display = 'none';
-
-  const isMobilePrint = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
-  const wrapper = document.querySelector('.page-wrapper, .form-page');
-  const origWrapperPaddingTop = wrapper ? wrapper.style.paddingTop : '';
-  const origMaxWidth = document.body.style.maxWidth;
-  const origWidth    = document.body.style.width;
-  document.body.style.maxWidth = '100%';
-  document.body.style.width    = '100%';
-
-  // STEP 2: save & stamp inline styles on every element Safari greys out
-  const _saved = [];
-  function stamp(el, props) {
-    _saved.push([el, el.getAttribute('style') || null]);
-    for (const [k, v] of Object.entries(props)) {
-      el.style.setProperty(k, v, 'important');
-    }
+  function forceLightForPrint() {
+    wasDark = document.body.classList.contains('dark-mode');
+    restored = false;
+    if (wasDark) document.body.classList.remove('dark-mode');
+    // Safety fallback in case all events fail
+    clearTimeout(restoreTimer);
+    restoreTimer = setTimeout(restoreDark, 8000);
   }
 
-  function forceLightMode() {
-    stamp(document.documentElement, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
-    stamp(document.body,            { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
-
-    document.querySelectorAll(
-      '.form-page, .page-wrapper, .permit-section, .permit-row, .permit-note, ' +
-      '.footer-fields, .footer-row, .footer-field, .grid-section, ' +
-      '#page1, #page2, #page2-inner, .reg-row, .section-block, .checklist-section'
-    ).forEach(el => stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' }));
-
-    document.querySelectorAll(
-      'input[type="text"], input[type="email"], input[type="tel"], ' +
-      'input[type="date"], input[type="number"], textarea, select'
-    ).forEach(el => stamp(el, {
-      background: '#ffffff', 'background-color': '#ffffff',
-      color: '#1F2937', '-webkit-text-fill-color': '#1F2937',
-      'box-shadow': 'none', '-webkit-appearance': 'none', 'color-scheme': 'light'
-    }));
-
-    document.querySelectorAll('table.mat-table td input, table td input').forEach(el => stamp(el, {
-      background: 'transparent', 'background-color': 'transparent',
-      color: '#1F2937', '-webkit-text-fill-color': '#1F2937',
-      'box-shadow': 'none', '-webkit-appearance': 'none', 'color-scheme': 'light'
-    }));
-
-    document.querySelectorAll('input[type="checkbox"]').forEach(el => stamp(el, {
-      background: el.checked ? '#D97706' : '#ffffff',
-      'background-color': el.checked ? '#D97706' : '#ffffff',
-      '-webkit-appearance': 'none', 'color-scheme': 'light'
-    }));
-
-    document.querySelectorAll('table.mat-table th, table th').forEach(el => stamp(el, {
-      background: '#4B5563', 'background-color': '#4B5563',
-      color: '#ffffff', '-webkit-text-fill-color': '#ffffff', 'color-scheme': 'light'
-    }));
-
-    document.querySelectorAll('table.mat-table td, table td').forEach(el => {
-      const bg = el.classList.contains('row-label') ? '#f0f0f0' : '#ffffff';
-      stamp(el, {
-        background: bg, 'background-color': bg,
-        color: '#1F2937', '-webkit-text-fill-color': '#1F2937', 'color-scheme': 'light'
-      });
-    });
-  }
-
-  function restoreAll() {
-    _saved.forEach(([el, orig]) => {
-      if (orig !== null) { el.setAttribute('style', orig); }
-      else               { el.removeAttribute('style'); }
-    });
-    _saved.length = 0;
-  }
-
-  // STEP 3: restore everything only when print dialog actually closes
-  let restored = false;
-  function restore() {
+  function restoreDark() {
     if (restored) return;
     restored = true;
-    restoreAll();
-    if (bar)    bar.style.display = '';
-    if (note)   note.style.display = '';
-    if (status) status.style.display = '';
-    if (wasDark) document.body.classList.add('dark-mode');
-    document.body.style.maxWidth = origMaxWidth;
-    document.body.style.width    = origWidth;
-    if (wrapper) wrapper.style.paddingTop = origWrapperPaddingTop;
-    window.removeEventListener('afterprint', restore);
-    if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
+    clearTimeout(restoreTimer);
+    if (wasDark) {
+      document.body.classList.add('dark-mode');
+      wasDark = false;
+    }
+    // Clean up Safari-specific listeners
+    document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('focus', onFocus);
+    window.removeEventListener('pageshow', onPageShow);
   }
-  window.addEventListener('afterprint', restore);
-  const mql = window.matchMedia ? window.matchMedia('print') : null;
-  function onMqlChange(e) { if (!e.matches) restore(); }
-  if (mql && mql.addEventListener) mql.addEventListener('change', onMqlChange);
 
-  // STEP 4: wait 1.5 s in light mode so Safari fully repaints, then open print dialog
-  void document.body.offsetHeight;
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      forceLightMode();
-      void document.body.offsetHeight;
-      setTimeout(() => {
-        window.print();
-        // Do NOT restore here — afterprint fires when user closes dialog
-      }, 1500);
-    });
+  // afterprint — works on Chrome/desktop, unreliable on Safari
+  window.addEventListener('afterprint', restoreDark);
+
+  // beforeprint — set up Safari-specific restore triggers
+  window.addEventListener('beforeprint', function() {
+    forceLightForPrint();
+    var wentHidden = false;
+
+    // visibilitychange fires when print dialog opens/closes on most iOS
+    function onVisibility() {
+      if (document.hidden) { wentHidden = true; }
+      else if (wentHidden) { restoreDark(); }
+    }
+    // focus fires on iPhone when returning from print dialog
+    function onFocus() { if (wentHidden) restoreDark(); }
+    // pageshow fires on return in some Safari versions
+    function onPageShow() { setTimeout(restoreDark, 200); }
+
+    // Store as named refs so we can remove them in restoreDark
+    window.onVisibility = onVisibility;
+    window.onFocus = onFocus;
+    window.onPageShow = onPageShow;
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('pageshow', onPageShow, { once: true });
   });
-}
+
+  // Make refs accessible to restoreDark cleanup
+  function onVisibility() {}
+  function onFocus() {}
+  function onPageShow() {}
+})();
 
 /* ================================================================
    PRINT — TEXTAREA PROXY DIVS
