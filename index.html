@@ -38,6 +38,49 @@ html, body { height: 100%; overflow-x: hidden; }
 body { font-family: var(--font-body); background: var(--bg-dark); color: var(--text); min-height: 100vh; position: relative; }
 #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 
+/* CACHE PROGRESS TOAST */
+#cache-progress {
+  display: none;
+  position: fixed;
+  bottom: 24px; left: 24px;
+  z-index: 9997;
+  width: 220px;
+  background: rgba(11,16,35,0.97);
+  border: 1px solid rgba(0,212,255,0.35);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  box-shadow: 0 0 30px rgba(0,212,255,0.1), 0 12px 40px rgba(0,0,0,0.5);
+  animation: toastIn 0.3s ease forwards;
+}
+#cache-progress.visible { display: block; }
+#cache-progress-title {
+  font-family: var(--font-display);
+  font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 2px; color: var(--blue-electric);
+  text-transform: uppercase; margin-bottom: 8px;
+}
+#cache-progress-bar-wrap {
+  height: 4px; background: rgba(255,255,255,0.08);
+  border-radius: 4px; overflow: hidden; margin-bottom: 7px;
+}
+#cache-progress-bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--blue-electric), var(--yellow-bright));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+#cache-progress-pct {
+  font-size: 0.68rem; color: var(--blue-electric);
+  letter-spacing: 1px; float: right; margin-bottom: 4px;
+}
+#cache-progress-label {
+  font-size: 0.58rem; letter-spacing: 1px;
+  color: var(--text-dim); text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  clear: both;
+}
+
 /* OFFLINE BANNER */
 #offline-banner { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 9999; padding: 10px 20px; background: rgba(6,9,19,0.97); border-bottom: 1px solid var(--orange); text-align: center; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 3px; color: var(--orange-bright); text-transform: uppercase; animation: bannerPulse 2s ease-in-out infinite; }
 #offline-banner.visible { display: block; }
@@ -181,6 +224,16 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 <body>
 <canvas id="bg-canvas"></canvas>
 <div id="offline-banner">No network connection · Hub available offline</div>
+
+<!-- CACHE PROGRESS TOAST -->
+<div id="cache-progress">
+  <div id="cache-progress-title">&#9889; Caching Files</div>
+  <div id="cache-progress-pct">0%</div>
+  <div id="cache-progress-bar-wrap">
+    <div id="cache-progress-bar"></div>
+  </div>
+  <div id="cache-progress-label">Starting...</div>
+</div>
 <div id="update-toast">
   <div id="update-toast-header">
     <div><div id="update-toast-title">Update Available</div><div id="update-toast-version"></div></div>
@@ -3350,6 +3403,26 @@ if('serviceWorker' in navigator){
       console.log('[SW] Registered');
     }).catch(function(err){console.warn('[SW] Failed:',err);});
     navigator.serviceWorker.addEventListener('controllerchange',function(){window.location.reload();});
+
+    // Cache progress listener
+    navigator.serviceWorker.addEventListener('message', function(e) {
+      if (!e.data || e.data.action !== 'CACHE_PROGRESS') return;
+      var toast  = document.getElementById('cache-progress');
+      var bar    = document.getElementById('cache-progress-bar');
+      var pct    = document.getElementById('cache-progress-pct');
+      var label  = document.getElementById('cache-progress-label');
+      var title  = document.getElementById('cache-progress-title');
+      toast.classList.add('visible');
+      bar.style.width   = e.data.percent + '%';
+      pct.textContent   = e.data.percent + '%';
+      label.textContent = e.data.label || '';
+      if (e.data.done) {
+        title.textContent = '✓ Cache Ready';
+        title.style.color = 'var(--green)';
+        bar.style.background = 'var(--green)';
+        setTimeout(function(){ toast.classList.remove('visible'); }, 3000);
+      }
+    });
   });
   document.getElementById('update-reload-btn').addEventListener('click',function(){if(waitingWorker)waitingWorker.postMessage({action:'SKIP_WAITING'});});
   document.getElementById('update-toast-later').addEventListener('click',function(){document.getElementById('update-toast').classList.remove('visible');});
