@@ -1585,8 +1585,46 @@ function capturePageToCanvas() {
           onclone: function(clonedDoc) {
             // Hide ::before pseudo-elements in clone
             var st = clonedDoc.createElement('style');
-            st.textContent = '.section-header::before,.col-label::before{display:none!important;content:none!important;width:0!important;height:0!important;}';
+            st.textContent = [
+              '.section-header::before,.col-label::before{display:none!important;content:none!important;width:0!important;height:0!important;}',
+              // Hide real checkboxes/radios — html2canvas ignores accent-color
+              // We replace checked ones with visible amber spans below
+              '.check-item input[type=checkbox],.check-item input[type=radio]{opacity:0!important;position:absolute!important;width:0!important;height:0!important;}',
+            ].join('');
             clonedDoc.head.appendChild(st);
+
+            // Replace checked checkboxes/radios with amber styled spans
+            clonedDoc.querySelectorAll('.check-item input[type=checkbox], .check-item input[type=radio]').forEach(function(input) {
+              var box = clonedDoc.createElement('span');
+              var isChecked = input.checked;
+              var isRadio = input.type === 'radio';
+              box.style.cssText = [
+                'display:inline-block!important',
+                'width:13px!important',
+                'height:13px!important',
+                'min-width:13px!important',
+                'min-height:13px!important',
+                'flex-shrink:0!important',
+                'border-radius:' + (isRadio ? '50%' : '2px') + '!important',
+                'border:1.5px solid ' + (isChecked ? '#D97706' : '#9CA3AF') + '!important',
+                'background:' + (isChecked ? '#D97706' : 'transparent') + '!important',
+                'vertical-align:middle!important',
+                'margin-right:3px!important',
+                'box-sizing:border-box!important',
+                'position:relative!important',
+              ].join(';');
+              // Add checkmark for checked state
+              if (isChecked) {
+                var check = clonedDoc.createElement('span');
+                check.style.cssText = isRadio
+                  ? 'display:block!important;width:5px!important;height:5px!important;background:#fff!important;border-radius:50%!important;position:absolute!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;'
+                  : 'display:block!important;width:7px!important;height:4px!important;border-left:2px solid #fff!important;border-bottom:2px solid #fff!important;position:absolute!important;top:3px!important;left:2px!important;transform:rotate(-45deg)!important;';
+                box.appendChild(check);
+              }
+              // Insert before the input
+              input.parentNode.insertBefore(box, input);
+            });
+
             // Dots already injected into live DOM pre-clone — just ensure they are in clone too
             clonedDoc.querySelectorAll('.section-header, .col-label').forEach(function(el) {
               if (!el.querySelector('[data-capture-dot]')) {
