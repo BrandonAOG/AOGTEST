@@ -8,7 +8,6 @@
 <title>Always On Generators - Maintenance Report</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#FBBF24">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -40,314 +39,10 @@
   --font-body: 'Exo 2', sans-serif;
   --icon-color-primary: #D97706;
   --icon-color-section: #D97706;
+}
 
-  /* ╔══════════════════════════════════════════════╗
-     ║  SECTION 1 — PAGE CHROME                    ║
-     ║  Logo, header bar, corner brackets,          ║
-     ║  dark/light toggle, action buttons,          ║
-     ║  section blocks.                             ║
-     ╚══════════════════════════════════════════════╝ */
-
-  /* ── 1a. AOG Logo size ── */
-  --logo-size-screen:          36px;   /* logo square on screen — phone                  */
-  --logo-size-screen-ipad:     36px;   /* logo square on screen — iPad                   */
-  --logo-size-screen-desktop:  36px;   /* logo square on screen — desktop                */
-  --logo-size-print:           36px;   /* logo square in PDF — phone                     */
-  --logo-size-print-ipad:      36px;   /* logo square in PDF — iPad                      */
-  --logo-size-print-desktop:   36px;   /* logo square in PDF — desktop                   */
-
-  /* ── 1b. Page corner brackets ── */
-  --corner-size-phone:         24px;   /* decorative L-brackets at page corners — phone  */
-  --corner-size-ipad:          24px;   /* — iPad                                         */
-  --corner-size-desktop:       24px;   /* — desktop                                      */
-
-  /* ── 1c. Header bar ── */
-  --header-min-height-phone:   56px;   /* minimum height of the top header bar — phone   */
-  --header-min-height-ipad:    56px;   /* — iPad                                         */
-  --header-min-height-desktop: 56px;   /* — desktop                                      */
-  --header-gap-phone:          8px;    /* gap between elements inside the header — phone */
-  --header-gap-ipad:           8px;    /* — iPad                                         */
-  --header-gap-desktop:        8px;    /* — desktop                                      */
-  --header-logo-pad-phone:     30px;   /* left indent of the logo / title group — phone  */
-  --header-logo-pad-ipad:      30px;   /* — iPad                                         */
-  --header-logo-pad-desktop:   30px;   /* — desktop                                      */
-
-  /* ── 1d. Dark / Light mode toggle button ── */
-  --theme-btn-size-phone:      36px;   /* toggle button width & height — phone           */
-  --theme-btn-size-ipad:       36px;   /* — iPad                                         */
-  --theme-btn-size-desktop:    36px;   /* — desktop                                      */
-  --theme-btn-padding-phone:   5px;    /* padding inside toggle button — phone           */
-  --theme-btn-padding-ipad:    5px;    /* — iPad                                         */
-  --theme-btn-padding-desktop: 5px;    /* — desktop                                      */
-  --theme-icon-size-phone:     16px;   /* moon / sun icon size — phone                   */
-  --theme-icon-size-ipad:      16px;   /* — iPad                                         */
-  --theme-icon-size-desktop:   16px;   /* — desktop                                      */
-
-  /* ── 1e. Action bar buttons (PDF, Excel, Load, Clear…) ── */
-  --btn-font-size-phone:       0.55rem; /* button label text size — phone                */
-  --btn-font-size-ipad:        0.55rem; /* — iPad                                        */
-  --btn-font-size-desktop:     0.55rem; /* — desktop                                     */
-  --btn-padding-phone:         5px 10px; /* space inside each button — phone             */
-  --btn-padding-ipad:          5px 10px; /* — iPad                                       */
-  --btn-padding-desktop:       5px 10px; /* — desktop                                    */
-  --btn-min-height-phone:      30px;   /* minimum button height — phone                  */
-  --btn-min-height-ipad:       30px;   /* — iPad                                         */
-  --btn-min-height-desktop:    30px;   /* — desktop                                      */
-  --btn-gap-phone:             4px;    /* gap between icon and label inside button — phone*/
-  --btn-gap-ipad:              4px;    /* — iPad                                         */
-  --btn-gap-desktop:           4px;    /* — desktop                                      */
-
-  /* ── 1f. Section title bars ── */
-  --section-dot-size-phone:    4px;    /* glowing dot before each section title — phone  */
-  --section-dot-size-ipad:     4px;    /* — iPad                                         */
-  --section-dot-size-desktop:  4px;    /* — desktop                                      */
-  --section-gap-phone:         6px;    /* gap between the dot and the title text — phone */
-  --section-gap-ipad:          6px;    /* — iPad                                         */
-  --section-gap-desktop:       6px;    /* — desktop                                      */
-  --section-margin-phone:      4px;    /* space below each section block — phone         */
-  --section-margin-ipad:       4px;    /* — iPad                                         */
-  --section-margin-desktop:    4px;    /* — desktop                                      */
-
-  /* ╔══════════════════════════════════════════════╗
-     ║  SECTION 2 — FONT SIZES                     ║
-     ║  Controls how big text appears on screen     ║
-     ║  and in PDF. Organized by device then        ║
-     ║  screen vs print.                            ║
-     ╚══════════════════════════════════════════════╝ */
-
-  /* ── 2a. Screen — all devices share these unless overridden ── */
-  --fs-company-name:           0.85rem;  /* "Always On Generators" in the header         */
-  --fs-doc-title:              0.9rem;   /* "Maintenance Report" in the header           */
-  --fs-section-header:         0.6rem;   /* section title bars (Battery, Generator…)     */
-  --fs-label:                  0.5rem;   /* field labels (Name, Address, Tech…)          */
-  --fs-input:                  0.7rem;   /* text inside every input field                */
-  --fs-input-date:             0.7rem;   /* text inside date fields                      */
-  --fs-textarea:               0.65rem;  /* text inside note boxes                       */
-  --fs-placeholder:            0.65rem;  /* placeholder text inside inputs               */
-  --fs-check-item:             0.5rem;   /* checkbox & radio option text                 */
-  --fs-yn-label:               0.55rem;  /* Y / N toggle button text                     */
-  --fs-footer:                 0.48rem;  /* footer confidential text on screen           */
-  --fs-test-item-label:        0.5rem;   /* test grid labels (Voltage, CCA, SOH…)        */
-
-  /* ── 2b. PDF — phone (base for all print) ── */
-  --fs-print-company-name:     1.05rem;  /* "Always On Generators" in PDF               */
-  --fs-print-doc-title:        1.05rem;  /* "Maintenance Report" in PDF                 */
-  --fs-print-section-header:   0.52rem;  /* section title bars in PDF                   */
-  --fs-print-label:            0.49rem;  /* field labels in PDF                         */
-  --fs-print-field-label:      0.62rem;  /* field-row specific labels in PDF            */
-  --fs-print-input:            0.62rem;  /* text inside inputs in PDF                   */
-  --fs-print-textarea:         0.57rem;  /* text inside note boxes in PDF               */
-  --fs-print-check-item:       0.47rem;  /* checkbox text in PDF                        */
-  --fs-print-yn-label:         0.47rem;  /* Y / N button text in PDF                    */
-  --fs-print-footer:           0.48rem;  /* footer text in PDF                          */
-  --fs-print-test-label:       0.47rem;  /* test grid labels in PDF                     */
-
-  /* ── 2c. PDF — macOS Safari ── */
-  --fs-print-macos-company-name:   1.05rem;
-  --fs-print-macos-doc-title:      1.05rem;
-  --fs-print-macos-section-header: 0.52rem;
-  --fs-print-macos-label:          0.57rem;  /* field labels in macOS PDF               */
-  --fs-print-macos-field-label:    0.62rem;
-  --fs-print-macos-field-row:      0.49rem;  /* field row font size in macOS PDF        */
-  --fs-print-macos-input:          0.49rem;  /* inputs in macOS PDF                     */
-  --fs-print-macos-check-item:     0.47rem;
-  --fs-print-macos-yn-label:       0.47rem;
-  --fs-print-macos-footer:         0.48rem;
-  --fs-print-macos-base:           17px;     /* base html font-size for macOS print     */
-
-  /* ── 2d. PDF — iPhone Safari ── */
-  --fs-print-ios-input:            0.62rem;  /* inputs in iPhone PDF                    */
-  --fs-print-ios-textarea-notes:   0.57rem;  /* Battery & Generator note boxes          */
-  --fs-print-ios-textarea-small:   0.57rem;  /* Oil, Gas & Transfer switch note boxes   */
-
-  /* ── 2e. PDF — iPad Safari ── */
-  --fs-print-ipad-company-name:    1.05rem;
-  --fs-print-ipad-doc-title:       1.05rem;
-  --fs-print-ipad-section-header:  0.52rem;
-  --fs-print-ipad-label:           0.57rem;  /* field labels in iPad PDF                */
-  --fs-print-ipad-input:           0.62rem;  /* inputs in iPad PDF                      */
-  --fs-print-ipad-check-item:      0.47rem;
-  --fs-print-ipad-yn-label:        0.47rem;
-  --fs-print-ipad-footer:          0.48rem;
-  --fs-print-ipad-viewport-base:   18px;     /* base html font-size for iPad print      */
-
-  /* ── 2f. PDF — Android Chrome ── */
-  --fs-print-chrome-input:         0.62rem;  /* inputs in Chrome PDF                    */
-  --fs-print-chrome-textarea-notes:0.57rem;  /* Battery & Generator note boxes          */
-  --fs-print-chrome-textarea-small:0.57rem;  /* Oil, Gas & Transfer switch note boxes   */
-
-  /* ╔══════════════════════════════════════════════╗
-     ║  SECTION 3 — PADDING                        ║
-     ║  Controls breathing room inside elements.   ║
-     ║  Format: top/bottom left/right              ║
-     ╚══════════════════════════════════════════════╝ */
-
-  /* ── 3a. Screen — all devices ── */
-  --pd-header:              6px 16px;         /* inside the top header bar               */
-  --pd-content:             8px 10px;         /* outer page margins around all sections  */
-  --pd-section-header:      3px 10px;         /* inside each section title bar           */
-  --pd-section-body:        4px 8px;          /* inside each section below the title bar */
-  --pd-input:               2px 4px;          /* inside text fields                      */
-  --pd-input-date:          2px 3px;          /* inside date fields                      */
-  --pd-textarea:            2px 3px;          /* inside note boxes                       */
-  --pd-check-item:          1px 5px 1px 3px;  /* checkbox & radio pill padding           */
-  --pd-yn-label:            0 8px;            /* Y / N toggle button side padding        */
-  --pd-footer:              12px 10px 4px 10px; /* footer bar                           */
-
-  /* ── 3b. PDF — phone (base) ── */
-  --pd-print-header:        5px 10px;         /* header bar in PDF                       */
-  --pd-print-content:       3px 0;            /* outer margins in PDF                    */
-  --pd-print-section-header:3px 7px;          /* section title bars in PDF              */
-  --pd-print-section-body:  3px 6px;          /* section body padding in PDF            */
-  --pd-print-input:         0 2px;            /* text inputs in PDF                      */
-  --pd-print-textarea:      1px 3px;          /* note boxes in PDF                       */
-  --pd-print-check-item:    1px 5px 1px 3px;  /* checkbox pills in PDF                  */
-  --pd-print-yn-label:      0 5px;            /* Y / N buttons in PDF                    */
-  --pd-print-footer:        4px 2px;          /* footer bar in PDF                       */
-
-  /* ── 3c. PDF — macOS Safari ── */
-  --pd-print-macos-header:  5px 10px;
-  --pd-print-macos-footer:  4px 2px;
-  --pd-print-macos-yn-label:0 5px;
-  --pd-print-macos-page:    0px 4px 0px 4px;             /* full page padding for macOS PDF — top right bottom left   */
-
-  /* ── 3d. PDF — iPhone Safari ── */
-  --pd-print-ios-page:      0px 4px 0px 4px;             /* full page padding for iPhone PDF — top right bottom left  */
-
-  /* ── 3e. PDF — iPad Safari ── */
-  --pd-print-ipad-page:     0px 4px 0px 4px;             /* full page padding for iPad PDF — top right bottom left    */
-  --pd-print-ipad-footer:   4px 2px;          /* footer bar in iPad PDF                  */
-  --pd-print-ipad-yn-label: 0 5px;            /* Y / N buttons in iPad PDF               */
-
-  /* ── 3f. PDF — Android Chrome ── */
-  --pd-print-chrome-page:   0px 4px 0px 4px;             /* full page padding for Chrome PDF — top right bottom left  */
-
-  /* ╔══════════════════════════════════════════════╗
-     ║  SECTION 4 — ELEMENT HEIGHTS                ║
-     ║  Controls how tall inputs, buttons, and     ║
-     ║  note boxes are. Raise these when you raise ║
-     ║  font size so text doesn't get clipped.     ║
-     ╚══════════════════════════════════════════════╝ */
-
-  /* ── 4a. Screen — all devices ── */
-  --h-input:                28px;   /* text & number inputs                            */
-  --h-input-date:           28px;   /* date inputs                                     */
-  --h-check-item:           24px;   /* checkbox & radio pills                          */
-  --h-yn-group:             26px;   /* Y / N toggle group box                          */
-  --h-yn-label:             26px;   /* Y / N individual button                         */
-
-  /* ── 4b. Screen — note boxes (phone) ── */
-  --h-phone-batnotes:       60px;   /* Battery notes text box — phone screen           */
-  --h-phone-gennotes:       60px;   /* Generator notes text box — phone screen         */
-  --h-phone-oilnotes:       50px;   /* Oil & Filter notes text box — phone screen      */
-  --h-phone-gasnotes:       50px;   /* Gas system notes text box — phone screen        */
-
-  /* ── 4c. Screen — note boxes (iPad) ── */
-  --h-ipad-batnotes:        60px;
-  --h-ipad-gennotes:        60px;
-  --h-ipad-oilnotes:        50px;
-  --h-ipad-gasnotes:        50px;
-
-  /* ── 4d. Screen — note boxes (desktop) ── */
-  --h-desktop-batnotes:     60px;
-  --h-desktop-gennotes:     60px;
-  --h-desktop-oilnotes:     50px;
-  --h-desktop-gasnotes:     50px;
-
-  /* ── 4e. PDF — phone (base) ── */
-  --h-print-input:          16px;   /* text inputs in PDF                              */
-  --h-print-yn-group:       18px;   /* Y / N group box in PDF                          */
-  --h-print-yn-label:       18px;   /* Y / N button height in PDF                      */
-  --h-print-batnotes:       62px;   /* Battery notes box in PDF                        */
-  --h-print-gennotes:       62px;   /* Generator notes box in PDF                      */
-  --h-print-oilnotes:       30px;   /* Oil & Filter notes box in PDF                   */
-  --h-print-gasnotes:       30px;   /* Gas system notes box in PDF                     */
-  --h-print-tsnotes:        30px;   /* Transfer switch notes box in PDF                */
-
-  /* ── 4f. PDF — macOS Safari ── */
-  --h-print-macos-input:    16px;
-  --h-print-macos-yn-group: 18px;
-  --h-print-macos-batnotes: 62px;
-  --h-print-macos-gennotes: 62px;
-  --h-print-macos-oilnotes: 30px;
-  --h-print-macos-gasnotes: 30px;
-  --h-print-macos-tsnotes:  30px;
-
-  /* ── 4g. PDF — iPhone Safari ── */
-  --h-print-ios-batnotes:   53px;   /* Battery & Generator notes on iPhone PDF         */
-  --h-print-ios-gennotes:   53px;
-  --h-print-ios-oilnotes:   26px;   /* Oil, Gas & Transfer switch notes on iPhone PDF  */
-  --h-print-ios-gasnotes:   26px;
-  --h-print-ios-tsnotes:    26px;
-
-  /* ── 4h. PDF — iPad Safari ── */
-  --h-print-ipad-input:     16px;   /* text inputs in iPad PDF                         */
-  --h-print-ipad-yn-group:  18px;   /* Y / N group box in iPad PDF                     */
-  --h-print-ipad-batnotes:  62px;   /* Battery notes box in iPad PDF                   */
-  --h-print-ipad-gennotes:  62px;   /* Generator notes box in iPad PDF                 */
-  --h-print-ipad-oilnotes:  30px;   /* Oil & Filter notes box in iPad PDF              */
-  --h-print-ipad-gasnotes:  30px;   /* Gas system notes box in iPad PDF                */
-  --h-print-ipad-tsnotes:   30px;   /* Transfer switch notes box in iPad PDF           */
-
-  /* ── 4i. PDF — Android Chrome ── */
-  --h-print-chrome-batnotes:53px;
-  --h-print-chrome-gennotes:53px;
-  --h-print-chrome-oilnotes:26px;
-  --h-print-chrome-gasnotes:26px;
-  --h-print-chrome-tsnotes: 26px;
-
-  /* ╔══════════════════════════════════════════════╗
-     ║  SECTION 5 — INPUT FIELD WIDTHS             ║
-     ║  Controls how wide specific short inputs    ║
-     ║  are. ch = character widths, px = pixels.   ║
-     ╚══════════════════════════════════════════════╝ */
-
-  /* ── 5a. Phone ── */
-  --w-phone-tech:            165px;  /* Technician name input                           */
-  --w-phone-model:           100px;  /* Generator model number input                    */
-  --w-phone-serial:          100px;  /* Generator serial number input                   */
-  --w-phone-hours:            60px;  /* Runtime hours input                             */
-  --w-phone-dare:            135px;  /* Battery brand/manufacturer input                */
-  --w-phone-filterpart:      135px;  /* Oil filter part number input                    */
-  --w-phone-signal:           40px;  /* Cell signal strength input                      */
-
-  /* ── 5b. iPad ── */
-  --w-ipad-tech:             165px;
-  --w-ipad-model:            100px;
-  --w-ipad-serial:           100px;
-  --w-ipad-hours:             60px;
-  --w-ipad-dare:             135px;
-  --w-ipad-filterpart:       135px;
-  --w-ipad-signal:            40px;
-
-  /* ── 5c. Desktop ── */
-  --w-desktop-tech:          165px;
-  --w-desktop-model:         100px;
-  --w-desktop-serial:        100px;
-  --w-desktop-hours:          60px;
-  --w-desktop-dare:          135px;
-  --w-desktop-filterpart:    135px;
-  --w-desktop-signal:         40px;
-
-  /* ╔══════════════════════════════════════════════╗
-     ║  SECTION 6 — LABEL GAPS & MISC SPACING      ║
-     ║  Small gaps between adjacent labels and      ║
-     ║  fields that don't fit into padding.         ║
-     ╚══════════════════════════════════════════════╝ */
-
-  --gap-phone-genvolt:       12px;   /* space before the "Voltage" label — phone        */
-  --gap-ipad-genvolt:        12px;   /* — iPad                                          */
-  --gap-desktop-genvolt:     12px;   /* — desktop                                       */
-
-  /* ╔══════════════════════════════════════════════╗
-     ║  SECTION 7 — FOOTER TEXT SIZES              ║
-     ║  The confidential line at the bottom of      ║
-     ║  the page. Kept separate for easy access.    ║
-     ╚══════════════════════════════════════════════╝ */
-
-  --fs-screen-footer:        0.48rem;  /* footer text on screen (all devices)           */
-  --fs-print-footer-base:    0.48rem;  /* footer text in PDF — phone base               */
-  --fs-print-macos-footer:   0.48rem;  /* footer text in macOS Safari PDF               */
+body.dark-mode {
+  color-scheme: dark;
   --bg: #0A0E27;
   --bg2: #0F1535;
   --bg3: #1A2847;
@@ -421,7 +116,7 @@ body.dark-mode .page {
 .page::before, .page::after {
   content: '';
   position: absolute;
-  width: var(--corner-size-phone); height: var(--corner-size-phone);
+  width: 24px; height: 24px;
   border-color: var(--cyan);
   border-style: solid;
   z-index: 10;
@@ -430,7 +125,7 @@ body.dark-mode .page {
 .page::after  { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
 .page-corner-bl, .page-corner-br {
   position: absolute;
-  width: var(--corner-size-phone); height: var(--corner-size-phone);
+  width: 24px; height: 24px;
   border-color: var(--cyan);
   border-style: solid;
   z-index: 10;
@@ -445,7 +140,7 @@ body.dark-mode .page {
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none; }
   .header { flex-wrap: nowrap; gap: 6px; padding: 6px 8px; min-height: auto; justify-content: space-between; }
   .header-logo { flex: 0 1 auto; min-width: 0; overflow: hidden; padding-left: 30px; }
-  .logo-img { width: var(--logo-size-screen); height: var(--logo-size-screen); }
+  .logo-img { width: 36px; height: 36px; }
   .company-name { font-size: 0.75rem !important; letter-spacing: 0.5px !important; white-space: nowrap; }
   .doc-title { font-size: 0.75rem !important; letter-spacing: 1px !important; white-space: nowrap; }
 }
@@ -453,16 +148,16 @@ body.dark-mode .page {
 /* ── HEADER ── */
 .header {
   background: var(--panel);
-  padding: var(--pd-header);
+  padding: 6px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--header-gap-phone);
+  gap: 8px;
   border-bottom: 1px solid var(--border-bright);
   position: relative;
   overflow: hidden;
-  min-height: var(--header-min-height-phone);
+  min-height: 56px;
   page-break-after: avoid;
   break-after: avoid;
   margin: 0;
@@ -494,7 +189,7 @@ body.dark-mode .header::after {
 .header-logo { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 
 .logo-img {
-  width: var(--logo-size-screen); height: var(--logo-size-screen);
+  width: 40px; height: 40px;
   flex-shrink: 0;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(217,119,6,0.6)) drop-shadow(0 0 24px rgba(217,119,6,0.4)) brightness(1.1);
@@ -515,7 +210,7 @@ body.dark-mode .logo-img {
 
 .company-name {
   font-family: var(--font-display);
-  font-size: var(--fs-company-name);
+  font-size: 0.85rem;
   color: var(--cyan);
   letter-spacing: 2px;
   line-height: 1.1;
@@ -531,7 +226,7 @@ body.dark-mode .company-name {
 
 .doc-title {
   font-family: var(--font-display);
-  font-size: var(--fs-doc-title);
+  font-size: 0.9rem;
   color: var(--amber);
   letter-spacing: 3px;
   text-shadow: 0 0 12px rgba(217,119,6,0.2);
@@ -548,8 +243,8 @@ body.dark-mode .doc-title {
 /* ── THEME TOGGLE ── */
 .theme-toggle-btn {
   position: relative;
-  width: var(--theme-btn-size-phone); height: var(--theme-btn-size-phone);
-  padding: var(--theme-btn-padding-phone);
+  width: 36px; height: 36px;
+  padding: 5px;
   border: 1px solid rgba(217,119,6,0.4);
   background: rgba(217,119,6,0.05);
   border-radius: 4px;
@@ -570,7 +265,7 @@ body.dark-mode .theme-toggle-btn:hover { background: rgba(0,255,200,0.12); borde
 .theme-toggle-btn:active { transform: scale(0.95); }
 
 .theme-icon {
-  width: var(--theme-icon-size-phone); height: var(--theme-icon-size-phone);
+  width: 16px; height: 16px;
   transition: all 0.3s ease;
   position: absolute;
   fill: none;
@@ -592,19 +287,19 @@ body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--btn-gap-phone);
-  padding: var(--btn-padding-phone);
+  gap: 4px;
+  padding: 5px 10px;
   border: 1px solid rgba(217,119,6,0.4);
   background: rgba(217,119,6,0.05);
   font-family: var(--font-display);
-  font-size: var(--btn-font-size-phone);
+  font-size: 0.55rem;
   font-weight: 500;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   cursor: pointer;
   color: var(--cyan);
   white-space: nowrap;
-  min-height: var(--btn-min-height-phone);
+  min-height: 30px;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: all 0.15s;
@@ -620,7 +315,7 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
 
 /* ── CONTENT ── */
 .content {
-  padding: var(--pd-content);
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -634,7 +329,7 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
 /* ── SECTIONS ── */
 .section {
   border: 1px solid var(--border);
-  margin-bottom: var(--section-margin-phone);
+  margin-bottom: 4px;
   background: var(--panel);
   position: relative;
   transition: all 0.3s ease;
@@ -663,15 +358,15 @@ body.dark-mode .section::before {
   background: var(--bg3);
   color: var(--cyan);
   font-family: var(--font-display);
-  font-size: var(--fs-section-header);
+  font-size: 0.6rem;
   letter-spacing: 2.5px;
-  padding: var(--pd-section-header);
+  padding: 3px 10px;
   border-bottom: 1px solid var(--border);
   text-shadow: 0 0 6px rgba(217,119,6,0.15);
   font-weight: 500;
   display: flex;
   align-items: center;
-  gap: var(--section-gap-phone);
+  gap: 6px;
   transition: all 0.3s ease;
   text-transform: uppercase;
 }
@@ -684,7 +379,7 @@ body.dark-mode .section-header {
 .section-header::before {
   content: '';
   display: inline-block;
-  width: var(--section-dot-size-phone); height: var(--section-dot-size-phone);
+  width: 4px; height: 4px;
   background: var(--cyan);
   box-shadow: 0 0 4px var(--cyan);
   flex-shrink: 0;
@@ -697,7 +392,7 @@ body.dark-mode .section-header::before { background: #00FFC8; box-shadow: 0 0 6p
   50% { opacity: 0.4; transform: scale(0.7); }
 }
 
-.section-body { padding: var(--pd-section-body); transition: all 0.3s ease; }
+.section-body { padding: 4px 8px; transition: all 0.3s ease; }
 
 /* ── TWO-COLUMN ── */
 .two-column {
@@ -723,7 +418,7 @@ body.dark-mode .section-header::before { background: #00FFC8; box-shadow: 0 0 6p
 .field-row:last-child { margin-bottom: 0; }
 
 label {
-  font-size: var(--fs-label);
+  font-size: 0.5rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -746,17 +441,17 @@ input[type="number"],
 textarea,
 select {
   font-family: var(--font-mono);
-  font-size: var(--fs-input);
+  font-size: 0.7rem;
   color: var(--text);
   background: var(--panel);
   border: none;
   border-bottom: 1.5px solid rgba(217,119,6,0.25);
-  padding: var(--pd-input);
+  padding: 2px 4px;
   outline: none;
   width: 100%;
   transition: all 0.2s;
   border-radius: 0;
-  min-height: var(--h-input);
+  min-height: 28px;
   -webkit-appearance: none;
   appearance: none;
   caret-color: var(--cyan);
@@ -774,9 +469,9 @@ body.dark-mode select {
   caret-color: #00FFC8;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.5), inset 0 0 8px rgba(0,255,200,0.05);
 }
-input[type="date"] { min-height: var(--h-input-date); padding: var(--pd-input-date); cursor: pointer; color-scheme: light; }
+input[type="date"] { min-height: 28px; padding: 2px 3px; cursor: pointer; color-scheme: light; }
 body.dark-mode input[type="date"] { color-scheme: dark; }
-input::placeholder, textarea::placeholder { color: var(--text-dim) !important; opacity: 0.4; font-size: var(--fs-placeholder); }
+input::placeholder, textarea::placeholder { color: var(--text-dim) !important; opacity: 0.4; font-size: 0.65rem; }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
@@ -809,14 +504,14 @@ textarea {
   width: 100%;
   resize: vertical;
   border: 1px solid rgba(217,119,6,0.15);
-  padding: var(--pd-textarea);
+  padding: 2px 3px;
   margin-top: 1px;
   min-height: auto !important;
   max-height: none !important;
   background: var(--panel);
   color: var(--text);
   transition: all 0.3s ease;
-  font-size: var(--fs-textarea);
+  font-size: 0.65rem;
   line-height: 1.2;
 }
 body.dark-mode textarea { background: rgba(10,14,39,0.6); border-color: rgba(0,255,200,0.1); color: #E0F7FF; }
@@ -838,15 +533,15 @@ body.dark-mode textarea:focus { border-color: #00FFC8; box-shadow: 0 0 6px rgba(
   gap: 3px;
   cursor: pointer;
   user-select: none;
-  min-height: var(--h-check-item);
-  padding: var(--pd-check-item);
+  min-height: 24px;
+  padding: 1px 5px 1px 3px;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   border: 0.5px solid rgba(217,119,6,0.25);
   background: rgba(217,119,6,0.02);
   transition: all 0.15s;
   clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
-  font-size: var(--fs-check-item);
+  font-size: 0.5rem;
 }
 body.dark-mode .check-item { background: rgba(26,40,71,0.3); border-color: rgba(0,255,200,0.1); }
 .check-item:hover { border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.05); }
@@ -871,7 +566,7 @@ body.dark-mode .check-item input[type="radio"] { accent-color: #00FFC8; }
 
 .check-item span {
   font-family: var(--font-display);
-  font-size: var(--fs-check-item);
+  font-size: 0.5rem;
   font-weight: 500;
   letter-spacing: 0.6px;
   color: var(--text);
@@ -902,22 +597,22 @@ body.dark-mode .check-item:has(input:checked) span { color: #D97706; font-weight
   flex-shrink: 0;
   background: var(--panel);
   transition: all 0.3s ease;
-  height: var(--h-yn-group);
+  height: 26px;
   position: relative;
 }
 body.dark-mode .yn-group { background: rgba(15,21,53,0.7); border-color: rgba(0,255,200,0.1); }
 .yn-group input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
 .yn-group .yn-label {
-  padding: var(--pd-yn-label);
+  padding: 0 8px;
   font-family: var(--font-display);
-  font-size: var(--fs-yn-label);
+  font-size: 0.55rem;
   font-weight: 600;
   letter-spacing: 1.2px;
   cursor: pointer;
   color: var(--text-muted);
   background: transparent;
   border: none;
-  min-height: var(--h-yn-label);
+  min-height: 26px;
   display: flex;
   align-items: center;
   white-space: nowrap;
@@ -938,7 +633,7 @@ body.dark-mode .yn-group .yn-n:checked + .yn-label-n { background: #DC2626; colo
 /* ── FOOTER ── */
 .footer {
   background: var(--panel);
-  padding: var(--pd-footer);
+  padding: 12px 10px 4px 10px;
   padding-bottom: max(4px, env(safe-area-inset-bottom, 4px));
   display: flex;
   justify-content: space-between;
@@ -960,7 +655,7 @@ body.dark-mode .footer {
 }
 .footer-text {
   font-family: var(--font-display);
-  font-size: var(--fs-footer);
+  font-size: 0.48rem;
   color: var(--text-dim);
   letter-spacing: 1.5px;
   transition: color 0.3s ease;
@@ -1006,43 +701,43 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
      zoom:   shrinks/grows entire page  (0.93 = 93%)
      margin: on .page — NOT body — to stay centered after zoom
      padding-bottom: keeps the bottom border inside the printable area */
-  html.macos { font-size: var(--fs-print-macos-base) !important; }
+  html.macos { font-size: 17px !important; }
   html.macos body { zoom: 0.93 !important; margin: 0 !important; }
   html.macos .page {
     border: 1.5px solid #D97706 !important;
-    padding: var(--pd-print-macos-page) !important;
+    padding: 24px !important;
     padding-bottom: 0.3in !important;   /* ← prevents bottom border clipping */
     margin: 0.2in auto 0 !important;    /* ← centers after zoom, not body margin */
     max-width: 95% !important;
   }
-  html.macos .company-name  { font-size: var(--fs-print-macos-company-name) !important; }
-  html.macos .doc-title     { font-size: var(--fs-print-macos-doc-title) !important; }
+  html.macos .company-name  { font-size: 1.05rem !important; }
+  html.macos .doc-title     { font-size: 1.05rem !important; }
   html.macos .logo-img      { width: 46px !important; height: 46px !important; }
-  html.macos .header        { margin-bottom: 4px !important; padding: var(--pd-print-macos-header) !important; }
-  html.macos .section-header { font-size: var(--fs-print-macos-section-header) !important; letter-spacing: 0.3px !important; }
+  html.macos .header        { margin-bottom: 4px !important; padding: 5px 10px !important; }
+  html.macos .section-header { font-size: 0.52rem !important; letter-spacing: 0.3px !important; }
   html.macos .section       { margin-bottom: 3px !important; }
-  html.macos .field-row     { font-size: var(--fs-print-macos-field-row) !important; gap: 3px !important; line-height: 1.4 !important; }
-  html.macos .field-row label { font-size: var(--fs-print-macos-field-label) !important; }
-  html.macos label          { font-size: var(--fs-print-macos-label) !important; }
+  html.macos .field-row     { font-size: 0.49rem !important; gap: 3px !important; line-height: 1.4 !important; }
+  html.macos .field-row label { font-size: 0.62rem !important; }
+  html.macos label          { font-size: 0.57rem !important; }
   html.macos input[type="text"],
   html.macos input[type="date"],
   html.macos input[type="number"],
   html.macos textarea,
-  html.macos select         { font-size: var(--fs-print-macos-input) !important; min-height: var(--h-print-macos-input) !important; }
-  html.macos #batnotes      { min-height: var(--h-print-macos-batnotes) !important; height: var(--h-print-macos-batnotes) !important; }
-  html.macos #gennotes      { min-height: var(--h-print-macos-gennotes) !important; height: var(--h-print-macos-gennotes) !important; }
-  html.macos #oilnotes      { min-height: var(--h-print-macos-oilnotes) !important; height: var(--h-print-macos-oilnotes) !important; }
-  html.macos #gasnotes      { min-height: var(--h-print-macos-gasnotes) !important; height: var(--h-print-macos-gasnotes) !important; }
-  html.macos #tsnotes       { min-height: var(--h-print-macos-tsnotes) !important; height: var(--h-print-macos-tsnotes) !important; }
-  html.macos .check-item span { font-size: var(--fs-print-macos-check-item) !important; }
+  html.macos select         { font-size: 0.49rem !important; min-height: 16px !important; }
+  html.macos #batnotes,
+  html.macos #gennotes      { min-height: 62px !important; height: 62px !important; }
+  html.macos #oilnotes,
+  html.macos #gasnotes,
+  html.macos #tsnotes       { min-height: 30px !important; height: 30px !important; }
+  html.macos .check-item span { font-size: 0.47rem !important; }
   html.macos .check-item input[type="checkbox"],
   html.macos .check-item input[type="radio"] { width: 10px !important; height: 10px !important; }
-  html.macos .yn-group      { height: var(--h-print-macos-yn-group) !important; }
-  html.macos .yn-group .yn-label { font-size: var(--fs-print-macos-yn-label) !important; padding: var(--pd-print-macos-yn-label) !important; }
+  html.macos .yn-group      { height: 18px !important; }
+  html.macos .yn-group .yn-label { font-size: 0.47rem !important; padding: 0 5px !important; }
   html.macos .two-column    { gap: 3px !important; }
-  html.macos .footer        { margin-top: 4px !important; padding: var(--pd-print-macos-footer) !important; }
+  html.macos .footer        { margin-top: 4px !important; padding: 4px 2px !important; }
   html.macos .footer-text,
-  html.macos .footer span   { font-size: var(--fs-print-macos-footer) !important; }
+  html.macos .footer span   { font-size: 0.48rem !important; }
 
   /* Windows */
   html.windows .page { break-inside: avoid; page-break-inside: avoid; }
@@ -1071,63 +766,62 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: block !important; border-color: #D97706 !important; }
 
-  .header { display: flex !important; margin-bottom: 4px !important; padding: var(--pd-print-header) !important; border-bottom: 0.5px solid #D97706 !important; background: white !important; min-height: auto !important; }
+  .header { display: flex !important; margin-bottom: 4px !important; padding: 5px 10px !important; border-bottom: 0.5px solid #D97706 !important; background: white !important; min-height: auto !important; }
   .header::after { display: none !important; }
-  .logo-img { width: var(--logo-size-print) !important; height: var(--logo-size-print) !important; }
-  .company-name { color: #D97706 !important; text-shadow: none !important; font-size: var(--fs-print-company-name) !important; letter-spacing: 1px !important; }
-  .doc-title { color: #D97706 !important; text-shadow: none !important; font-size: var(--fs-print-doc-title) !important; letter-spacing: 1.5px !important; }
+  .logo-img { width: 46px !important; height: 46px !important; }
+  .company-name { color: #D97706 !important; text-shadow: none !important; font-size: 1.05rem !important; letter-spacing: 1px !important; }
+  .doc-title { color: #D97706 !important; text-shadow: none !important; font-size: 1.05rem !important; letter-spacing: 1.5px !important; }
 
   .toolbar, .action-bar, #action-bar, #save-status, button, .theme-toggle-btn, .home-btn { display: none !important; }
   #save-status { position: static !important; height: 0 !important; padding: 0 !important; overflow: hidden !important; }
 
-  .content { display: block !important; overflow: visible !important; padding: var(--pd-print-content) !important; margin: 0 !important; }
+  .content { display: block !important; overflow: visible !important; padding: 3px 0 !important; margin: 0 !important; }
 
   .footer {
     display: flex !important; justify-content: space-between !important; align-items: center !important;
-    margin-top: 4px !important; margin-bottom: 0 !important; padding: var(--pd-print-footer) !important;
+    margin-top: 4px !important; margin-bottom: 0 !important; padding: 4px 2px !important;
     border-top: 1px solid #D97706 !important; background: white !important;
     min-height: auto !important; height: auto !important;
     box-sizing: border-box !important; width: 100% !important; flex: none !important;
   }
-  .footer-text, .footer span { line-height: 1.4 !important; white-space: nowrap !important; font-size: var(--fs-print-footer) !important; }
+  .footer-text, .footer span { line-height: 1.4 !important; white-space: nowrap !important; font-size: 0.48rem !important; }
 
   .two-column { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 3px !important; margin-bottom: 3px !important; }
 
   .section { background: white !important; border: 0.5px solid #D97706 !important; margin-bottom: 3px !important; padding: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important; box-shadow: none !important; display: block !important; }
   .section::before { background: none !important; }
-  .section-header { background: #f5f5f5 !important; color: #D97706 !important; border-bottom: 0.5px solid #D97706 !important; text-shadow: none !important; padding: var(--pd-print-section-header) !important; font-size: var(--fs-print-section-header) !important; min-height: auto !important; display: flex !important; }
+  .section-header { background: #f5f5f5 !important; color: #D97706 !important; border-bottom: 0.5px solid #D97706 !important; text-shadow: none !important; padding: 3px 7px !important; font-size: 0.52rem !important; min-height: auto !important; display: flex !important; }
   .section-header::before { width: 3px !important; height: 3px !important; background: #D97706 !important; box-shadow: none !important; animation: none !important; }
-  .section-body { padding: var(--pd-print-section-body) !important; background: white !important; display: block !important; }
+  .section-body { padding: 3px 6px !important; background: white !important; display: block !important; }
 
   .field-row { display: flex !important; margin-bottom: 2px !important; gap: 3px !important; flex-wrap: wrap !important; }
-  label { color: #6B7280 !important; font-size: var(--fs-print-label) !important; letter-spacing: 0.3px !important; }
+  label { color: #6B7280 !important; font-size: 0.49rem !important; letter-spacing: 0.3px !important; }
 
   input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea, select {
     background: white !important; border-bottom: 0.5px solid #D97706 !important;
     border-top: none !important; border-left: none !important; border-right: none !important;
-    color: #1F2937 !important; min-height: var(--h-print-input) !important; padding: var(--pd-print-input) !important;
-    font-size: var(--fs-print-input) !important; box-shadow: none !important;
+    color: #1F2937 !important; min-height: 16px !important; padding: 0 2px !important;
+    font-size: 0.62rem !important; box-shadow: none !important;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  textarea { height: auto !important; min-height: 40px !important; background: white !important; border: 0.5px solid #D97706 !important; font-size: var(--fs-print-textarea) !important; padding: var(--pd-print-textarea) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  textarea { height: auto !important; min-height: 40px !important; background: white !important; border: 0.5px solid #D97706 !important; font-size: 0.57rem !important; padding: 1px 3px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  #batnotes { min-height: var(--h-print-batnotes) !important; height: var(--h-print-batnotes) !important; }
-  #gennotes { min-height: var(--h-print-gennotes) !important; height: var(--h-print-gennotes) !important; }
-  #oilnotes { min-height: var(--h-print-oilnotes) !important; height: var(--h-print-oilnotes) !important; }
-  #gasnotes { min-height: var(--h-print-gasnotes) !important; height: var(--h-print-gasnotes) !important; }
-  #tsnotes  { min-height: var(--h-print-tsnotes) !important; height: var(--h-print-tsnotes) !important; }
+  #batnotes, #gennotes { min-height: 62px !important; height: 62px !important; }
+  #oilnotes { min-height: 30px !important; height: 30px !important; }
+  #gasnotes { min-height: 30px !important; height: 30px !important; }
+  #tsnotes  { min-height: 30px !important; height: 30px !important; }
 
   .check-group { display: flex !important; flex-wrap: wrap !important; gap: 2px !important; }
-  .check-item { display: flex !important; min-height: auto !important; padding: var(--pd-print-check-item) !important; }
-  .check-item span { font-size: var(--fs-print-check-item) !important; }
+  .check-item { display: flex !important; min-height: auto !important; padding: 1px 5px 1px 3px !important; }
+  .check-item span { font-size: 0.47rem !important; }
   .check-item input[type="checkbox"], .check-item input[type="radio"] { width: 10px !important; height: 10px !important; min-height: 10px !important; min-width: 10px !important; }
 
   .test-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 3px !important; margin-top: 3px !important; }
   .test-item { display: flex !important; align-items: center !important; gap: 4px !important; }
-  .test-item label { min-width: 52px !important; font-size: var(--fs-print-test-label) !important; }
+  .test-item label { min-width: 52px !important; font-size: 0.47rem !important; }
 
-  .yn-group { border: 0.5px solid #D97706 !important; background: white !important; height: var(--h-print-yn-group) !important; display: inline-flex !important; }
-  .yn-group .yn-label { min-height: var(--h-print-yn-label) !important; padding: var(--pd-print-yn-label) !important; color: #6B7280 !important; border-right: 0.5px solid #D97706 !important; font-size: var(--fs-print-yn-label) !important; background: white !important; display: flex !important; align-items: center !important; }
+  .yn-group { border: 0.5px solid #D97706 !important; background: white !important; height: 18px !important; display: inline-flex !important; }
+  .yn-group .yn-label { min-height: 18px !important; padding: 0 5px !important; color: #6B7280 !important; border-right: 0.5px solid #D97706 !important; font-size: 0.47rem !important; background: white !important; display: flex !important; align-items: center !important; }
   .yn-group .yn-label:last-child { border-right: none !important; }
   .yn-group .yn-y:checked + .yn-label-y { background: #059669 !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .yn-group .yn-n:checked + .yn-label-n { background: #DC2626 !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -1158,64 +852,29 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.dark-mode .check-item { background: white !important; }
 }
 
-/* ── iPhone Safari print fix ── */
+/* ── Mobile Safari print fix ── */
 @media print {
-  body.mobile-safari:not(.ipad-safari) .page { zoom: 0.830; padding: var(--pd-print-ios-page) !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
-  body.mobile-safari:not(.ipad-safari) .two-column { grid-template-columns: 1fr 1fr !important; }
-  body.mobile-safari:not(.ipad-safari) .field-row-nowrap { flex-wrap: nowrap !important; }
-  body.mobile-safari:not(.ipad-safari) #name { flex: 0 1 50% !important; min-width: 0 !important; }
-  body.mobile-safari:not(.ipad-safari) #date, body.mobile-safari:not(.ipad-safari) #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
-  body.mobile-safari:not(.ipad-safari) input[type="text"],
-  body.mobile-safari:not(.ipad-safari) input[type="date"],
-  body.mobile-safari:not(.ipad-safari) input[type="number"] { font-size: var(--fs-print-ios-input) !important; }
-  body.mobile-safari:not(.ipad-safari) #batnotes,
-  body.mobile-safari:not(.ipad-safari) #gennotes { font-size: var(--fs-print-ios-textarea-notes) !important; min-height: var(--h-print-ios-batnotes) !important; height: var(--h-print-ios-batnotes) !important; }
-  body.mobile-safari:not(.ipad-safari) #oilnotes,
-  body.mobile-safari:not(.ipad-safari) #gasnotes,
-  body.mobile-safari:not(.ipad-safari) #tsnotes { font-size: var(--fs-print-ios-textarea-small) !important; min-height: var(--h-print-ios-oilnotes) !important; height: var(--h-print-ios-oilnotes) !important; }
-}
-
-/* ── iPad Safari print fix ── */
-@media print {
-  body.ipad-safari .page { zoom: 0.830; padding: var(--pd-print-ipad-page) !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
-  body.ipad-safari .two-column { grid-template-columns: 1fr 1fr !important; }
-  body.ipad-safari .field-row-nowrap { flex-wrap: nowrap !important; }
-  body.ipad-safari .logo-img { width: var(--logo-size-print-ipad) !important; height: var(--logo-size-print-ipad) !important; }
-  body.ipad-safari .company-name { font-size: var(--fs-print-ipad-company-name) !important; }
-  body.ipad-safari .doc-title    { font-size: var(--fs-print-ipad-doc-title) !important; }
-  body.ipad-safari .section-header { font-size: var(--fs-print-ipad-section-header) !important; }
-  body.ipad-safari label         { font-size: var(--fs-print-ipad-label) !important; }
-  body.ipad-safari input[type="text"],
-  body.ipad-safari input[type="date"],
-  body.ipad-safari input[type="number"] { font-size: var(--fs-print-ipad-input) !important; min-height: var(--h-print-ipad-input) !important; }
-  body.ipad-safari .check-item span { font-size: var(--fs-print-ipad-check-item) !important; }
-  body.ipad-safari .yn-group    { height: var(--h-print-ipad-yn-group) !important; }
-  body.ipad-safari .yn-group .yn-label { font-size: var(--fs-print-ipad-yn-label) !important; padding: var(--pd-print-ipad-yn-label) !important; }
-  body.ipad-safari .footer      { padding: var(--pd-print-ipad-footer) !important; }
-  body.ipad-safari .footer-text,
-  body.ipad-safari .footer span { font-size: var(--fs-print-ipad-footer) !important; }
-  body.ipad-safari #batnotes { min-height: var(--h-print-ipad-batnotes) !important; height: var(--h-print-ipad-batnotes) !important; }
-  body.ipad-safari #gennotes { min-height: var(--h-print-ipad-gennotes) !important; height: var(--h-print-ipad-gennotes) !important; }
-  body.ipad-safari #oilnotes { min-height: var(--h-print-ipad-oilnotes) !important; height: var(--h-print-ipad-oilnotes) !important; }
-  body.ipad-safari #gasnotes { min-height: var(--h-print-ipad-gasnotes) !important; height: var(--h-print-ipad-gasnotes) !important; }
-  body.ipad-safari #tsnotes  { min-height: var(--h-print-ipad-tsnotes) !important; height: var(--h-print-ipad-tsnotes) !important; }
+  body.mobile-safari .page { zoom: 0.830; padding: 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
+  body.mobile-safari .two-column { grid-template-columns: 1fr 1fr !important; }
+  body.mobile-safari .field-row-nowrap { flex-wrap: nowrap !important; }
+  body.mobile-safari #name { flex: 0 1 50% !important; min-width: 0 !important; }
+  body.mobile-safari #date, body.mobile-safari #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
+  body.mobile-safari #batnotes, body.mobile-safari #gennotes { min-height: 53px !important; height: 53px !important; }
+  body.mobile-safari #oilnotes, body.mobile-safari #gasnotes, body.mobile-safari #tsnotes { min-height: 26px !important; height: 26px !important; }
 }
 
 /* ── Mobile Chrome print fix (Android Chrome + Chrome on iOS) ── */
 @media print {
-  body.mobile-chrome .page { zoom: 0.99; padding: var(--pd-print-chrome-page) !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
+  body.mobile-chrome .page { zoom: 0.99; padding: 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
   body.mobile-chrome .two-column { grid-template-columns: 1fr 1fr !important; }
   body.mobile-chrome .field-row-nowrap { flex-wrap: nowrap !important; }
   body.mobile-chrome #name { flex: 0 1 50% !important; min-width: 0 !important; }
   body.mobile-chrome #date, body.mobile-chrome #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
-  body.mobile-chrome #batnotes { min-height: var(--h-print-chrome-batnotes) !important; height: var(--h-print-chrome-batnotes) !important; }
-  body.mobile-chrome #gennotes { min-height: var(--h-print-chrome-gennotes) !important; height: var(--h-print-chrome-gennotes) !important; }
-  body.mobile-chrome #oilnotes { min-height: var(--h-print-chrome-oilnotes) !important; height: var(--h-print-chrome-oilnotes) !important; }
-  body.mobile-chrome #gasnotes { min-height: var(--h-print-chrome-gasnotes) !important; height: var(--h-print-chrome-gasnotes) !important; }
-  body.mobile-chrome #tsnotes  { min-height: var(--h-print-chrome-tsnotes) !important; height: var(--h-print-chrome-tsnotes) !important; }
+  body.mobile-chrome #batnotes, body.mobile-chrome #gennotes { min-height: 53px !important; height: 53px !important; }
+  body.mobile-chrome #oilnotes, body.mobile-chrome #gasnotes, body.mobile-chrome #tsnotes { min-height: 26px !important; height: 26px !important; }
 }
 @media print and (min-width: 768px) and (max-width: 1366px) {
-  html { font-size: var(--fs-print-ipad-viewport-base) !important; }
+  html { font-size: 18px !important; }
   html, body { width: 8.5in !important; max-width: 8.5in !important; }
   .form-page, .page { width: 8.1in !important; max-width: 8.1in !important; margin: 0 auto !important; padding: 0.15in !important; box-sizing: border-box !important; }
 }
@@ -1253,9 +912,6 @@ body.dark-mode .action-bar {
   <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPHONE</button>
   <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 ANDROID</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
-  <button class="btn" onclick="saveAsExcel()">📊 EXCEL</button>
-  <button class="btn" onclick="document.getElementById('load-draft-input').click()">📂 LOAD</button>
-  <input type="file" id="load-draft-input" accept=".json,.xlsx" style="display:none;" onchange="loadDraftFile(this)">
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/>
@@ -1277,14 +933,12 @@ body.dark-mode .action-bar {
   var html = document.documentElement;
   var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad
   var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua) && !isCriOS; // Safari on iOS only
-  var isIPad     = /iPad/.test(ua) || (/Macintosh/.test(ua) && /Safari/.test(ua) && !(/Chrome/.test(ua)) && navigator.maxTouchPoints > 1); // iPad (including iPadOS 13+)
-  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && navigator.maxTouchPoints === 0;
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
   var isMobileChrome = isCriOS || (isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua));
 
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
-  if (isIPad)         html.classList.add('ios', 'mobile-safari', 'ipad-safari');
   if (isCriOS)        html.classList.add('ios');
   if (isMacOS)        html.classList.add('macos');
   if (isWindows)      html.classList.add('windows');
@@ -1293,7 +947,6 @@ body.dark-mode .action-bar {
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
-    if (isIPad)         document.body.classList.add('ios', 'mobile-safari', 'ipad-safari');
     if (isCriOS)        document.body.classList.add('ios');
     if (isMacOS)        document.body.classList.add('macos');
     if (isWindows)      document.body.classList.add('windows');
@@ -1307,8 +960,8 @@ body.dark-mode .action-bar {
 
 <div class="page" id="page">
   <div class="header">
-    <div class="header-logo" style="padding-left:var(--header-logo-pad-phone);">
-      <img src="https://raw.githubusercontent.com/BrandonAOG/AOG-Logo/main/logo.png" alt="logo" width="40" height="40" class="logo-img">
+    <div class="header-logo" style="padding-left:30px;">
+      <img src="../logo.png" alt="logo" width="40" height="40" class="logo-img">
       <div class="company-name">Always On<br>Generators</div>
     </div>
     <div class="doc-title">Maintenance Report</div>
@@ -1319,8 +972,6 @@ body.dark-mode .action-bar {
     <button class="btn" onclick="saveForIPhone()">📱 iPhone</button>
     <button class="btn" onclick="saveForAndroid()">🤖 Android</button>
     <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
-    <button class="btn" onclick="saveAsExcel()">📊 EXCEL</button>
-    <button class="btn" onclick="document.getElementById('load-draft-input').click()">📂 LOAD</button>
   </div>
 
   <div class="content">
@@ -1331,25 +982,25 @@ body.dark-mode .action-bar {
       <div class="section-body">
         <div class="field-row field-row-nowrap">
           <label for="name">Name</label>
-          <input type="text" id="name" class="long" placeholder="Name" title="Customer full name — First and Last">
+          <input type="text" id="name" class="long" placeholder="Name">
           <label for="number">Job #</label>
-          <input type="text" id="number" class="short" placeholder="12345" title="Job number — e.g. 12345">
+          <input type="text" id="number" class="short" placeholder="12345">
           <label for="date">Date</label>
-          <input type="date" id="date" class="med" title="Date of the maintenance visit">
+          <input type="date" id="date" class="med">
         </div>
         <div class="field-row field-row-nowrap">
           <label for="address">Address</label>
-          <input type="text" id="address" class="long" placeholder="Address" title="Customer street address">
+          <input type="text" id="address" class="long" placeholder="Address">
           <label for="tech">Tech</label>
-          <input type="text" id="tech" class="med" placeholder="Tech" title="Technician name performing the maintenance" style="width:var(--w-phone-tech);">
+          <input type="text" id="tech" class="med" placeholder="Tech" style="width:165px;">
         </div>
         <div class="field-row field-row-nowrap">
           <label for="model">Model</label>
-          <input type="text" id="model" class="med" placeholder="Model" title="Generator model number — e.g. RG02224ANAX" style="width:var(--w-phone-model);">
+          <input type="text" id="model" class="med" placeholder="Model" style="width:100px;">
           <label for="serial">Serial #</label>
-          <input type="text" id="serial" class="med" placeholder="Serial number" title="Generator serial number from the unit label" style="width:var(--w-phone-serial);">
+          <input type="text" id="serial" class="med" placeholder="Serial number" style="width:100px;">
           <label for="hours">Hrs</label>
-          <input type="number" id="hours" class="med" placeholder="500" title="Current runtime hours on the generator" style="width:var(--w-phone-hours);">
+          <input type="number" id="hours" class="med" placeholder="500" style="width:60px;">
         </div>
       </div>
     </div>
@@ -1385,19 +1036,19 @@ body.dark-mode .action-bar {
               <label class="yn-label yn-label-n" for="br_n">N</label>
             </div>
             <label for="voltage">V</label>
-            <input type="text" id="voltage" class="short" placeholder="12" title="Battery voltage reading — e.g. 12.6V">
+            <input type="text" id="voltage" class="short" placeholder="12">
           </div>
           <div class="field-row">
             <label for="cca">CCA</label>
-            <input type="text" id="cca" class="short" placeholder="500" title="Cold Cranking Amps reading from battery tester">
+            <input type="text" id="cca" class="short" placeholder="500">
             <label for="soh">SOH</label>
-            <input type="number" id="soh" class="short" placeholder="100" title="Battery State of Health percentage — 100% = new">
+            <input type="number" id="soh" class="short" placeholder="100">
           </div>
           <div class="field-row">
             <label for="brand">Brand</label>
-            <input type="text" id="dare" class="med" placeholder="Brand" title="Battery brand/manufacturer — e.g. Interstate, Optima" style="width:135px;">
+            <input type="text" id="dare" class="med" placeholder="Brand" style="width:135px;">
             <label for="batt-date">Date</label>
-            <input type="text" id="batt-date" class="med" placeholder="xx/xx" title="Battery manufacture date from label — e.g. 03/22">
+            <input type="text" id="batt-date" class="med" placeholder="xx/xx">
           </div>
           <div class="field-row">
             <label>Water</label>
@@ -1407,7 +1058,7 @@ body.dark-mode .action-bar {
               <label class="check-item"><input type="radio" name="water" value="add"><span>Add</span></label>
             </div>
           </div>
-          <textarea id="batnotes" placeholder="Battery notes..." title="Battery condition notes — corrosion, cable condition, replacement needed" style="height:var(--h-phone-batnotes);"></textarea>
+          <textarea id="batnotes" placeholder="Battery notes..." style="height:60px;"></textarea>
         </div>
       </div>
 
@@ -1420,8 +1071,8 @@ body.dark-mode .action-bar {
               <label class="check-item"><input type="radio" name="startup" value="norm"><span>Normal</span></label>
               <label class="check-item"><input type="radio" name="startup" value="abn"><span>Abnormal</span></label>
             </div>
-            <label for="genvolt" style="margin-left:var(--gap-phone-genvolt);">Voltage</label>
-            <input type="text" id="genvolt" class="short" placeholder="120/240" title="Generator output voltage reading — e.g. 120/240">
+            <label for="genvolt" style="margin-left:12px;">Voltage</label>
+            <input type="text" id="genvolt" class="short" placeholder="120/240">
           </div>
           <div class="field-row">
             <label>Case</label>
@@ -1441,7 +1092,7 @@ body.dark-mode .action-bar {
           </div>
           <div class="field-row">
             <label for="coolantadded">Added (oz)</label>
-            <input type="number" id="coolantadded" class="short" placeholder="0" title="Coolant added in quarts — 0 if none added">
+            <input type="number" id="coolantadded" class="short" placeholder="0">
           </div>
           <div class="field-row">
             <label>Wiring Check</label>
@@ -1472,9 +1123,9 @@ body.dark-mode .action-bar {
           </div>
           <div class="field-row">
             <label for="exercisetime">Exercise Schedule</label>
-            <input type="text" id="exercisetime" class="med" placeholder="e.g., Tues 11:00am" title="Generator exercise schedule — day and time — e.g. Tues 11:00am">
+            <input type="text" id="exercisetime" class="med" placeholder="e.g., Tues 11:00am">
           </div>
-          <textarea id="gennotes" placeholder="Generator notes..." title="Generator condition notes — unusual sounds, leaks, error codes, service needed" style="height:var(--h-phone-gennotes);"></textarea>
+          <textarea id="gennotes" placeholder="Generator notes..." style="height:60px;"></textarea>
         </div>
       </div>
     </div>
@@ -1497,9 +1148,9 @@ body.dark-mode .action-bar {
             <label class="yn-label yn-label-n" for="of_n">N</label>
           </div>
           <label for="filterpart">Part #</label>
-          <input type="text" id="filterpart" class="med" placeholder="Part #" title="Oil filter part number used — e.g. A047F001" style="width:135px;">
+          <input type="text" id="filterpart" class="med" placeholder="Part #" style="width:135px;">
         </div>
-        <textarea id="oilnotes" placeholder="Oil & filter notes..." title="Oil change notes — oil type used, quantity, condition at drain" style="min-height:var(--h-phone-oilnotes);"></textarea>
+        <textarea id="oilnotes" placeholder="Oil & filter notes..." style="min-height:50px;"></textarea>
       </div>
     </div>
 
@@ -1546,7 +1197,7 @@ body.dark-mode .action-bar {
           </div>
           <div class="test-item" style="grid-column:1/-1;">
             <label for="simvolt">Voltage during simulation</label>
-            <input type="text" id="simvolt" class="short" placeholder="240V" title="Simulated load voltage reading during test">
+            <input type="text" id="simvolt" class="short" placeholder="240V">
           </div>
         </div>
       </div>
@@ -1563,7 +1214,7 @@ body.dark-mode .action-bar {
             <label class="check-item"><input type="radio" name="fuel" value="LP"><span>LP</span></label>
           </div>
           <label for="tanklevel">Tank Level</label>
-          <input type="text" id="tanklevel" class="short" placeholder="Full" title="Propane/gas tank level at time of visit — e.g. Full, 70%, Half">
+          <input type="text" id="tanklevel" class="short" placeholder="Full">
           <label>Leak Found?</label>
           <div class="yn-group">
             <input type="radio" name="gasleak" id="gl_y" value="Y" class="yn-y">
@@ -1589,7 +1240,7 @@ body.dark-mode .action-bar {
             </div>
           </div>
         </div>
-        <textarea id="gasnotes" placeholder="Gas system notes..." title="Gas system notes — regulator condition, line pressure, leaks, tank observations" style="min-height:var(--h-phone-gasnotes);"></textarea>
+        <textarea id="gasnotes" placeholder="Gas system notes..." style="min-height:50px;"></textarea>
       </div>
     </div>
 
@@ -1599,7 +1250,7 @@ body.dark-mode .action-bar {
       <div class="section-body">
         <div class="field-row" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-bottom:6px;">
           <label for="tsserial1" style="white-space:nowrap;">TS Serial # 1</label>
-          <input type="text" id="tsserial1" placeholder="SN" title="Transfer switch 1 serial number from unit label" style="width:90px;flex-shrink:0;">
+          <input type="text" id="tsserial1" placeholder="SN" style="width:90px;flex-shrink:0;">
           <div style="display:flex;flex-direction:column;gap:2px;">
             <label>Condition</label>
             <div class="check-group" style="flex-wrap:wrap;gap:2px;">
@@ -1612,7 +1263,7 @@ body.dark-mode .action-bar {
         </div>
         <div class="field-row" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-bottom:6px;">
           <label for="tsserial2" style="white-space:nowrap;">TS Serial # 2</label>
-          <input type="text" id="tsserial2" placeholder="SN" title="Transfer switch 2 serial number from unit label" style="width:90px;flex-shrink:0;">
+          <input type="text" id="tsserial2" placeholder="SN" style="width:90px;flex-shrink:0;">
           <div style="display:flex;flex-direction:column;gap:2px;">
             <label>Condition</label>
             <div class="check-group" style="flex-wrap:wrap;gap:2px;">
@@ -1623,7 +1274,7 @@ body.dark-mode .action-bar {
             </div>
           </div>
         </div>
-        <textarea id="tsnotes" placeholder="Transfer Switch notes..." title="Transfer switch notes — contactor condition, wiring, alignment, error codes" style="min-height:50px;"></textarea>
+        <textarea id="tsnotes" placeholder="Transfer Switch notes..." style="min-height:50px;"></textarea>
       </div>
     </div>
 
@@ -1670,7 +1321,7 @@ body.dark-mode .action-bar {
           </div>
           <div class="field-group" style="display:flex;align-items:center;gap:8px;">
             <label for="signal">Signal %</label>
-            <input type="number" id="signal" placeholder="100" title="Cell signal strength percentage for remote monitoring — e.g. 85" style="width:var(--w-phone-signal);">
+            <input type="number" id="signal" placeholder="100" style="width:40px;">
           </div>
         </div>
       </div>
@@ -1746,155 +1397,6 @@ function restoreDraft() {
       }
     });
   } catch (e) {}
-}
-
-
-// ── FIELD LABEL MAP ──
-var FIELD_LABELS = {
-  name:'Customer Name', number:'Job Number', date:'Service Date',
-  address:'Address', tech:'Technician', model:'Generator Model',
-  serial:'Serial Number', hours:'Runtime Hours',
-  voltage:'Battery Voltage', cca:'CCA', soh:'State of Health (%)',
-  dare:'Battery Brand', 'batt-date':'Battery Date',
-  batnotes:'Battery Notes',
-  genvolt:'Generator Voltage', coolantadded:'Coolant Added (qt)',
-  exercisetime:'Exercise Time', gennotes:'Generator Notes',
-  filterpart:'Filter Part #', oilnotes:'Oil & Filter Notes',
-  simvolt:'Simulated Voltage', tanklevel:'Tank Level',
-  gasnotes:'Gas Notes',
-  tsserial1:'Transfer Switch 1 Serial', tsserial2:'Transfer Switch 2 Serial',
-  tsnotes:'Transfer Switch Notes',
-  signal:'Cell Signal (%)'
-};
-
-// ── SAVE AS EXCEL ──
-function saveAsExcel() {
-  if (typeof XLSX === 'undefined') {
-    setStatus('Excel library not loaded — try refreshing.');
-    setTimeout(function() { setStatus(''); }, 5000);
-    return;
-  }
-  saveDraft();
-  var rows = [['field_id', 'Field', 'Value']];
-
-  // Text / number / date inputs + textareas
-  document.querySelectorAll('input[type="text"],input[type="number"],input[type="date"],textarea').forEach(function(el) {
-    var key = el.id || el.name; if (!key || !el.value) return;
-    rows.push([key, FIELD_LABELS[key] || key, el.value]);
-  });
-
-  // Radio buttons
-  var radioGroups = {};
-  document.querySelectorAll('input[type="radio"]').forEach(function(el) {
-    if (el.checked) radioGroups[el.name] = el.value;
-  });
-  Object.keys(radioGroups).forEach(function(name) {
-    rows.push([name, FIELD_LABELS[name] || name, radioGroups[name]]);
-  });
-
-  // Checkboxes
-  var checkGroups = {};
-  document.querySelectorAll('input[type="checkbox"]').forEach(function(el) {
-    if (!el.name) return;
-    if (!checkGroups[el.name]) checkGroups[el.name] = [];
-    if (el.checked) checkGroups[el.name].push(el.value);
-  });
-  Object.keys(checkGroups).forEach(function(name) {
-    if (!checkGroups[name].length) return;
-    rows.push([name, FIELD_LABELS[name] || name, checkGroups[name].join(', ')]);
-  });
-
-  var ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 20 }, { wch: 28 }, { wch: 48 }];
-  var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Maintenance');
-
-  var custName = ((document.getElementById('name') || {}).value || '').trim();
-  var jobNum   = ((document.getElementById('number') || {}).value || '').trim();
-  var parts = [];
-  if (custName) parts.push(custName);
-  if (jobNum)   parts.push('Job ' + jobNum);
-  parts.push('Maintenance');
-  var slug = parts.join(' - ').replace(/[\/\:*?"<>|]/g, '').replace(/\s{2,}/g, ' ').trim();
-  XLSX.writeFile(wb, slug + '.xlsx');
-  setStatus('Excel saved: ' + slug + '.xlsx');
-  setTimeout(function() { setStatus(''); }, 4000);
-}
-
-// ── LOAD DRAFT FILE (Excel or JSON) ──
-function loadDraftFile(input) {
-  var file = input.files && input.files[0];
-  if (!file) return;
-  var isExcel = /\.xlsx$/i.test(file.name);
-
-  if (isExcel) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        if (typeof XLSX === 'undefined') { setStatus('Excel library not loaded.'); return; }
-        var wb   = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-        var ws   = wb.Sheets[wb.SheetNames[0]];
-        var rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        var data = {};
-        rows.forEach(function(row, i) {
-          if (i === 0 || !row || row.length < 2) return;
-          var key = String(row[0] || '').trim();
-          var val = row.length >= 3
-            ? (row[2] !== undefined ? String(row[2]) : '')
-            : (row[1] !== undefined ? String(row[1]) : '');
-          if (!key || key === 'field_id' || key === 'Field') return;
-          if (val.indexOf(',') !== -1) {
-            data[key] = val.split(',').map(function(v) { return v.trim(); }).filter(Boolean);
-          } else {
-            data[key] = val;
-          }
-        });
-        applyFormData(data);
-        saveDraft();
-        setStatus('Excel loaded: ' + file.name);
-        setTimeout(function() { setStatus(''); }, 4000);
-      } catch(err) {
-        setStatus('Error loading Excel — file may be invalid.');
-        setTimeout(function() { setStatus(''); }, 5000);
-      }
-      input.value = '';
-    };
-    reader.readAsArrayBuffer(file);
-  } else {
-    var reader2 = new FileReader();
-    reader2.onload = function(e) {
-      try {
-        var data = JSON.parse(e.target.result);
-        applyFormData(data);
-        saveDraft();
-        setStatus('Draft loaded: ' + file.name);
-        setTimeout(function() { setStatus(''); }, 4000);
-      } catch(err) {
-        setStatus('Error loading draft.');
-        setTimeout(function() { setStatus(''); }, 5000);
-      }
-      input.value = '';
-    };
-    reader2.readAsText(file);
-  }
-}
-
-// ── APPLY FORM DATA ──
-function applyFormData(data) {
-  document.querySelectorAll('input, textarea').forEach(function(el) {
-    var key = el.id || el.name;
-    if (!key || data[key] === undefined) return;
-    try {
-      if (el.type === 'checkbox') {
-        var vals = Array.isArray(data[key]) ? data[key] : String(data[key]).split(',').map(function(v){return v.trim();});
-        el.checked = vals.indexOf(el.value) !== -1;
-      } else if (el.type === 'radio') {
-        el.checked = typeof data[key] === 'string' && el.value === data[key];
-      } else {
-        el.value = data[key];
-      }
-    } catch(e) {}
-  });
 }
 
 function clearForm() {
