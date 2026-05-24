@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.0.0';
+var CACHE_NAME = 'aog-forms-v2.0.1';
 var DEV_MODE   = false;
 
 // Stores last known cache progress so late-loading pages can request it
@@ -81,64 +81,42 @@ self.addEventListener('install', function(event) {
     caches.open(CACHE_NAME)
       .then(function(cache) {
         console.log('[SW] Pre-caching core files');
-
-        var total     = PRECACHE_URLS.length;
+        var total = PRECACHE_URLS.length;
         var completed = 0;
 
-        function broadcastProgress(pct, label) {
-          cacheProgress = { percent: pct, label: label, done: pct >= 100 };
-          self.clients.matchAll({ includeUncontrolled: true }).then(function(clients) {
-            clients.forEach(function(client) {
-              client.postMessage({
-                action:   'CACHE_PROGRESS',
-                percent:  pct,
-                label:    label,
-                done:     pct >= 100
-              });
-            });
-          });
-        }
-
-        broadcastProgress(0, 'Starting cache...');
-
-        return Promise.all(
-          PRECACHE_URLS.map(function(url) {
+        // Sequential caching so progress is accurate and stored for polling
+        return PRECACHE_URLS.reduce(function(chain, url) {
+          return chain.then(function() {
             return cache.add(url)
               .then(function() {
                 completed++;
-                var pct   = Math.round((completed / total) * 100);
-                var label = url.replace('../', '').replace('/', '') || 'hub';
-                broadcastProgress(pct, 'Cached: ' + label);
-                console.log('[SW] Cached (' + pct + '%):', url);
+                cacheProgress = {
+                  percent: Math.round((completed / total) * 100),
+                  label: url.replace('../','').replace(/\/$/,'') || 'hub',
+                  done: completed === total
+                };
+                console.log('[SW] Cached (' + cacheProgress.percent + '%):', url);
               })
               .catch(function(err) {
                 completed++;
-                var pct = Math.round((completed / total) * 100);
-                broadcastProgress(pct, 'Skipped: ' + url.replace('../',''));
+                cacheProgress = {
+                  percent: Math.round((completed / total) * 100),
+                  label: 'skipped: ' + url.replace('../',''),
+                  done: completed === total
+                };
                 console.warn('[SW] Pre-cache skipped:', url, err);
               });
-          })
-        );
+          });
+        }, Promise.resolve());
       })
       .then(function() {
-        // Broadcast 100% complete
-        cacheProgress = { percent: 100, label: 'All files cached — ready offline', done: true };
-        self.clients.matchAll({ includeUncontrolled: true }).then(function(clients) {
-          clients.forEach(function(client) {
-            client.postMessage({
-              action:  'CACHE_PROGRESS',
-              percent: 100,
-              label:   'All files cached — ready offline',
-              done:    true
-            });
-          });
-        });
+        cacheProgress = { percent: 100, label: 'All files cached', done: true };
         console.log('[SW] Install complete — waiting for user to approve update');
-        // ← No skipWaiting() here on purpose. SW sits in "waiting"
-        //   state until the user taps "Update Now".
+        // No skipWaiting() on purpose — user taps Update Now to activate
       })
   );
 });
+
 
 // ============================================================
 //  ACTIVATE — Delete old caches, claim clients
