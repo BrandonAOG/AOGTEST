@@ -1319,14 +1319,19 @@ function printForm() {
     window.addEventListener('afterprint', restore);
   }
 
-  // Force browser to flush layout/styles before printing, stays within gesture
+  // Force browser to flush layout/styles before printing
   document.body.getBoundingClientRect();
   document.getElementById('page').getBoundingClientRect();
+  // Force reflow by reading offsetHeight — flushes pending style recalculations
+  void document.body.offsetHeight;
+  void document.getElementById('page').offsetHeight;
   if (isMobileSafari) {
-      setTimeout(function() {
-      document.body.getBoundingClientRect();
+    // Safari needs extra time to fully apply class/style changes before snapshotting for print
+    setTimeout(function() {
+      void document.body.offsetHeight;
+      void document.body.getBoundingClientRect();
       window.print();
-    }, 800);
+    }, 1200);
   } else {
     window.print();
   }
