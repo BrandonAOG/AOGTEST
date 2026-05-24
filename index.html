@@ -3384,52 +3384,41 @@ if(!navigator.onLine) setOffline();
 if('serviceWorker' in navigator){
   var waitingWorker=null;
 
-  // Register message listener IMMEDIATELY — before load — so we catch
-  // progress broadcasts from SW install which fires during registration
-  navigator.serviceWorker.addEventListener('message', function(e) {
-    if (!e.data) return;
-
-    if (e.data.action === 'CACHE_PROGRESS') {
-      var toast  = document.getElementById('cache-progress');
-      var bar    = document.getElementById('cache-progress-bar');
-      var pct    = document.getElementById('cache-progress-pct');
-      var label  = document.getElementById('cache-progress-label');
-      var title  = document.getElementById('cache-progress-title');
-      if(!toast) return;
-      toast.classList.add('visible');
-      bar.style.width   = e.data.percent + '%';
-      pct.textContent   = e.data.percent + '%';
-      label.textContent = e.data.label || '';
-      if (e.data.done) {
-        title.textContent = '✓ Cache Ready';
-        title.style.color = 'var(--green)';
-        bar.style.background = 'var(--green)';
-        setTimeout(function(){ toast.classList.remove('visible'); }, 3000);
-      }
+  // ── Cache progress helpers ──────────────────────────────
+  function showProgress(pct, label, done) {
+    var toast = document.getElementById('cache-progress');
+    var bar   = document.getElementById('cache-progress-bar');
+    var pctEl = document.getElementById('cache-progress-pct');
+    var lblEl = document.getElementById('cache-progress-label');
+    var title = document.getElementById('cache-progress-title');
+    if(!toast) return;
+    toast.classList.add('visible');
+    bar.style.width  = pct + '%';
+    pctEl.textContent = pct + '%';
+    lblEl.textContent = label || '';
+    if(done) {
+      title.textContent    = '✓ Cache Ready';
+      title.style.color    = 'var(--green)';
+      bar.style.background = 'var(--green)';
+      setTimeout(function(){ toast.classList.remove('visible'); }, 3000);
     }
-  });
+  }
 
-  window.addEventListener('load',function(){
-    // On load, ask the SW for current progress in case we missed live broadcasts
-    if(navigator.serviceWorker.controller) {
+  function pollProgress(installingWorker) {
+    var interval = setInterval(function() {
       var ch = new MessageChannel();
       ch.port1.onmessage = function(e) {
-        if(e.data && e.data.action === 'CACHE_PROGRESS' && !e.data.done) {
-          var toast = document.getElementById('cache-progress');
-          var bar   = document.getElementById('cache-progress-bar');
-          var pct   = document.getElementById('cache-progress-pct');
-          var lbl   = document.getElementById('cache-progress-label');
-          if(toast && e.data.percent > 0 && e.data.percent < 100) {
-            toast.classList.add('visible');
-            bar.style.width  = e.data.percent + '%';
-            pct.textContent  = e.data.percent + '%';
-            lbl.textContent  = e.data.label || '';
-          }
-        }
+        if(!e.data) return;
+        showProgress(e.data.percent, e.data.label, e.data.done);
+        if(e.data.done) clearInterval(interval);
       };
-      navigator.serviceWorker.controller.postMessage({action:'GET_CACHE_PROGRESS'},[ch.port2]);
-    }
+      installingWorker.postMessage({action:'GET_CACHE_PROGRESS'}, [ch.port2]);
+    }, 500);
+    // Stop polling after 2 minutes max
+    setTimeout(function(){ clearInterval(interval); }, 120000);
+  }
 
+  window.addEventListener('load',function(){
     navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(function(reg){
       if(reg.active){swDot.classList.add('blue');swLabel.textContent=navigator.onLine?'Sync Enabled':'Offline Mode';}
       function askAndShowToast(worker){
@@ -3444,8 +3433,17 @@ if('serviceWorker' in navigator){
         };
         worker.postMessage({action:'GET_CHANGELOG'},[ch.port2]);
       }
+      // If SW is currently installing, start polling its progress
+      if(reg.installing) pollProgress(reg.installing);
       if(reg.waiting) askAndShowToast(reg.waiting);
-      reg.addEventListener('updatefound',function(){var nw=reg.installing;nw.addEventListener('statechange',function(){if(nw.state==='installed'&&navigator.serviceWorker.controller)askAndShowToast(nw);});});
+      reg.addEventListener('updatefound',function(){
+        var nw=reg.installing;
+        // Poll progress on this new installing worker
+        pollProgress(nw);
+        nw.addEventListener('statechange',function(){
+          if(nw.state==='installed'&&navigator.serviceWorker.controller) askAndShowToast(nw);
+        });
+      });
       console.log('[SW] Registered');
     }).catch(function(err){console.warn('[SW] Failed:',err);});
     navigator.serviceWorker.addEventListener('controllerchange',function(){window.location.reload();});
