@@ -1150,6 +1150,10 @@ function getEstimateFilename(ext) {
 function printForm() {
 
   var isMobileSafari = document.body.classList.contains('mobile-safari');
+  // macOS Safari uses same WebKit PDF renderer — needs same checkbox fix
+  var ua = navigator.userAgent;
+  var isMacSafari = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Firefox|Edge/.test(ua);
+  var isAnySafari = isMobileSafari || isMacSafari;
   var wasDark = document.body.classList.contains('dark-mode');
 
   var prevTitle = document.title;
@@ -1281,6 +1285,16 @@ function printForm() {
   function restore() {
     window.removeEventListener('afterprint', restore);
     document.removeEventListener('visibilitychange', onVis);
+    // Restore replaced checkbox/radio inputs
+    _replacedInputs.forEach(function(r) {
+      if (r.box && r.box.parentNode) r.box.parentNode.removeChild(r.box);
+      r.input.style.opacity   = r.orig.opacity   || '';
+      r.input.style.position  = r.orig.position  || '';
+      r.input.style.width     = r.orig.width     || '';
+      r.input.style.height    = r.orig.height    || '';
+      r.input.style.display   = r.orig.display   || '';
+    });
+    _replacedInputs = [];
     var el = document.getElementById('force-print-light'); if (el) { el.remove(); }
     var fix = document.getElementById('safari-page-fix');  if (fix) { fix.remove(); }
     if (wasDark) { document.body.classList.add('dark-mode'); }
@@ -1319,22 +1333,45 @@ function printForm() {
     window.addEventListener('afterprint', restore);
   }
 
+  // ── Replace check-item inputs with styled spans for Safari PDF renderer ──
+  // Safari PDF renderer ignores accent-color — replace with background-color spans
+  // Only on Mobile Safari — desktop browsers handle accent-color correctly in PDF
+  var _replacedInputs = [];
+  if (isAnySafari)
+  document.querySelectorAll('.check-item input[type="checkbox"], .check-item input[type="radio"]').forEach(function(input) {
+    var isChecked = input.checked;
+    var isRadio   = input.type === 'radio';
+    var orig = { display: input.style.display, position: input.style.position,
+                 width: input.style.width, height: input.style.height, opacity: input.style.opacity };
+    input.style.cssText = 'opacity:0!important;position:absolute!important;width:0!important;height:0!important;';
+    if (isChecked) {
+      var box = document.createElement('span');
+      box.style.cssText = 'display:inline-block;width:13px;height:13px;min-width:13px;min-height:13px;' +
+        'background:#D97706;border:1.5px solid #D97706;border-radius:' + (isRadio ? '50%' : '2px') + ';' +
+        'flex-shrink:0;vertical-align:middle;margin-right:3px;box-sizing:border-box;position:relative;';
+      input.parentNode.insertBefore(box, input);
+      _replacedInputs.push({ input: input, box: box, orig: orig });
+    } else {
+      _replacedInputs.push({ input: input, box: null, orig: orig });
+    }
+  });
+
   // Force browser to flush layout/styles before printing
   document.body.getBoundingClientRect();
   document.getElementById('page').getBoundingClientRect();
-  // Force reflow by reading offsetHeight — flushes pending style recalculations
   void document.body.offsetHeight;
-  void document.getElementById('page').offsetHeight;
-  if (isMobileSafari) {
-    // Safari needs extra time to fully apply class/style changes before snapshotting for print
-    setTimeout(function() {
-      void document.body.offsetHeight;
-      void document.body.getBoundingClientRect();
+
+  function doPrint() {
+    if (isMobileSafari) {
+      setTimeout(function() {
+        void document.body.offsetHeight;
+        window.print();
+      }, 600);
+    } else {
       window.print();
-    }, 1200);
-  } else {
-    window.print();
+    }
   }
+  doPrint();
 }
 
 // ── CANVAS CAPTURE ──
