@@ -358,7 +358,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function initLightning(){
     state.bolts=[];
     state.particles=[];
-    var n=Math.min(50,Math.floor(W*H/20000));
+    var n=W<480?Math.min(20,Math.floor(W*H/25000)):Math.min(50,Math.floor(W*H/20000));
     for(var i=0;i<n;i++) state.particles.push({x:rand(0,W),y:rand(0,H),vx:rand(-.12,.12),vy:rand(-.12,.12),r:rand(.7,1.8),a:rand(.06,.22),col:Math.random()>.6?'251,191,36':Math.random()>.5?'249,115,22':'0,212,255'});
   }
   function spawnLightningBolt(){
@@ -371,7 +371,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     drawBase();
     var g1=ctx.createRadialGradient(W*.1,H*.15,0,W*.1,H*.15,W*.3);g1.addColorStop(0,'rgba(251,191,36,0.04)');g1.addColorStop(1,'transparent');ctx.fillStyle=g1;ctx.fillRect(0,0,W,H);
     state.particles.forEach(function(p){p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba('+p.col+','+p.a+')';ctx.fill();});
-    for(var i=0;i<state.particles.length;i++)for(var j=i+1;j<state.particles.length;j++){var dx=state.particles[i].x-state.particles[j].x,dy=state.particles[i].y-state.particles[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<120){ctx.beginPath();ctx.moveTo(state.particles[i].x,state.particles[i].y);ctx.lineTo(state.particles[j].x,state.particles[j].y);ctx.strokeStyle='rgba(251,191,36,'+(0.03*(1-d/120))+')';ctx.lineWidth=.5;ctx.stroke();}}
+    if(W>=600){for(var i=0;i<state.particles.length;i++)for(var j=i+1;j<state.particles.length;j++){var dx=state.particles[i].x-state.particles[j].x,dy=state.particles[i].y-state.particles[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<120){ctx.beginPath();ctx.moveTo(state.particles[i].x,state.particles[i].y);ctx.lineTo(state.particles[j].x,state.particles[j].y);ctx.strokeStyle='rgba(251,191,36,'+(0.03*(1-d/120))+')';ctx.lineWidth=.5;ctx.stroke();}}}
     if(Math.random()<.007) spawnLightningBolt();
     if(Math.random()<.001) spawnLightningBolt();
     for(var i=state.bolts.length-1;i>=0;i--){
@@ -425,11 +425,12 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function initPlasma(){
     state.t=0;
     state.blobs=[];
-    for(var i=0;i<6;i++) state.blobs.push({x:rand(W*.1,W*.9),y:rand(H*.1,H*.9),vx:rand(-.4,.4),vy:rand(-.4,.4),r:rand(80,200),phase:rand(0,Math.PI*2),col:Math.random()>.5?'251,191,36':'0,212,255'});
+    var blobCount=W<480?4:6;
+    for(var i=0;i<blobCount;i++) state.blobs.push({x:rand(W*.1,W*.9),y:rand(H*.1,H*.9),vx:rand(-.5,.5),vy:rand(-.5,.5),r:rand(W<480?60:80,W<480?150:200),phase:rand(0,Math.PI*2),col:Math.random()>.5?'251,191,36':'0,212,255'});
   }
   function drawPlasma(){
     ctx.fillStyle='rgba(5,8,20,1)';ctx.fillRect(0,0,W,H);
-    state.t+=.008;
+    state.t+=W<480?.015:.008;
     state.blobs.forEach(function(b){
       b.x+=b.vx; b.y+=b.vy;
       if(b.x<0||b.x>W) b.vx*=-1;
@@ -441,8 +442,8 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       g.addColorStop(1,'transparent');
       ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
     });
-    // Scanlines
-    for(var y=0;y<H;y+=4){ctx.fillStyle='rgba(0,0,0,0.06)';ctx.fillRect(0,y,W,1);}
+    // Scanlines — skip on mobile for perf
+    if(W>=600){for(var y=0;y<H;y+=4){ctx.fillStyle='rgba(0,0,0,0.06)';ctx.fillRect(0,y,W,1);}}
   }
 
   // ─────────────────────────────────────────────────
@@ -670,8 +671,15 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.layers=[];
     state.bolts=[];
     state.t=0;
-    for(var i=0;i<8;i++){
-      state.layers.push({x:rand(-W*.3,W*1.3),y:rand(0,H),w:rand(W*.4,W*.9),h:rand(80,220),speed:rand(.15,.45)*(Math.random()>.5?1:-1),alpha:rand(.04,.12),col:Math.random()>.6?'251,191,36':Math.random()>.5?'200,210,230':'249,115,22'});
+    for(var i=0;i<10;i++){
+      var w=rand(W*.5,W*1.1);
+      state.layers.push({
+        x:rand(-w,W+w), y:rand(H*.05,H*.95),
+        w:w, h:rand(H*.08,H*.22),
+        speed:rand(.3,.9)*(Math.random()>.5?1:-1),
+        alpha:rand(.06,.16),
+        col:Math.random()>.6?'251,191,36':Math.random()>.5?'200,215,235':'249,115,22'
+      });
     }
   }
   function drawFog(){
@@ -689,16 +697,22 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       drawBoltSegs(b.segs,b.core,b.glow,b.life*.6,1);
       b.life-=b.decay;if(b.life<=0)state.bolts.splice(i,1);
     }
-    // Fog layers
+    // Fog layers — use elliptical gradient via scale trick correctly
     state.layers.forEach(function(l){
       l.x+=l.speed;
-      if(l.x>W+l.w*.5) l.x=-l.w*.5;
-      if(l.x<-l.w*.5) l.x=W+l.w*.5;
-      var g=ctx.createRadialGradient(l.x,l.y,0,l.x,l.y,l.w*.5);
+      if(l.x>W+l.w) l.x=-l.w;
+      if(l.x<-l.w) l.x=W+l.w;
+      // Draw as horizontal ellipse: scale y around center
+      ctx.save();
+      ctx.translate(l.x, l.y);
+      ctx.scale(1, l.h/l.w);
+      var g=ctx.createRadialGradient(0,0,0,0,0,l.w*.5);
       g.addColorStop(0,'rgba('+l.col+','+l.alpha+')');
-      g.addColorStop(.5,'rgba('+l.col+','+(l.alpha*.4)+')');
+      g.addColorStop(.45,'rgba('+l.col+','+(l.alpha*.5)+')');
       g.addColorStop(1,'transparent');
-      ctx.save();ctx.scale(1,l.h/l.w);ctx.fillStyle=g;ctx.fillRect(0,0,W,H*l.w/l.h);ctx.restore();
+      ctx.fillStyle=g;
+      ctx.beginPath();ctx.arc(0,0,l.w*.5,0,Math.PI*2);ctx.fill();
+      ctx.restore();
     });
   }
 
@@ -1425,11 +1439,11 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   // ─────────────────────────────────────────────────
   function initPowerLines(){
     state.t=0; state.arcs=[]; state.coronas=[];
-    var towerSpacing=Math.max(120,W/Math.max(3,Math.floor(W/180)));
-    var numTowers=Math.ceil(W/towerSpacing)+1;
+    state.towerSpacing=Math.max(100,W/Math.max(3,Math.floor(W/160)));
+    var numTowers=Math.ceil(W/state.towerSpacing)+2;
     state.towers=[];
     for(var i=0;i<numTowers;i++){
-      var x=i*towerSpacing+rand(-10,10);
+      var x=i*state.towerSpacing+rand(-8,8);
       var h=rand(H*.25,H*.35);
       state.towers.push({x:x,h:h,y:H*.78});
     }
@@ -1455,7 +1469,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     if(!state.stars){state.stars=[];for(var i=0;i<120;i++)state.stars.push({x:rand(0,W),y:rand(0,H*.7),r:rand(.3,1.4),a:rand(.15,.7)});}
     state.stars.forEach(function(s){ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,'+s.a+')';ctx.fill();});
     // Moon glow
-    var moon=ctx.createRadialGradient(W*.82,H*.12,0,W*.82,H*.12,90);
+    var moon=ctx.createRadialGradient(W*.82,H*.12,0,W*.82,H*.12,Math.min(W,H)*.12);
     moon.addColorStop(0,'rgba(220,210,170,0.18)');moon.addColorStop(1,'transparent');
     ctx.fillStyle=moon;ctx.fillRect(0,0,W,H);
     // Wires
@@ -1480,7 +1494,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       // Main mast
       ctx.fillRect(t.x-4,t.y-t.h,8,t.h);
       // Cross arms
-      var arm1=Math.min(44,towerSpacing*.22),arm2=Math.min(32,towerSpacing*.16);
+      var arm1=Math.min(44,state.towerSpacing*.22),arm2=Math.min(32,state.towerSpacing*.16);
       ctx.fillRect(t.x-arm1,t.y-t.h+8,arm1*2,Math.max(4,H*.008));
       ctx.fillRect(t.x-arm2,t.y-t.h+22,arm2*2,Math.max(3,H*.006));
       // Insulator strings
@@ -1489,7 +1503,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
         ctx.fillRect(t.x+ins*arm1*.95-2,t.y-t.h+14,4,Math.max(12,H*.025));
       }
       // Legs
-      var legW=Math.min(28,towerSpacing*.13);
+      var legW=Math.min(28,state.towerSpacing*.13);
       ctx.fillStyle='rgba(20,22,30,1)';
       ctx.beginPath();ctx.moveTo(t.x-4,t.y);ctx.lineTo(t.x-legW,t.y+2);ctx.lineTo(t.x-legW+2,t.y-12);ctx.closePath();ctx.fill();
       ctx.beginPath();ctx.moveTo(t.x+4,t.y);ctx.lineTo(t.x+legW,t.y+2);ctx.lineTo(t.x+legW-2,t.y-12);ctx.closePath();ctx.fill();
@@ -2027,11 +2041,10 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   // ─────────────────────────────────────────────────
   function initOscilloscope(){
     state.t=0;state.channels=[];state.spikes=[];
-    var numCh=W<480?2:4;
     var types=['sine','square','sawtooth','sine'];
     var cols=['251,191,36','0,212,255','249,115,22','180,100,255'];
-    for(var i=0;i<numCh;i++){
-      state.channels.push({type:types[i],col:cols[i],freq:rand(.8,2.2),amp:rand(W<480?.08:.06,W<480?.18:.13),yFrac:(i+.5)/numCh,phase:rand(0,Math.PI*2),alpha:rand(.5,.9),noise:rand(0,.015)});
+    for(var i=0;i<4;i++){
+      state.channels.push({type:types[i],col:cols[i],freq:rand(.8,2.2),amp:rand(.06,.13),yFrac:.2+i*.18,phase:rand(0,Math.PI*2),alpha:rand(.5,.9),noise:rand(0,.015)});
     }
   }
   function waveVal(ch,x){
@@ -2813,19 +2826,20 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function initIonStorm(){
     state.t=0;state.bands=[];state.bolts=[];state.spots=[];
     // Cloud bands
-    var numBands=14;
+    var numBands=W<480?8:14;
     for(var i=0;i<numBands;i++){
       var isLight=i%2===0;
       state.bands.push({y:H*i/numBands,h:H/numBands,speed:rand(.2,.6)*(i%2===0?1:-1),col:isLight?'180,140,90':'100,70,40',alpha:isLight?.85:.7,turbulence:[]});
       // Turbulence points along band
-      for(var t=0;t<8;t++) state.bands[i].turbulence.push({x:rand(0,W),phase:rand(0,Math.PI*2),speed:rand(.005,.02)});
+      var tbCount=W<480?4:8;
+      for(var t=0;t<tbCount;t++) state.bands[i].turbulence.push({x:rand(0,W),phase:rand(0,Math.PI*2),speed:rand(.008,.025)});
     }
     // Great Red Spot equivalent
     state.spots.push({x:W*.65,y:H*.52,rx:W*.1,ry:H*.06,angle:0,speed:.003,col:'200,80,40'});
     state.spots.push({x:W*.3,y:H*.28,rx:W*.05,ry:H*.03,angle:0,speed:.005,col:'160,120,60'});
   }
   function drawIonStorm(){
-    state.t+=.006;
+    state.t+=.01;
     ctx.fillStyle='rgba(80,55,30,1)';ctx.fillRect(0,0,W,H);
     // Draw cloud bands
     state.bands.forEach(function(band){
@@ -2834,14 +2848,15 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       ctx.save();ctx.beginPath();
       ctx.moveTo(0,band.y);
       // Top edge turbulence
-      for(var x=0;x<=W;x+=20){
+      var step=W<480?40:20;
+      for(var x=0;x<=W;x+=step){
         var turb=0;
         band.turbulence.forEach(function(tb){turb+=Math.sin(tb.phase+x*.01)*4;});
         ctx.lineTo(x,band.y+turb);
       }
       ctx.lineTo(W,band.y+band.h);
       // Bottom edge
-      for(var x=W;x>=0;x-=20){
+      for(var x=W;x>=0;x-=step){
         var turb=0;
         band.turbulence.forEach(function(tb){turb+=Math.sin(tb.phase+x*.01+.5)*4;});
         ctx.lineTo(x,band.y+band.h+turb);
@@ -2856,14 +2871,14 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     // Oval storms
     state.spots.forEach(function(sp){
       sp.angle-=sp.speed;
-      ctx.save();ctx.translate(sp.x,sp.y);
+      ctx.save();ctx.translate(sp.x,sp.y);ctx.rotate(sp.angle);
       // Outer ring
       for(var ring=3;ring>=0;ring--){
-        ctx.beginPath();ctx.ellipse(0,0,sp.rx*(1+ring*.15),sp.ry*(1+ring*.15),sp.angle,0,Math.PI*2);
+        ctx.beginPath();ctx.ellipse(0,0,sp.rx*(1+ring*.15),sp.ry*(1+ring*.15),0,0,Math.PI*2);
         ctx.strokeStyle='rgba('+sp.col+','+(0.4-ring*.08)+')';ctx.lineWidth=3-ring*.5;ctx.stroke();
       }
       // Core
-      ctx.beginPath();ctx.ellipse(0,0,sp.rx*.5,sp.ry*.5,sp.angle,0,Math.PI*2);
+      ctx.beginPath();ctx.ellipse(0,0,sp.rx*.5,sp.ry*.5,0,0,Math.PI*2);
       ctx.fillStyle='rgba('+sp.col+',0.5)';ctx.fill();
       ctx.restore();
     });
@@ -3026,17 +3041,17 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   // ─────────────────────────────────────────────────
   function initSynapse(){
     state.t=0;state.neurons=[];state.signals=[];state.nextFire=0;
-    var count=Math.min(W<480?8:18,Math.floor(W*H/22000));
+    var count=Math.min(14,Math.floor(W*H/18000));
     for(var i=0;i<count;i++){
       var x=rand(W*.08,W*.92),y=rand(H*.08,H*.92);
-      state.neurons.push({x:x,y:y,r:rand(6,14),firing:false,fireTimer:0,charge:rand(0,.3),col:Math.random()>.5?'251,191,36':'0,212,255',connections:[]});
+      state.neurons.push({x:x,y:y,r:rand(8,16),firing:false,fireTimer:0,charge:rand(0,.3),col:Math.random()>.5?'251,191,36':'0,212,255',connections:[]});
     }
     // Build connections
     state.neurons.forEach(function(n,i){
       state.neurons.forEach(function(m,j){
         if(i===j) return;
         var dx=n.x-m.x,dy=n.y-m.y,dist=Math.sqrt(dx*dx+dy*dy);
-        if(dist<W*.22&&Math.random()>.5) n.connections.push(j);
+        if(dist<W*.3&&Math.random()>.4) n.connections.push(j);
       });
     });
   }
@@ -3048,10 +3063,9 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       n.connections.forEach(function(j){
         var m=state.neurons[j];
         ctx.save();ctx.beginPath();ctx.moveTo(n.x,n.y);
-        // Curved axon
         var mx=(n.x+m.x)/2+rand(-30,30),my=(n.y+m.y)/2+rand(-30,30);
         ctx.quadraticCurveTo(mx,my,m.x,m.y);
-        ctx.strokeStyle='rgba('+n.col+',0.08)';ctx.lineWidth=1;ctx.stroke();ctx.restore();
+        ctx.strokeStyle='rgba('+n.col+',0.18)';ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
       });
     });
     // Fire neurons
@@ -3059,7 +3073,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     if(state.nextFire<=0){
       var dormant=state.neurons.filter(function(n){return !n.firing&&n.charge<.5;});
       if(dormant.length>0){var target=dormant[randInt(0,dormant.length)];target.firing=true;target.fireTimer=20;}
-      state.nextFire=randInt(20,60);
+      state.nextFire=randInt(10,35);
     }
     // Propagate signals
     state.neurons.forEach(function(n,i){
@@ -3079,8 +3093,8 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       var sig=state.signals[i];sig.t+=sig.speed;
       var from=state.neurons[sig.fromIdx],to=state.neurons[sig.toIdx];
       var x=from.x+(to.x-from.x)*sig.t,y=from.y+(to.y-from.y)*sig.t;
-      ctx.save();ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);
-      ctx.fillStyle='rgba('+sig.col+',0.85)';ctx.shadowBlur=12;ctx.shadowColor='rgba('+sig.col+',0.8)';ctx.fill();ctx.restore();
+      ctx.save();ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);
+      ctx.fillStyle='rgba('+sig.col+',0.95)';ctx.shadowBlur=16;ctx.shadowColor='rgba('+sig.col+',0.9)';ctx.fill();ctx.restore();
       if(sig.t>=1){
         state.neurons[sig.toIdx].firing=true;state.neurons[sig.toIdx].fireTimer=18;
         state.signals.splice(i,1);
@@ -3110,7 +3124,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function initGridDown(){
     state.t=0;state.nodes=[];state.edges=[];state.failQueue=[];state.nextFail=80;state.allDown=false;state.restartTimer=0;
     // Build grid map nodes
-    var cols=W<480?5:8,rows=W<480?4:5;
+    var cols=W<480?4:8,rows=W<480?3:5;
     for(var r=0;r<rows;r++) for(var c=0;c<cols;c++){
       state.nodes.push({x:W*(c+.5)/cols+rand(-8,8),y:H*(.1+r*(W<480?.2:.17))+rand(-6,6),energized:true,failing:false,failTimer:0,col:'251,191,36',id:r*cols+c});
     }
@@ -3136,7 +3150,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
         // Also fail connected edges
         state.edges.forEach(function(e){if(e.a===fail.id||e.b===fail.id)e.energized=false;});
       } else {state.allDown=true;state.restartTimer=200;}
-      state.nextFail=randInt(15,40);
+      state.nextFail=randInt(8,25);
     }
     // Restart
     if(state.allDown){
@@ -3158,7 +3172,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       if(!na||!nb) return;
       ctx.save();ctx.beginPath();ctx.moveTo(na.x,na.y);ctx.lineTo(nb.x,nb.y);
       if(e.energized){
-        e.pulse=(e.pulse||0)+.05;
+        e.pulse=(e.pulse||0)+.09;
         var pulseA=.12+Math.sin(e.pulse)*.06;
         ctx.strokeStyle='rgba(251,191,36,'+pulseA+')';ctx.lineWidth=1.5;
         ctx.shadowBlur=4;ctx.shadowColor='rgba(251,191,36,0.3)';
