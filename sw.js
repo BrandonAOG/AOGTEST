@@ -166,7 +166,25 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('fetch', function(event) {
 
   var request = event.request;
-  var url     = new URL(request.url);
+
+  // Safari fix: wrap URL parsing in try/catch — malformed URLs throw and
+  // crash the entire fetch handler, causing the respondWith error
+  var url;
+  try { url = new URL(request.url); } catch(e) { return; }
+
+  // Only handle GET requests over http/https — let everything else pass through
+  if (request.method !== 'GET') return;
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+  // Safari fix: skip cross-origin requests that aren't in our CDN list —
+  // Safari throws on certain cross-origin fetches inside the SW
+  var isSameOrigin = url.origin === self.location.origin;
+  var isAllowedCDN = url.hostname.includes('fonts.googleapis.com') ||
+                     url.hostname.includes('fonts.gstatic.com')    ||
+                     url.hostname.includes('cdnjs.cloudflare.com') ||
+                     url.hostname.includes('mapbox.com')           ||
+                     url.hostname.includes('mapbox.cn');
+  if (!isSameOrigin && !isAllowedCDN) return;
 
   if (DEV_MODE) {
     event.respondWith(
@@ -180,9 +198,6 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  if (request.method !== 'GET') return;
-  if (!url.protocol.startsWith('http')) return;
-
   if (url.hostname.includes('mapbox.com') || url.hostname.includes('mapbox.cn')) {
     event.respondWith(
       fetch(request).catch(function() {
@@ -192,7 +207,9 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  if (request.headers.get('Accept') && request.headers.get('Accept').includes('text/html')) {
+  var accept = request.headers.get('Accept') || '';
+
+  if (accept.includes('text/html')) {
     event.respondWith(networkFirst(request));
     return;
   }
@@ -204,8 +221,9 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  if (request.destination === 'image' ||
-      url.pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp)$/i)) {
+  // Safari fix: request.destination can be empty string — use || '' guard
+  var dest = request.destination || '';
+  if (dest === 'image' || url.pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp)$/i)) {
     event.respondWith(cacheFirst(request));
     return;
   }
