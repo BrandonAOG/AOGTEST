@@ -513,7 +513,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function initVoltage(){
     state.meters=[];
     state.t=0;
-    var count=Math.min(5,Math.floor(W/200));
+    var count=Math.min(W<480?3:5,Math.floor(W/150));
     for(var i=0;i<count;i++){
       state.meters.push({x:W*(i+.5)/count,y:H*.5,target:rand(.1,.5),current:0,speed:rand(.008,.02),spike:0,spikeTimer:0,col:i%2===0?'251,191,36':'0,212,255'});
     }
@@ -527,7 +527,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       else if(Math.random()<.004){m.spikeTimer=randInt(8,25);m.target=rand(.7,.98);}
       else if(Math.random()<.01) m.target=rand(.05,.55);
       m.current+=(m.target-m.current)*m.speed;
-      var h=H*.55, barW=clamp(W*.06,40,90);
+      var h=H*.52, barW=clamp(W*.06,W<480?28:40,W<480?55:90);
       var bx=m.x-barW/2, by=m.y-h/2;
       // Track background
       ctx.fillStyle='rgba(255,255,255,0.03)';ctx.beginPath();ctx.roundRect(bx,by,barW,h,4);ctx.fill();
@@ -785,7 +785,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function drawSonar(){
     ctx.fillStyle='rgba(2,8,18,0.92)';ctx.fillRect(0,0,W,H);
     state.t++;
-    var cx=W*.5,cy=H*.5,maxR=Math.min(W,H)*.48;
+    var cx=W*.5,cy=H*.5,maxR=Math.min(W,H)*(W<480?.42:.48);
     state.sweepAngle+=.018;
     // Grid rings
     for(var r=1;r<=4;r++){
@@ -833,7 +833,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.rotY=0;
     state.scanY=0;
     // Generator wireframe: list of 3D points + edges
-    var s=Math.min(W,H)*.22;
+    var s=Math.min(W,H)*(W<480?.15:.22);
     state.verts3D=[
       [-1,-0.5,-0.6],[1,-0.5,-0.6],[1,0.5,-0.6],[-1,0.5,-0.6], // front
       [-1,-0.5,0.6],[1,-0.5,0.6],[1,0.5,0.6],[-1,0.5,0.6],     // back
@@ -1401,11 +1401,12 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   // ─────────────────────────────────────────────────
   function initPowerLines(){
     state.t=0; state.arcs=[]; state.coronas=[];
-    var numTowers=Math.ceil(W/220)+1;
+    var towerSpacing=Math.max(120,W/Math.max(3,Math.floor(W/180)));
+    var numTowers=Math.ceil(W/towerSpacing)+1;
     state.towers=[];
     for(var i=0;i<numTowers;i++){
-      var x=i*220+rand(-20,20);
-      var h=rand(H*.28,H*.38);
+      var x=i*towerSpacing+rand(-10,10);
+      var h=rand(H*.25,H*.35);
       state.towers.push({x:x,h:h,y:H*.78});
     }
     // Catenary wire points between towers
@@ -1455,17 +1456,19 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       // Main mast
       ctx.fillRect(t.x-4,t.y-t.h,8,t.h);
       // Cross arms
-      ctx.fillRect(t.x-44,t.y-t.h+8,88,6);
-      ctx.fillRect(t.x-32,t.y-t.h+22,64,5);
+      var arm1=Math.min(44,towerSpacing*.22),arm2=Math.min(32,towerSpacing*.16);
+      ctx.fillRect(t.x-arm1,t.y-t.h+8,arm1*2,Math.max(4,H*.008));
+      ctx.fillRect(t.x-arm2,t.y-t.h+22,arm2*2,Math.max(3,H*.006));
       // Insulator strings
       for(var ins=-1;ins<=1;ins++){
         ctx.fillStyle='rgba(40,44,55,1)';
-        ctx.fillRect(t.x+ins*42-2,t.y-t.h+14,4,18);
+        ctx.fillRect(t.x+ins*arm1*.95-2,t.y-t.h+14,4,Math.max(12,H*.025));
       }
       // Legs
+      var legW=Math.min(28,towerSpacing*.13);
       ctx.fillStyle='rgba(20,22,30,1)';
-      ctx.beginPath();ctx.moveTo(t.x-4,t.y);ctx.lineTo(t.x-28,t.y+2);ctx.lineTo(t.x-26,t.y-12);ctx.closePath();ctx.fill();
-      ctx.beginPath();ctx.moveTo(t.x+4,t.y);ctx.lineTo(t.x+28,t.y+2);ctx.lineTo(t.x+26,t.y-12);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.moveTo(t.x-4,t.y);ctx.lineTo(t.x-legW,t.y+2);ctx.lineTo(t.x-legW+2,t.y-12);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.moveTo(t.x+4,t.y);ctx.lineTo(t.x+legW,t.y+2);ctx.lineTo(t.x+legW-2,t.y-12);ctx.closePath();ctx.fill();
       ctx.restore();
     });
     // Corona arcs
@@ -1498,7 +1501,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   // ─────────────────────────────────────────────────
   function initTransformerExp(){
     state.t=0;state.sparks=[];state.flashes=[];state.smoke=[];state.bolts=[];
-    state.tx=W*.5;state.ty=H*.55;
+    state.tx=W*.5;state.ty=H*.52;
     state.nextBlow=randInt(60,160);state.blowCount=0;
   }
   function spawnExplosion(x,y){
@@ -1519,15 +1522,16 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     ctx.fillStyle='rgba(4,6,14,0.88)';ctx.fillRect(0,0,W,H);
     if(!state.stars){state.stars=[];for(var i=0;i<100;i++)state.stars.push({x:rand(0,W),y:rand(0,H*.6),r:rand(.3,1.2),a:rand(.1,.6)});}
     state.stars.forEach(function(s){ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,'+s.a+')';ctx.fill();});
-    // Utility pole
+    // Utility pole - fully responsive
+    var poleW=Math.max(4,W*.012),crossW=Math.max(60,W*.22),barrelW=Math.max(24,W*.07),barrelH=Math.max(40,H*.1);
     ctx.fillStyle='rgba(30,22,14,1)';
-    ctx.fillRect(state.tx-5,state.ty-H*.28,10,H*.28+60);
-    ctx.fillRect(state.tx-55,state.ty-H*.24,110,8);
+    ctx.fillRect(state.tx-poleW/2,state.ty-H*.3,poleW,H*.3+barrelH);
+    ctx.fillRect(state.tx-crossW/2,state.ty-H*.26,crossW,Math.max(5,H*.012));
     // Transformer barrel
     ctx.fillStyle='rgba(50,45,40,1)';ctx.save();
-    ctx.beginPath();ctx.roundRect(state.tx-18,state.ty-52,36,52,4);ctx.fill();ctx.restore();
+    ctx.beginPath();ctx.roundRect(state.tx-barrelW/2,state.ty-barrelH,barrelW,barrelH,4);ctx.fill();ctx.restore();
     // Transformer bands
-    for(var b=0;b<3;b++){ctx.fillStyle='rgba(70,65,55,1)';ctx.fillRect(state.tx-19,state.ty-44+b*14,38,5);}
+    for(var b=0;b<3;b++){ctx.fillStyle='rgba(70,65,55,1)';ctx.fillRect(state.tx-barrelW/2-1,state.ty-barrelH+Math.floor(barrelH*.15)+b*Math.floor(barrelH*.28),barrelW+2,Math.max(3,H*.006));}
     // Blow cycle
     state.nextBlow--;
     if(state.nextBlow<=0){spawnExplosion(state.tx,state.ty-30);state.nextBlow=randInt(80,200);state.blowCount++;}
@@ -1581,7 +1585,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.t++;
     state.crankAngle+=.045;
     drawBase('rgba(8,10,20,1)');
-    var cx=W*.5,cy=H*.5,scale=Math.min(W,H)*.062;
+    var cx=W*.5,cy=H*.5,scale=Math.min(W,H)*.055;
     // Engine block outline
     ctx.save();ctx.strokeStyle='rgba(251,191,36,0.15)';ctx.lineWidth=1;ctx.setLineDash([4,6]);
     ctx.strokeRect(cx-scale*5.5,cy-scale*4.5,scale*11,scale*7);ctx.setLineDash([]);ctx.restore();
@@ -1633,7 +1637,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     ctx.beginPath();ctx.moveTo(cx+scale*4.5,cy-scale*1.5);ctx.bezierCurveTo(cx+scale*6,cy-scale*1.5,cx+scale*6.5,cy,cx+scale*7,cy+scale*.5);ctx.stroke();ctx.restore();
     // RPM label
     var rpm=Math.floor(1800+Math.sin(state.t*.02)*200);
-    ctx.save();ctx.font='bold '+Math.floor(scale*.7)+'px monospace';ctx.fillStyle='rgba(251,191,36,0.4)';ctx.textAlign='center';
+    ctx.save();ctx.font='bold '+Math.max(9,Math.floor(scale*.65))+'px monospace';ctx.fillStyle='rgba(251,191,36,0.4)';ctx.textAlign='center';
     ctx.fillText(rpm+' RPM',cx,cy+scale*3.8);ctx.restore();
     // Spark particles
     for(var i=state.sparks.length-1;i>=0;i--){
@@ -1999,10 +2003,11 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   // ─────────────────────────────────────────────────
   function initOscilloscope(){
     state.t=0;state.channels=[];state.spikes=[];
+    var numCh=W<480?2:4;
     var types=['sine','square','sawtooth','sine'];
     var cols=['251,191,36','0,212,255','249,115,22','180,100,255'];
-    for(var i=0;i<4;i++){
-      state.channels.push({type:types[i],col:cols[i],freq:rand(.8,2.2),amp:rand(.06,.13),yFrac:.2+i*.18,phase:rand(0,Math.PI*2),alpha:rand(.5,.9),noise:rand(0,.015)});
+    for(var i=0;i<numCh;i++){
+      state.channels.push({type:types[i],col:cols[i],freq:rand(.8,2.2),amp:rand(W<480?.08:.06,W<480?.18:.13),yFrac:(i+.5)/numCh,phase:rand(0,Math.PI*2),alpha:rand(.5,.9),noise:rand(0,.015)});
     }
   }
   function waveVal(ch,x){
@@ -2074,10 +2079,10 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.t=0;state.arcs=[];state.nextArc=0;
     // Multiple Jacob's ladder pairs across screen
     state.ladders=[];
-    var count=Math.min(3,Math.floor(W/280));
+    var count=W<480?1:Math.min(3,Math.floor(W/280));
     for(var i=0;i<count;i++){
       var cx=W*(i+.5)/count;
-      var spread=rand(22,40);
+      var spread=Math.max(14,rand(W*.04,W*.07));
       var baseY=H*.88,topY=H*.08;
       state.ladders.push({cx:cx,spread:spread,baseY:baseY,topY:topY,arcY:baseY,arcX:cx,arcDrift:rand(-1,1),speed:rand(1.8,3.2),col:Math.random()>.5?'251,191,36':'0,212,255',glowCol:Math.random()>.5?'251,191,36':'0,212,255'});
     }
@@ -2087,7 +2092,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     drawBase('rgba(4,6,16,1)');
     state.ladders.forEach(function(lad){
       var spread=lad.spread;
-      var topSpread=spread*3.5;
+      var topSpread=spread*(W<480?2.5:3.5);
       // Electrode rods
       ctx.save();ctx.strokeStyle='rgba(120,120,140,0.85)';ctx.lineWidth=3;
       // Left rod
@@ -2148,9 +2153,10 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.fieldLines = [];
     state.ripples = [];
     // Positive and negative charge positions
+    var cSep=W<480?.28:.3;
     state.charges = [
-      {x:W*.35, y:H*.5, sign:1,  col:'251,191,36'},
-      {x:W*.65, y:H*.5, sign:-1, col:'0,212,255'},
+      {x:W*(0.5-cSep/2), y:H*.5, sign:1,  col:'251,191,36'},
+      {x:W*(0.5+cSep/2), y:H*.5, sign:-1, col:'0,212,255'},
     ];
     // Pre-build field lines radiating from + charge toward - charge
     buildFieldLines();
@@ -2288,19 +2294,20 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function initSubstation(){
     state.t=0; state.arcs=[]; state.coronas=[]; state.flickers=[];
     // Equipment positions
+    var tw=Math.max(44,W*.1),th=Math.max(36,H*.1),bkw=Math.max(12,W*.025),bkh=Math.max(32,H*.08),bsh=Math.max(24,H*.06);
     state.equipment=[
-      {x:W*.18,y:H*.55,type:'transformer',w:70,h:55},
-      {x:W*.42,y:H*.55,type:'transformer',w:70,h:55},
-      {x:W*.66,y:H*.55,type:'transformer',w:70,h:55},
-      {x:W*.12,y:H*.42,type:'bushing',h:40},
-      {x:W*.26,y:H*.42,type:'bushing',h:40},
-      {x:W*.38,y:H*.42,type:'bushing',h:40},
-      {x:W*.54,y:H*.42,type:'bushing',h:40},
-      {x:W*.68,y:H*.42,type:'bushing',h:40},
-      {x:W*.82,y:H*.42,type:'bushing',h:40},
-      {x:W*.3,y:H*.3,type:'breaker',w:18,h:50},
-      {x:W*.5,y:H*.3,type:'breaker',w:18,h:50},
-      {x:W*.7,y:H*.3,type:'breaker',w:18,h:50},
+      {x:W*.18,y:H*.55,type:'transformer',w:tw,h:th},
+      {x:W*.42,y:H*.55,type:'transformer',w:tw,h:th},
+      {x:W*.66,y:H*.55,type:'transformer',w:tw,h:th},
+      {x:W*.12,y:H*.42,type:'bushing',h:bsh},
+      {x:W*.26,y:H*.42,type:'bushing',h:bsh},
+      {x:W*.38,y:H*.42,type:'bushing',h:bsh},
+      {x:W*.54,y:H*.42,type:'bushing',h:bsh},
+      {x:W*.68,y:H*.42,type:'bushing',h:bsh},
+      {x:W*.82,y:H*.42,type:'bushing',h:bsh},
+      {x:W*.3,y:H*.3,type:'breaker',w:bkw,h:bkh},
+      {x:W*.5,y:H*.3,type:'breaker',w:bkw,h:bkh},
+      {x:W*.7,y:H*.3,type:'breaker',w:bkw,h:bkh},
     ];
     // Bus wires
     state.buses=[
@@ -2352,7 +2359,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
         ctx.fillStyle='rgba(35,35,45,1)';ctx.fillRect(eq.x-eq.w/2,eq.y-eq.h,eq.w,eq.h);
         ctx.strokeStyle='rgba(100,100,120,0.5)';ctx.lineWidth=1;ctx.strokeRect(eq.x-eq.w/2,eq.y-eq.h,eq.w,eq.h);
         // Cooling fins
-        for(var f=0;f<5;f++){ctx.fillStyle='rgba(50,50,65,1)';ctx.fillRect(eq.x-eq.w/2-5,eq.y-eq.h+8+f*9,5,7);}
+        for(var f=0;f<5;f++){ctx.fillStyle='rgba(50,50,65,1)';ctx.fillRect(eq.x-eq.w/2-Math.max(3,W*.006),eq.y-eq.h+eq.h*.12+f*(eq.h*.16),Math.max(3,W*.005),Math.max(4,eq.h*.12));}
         // Hum glow
         var hg=ctx.createRadialGradient(eq.x,eq.y-eq.h/2,0,eq.x,eq.y-eq.h/2,50);
         hg.addColorStop(0,'rgba(251,191,36,0.06)');hg.addColorStop(1,'transparent');
@@ -2420,23 +2427,28 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function drawUnderground(){
     state.t++;
     ctx.fillStyle='rgba(5,8,15,0.92)';ctx.fillRect(0,0,W,H);
-    var cx=W*.38,cy=H*.5;
+    // On narrow screens centre the diagram and scale radii
+    var isNarrow=W<500;
+    var cx=isNarrow?W*.5:W*.38,cy=H*.5;
+    var rScale=isNarrow?Math.min(W,H)*.0042:1;
+    if(rScale!==1) state.layers.forEach(function(l){l._r=l.r*rScale;}); else state.layers.forEach(function(l){l._r=l.r;});
     // Draw layers outside in
     for(var i=0;i<state.layers.length;i++){
       var l=state.layers[i];
-      ctx.save();ctx.beginPath();ctx.arc(cx,cy,l.r,0,Math.PI*2);
+      ctx.save();ctx.beginPath();ctx.arc(cx,cy,l._r||l.r,0,Math.PI*2);
       ctx.fillStyle='rgba('+l.col+','+l.alpha+')';ctx.fill();
       // Subtle ring border
       ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=.8;ctx.stroke();
       ctx.restore();
     }
     // Conductor glow / current pulse
-    var coreGlow=ctx.createRadialGradient(cx,cy,0,cx,cy,20);
+    var coreR=(state.layers[state.layers.length-1]._r||14);
+    var coreGlow=ctx.createRadialGradient(cx,cy,0,cx,cy,coreR);
     coreGlow.addColorStop(0,'rgba(255,240,120,'+(0.6+Math.sin(state.t*.04)*.3)+')');
     coreGlow.addColorStop(.5,'rgba(251,191,36,0.3)');coreGlow.addColorStop(1,'transparent');
     ctx.fillStyle=coreGlow;ctx.beginPath();ctx.arc(cx,cy,20,0,Math.PI*2);ctx.fill();
-    // Labels with leader lines on right side
-    var labelX=cx+160;
+    // Labels — on narrow screens stack below diagram
+    var labelX=isNarrow?cx:cx+Math.min(160,W*.38);
     state.layers.forEach(function(l,i){
       var angle=-Math.PI*.6+i*(Math.PI*1.2/(state.layers.length-1));
       var lx=cx+Math.cos(angle)*l.r, ly=cy+Math.sin(angle)*l.r;
@@ -2444,8 +2456,8 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       ctx.save();
       ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+(ex-lx)*.5,ly);ctx.lineTo(ex-10,ey);ctx.lineTo(ex,ey);
       ctx.strokeStyle='rgba('+l.col+',0.4)';ctx.lineWidth=.8;ctx.stroke();
-      ctx.font='11px monospace';ctx.fillStyle='rgba('+l.col+',0.85)';ctx.textAlign='left';
-      ctx.fillText(l.label,ex+5,ey+4);ctx.restore();
+      ctx.font=Math.max(8,Math.min(11,Math.floor(W*.022)))+'px monospace';ctx.fillStyle='rgba('+l.col+',0.85)';ctx.textAlign='left';
+      ctx.fillText(isNarrow?l.label.split(' ')[0]:l.label,ex+(isNarrow?3:5),ey+4);ctx.restore();
     });
     // Traveling current pulse along cut surface
     if(Math.random()<.03) state.pulses.push({angle:rand(0,Math.PI*2),life:1,decay:.015,r:14});
@@ -2468,11 +2480,11 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   // ─────────────────────────────────────────────────
   function initSwitchgear(){
     state.t=0; state.panels=[]; state.arcs=[]; state.nextTrip=60;
-    var cols=4, rows=3;
+    var cols=W<480?2:4, rows=W<480?4:3;
     for(var r=0;r<rows;r++) for(var c=0;c<cols;c++){
       state.panels.push({
-        x:W*(c+.5)/cols, y:H*(.25+r*.22),
-        w:W*.18, h:H*.16,
+        x:W*(c+.5)/cols, y:H*(.12+r*(W<480?.2:.22)),
+        w:W*(W<480?.38:.18), h:H*(W<480?.14:.16),
         energized:Math.random()>.25,
         tripping:false, tripTimer:0,
         flashPhase:rand(0,Math.PI*2),
@@ -2525,8 +2537,8 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       ctx.save();ctx.beginPath();ctx.arc(p.x-p.w/2+14,p.y-p.h/2+12,5,0,Math.PI*2);
       ctx.fillStyle='rgba('+dotCol+','+dotPulse+')';ctx.shadowBlur=p.energized?8:0;ctx.shadowColor='rgba('+dotCol+',0.8)';ctx.fill();ctx.restore();
       // Breaker ID
-      ctx.save();ctx.font='9px monospace';ctx.fillStyle=p.energized?'rgba(251,191,36,0.7)':'rgba(80,80,90,0.6)';ctx.textAlign='center';
-      ctx.fillText(p.id,p.x,p.y+p.h/2-8);ctx.restore();
+      ctx.save();ctx.font=Math.max(7,Math.floor(p.w*.12))+'px monospace';ctx.fillStyle=p.energized?'rgba(251,191,36,0.7)':'rgba(80,80,90,0.6)';ctx.textAlign='center';
+      ctx.fillText(p.id,p.x,p.y+p.h/2-4);ctx.restore();
       // Trip flash
       if(p.tripping){
         var tf=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.w);
@@ -2557,8 +2569,8 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function drawVanDeGraaff(){
     state.t++;
     drawBase('rgba(6,8,20,1)');
-    var cx=W*.5,cy=H*.72,sphereR=Math.min(W,H)*.14;
-    var columnH=H*.38;
+    var cx=W*.5,cy=H*.68,sphereR=Math.min(W,H)*(W<480?.11:.14);
+    var columnH=H*(W<480?.32:.38);
     // Build up charge
     if(!state.discharging){
       state.charge=Math.min(state.maxCharge,state.charge+.003);
@@ -2990,7 +3002,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   // ─────────────────────────────────────────────────
   function initSynapse(){
     state.t=0;state.neurons=[];state.signals=[];state.nextFire=0;
-    var count=Math.min(18,Math.floor(W*H/22000));
+    var count=Math.min(W<480?8:18,Math.floor(W*H/22000));
     for(var i=0;i<count;i++){
       var x=rand(W*.08,W*.92),y=rand(H*.08,H*.92);
       state.neurons.push({x:x,y:y,r:rand(6,14),firing:false,fireTimer:0,charge:rand(0,.3),col:Math.random()>.5?'251,191,36':'0,212,255',connections:[]});
@@ -3074,9 +3086,9 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function initGridDown(){
     state.t=0;state.nodes=[];state.edges=[];state.failQueue=[];state.nextFail=80;state.allDown=false;state.restartTimer=0;
     // Build grid map nodes
-    var cols=8,rows=5;
+    var cols=W<480?5:8,rows=W<480?4:5;
     for(var r=0;r<rows;r++) for(var c=0;c<cols;c++){
-      state.nodes.push({x:W*(c+.5)/cols+rand(-15,15),y:H*(.12+r*.17)+rand(-10,10),energized:true,failing:false,failTimer:0,col:'251,191,36',id:r*cols+c});
+      state.nodes.push({x:W*(c+.5)/cols+rand(-8,8),y:H*(.1+r*(W<480?.2:.17))+rand(-6,6),energized:true,failing:false,failTimer:0,col:'251,191,36',id:r*cols+c});
     }
     // Connect neighbors
     state.nodes.forEach(function(n,i){
