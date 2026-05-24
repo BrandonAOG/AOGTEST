@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.0.1';
+var CACHE_NAME = 'aog-forms-v2.0.2';
 var DEV_MODE   = false;
 
 // Stores last known cache progress so late-loading pages can request it
@@ -237,9 +237,21 @@ function networkFirst(request) {
       return caches.match(request)
         .then(function(cachedResponse) {
           if (cachedResponse) return cachedResponse;
-          if (request.headers.get('Accept') &&
-              request.headers.get('Accept').includes('text/html')) {
-            return caches.match('../offline.html');
+          var accept = request.headers.get('Accept') || '';
+          if (accept.includes('text/html')) {
+            // Use cache.match with full URL to avoid Safari relative path issues
+            return caches.open(CACHE_NAME).then(function(cache) {
+              return cache.match('offline.html')
+                .then(function(r) {
+                  return r || cache.match('/offline.html')
+                    .then(function(r2) {
+                      return r2 || new Response(
+                        '<!DOCTYPE html><html><head><meta charset=UTF-8><meta name=viewport content=width=device-width,initial-scale=1><title>Offline</title></head><body style=background:#060913;color:#FBBF24;font-family:monospace;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center><div><div style=font-size:3rem>⚡</div><h2 style=margin:16px 0>You are offline</h2><p style=color:#7A8BA8>Connect to the internet and try again</p><br><button onclick=location.reload() style=background:#FBBF24;color:#060913;border:none;padding:12px 28px;border-radius:8px;font-weight:bold;font-size:1rem;cursor:pointer>Try Again</button></div></body></html>',
+                        { headers: { 'Content-Type': 'text/html' } }
+                      );
+                    });
+                });
+            });
           }
           return new Response('Service Unavailable', { status: 503 });
         });
@@ -259,6 +271,8 @@ function staleWhileRevalidate(request) {
         return networkResponse;
       }).catch(function(err) {
         console.log('[SW] Revalidate failed:', err);
+        // Return a valid empty response so respondWith never gets undefined
+        return new Response('', { status: 503 });
       });
       return cachedResponse || networkFetch;
     });
@@ -280,7 +294,7 @@ function cacheFirst(request) {
       }
       return networkResponse;
     }).catch(function() {
-      return new Response('', { status: 404 });
+      return new Response('', { status: 503 });
     });
   });
 }
