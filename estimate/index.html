@@ -1037,7 +1037,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .yn-group .yn-n:checked + .yn-label-n { background: #fca5a5 !important; color: #7f1d1d !important; text-shadow: none !important; box-shadow: none !important; }
   .check-group { display: flex !important; flex-wrap: wrap !important; gap: 4px !important; }
   .check-item { min-height: var(--h-print-phone-check-item) !important; height: var(--h-print-phone-check-item) !important; padding: var(--pd-print-phone-check-item) !important; background: #ffffff !important; border: 1px solid #D97706 !important; box-shadow: none !important; display: flex !important; align-items: center !important; gap: 4px !important; }
-  .check-item input[type="checkbox"], .check-item input[type="radio"] { width: 13px !important; height: 13px !important; min-height: 13px !important; min-width: 13px !important; margin: 0 !important; padding: 0 !important; border: none !important; border-bottom: none !important; flex-shrink: 0 !important; accent-color: #D97706 !important; }
+  .check-item input[type="checkbox"], .check-item input[type="radio"] { width: 13px !important; height: 13px !important; min-height: 13px !important; min-width: 13px !important; margin: 0 !important; padding: 0 !important; border: none !important; border-bottom: none !important; flex-shrink: 0 !important; accent-color: #D97706 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body.dark-mode .check-item input[type="checkbox"], body.dark-mode .check-item input[type="radio"] { accent-color: #D97706 !important; }
   .check-item:has(input:checked) { background: #fde68a !important; border-color: #D97706 !important; box-shadow: none !important; }
   .check-item span { color: #1F2937 !important; text-shadow: none !important; font-size: var(--fs-print-phone-check-item) !important; line-height: 1 !important; }
@@ -1728,6 +1728,7 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', 'dark');
   } else {
     document.body.classList.remove('dark-mode');
+  _printDebugLog('dark-mode removed — still dark:' + document.body.classList.contains('dark-mode'));
     document.documentElement.setAttribute('data-theme', 'light');
   }
   document.documentElement.classList.remove('dark-mode-pending');
@@ -2139,182 +2140,151 @@ function getEstimateFilename(ext) {
 function printForm() {
 
   var isMobileSafari = document.body.classList.contains('mobile-safari');
-  var wasDark = document.body.classList.contains('dark-mode');
+  var ua = navigator.userAgent;
+  var isMacSafari = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Firefox|Edge/.test(ua);
+  var isAnySafari  = isMobileSafari || isMacSafari;
 
+  // ── Set PDF filename ──
   var prevTitle = document.title;
   document.title = getEstimateFilename('pdf').replace(/\.pdf$/, '');
 
-  document.body.classList.remove('dark-mode');
-  // Strip seasonal classes so they don't bleed through on iOS reflow
+  // ── Strip dark mode and seasonal (same as install form pattern) ──
+  var wasDark = document.body.classList.contains('dark-mode');
   var _printSeasonalClasses = [];
   document.body.classList.forEach(function(c) { if (c.indexOf('seasonal-') === 0) _printSeasonalClasses.push(c); });
   _printSeasonalClasses.forEach(function(c) { document.body.classList.remove(c); });
+  document.body.classList.remove('dark-mode');
   var _printSeasonalCanvas = document.getElementById('seasonal-canvas');
   if (_printSeasonalCanvas) _printSeasonalCanvas.style.display = 'none';
-  // Disable seasonal + dark mode stylesheets entirely so print preview can't re-apply them
   var _seasonalSheet = document.getElementById('seasonal-styles');
   if (_seasonalSheet) _seasonalSheet.parentNode.removeChild(_seasonalSheet);
-  var _darkModeSheet = document.getElementById('print-optimization-styles');
-  if (_darkModeSheet) _darkModeSheet.disabled = true;
-  var _printOptSheet = document.getElementById('print-optimization-styles');
 
-  var docTitle   = document.querySelector('.doc-title');
-  var compName   = document.querySelector('.company-name');
-  var footerText = document.querySelector('.footer-text');
-  var verSpan    = document.getElementById('ver-span');
-  if (docTitle)   docTitle.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
-  if (compName)   compName.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;');
-  if (footerText) footerText.setAttribute('style', 'color:#9CA3AF!important;text-shadow:none!important;');
-  if (verSpan)    verSpan.setAttribute('style',    'color:#9CA3AF!important;text-shadow:none!important;');
+  // ── No-transitions style (same as install) ──
+  var noTrans = document.createElement('style');
+  noTrans.id = 'no-transitions';
+  noTrans.textContent = '* { transition: none !important; animation: none !important; animation-play-state: paused !important; }';
+  document.head.appendChild(noTrans);
 
+  // ── Force light vars ──
   var printStyle = document.createElement('style');
-  printStyle.id  = 'force-print-light';
+  printStyle.id = 'force-print-light';
   printStyle.textContent = [
-    'body {',
-    '  --cyan: #D97706 !important;',
-    '  --cyan-dim: #B45309 !important;',
-    '  --cyan-dark: #92400E !important;',
-    '  --amber: #D97706 !important;',
-    '  --amber-dim: #B45309 !important;',
-    '  --bg: #FFFFFF !important;',
-    '  --bg3: #F8F8F8 !important;',
-    '  --panel: #FFFFFF !important;',
-    '  --text: #1F2937 !important;',
-    '  --text-muted: #6B7280 !important;',
-    '  --text-dim: #9CA3AF !important;',
-    '  --glow: none !important;',
-    '  --icon-color-primary: #D97706 !important;',
-    '  --icon-color-section: #D97706 !important;',
+    ':root, body {',
+    '  --cyan: #D97706 !important; --cyan-dim: #B45309 !important; --cyan-dark: #92400E !important;',
+    '  --amber: #D97706 !important; --bg: #FFFFFF !important; --bg3: #F8F8F8 !important;',
+    '  --panel: #FFFFFF !important; --text: #1F2937 !important; --text-muted: #6B7280 !important;',
+    '  --glow: none !important; --icon-color-primary: #D97706 !important; --icon-color-section: #D97706 !important;',
     '}',
-    '*, *::before, *::after {',
-    '  animation: none !important;',
-    '  animation-play-state: paused !important;',
-    '  transition: none !important;',
-    '}',
-    'input[type="radio"], input[type="checkbox"] {',
-    '  accent-color: #D97706 !important;',
-    '}',
-    'body.dark-mode input[type="radio"], body.dark-mode input[type="checkbox"],',
-    '.check-item input[type="radio"], .check-item input[type="checkbox"] {',
-    '  accent-color: #D97706 !important;',
-    '}',
-    ':root {',
-    '  --cyan: #D97706 !important;',
-    '  --icon-color-section: #D97706 !important;',
-    '}',
+    'input[type=radio],input[type=checkbox],.check-item input[type=radio],.check-item input[type=checkbox] { accent-color:#D97706!important; }',
     '@media print {',
     '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;border-color:rgba(217,119,6,0.4)!important;animation:none!important;animation-play-state:paused!important;transition:none!important; }',
-    '  .doc-title, .company-name { color:#D97706!important;text-shadow:none!important; }',
-    '  .doc-title::after, .company-name::after { content:"" !important; display:none !important; }',
-    '  .doc-title::before, .doc-title::after, .company-name::before, .company-name::after, .header::after { content:none!important;display:none!important; }',
+    '  svg, svg * { background:transparent!important; }',
+    '  .doc-title,.company-name { color:#D97706!important;text-shadow:none!important; }',
+    '  .doc-title::before,.doc-title::after,.company-name::before,.company-name::after,.header::after { content:none!important;display:none!important; }',
     '  html,body { background:white!important; }',
     '  .page { border:1.5pt solid #D97706!important;background:white!important; }',
     '  .section-header { background:#f5f5f5!important;color:#D97706!important;text-shadow:none!important; }',
-    '  .section-header svg, .section-header svg * { stroke:#D97706!important; }',
+    '  .section-header svg,.section-header svg * { stroke:#D97706!important; }',
     '  .col-label { color:#D97706!important;background:#f5f5f5!important;text-shadow:none!important; }',
     '  .yn-group { background:white!important;border-color:#D97706!important; }',
-    '  .yn-group .yn-label { color:#6B7280!important;background:white!important;text-shadow:none!important; }',
-    '  .check-item input[type="radio"],.check-item input[type="checkbox"] { accent-color:#D97706!important; }',
+    '  .yn-group .yn-label { color:#6B7280!important;background:white!important;text-shadow:none!important;box-shadow:none!important; }',
+    '  .yn-group .yn-y:checked + .yn-label-y { background:#34d399!important;color:#064e3b!important;text-shadow:none!important;box-shadow:none!important; }',
+    '  .yn-group .yn-n:checked + .yn-label-n { background:#fca5a5!important;color:#7f1d1d!important;text-shadow:none!important;box-shadow:none!important; }',
+    '  .check-item input[type=radio],.check-item input[type=checkbox] { accent-color:#D97706!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important; }',
+    '  body.dark-mode .check-item input[type=radio],body.dark-mode .check-item input[type=checkbox] { accent-color:#D97706!important; }',
+    '  .check-item:has(input:checked) { background:#fde68a!important;border-color:#D97706!important;box-shadow:none!important; }',
     '  .footer-text { color:#9CA3AF!important; }',
     '  .toolbar,button,.theme-toggle-btn { display:none!important; }',
-    '  .confirm-modal-backdrop { display:none!important; }',
-    '  #seasonal-canvas { display:none!important; }',
+    '  .confirm-modal-backdrop,#seasonal-canvas { display:none!important; }',
     '}'
   ].join('\n');
   document.head.appendChild(printStyle);
 
-  var vp = document.querySelector('meta[name="viewport"]');
+  // ── Viewport fix for Mobile Safari ──
+  var vp = document.querySelector('meta[name=viewport]');
   var origViewport = vp ? vp.getAttribute('content') : null;
-
   if (isMobileSafari && vp) {
-    vp.setAttribute('content', 'width=1050, initial-scale=1.0');
-
-    setTimeout(function() {
-      if (docTitle)   docTitle.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;letter-spacing:4px!important;');
-      if (compName)   compName.setAttribute('style',   'color:#D97706!important;text-shadow:none!important;');
-      if (footerText) footerText.setAttribute('style', 'color:#9CA3AF!important;text-shadow:none!important;');
-      if (verSpan)    verSpan.setAttribute('style',    'color:#9CA3AF!important;text-shadow:none!important;');
-    }, 100);
-
+    // Don't change viewport width — causes right-edge cutoff on phone
+    // vp.setAttribute('content', 'width=1050, initial-scale=1.0');
     var safariPageFix = document.createElement('style');
     safariPageFix.id = 'safari-page-fix';
     safariPageFix.textContent = [
       '@page { size: 8.5in 10.2in; margin: 0.1in; }',
       '@media print {',
-      '  * { animation:none!important;animation-play-state:paused!important;transition:none!important; }',
-      '  .doc-title, .company-name { transform:translateZ(0);will-change:auto!important;isolation:auto!important; }',
-      '  .header::after { display:none!important;content:none!important; }',
-      '  .page { min-height:0!important; }',
-      '  .footer { margin-top:auto!important;padding:var(--pd-print-phone-footer)!important; }',
-      '  .footer-text,.footer span { font-size:var(--fs-print-ipad-footer)!important; }',
-      '  #ver-span { font-size:var(--fs-print-ipad-ver-span)!important; }',
       '  .field-row,.inline-row { min-height:var(--h-print-ipad-field-row)!important; }',
-      '  input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"] { min-height:var(--h-print-ipad-input)!important;height:var(--h-print-ipad-input)!important;font-size:var(--fs-print-ipad-input)!important; }',
+      '  input[type=text],input[type=email],input[type=tel],input[type=date],input[type=number] { min-height:var(--h-print-ipad-input)!important;height:var(--h-print-ipad-input)!important;font-size:var(--fs-print-ipad-input)!important; }',
       '  .yn-group,.yn-group .yn-label { height:var(--h-print-ipad-yn-label)!important;min-height:var(--h-print-ipad-yn-label)!important;line-height:var(--h-print-ipad-yn-label)!important; }',
       '  .check-item { height:var(--h-print-ipad-check-item)!important;min-height:var(--h-print-ipad-check-item)!important; }',
       '  #gen_notes  { height:var(--h-print-ipad-gen-notes)!important;min-height:var(--h-print-ipad-gen-notes)!important;max-height:var(--h-print-ipad-gen-notes)!important; }',
       '  #pad_notes  { height:var(--h-print-ipad-pad-notes)!important;min-height:var(--h-print-ipad-pad-notes)!important;max-height:var(--h-print-ipad-pad-notes)!important; }',
       '  #gas_notes  { height:var(--h-print-ipad-gas-notes)!important;min-height:var(--h-print-ipad-gas-notes)!important;max-height:var(--h-print-ipad-gas-notes)!important; }',
       '  #ready_notes { height:var(--h-print-ipad-ready-notes)!important;min-height:var(--h-print-ipad-ready-notes)!important;max-height:var(--h-print-ipad-ready-notes)!important; }',
-      '  #install_days { height:var(--h-print-ipad-input)!important;min-height:var(--h-print-ipad-input)!important; }',
       '}'
     ].join('\n');
     document.head.appendChild(safariPageFix);
   }
 
+  // ── Restore function ──
+  var _printReplaced = [];
   function restore() {
-    window.removeEventListener('afterprint', restore);
-    document.removeEventListener('visibilitychange', onVis);
-    var el = document.getElementById('force-print-light'); if (el) { el.remove(); }
-    var fix = document.getElementById('safari-page-fix');  if (fix) { fix.remove(); }
-    if (wasDark) { document.body.classList.add('dark-mode'); }
+    _printReplaced.forEach(function(r) {
+      if (r.box && r.box.parentNode) r.box.parentNode.removeChild(r.box);
+      if (r.origStyle) r.input.setAttribute('style', r.origStyle);
+      else r.input.removeAttribute('style');
+    });
+    _printReplaced = [];
+    var el;
+    el = document.getElementById('force-print-light'); if (el) el.remove();
+    el = document.getElementById('safari-page-fix');  if (el) el.remove();
+    el = document.getElementById('no-transitions');   if (el) el.remove();
+    if (wasDark) document.body.classList.add('dark-mode');
     _printSeasonalClasses.forEach(function(c) { document.body.classList.add(c); });
     if (_printSeasonalCanvas) _printSeasonalCanvas.style.display = '';
-    // Re-inject seasonal stylesheet after a delay so print preview fully closes first
-    if (_seasonalSheet) setTimeout(function() { document.head.appendChild(_seasonalSheet); }, 1500);
-    if (_darkModeSheet) _darkModeSheet.disabled = false;
-    if (docTitle)   docTitle.removeAttribute('style');
-    if (compName)   compName.removeAttribute('style');
-    if (footerText) footerText.removeAttribute('style');
-    if (verSpan)    verSpan.removeAttribute('style');
-    if (isMobileSafari && vp && origViewport) { vp.setAttribute('content', origViewport); }
+    if (_seasonalSheet) setTimeout(function() { document.head.appendChild(_seasonalSheet); }, 500);
+    // Viewport not changed — no restore needed
     document.title = prevTitle;
   }
-  function onVis() { if (!document.hidden) restore(); }
-  if (isMobileSafari) {
-    var _wentHidden = false;
-    var _restorePoller = null;
-    document.addEventListener('visibilitychange', function _iosVis() {
-      if (document.hidden) {
-        _wentHidden = true;
-      } else if (_wentHidden) {
-        document.removeEventListener('visibilitychange', _iosVis);
-        if (_restorePoller) clearInterval(_restorePoller);
-        restore();
+
+  // ── Safari: span-replace inputs for reliable fill rendering ──
+  if (isAnySafari) {
+    document.querySelectorAll('.check-item input[type=radio], .check-item input[type=checkbox]').forEach(function(input) {
+      var isChecked = input.checked;
+      var isRadio   = input.type === 'radio';
+      var origStyle = input.getAttribute('style') || '';
+      input.style.cssText = 'opacity:0!important;position:absolute!important;width:0!important;height:0!important;';
+      var box = document.createElement('span');
+      if (isChecked) {
+        box.style.cssText = 'display:inline-flex!important;width:14px!important;height:14px!important;min-width:14px!important;min-height:14px!important;background:#D97706!important;border:2px solid #D97706!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;flex-shrink:0!important;vertical-align:middle!important;box-sizing:border-box!important;align-items:center!important;justify-content:center!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;';
+        if (!isRadio) {
+          var mark = document.createElement('span');
+          mark.style.cssText = 'display:block!important;width:8px!important;height:4px!important;border-left:2.5px solid #ffffff!important;border-bottom:2.5px solid #ffffff!important;transform:rotate(-45deg)!important;margin-top:-2px!important;flex-shrink:0!important;';
+          box.appendChild(mark);
+        }
+      } else {
+        box.style.cssText = 'display:inline-block!important;width:13px!important;height:13px!important;min-width:13px!important;min-height:13px!important;background:#ffffff!important;border:1.5px solid #9CA3AF!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;flex-shrink:0!important;vertical-align:middle!important;box-sizing:border-box!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;';
       }
+      input.parentNode.insertBefore(box, input);
+      _printReplaced.push({ input: input, box: box, origStyle: origStyle });
     });
-    // Fallback: if page never hides (Safari blocked print), restore after 3s
-    setTimeout(function() {
-      if (!_wentHidden) {
-        restore();
-      }
-    }, 3000);
-  } else {
-    window.addEventListener('afterprint', restore);
   }
 
-  // Force browser to flush layout/styles before printing, stays within gesture
-  document.body.getBoundingClientRect();
-  document.getElementById('page').getBoundingClientRect();
+  // ── Flush layout then print ──
+  void document.body.offsetHeight;
+
+  // ── afterprint restore ──
+  window.addEventListener('afterprint', function _onAfterPrint() {
+    window.removeEventListener('afterprint', _onAfterPrint);
+    restore();
+  });
+
   if (isMobileSafari) {
-      setTimeout(function() {
-      document.body.getBoundingClientRect();
-      window.print();
-    }, 800);
+    setTimeout(function() { window.print(); }, 800);
   } else {
     window.print();
   }
+
 }
+
 
 // ── CANVAS CAPTURE ──
 function cropCanvasToContent(canvas) {
@@ -2515,12 +2485,11 @@ function capturePageToCanvas() {
               input.style.cssText = 'opacity:0!important;position:absolute!important;width:0!important;height:0!important;';
               if (isChecked) {
                 var box = clonedDoc.createElement('span');
-                box.style.cssText = 'display:inline-flex!important;width:13px!important;height:13px!important;min-width:13px!important;min-height:13px!important;background:#D97706!important;border:1.5px solid #D97706!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;flex-shrink:0!important;vertical-align:middle!important;margin-right:3px!important;box-sizing:border-box!important;align-items:center!important;justify-content:center!important;';
+                box.style.cssText = 'display:inline-flex!important;width:14px!important;height:14px!important;min-width:14px!important;min-height:14px!important;background:#D97706!important;border:2px solid #D97706!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;flex-shrink:0!important;vertical-align:middle!important;margin-right:3px!important;box-sizing:border-box!important;align-items:center!important;justify-content:center!important;';
                 var mark = clonedDoc.createElement('span');
-                if (isRadio) {
-                  mark.style.cssText = 'display:block!important;width:5px!important;height:5px!important;background:#ffffff!important;border-radius:50%!important;';
-                } else {
-                  mark.style.cssText = 'display:block!important;width:7px!important;height:4px!important;border-left:2px solid #ffffff!important;border-bottom:2px solid #ffffff!important;transform:rotate(-45deg)!important;margin-top:-2px!important;';
+                if (!isRadio) {
+                  mark.style.cssText = 'display:block!important;width:8px!important;height:4px!important;border-left:2.5px solid #ffffff!important;border-bottom:2.5px solid #ffffff!important;transform:rotate(-45deg)!important;margin-top:-2px!important;';
+                  box.appendChild(mark);
                 }
                 box.appendChild(mark);
                 input.parentNode.insertBefore(box, input);
