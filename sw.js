@@ -9,7 +9,10 @@
 // ============================================================
 
 var CACHE_NAME = 'aog-forms-v2.0.0';
-var DEV_MODE   = false; // ← SET TRUE during development/testing
+var DEV_MODE   = false;
+
+// Stores last known cache progress so late-loading pages can request it
+var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE during development/testing
 
 // ============================================================
 //  CHANGELOG — Update this every time you bump CACHE_NAME.
@@ -83,7 +86,8 @@ self.addEventListener('install', function(event) {
         var completed = 0;
 
         function broadcastProgress(pct, label) {
-          self.clients.matchAll().then(function(clients) {
+          cacheProgress = { percent: pct, label: label, done: pct >= 100 };
+          self.clients.matchAll({ includeUncontrolled: true }).then(function(clients) {
             clients.forEach(function(client) {
               client.postMessage({
                 action:   'CACHE_PROGRESS',
@@ -118,7 +122,8 @@ self.addEventListener('install', function(event) {
       })
       .then(function() {
         // Broadcast 100% complete
-        self.clients.matchAll().then(function(clients) {
+        cacheProgress = { percent: 100, label: 'All files cached — ready offline', done: true };
+        self.clients.matchAll({ includeUncontrolled: true }).then(function(clients) {
           clients.forEach(function(client) {
             client.postMessage({
               action:  'CACHE_PROGRESS',
@@ -326,6 +331,18 @@ self.addEventListener('message', function(event) {
       version:   CACHE_NAME,
       changelog: CHANGELOG
     });
+  }
+
+  // Page requests current cache progress (for late-loading pages that missed broadcasts)
+  if (event.data && event.data.action === 'GET_CACHE_PROGRESS') {
+    if (event.ports[0]) {
+      event.ports[0].postMessage({
+        action:  'CACHE_PROGRESS',
+        percent: cacheProgress.percent,
+        label:   cacheProgress.label,
+        done:    cacheProgress.done
+      });
+    }
   }
 
 });
