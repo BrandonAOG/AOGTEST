@@ -497,14 +497,7 @@ body {
 }
 .ab-btn:hover { border-color: var(--cyan); }
 
-#offline-banner {
-  position: fixed; top: 0; left: 0; right: 0; background: #DC2626; color: #FFFFFF;
-  padding: 10px 16px; text-align: center; font-family: var(--font-display);
-  font-size: 0.75rem; letter-spacing: 2px; z-index: 10000; display: none;
-  box-shadow: 0 4px 12px rgba(220,38,38,0.3);
-}
-#offline-banner.show { display: block; }
-body.offline { padding-top: 50px; }
+body.offline { padding-top: 0; }
 
 /* ── WRAPPER ── */
 .wrapper {
@@ -1021,7 +1014,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     </svg>
   </button>
 </div>
-<div id="offline-banner" role="alert">⚠️ YOU ARE OFFLINE — Your data will be auto-saved locally</div>
+
 <div id="save-status" style="position:fixed;top:46px;left:0;right:0;z-index:9998;text-align:center;font-size:10px;color:var(--text-muted);background:#fff;padding:2px 8px;display:none;" aria-live="polite"></div>
 
 <div class="wrapper">
@@ -1860,8 +1853,8 @@ function printForm() {
 }
 
 // ── OFFLINE ──
-window.addEventListener('online',  function() { var b=document.getElementById('offline-banner'); if(b) b.classList.remove('show'); document.body.classList.remove('offline'); });
-window.addEventListener('offline', function() { var b=document.getElementById('offline-banner'); if(b) b.classList.add('show'); document.body.classList.add('offline'); });
+window.addEventListener('online',  function() { document.body.classList.remove('offline'); });
+window.addEventListener('offline', function() { document.body.classList.add('offline'); });
 
 // ── THEME ──
 var THEME_KEY = 'aog_theme_preference';
@@ -1882,7 +1875,7 @@ function getInitialTheme() {
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', function() {
   var today = new Date().toISOString().split('T')[0];
-  if (!navigator.onLine) { var b=document.getElementById('offline-banner'); if(b) b.classList.add('show'); document.body.classList.add('offline'); }
+  if (!navigator.onLine) { document.body.classList.add('offline'); }
   applyTheme(getInitialTheme());
   if (document.documentElement.classList.contains('dark-mode-pending')) {
     document.body.classList.add('dark-mode');
