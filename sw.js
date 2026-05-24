@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.0.2';
+var CACHE_NAME = 'aog-forms-v2.0.3';
 var DEV_MODE   = false;
 
 // Stores last known cache progress so late-loading pages can request it
@@ -83,28 +83,32 @@ self.addEventListener('install', function(event) {
         console.log('[SW] Pre-caching core files');
         var total = PRECACHE_URLS.length;
         var completed = 0;
+        var scope = self.registration.scope; // e.g. https://brandonaog.github.io/AOGTEST/
 
         // Sequential caching so progress is accurate and stored for polling
         return PRECACHE_URLS.reduce(function(chain, url) {
           return chain.then(function() {
-            return cache.add(url)
+            // Convert relative ../path to absolute using scope
+            var absUrl = url.startsWith('http') ? url : new URL(url, scope).href;
+            var label = absUrl.replace(scope,'').replace(/\/$/,'') || 'hub';
+            return cache.add(absUrl)
               .then(function() {
                 completed++;
                 cacheProgress = {
                   percent: Math.round((completed / total) * 100),
-                  label: url.replace('../','').replace(/\/$/,'') || 'hub',
+                  label: label,
                   done: completed === total
                 };
-                console.log('[SW] Cached (' + cacheProgress.percent + '%):', url);
+                console.log('[SW] Cached (' + cacheProgress.percent + '%):', absUrl);
               })
               .catch(function(err) {
                 completed++;
                 cacheProgress = {
                   percent: Math.round((completed / total) * 100),
-                  label: 'skipped: ' + url.replace('../',''),
+                  label: 'skipped: ' + label,
                   done: completed === total
                 };
-                console.warn('[SW] Pre-cache skipped:', url, err);
+                console.warn('[SW] Pre-cache skipped:', absUrl, err);
               });
           });
         }, Promise.resolve());
@@ -239,19 +243,32 @@ function networkFirst(request) {
           if (cachedResponse) return cachedResponse;
           var accept = request.headers.get('Accept') || '';
           if (accept.includes('text/html')) {
-            // Use cache.match with full URL to avoid Safari relative path issues
-            return caches.open(CACHE_NAME).then(function(cache) {
-              return cache.match('offline.html')
-                .then(function(r) {
-                  return r || cache.match('/offline.html')
-                    .then(function(r2) {
-                      return r2 || new Response(
-                        '<!DOCTYPE html><html><head><meta charset=UTF-8><meta name=viewport content=width=device-width,initial-scale=1><title>Offline</title></head><body style=background:#060913;color:#FBBF24;font-family:monospace;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center><div><div style=font-size:3rem>⚡</div><h2 style=margin:16px 0>You are offline</h2><p style=color:#7A8BA8>Connect to the internet and try again</p><br><button onclick=location.reload() style=background:#FBBF24;color:#060913;border:none;padding:12px 28px;border-radius:8px;font-weight:bold;font-size:1rem;cursor:pointer>Try Again</button></div></body></html>',
-                        { headers: { 'Content-Type': 'text/html' } }
-                      );
-                    });
+            // Build the full absolute offline.html URL from the SW location
+            // self.location.origin + pathname up to the root scope
+            var offlineUrl = self.registration.scope + 'offline.html';
+            return caches.match(offlineUrl)
+              .then(function(r) {
+                if (r) return r;
+                // Fallback: search all caches for offline.html
+                return caches.keys().then(function(cacheNames) {
+                  return Promise.all(
+                    cacheNames.map(function(name) {
+                      return caches.open(name).then(function(c) {
+                        return c.match(offlineUrl);
+                      });
+                    })
+                  ).then(function(results) {
+                    for (var i = 0; i < results.length; i++) {
+                      if (results[i]) return results[i];
+                    }
+                    // Last resort inline fallback
+                    return new Response(
+                      '<!DOCTYPE html><html><head><meta charset=UTF-8><meta name=viewport content=width=device-width,initial-scale=1><title>Offline</title></head><body style=background:#060913;color:#FBBF24;font-family:monospace;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center><div><div style=font-size:3rem>⚡</div><h2 style=margin:16px 0>You are offline</h2><p style=color:#7A8BA8>Connect to the internet and try again</p><br><button onclick=location.reload() style=background:#FBBF24;color:#060913;border:none;padding:12px 28px;border-radius:8px;font-weight:bold;font-size:1rem;cursor:pointer>Try Again</button></div></body></html>',
+                      { headers: { 'Content-Type': 'text/html' } }
+                    );
+                  });
                 });
-            });
+              });
           }
           return new Response('Service Unavailable', { status: 503 });
         });
