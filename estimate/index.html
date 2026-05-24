@@ -563,6 +563,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .check-group { display: flex !important; flex-wrap: wrap !important; gap: 4px !important; }
   .check-item { min-height: 26px !important; height: 26px !important; padding: 0 8px 0 6px !important; background: #ffffff !important; border: 1px solid #D97706 !important; box-shadow: none !important; display: flex !important; align-items: center !important; gap: 4px !important; }
   .check-item input[type="checkbox"], .check-item input[type="radio"] { width: 13px !important; height: 13px !important; min-height: 13px !important; min-width: 13px !important; margin: 0 !important; padding: 0 !important; border: none !important; border-bottom: none !important; flex-shrink: 0 !important; }
+  [data-print-check] { display:inline-flex!important; width:13px!important; height:13px!important; min-width:13px!important; min-height:13px!important; background:#D97706!important; -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }
   .check-item span { color: #1F2937 !important; text-shadow: none !important; font-size: 0.62rem !important; line-height: 1 !important; }
   .check-item:has(input:checked) { background: #fde68a !important; border-color: #D97706 !important; box-shadow: none !important; }
   .check-item:has(input:checked) span { color: #92400E !important; }
@@ -1346,9 +1347,11 @@ function printForm() {
     input.style.cssText = 'opacity:0!important;position:absolute!important;width:0!important;height:0!important;';
     if (isChecked) {
       var box = document.createElement('span');
-      box.style.cssText = 'display:inline-block;width:13px;height:13px;min-width:13px;min-height:13px;' +
-        'background:#D97706;border:1.5px solid #D97706;border-radius:' + (isRadio ? '50%' : '2px') + ';' +
-        'flex-shrink:0;vertical-align:middle;margin-right:3px;box-sizing:border-box;position:relative;';
+      box.setAttribute('data-print-check', '1');
+      box.style.cssText = 'display:inline-flex!important;width:13px!important;height:13px!important;min-width:13px!important;min-height:13px!important;' +
+        'background:#D97706!important;border:1.5px solid #D97706!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;' +
+        'flex-shrink:0!important;vertical-align:middle!important;margin-right:3px!important;box-sizing:border-box!important;' +
+        'align-items:center!important;justify-content:center!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;';
       input.parentNode.insertBefore(box, input);
       _replacedInputs.push({ input: input, box: box, orig: orig });
     } else {
