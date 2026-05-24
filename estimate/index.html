@@ -2271,15 +2271,30 @@ function printForm() {
   // ── Flush layout then print ──
   void document.body.offsetHeight;
 
-  // ── afterprint restore ──
-  window.addEventListener('afterprint', function _onAfterPrint() {
-    window.removeEventListener('afterprint', _onAfterPrint);
-    restore();
-  });
-
+  // ── Restore triggers ──
   if (isMobileSafari) {
+    var _wentHidden = false;
+    document.addEventListener('visibilitychange', function _iosVis() {
+      if (document.hidden) {
+        _wentHidden = true;
+      } else if (_wentHidden) {
+        document.removeEventListener('visibilitychange', _iosVis);
+        restore();
+      }
+    });
+    // afterprint as fallback — fires immediately on iOS 26 so wait 5s
+    window.addEventListener('afterprint', function _iosAfter() {
+      window.removeEventListener('afterprint', _iosAfter);
+      if (!_wentHidden) {
+        setTimeout(restore, 5000);
+      }
+    });
     setTimeout(function() { window.print(); }, 800);
   } else {
+    window.addEventListener('afterprint', function _onAfterPrint() {
+      window.removeEventListener('afterprint', _onAfterPrint);
+      restore();
+    });
     window.print();
   }
 
