@@ -229,14 +229,7 @@ body.dark-mode .theme-icon { stroke: var(--icon-color-primary) !important; color
 body.dark-mode .theme-icon { opacity: 0; transform: rotate(-180deg); }
 body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg); }
 
-#offline-banner {
-  position: fixed; top: 0; left: 0; right: 0; background: #DC2626; color: #FFFFFF;
-  padding: 10px 16px; text-align: center; font-family: var(--font-display);
-  font-size: 0.75rem; letter-spacing: 2px; z-index: 10000; display: none;
-  box-shadow: 0 4px 12px rgba(220,38,38,0.3);
-}
-#offline-banner.show { display: block; }
-body.offline { padding-top: 50px; }
+body.offline { padding-top: 0; }
 
 .toolbar {
   background: var(--panel); border-bottom: 1px solid var(--border);
@@ -706,7 +699,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 })();
 </script>
 
-<div id="offline-banner" role="alert">⚠️ YOU ARE OFFLINE — Your data will be auto-saved locally</div>
+
 <div id="gps-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
 
 <div class="action-bar" id="action-bar">
@@ -1069,8 +1062,8 @@ function setupThemeToggle() {
 }
 
 // ── OFFLINE ──
-window.addEventListener('online',  function() { var b=document.getElementById('offline-banner'); if(b) b.classList.remove('show'); document.body.classList.remove('offline'); });
-window.addEventListener('offline', function() { var b=document.getElementById('offline-banner'); if(b) b.classList.add('show'); document.body.classList.add('offline'); });
+window.addEventListener('online',  function() { document.body.classList.remove('offline'); });
+window.addEventListener('offline', function() { document.body.classList.add('offline'); });
 
 // ── DRAFT ──
 var DRAFT_KEY = 'aog_estimate_draft';
@@ -2827,7 +2820,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (todayInput  && !todayInput.value)  todayInput.value  = todayStr;
   if (estDoneOn   && !estDoneOn.value)   estDoneOn.value   = todayStr;
 
-  if (!navigator.onLine) { var b=document.getElementById('offline-banner'); if(b) b.classList.add('show'); document.body.classList.add('offline'); }
+  if (!navigator.onLine) { document.body.classList.add('offline'); }
   injectSeasonalStyles();
   applySeasonalTheme(getCurrentSeasonalTheme());
   applyTheme(getInitialTheme());
