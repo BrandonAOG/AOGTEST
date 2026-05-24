@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.0.3';
+var CACHE_NAME = 'aog-forms-v2.0.4';
 var DEV_MODE   = false;
 
 // Stores last known cache progress so late-loading pages can request it
@@ -33,26 +33,26 @@ var CHANGELOG = [
 // ============================================================
 
 var PRECACHE_URLS = [
-  '../',
-  '../index.html',
-  '../offline.html',
-  '../manifest.json',
-  '../logo.png',
-  '../sw.js',
-  '../estimate/',
-  '../maintenance/',
-  '../site-visit/',
-  '../gas-install/',
-  '../elect-install/',
-  '../qc-checklist/',
-  '../service-work/',
-  '../site-annotator/',
-  '../load-calcs/',
-  '../breaker-conductor/',
-  '../conduit-fill/',
-  '../sketch-pad/',
-  '../gas-calc/',
-  '../spec-viewer/'
+  './',
+  './index.html',
+  './offline.html',
+  './manifest.json',
+  './logo.png',
+  './sw.js',
+  './estimate/',
+  './maintenance/',
+  './site-visit/',
+  './gas-install/',
+  './elect-install/',
+  './qc-checklist/',
+  './service-work/',
+  './site-annotator/',
+  './load-calcs/',
+  './breaker-conductor/',
+  './conduit-fill/',
+  './sketch-pad/',
+  './gas-calc/',
+  './spec-viewer/'
 ];
 
 var CACHE_CDN = [
@@ -243,9 +243,9 @@ function networkFirst(request) {
           if (cachedResponse) return cachedResponse;
           var accept = request.headers.get('Accept') || '';
           if (accept.includes('text/html')) {
-            // Build the full absolute offline.html URL from the SW location
-            // self.location.origin + pathname up to the root scope
+            // Build offline URL relative to SW scope — matches how it was cached
             var offlineUrl = self.registration.scope + 'offline.html';
+            console.log('[SW] Looking for offline page at:', offlineUrl);
             return caches.match(offlineUrl)
               .then(function(r) {
                 if (r) return r;
