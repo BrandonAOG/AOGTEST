@@ -263,12 +263,6 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   </div>
 </div>
 
-<!-- TEMP THEME SWITCHER -->
-<div id="theme-switcher" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:10px;background:rgba(10,14,30,0.92);border:1px solid rgba(251,191,36,0.4);border-radius:50px;padding:8px 16px;backdrop-filter:blur(12px);font-family:'Share Tech Mono',monospace;">
-  <button onclick="prevTheme()" style="background:none;border:none;color:#FBBF24;font-size:1.1rem;cursor:pointer;padding:2px 6px;line-height:1;">&#9664;</button>
-  <span id="theme-label" style="font-size:0.62rem;letter-spacing:3px;color:#FBBF24;text-transform:uppercase;min-width:140px;text-align:center;">--</span>
-  <button onclick="nextTheme()" style="background:none;border:none;color:#FBBF24;font-size:1.1rem;cursor:pointer;padding:2px 6px;line-height:1;">&#9654;</button>
-</div>
 
 
 <script>
@@ -891,28 +885,40 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function drawBlueprint(){
     ctx.fillStyle='rgba(2,6,18,0.9)';ctx.fillRect(0,0,W,H);
     state.t++;
-    state.rotY+=.006;
+    state.rotY+= W<480 ? .012 : .006;
     state.floatOffset=Math.sin(state.t*.015)*12;
-    state.scanY=(state.scanY+1)%(H);
+    state.scanY=(state.scanY+2)%(H);
     var cx=W*.5, cy=H*.5+state.floatOffset;
-    // Grid
-    var gs=50;
+    // Grid — single path per axis for performance
+    var gs=W<480?80:50;
     ctx.save();ctx.strokeStyle='rgba(0,180,255,0.04)';ctx.lineWidth=.5;
-    for(var x=0;x<W;x+=gs){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-    for(var y=0;y<H;y+=gs){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-    ctx.restore();
+    ctx.beginPath();
+    for(var x=0;x<W;x+=gs){ctx.moveTo(x,0);ctx.lineTo(x,H);}
+    for(var y=0;y<H;y+=gs){ctx.moveTo(0,y);ctx.lineTo(W,y);}
+    ctx.stroke();ctx.restore();
     // Scan line
     ctx.save();ctx.fillStyle='rgba(0,212,255,0.04)';ctx.fillRect(0,state.scanY-1,W,2);ctx.restore();
-    // Wireframe
+    // Wireframe — single shadow pass then single crisp pass (no per-edge save/restore)
     var pts=state.verts3D.map(function(v){return project3D(v,state.rotY,cx,cy);});
-    state.edges.forEach(function(e){
-      ctx.save();ctx.beginPath();ctx.moveTo(pts[e[0]][0],pts[e[0]][1]);ctx.lineTo(pts[e[1]][0],pts[e[1]][1]);
-      ctx.strokeStyle='rgba(0,212,255,0.55)';ctx.lineWidth=1;ctx.shadowBlur=6;ctx.shadowColor='rgba(0,212,255,0.7)';ctx.stroke();ctx.restore();
-    });
-    // Vertex dots
-    pts.forEach(function(p){ctx.save();ctx.beginPath();ctx.arc(p[0],p[1],2,0,Math.PI*2);ctx.fillStyle='rgba(0,212,255,0.8)';ctx.shadowBlur=8;ctx.shadowColor='rgba(0,212,255,1)';ctx.fill();ctx.restore();});
+    // Glow pass
+    ctx.save();ctx.strokeStyle='rgba(0,212,255,0.2)';ctx.lineWidth=4;ctx.shadowBlur=W<480?0:10;ctx.shadowColor='rgba(0,212,255,0.6)';
+    ctx.beginPath();
+    state.edges.forEach(function(e){ctx.moveTo(pts[e[0]][0],pts[e[0]][1]);ctx.lineTo(pts[e[1]][0],pts[e[1]][1]);});
+    ctx.stroke();ctx.restore();
+    // Crisp pass
+    ctx.save();ctx.strokeStyle='rgba(0,212,255,0.75)';ctx.lineWidth=1.2;
+    ctx.beginPath();
+    state.edges.forEach(function(e){ctx.moveTo(pts[e[0]][0],pts[e[0]][1]);ctx.lineTo(pts[e[1]][0],pts[e[1]][1]);});
+    ctx.stroke();ctx.restore();
+    // Vertex dots — single pass
+    ctx.save();ctx.fillStyle='rgba(0,212,255,0.9)';ctx.shadowBlur=W<480?0:8;ctx.shadowColor='rgba(0,212,255,1)';
+    ctx.beginPath();
+    pts.forEach(function(p){ctx.moveTo(p[0]+2,p[1]);ctx.arc(p[0],p[1],2,0,Math.PI*2);});
+    ctx.fill();ctx.restore();
     // Labels
-    ctx.save();ctx.font='9px monospace';ctx.fillStyle='rgba(0,212,255,0.35)';ctx.fillText('GEN-22KW',cx-24,cy+state.scale*.7+18);ctx.fillText('PWR-OUT: 22000W',cx-38,cy+state.scale*.7+30);ctx.restore();
+    ctx.save();ctx.font='9px monospace';ctx.fillStyle='rgba(0,212,255,0.35)';
+    ctx.fillText('GEN-22KW',cx-24,cy+state.scale*.7+18);
+    ctx.fillText('PWR-OUT: 22000W',cx-38,cy+state.scale*.7+30);ctx.restore();
   }
 
   // ─────────────────────────────────────────────────
@@ -3269,23 +3275,6 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 
 
 
-  function switchToTheme(i) {
-    generation++;
-    cancelAnimationFrame(raf);
-    idx = ((i % themes.length) + themes.length) % themes.length;
-    theme = themes[idx];
-    sessionStorage.setItem('aog_theme', idx);
-    state = {};
-    resize();
-    theme.init();
-    var label = document.getElementById('theme-label');
-    if(label) label.textContent = theme.name.toUpperCase();
-    loop(generation);
-  }
-
-  window.nextTheme = function(){ switchToTheme(idx + 1); };
-  window.prevTheme = function(){ switchToTheme(idx - 1); };
-
   window.addEventListener('resize', function(){
     generation++;
     cancelAnimationFrame(raf);
@@ -3295,8 +3284,6 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     loop(generation);
   });
 
-  var label = document.getElementById('theme-label');
-  if(label) label.textContent = theme.name.toUpperCase();
   loop(generation);
 })();
 
