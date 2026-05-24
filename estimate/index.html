@@ -1446,6 +1446,7 @@ function capturePageToCanvas() {
       'body.dark-mode .top-col { background: #ffffff !important; }',
       '* { animation: none !important; transition: none !important; }',
       '.logo-img { width: 48px !important; height: 48px !important; object-fit: contain !important; display: block !important; }',
+      '.section-header::before, .col-label::before { display: none !important; }',
       '.header::after { display: none !important; }',
       'body { max-width: ' + CAPTURE_W + 'px !important; }',
       '#page { width: ' + CAPTURE_W + 'px !important; max-width: ' + CAPTURE_W + 'px !important; height: auto !important; min-height: ' + PAPER_H + 'px !important; overflow: visible !important; display: flex !important; flex-direction: column !important; }',
@@ -1462,6 +1463,9 @@ function capturePageToCanvas() {
     var restore = function() {
       if (restored) return;
       restored = true;
+      // ── Remove injected capture dots ──
+      injectedSpans.forEach(function(s) { if (s.parentNode) s.parentNode.removeChild(s); });
+      injectedSpans = [];
       // ── PATCH: Restore seasonal theme classes, dark-mode, and canvas ──
       seasonalClasses.forEach(function(c) { document.body.classList.add(c); });
       if (wasDarkCapture) document.body.classList.add('dark-mode');
@@ -1474,6 +1478,16 @@ function capturePageToCanvas() {
       document.body.style.padding = prevBodyPad;
       var fs = document.getElementById('capture-force-style'); if (fs) fs.remove();
     };
+
+    // ── Replace ::before pseudo-element squares with real spans so html2canvas sees them ──
+    var injectedSpans = [];
+    document.querySelectorAll('.section-header, .col-label').forEach(function(el) {
+      var span = document.createElement('span');
+      span.style.cssText = 'display:inline-block;width:6px;height:6px;background:#D97706;box-shadow:none;flex-shrink:0;margin-right:6px;border-radius:0;';
+      span.setAttribute('data-capture-dot', '1');
+      el.insertBefore(span, el.firstChild);
+      injectedSpans.push(span);
+    });
 
     requestAnimationFrame(function() { requestAnimationFrame(function() {
       var CAPTURE_H = Math.max(page.scrollHeight, PAPER_H);
