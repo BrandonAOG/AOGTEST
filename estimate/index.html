@@ -1352,6 +1352,16 @@ function printForm() {
         'background:#D97706!important;border:1.5px solid #D97706!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;' +
         'flex-shrink:0!important;vertical-align:middle!important;margin-right:3px!important;box-sizing:border-box!important;' +
         'align-items:center!important;justify-content:center!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;';
+      // Add white checkmark or dot inside
+      var mark = document.createElement('span');
+      if (isRadio) {
+        // White circle dot for radio
+        mark.style.cssText = 'display:block!important;width:5px!important;height:5px!important;background:#ffffff!important;border-radius:50%!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;';
+      } else {
+        // White checkmark for checkbox using borders
+        mark.style.cssText = 'display:block!important;width:7px!important;height:4px!important;border-left:2px solid #ffffff!important;border-bottom:2px solid #ffffff!important;transform:rotate(-45deg)!important;margin-top:-2px!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;';
+      }
+      box.appendChild(mark);
       input.parentNode.insertBefore(box, input);
       _replacedInputs.push({ input: input, box: box, orig: orig });
     } else {
