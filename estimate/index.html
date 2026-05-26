@@ -493,8 +493,8 @@
 
   /* ---- INPUT FIELD WIDTHS — PRINT DESKTOP ---- */
   --w-print-desktop-gen-size:    15ch;
-  --w-print-desktop-num-panels:  8ch;
-  --w-print-desktop-num-ts:      8ch;
+  --w-print-desktop-num-panels:  3ch;
+  --w-print-desktop-num-ts:      3ch;
   --w-print-desktop-ts-type:     20ch;
   --w-print-desktop-ts-placement:25ch;
   --w-print-desktop-circuits:    5ch;
@@ -1150,12 +1150,6 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   /* iPhone PDF — higher specificity (body.mobile-safari beats plain #id) so these override the iPad print block even though that block comes later */
   body.mobile-safari #num_panels { width: var(--w-print-num-panels) !important; min-width: var(--w-print-num-panels) !important; }
   body.mobile-safari #num_ts     { width: var(--w-print-num-ts)     !important; min-width: var(--w-print-num-ts)     !important; }
-  /* iPhone PDF only — wrap "Transfer Switch Type" label + input (and FPL shutdown) onto a 2nd row.
-     Flex trick: children 5+ get order:1; a 0-height 100%-wide ::after (order:0) acts as the line-break.
-     align-content:flex-start prevents the 3 flex lines from stretching to fill the container min-height. */
-  body.mobile-safari #transfer-switch-row .inline-row:first-child { align-content: flex-start !important; }
-  body.mobile-safari #transfer-switch-row .inline-row:first-child > *:nth-child(n+5) { order: 1 !important; }
-  body.mobile-safari #transfer-switch-row .inline-row:first-child::after { content: ''; flex-basis: 100% !important; height: 0 !important; order: 0 !important; }
   .footer { background: #ffffff !important; border-top: 1px solid #D97706 !important; padding: var(--pd-print-phone-footer) !important; margin-top: 0 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; flex-shrink: 0 !important; width: 100% !important; min-height: auto !important; height: auto !important; }
   .footer-text { color: #D97706 !important; text-shadow: none !important; font-size: var(--fs-print-phone-footer) !important; }
   #ver-span { color: #9CA3AF !important; font-size: var(--fs-print-phone-ver-span) !important; text-shadow: none !important; }
@@ -1424,8 +1418,8 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   .grid-4 { gap: var(--grid4-gap-print-ipad) !important; }
   .divider { margin: var(--divider-margin-print-ipad) !important; }
   #gen_size { width: var(--w-print-ipad-gen-size) !important; min-width: var(--w-print-ipad-gen-size) !important; }
-  #num_panels { width: var(--w-print-ipad-num-panels) !important; min-width: var(--w-print-ipad-num-panels) !important; }
-  #num_ts { width: var(--w-print-ipad-num-ts) !important; min-width: var(--w-print-ipad-num-ts) !important; }
+  #num_panels { width: 3ch !important; min-width: 3ch !important; }
+  #num_ts { width: 3ch !important; min-width: 3ch !important; }
   #ts_type_desc { width: var(--w-print-ipad-ts-type) !important; }
   #ts_placement { width: var(--w-print-ipad-ts-placement) !important; min-width: var(--w-print-ipad-ts-placement) !important; }
   #circuits_60a, #circuits_100a { width: var(--w-print-ipad-circuits) !important; min-width: var(--w-print-ipad-circuits) !important; }
@@ -2337,6 +2331,8 @@ function printForm() {
     '  body.dark-mode legend { color:#1F2937!important; }',
     '  .toolbar,button,.theme-toggle-btn { display:none!important; }',
     '  .confirm-modal-backdrop,#seasonal-canvas { display:none!important; }',
+    '  #num_panels { width:3ch!important; min-width:3ch!important; }',
+    '  #num_ts { width:3ch!important; min-width:3ch!important; }',
     '}'
   ].join('\n');
   document.head.appendChild(printStyle);
@@ -2444,10 +2440,6 @@ function printForm() {
       '  #pad_notes  { height:var(--h-print-phone-pad-notes)!important;min-height:var(--h-print-phone-pad-notes)!important;max-height:var(--h-print-phone-pad-notes)!important; }',
       '  #gas_notes  { height:var(--h-print-phone-gas-notes)!important;min-height:var(--h-print-phone-gas-notes)!important;max-height:var(--h-print-phone-gas-notes)!important; }',
       '  #ready_notes { height:var(--h-print-phone-ready-notes)!important;min-height:var(--h-print-phone-ready-notes)!important;max-height:var(--h-print-phone-ready-notes)!important; }',
-      '  /* iPhone PDF — wrap Transfer Switch Type onto row 2 (overrides the iPad-block nowrap; same specificity + later in DOM wins) */',
-      '  #transfer-switch-row .inline-row:first-child { flex-wrap: wrap !important; align-content: flex-start !important; }',
-      '  #transfer-switch-row .inline-row:first-child > *:nth-child(n+5) { order: 1 !important; }',
-      '  #transfer-switch-row .inline-row:first-child::after { content: ""; flex-basis: 100% !important; height: 0 !important; order: 0 !important; }',
       '}'
     ].join('\n');
     document.head.appendChild(safariPageFix);
@@ -2492,8 +2484,20 @@ function printForm() {
 
   // ══════════════════════════════════════════
   // ── DESKTOP SAFARI / NON-SAFARI — print path ──
+  // Inject CSS zoom so browser doesn't auto-scale.
+  // 816 (letter paper px at 96dpi) / 1050 (body width) = 0.777
+  // ch units resolve at full layout size before zoom, so widths are stable.
   // ══════════════════════════════════════════
   if (isAnySafari) { doSpanReplace(); }
+  var desktopFix = document.createElement('style');
+  desktopFix.id = 'safari-page-fix';
+  desktopFix.textContent = [
+    '@page { size: 8.5in 11in; margin: 0; }',
+    '@media print {',
+    '  body { zoom: 0.777 !important; width: 1050px !important; margin: 0 auto !important; }',
+    '}'
+  ].join('\n');
+  document.head.appendChild(desktopFix);
   void document.body.offsetHeight;
   armRestoreAndPrint(false);
 
