@@ -438,11 +438,11 @@
 
   /* ---- INPUT FIELD WIDTHS — PHONE ---- */
   --w-phone-gen-size:        15ch;  /* Generator size input (phone)                     */
-  --w-phone-num-panels:      1ch;   /* # Electrical Panels input (phone)                */
-  --w-phone-num-ts:          1ch;   /* # Transfer Switches input (phone)                */
+  --w-phone-num-panels:      3ch;   /* # Electrical Panels input (phone)                */
+  --w-phone-num-ts:          3ch;   /* # Transfer Switches input (phone)                */
   --w-phone-ts-type:         25ch;  /* Transfer switch specs input (phone)              */
   --w-phone-ts-placement:    25ch;  /* Transfer switch placement input (phone)          */
-  --w-phone-circuits:        1ch;   /* 60A and 100A circuits inputs (phone)             */
+  --w-phone-circuits:        3ch;   /* 60A and 100A circuits inputs (phone)             */
   --w-phone-stand-height:    6ch;   /* Stand/pad height input (phone)                   */
   --w-phone-tank-size:       10ch;  /* New/existing tank size inputs (phone)            */
   --w-phone-install-days:    8ch;  /* Install days input (phone)                       */
@@ -471,12 +471,12 @@
 
   /* ---- INPUT FIELD WIDTHS — PRINT (phone) ---- */
   --w-print-gen-size:        15ch;
-  --w-print-num-panels:      1ch;
-  --w-print-num-ts:          1ch;
+  --w-print-num-panels:      3ch;
+  --w-print-num-ts:          3ch;
   --w-print-ts-type:         25ch;
   --w-print-ts-placement:    25ch;
-  --w-print-circuits:        1ch;
-  --w-print-stand-height:    10ch;
+  --w-print-circuits:        3ch;
+  --w-print-stand-height:    3ch;
   --w-print-tank-size:       10ch;
   --w-print-install-days:    8ch;
 
@@ -1150,6 +1150,10 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   /* iPhone PDF — higher specificity (body.mobile-safari beats plain #id) so these override the iPad print block even though that block comes later */
   body.mobile-safari #num_panels { width: var(--w-print-num-panels) !important; min-width: var(--w-print-num-panels) !important; }
   body.mobile-safari #num_ts     { width: var(--w-print-num-ts)     !important; min-width: var(--w-print-num-ts)     !important; }
+  /* iPhone PDF only — wrap "Transfer Switch Type" label + input (and FPL shutdown) onto a 2nd row.
+     Flex trick: children 5+ get order:1; a 0-height 100%-wide ::after (order:0) acts as the line-break. */
+  body.mobile-safari #transfer-switch-row .inline-row:first-child > *:nth-child(n+5) { order: 1 !important; }
+  body.mobile-safari #transfer-switch-row .inline-row:first-child::after { content: ''; flex-basis: 100% !important; height: 0 !important; order: 0 !important; }
   .footer { background: #ffffff !important; border-top: 1px solid #D97706 !important; padding: var(--pd-print-phone-footer) !important; margin-top: 0 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; flex-shrink: 0 !important; width: 100% !important; min-height: auto !important; height: auto !important; }
   .footer-text { color: #D97706 !important; text-shadow: none !important; font-size: var(--fs-print-phone-footer) !important; }
   #ver-span { color: #9CA3AF !important; font-size: var(--fs-print-phone-ver-span) !important; text-shadow: none !important; }
