@@ -1445,8 +1445,6 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   #transfer-switch-row .section-body,
   body.mobile-safari #transfer-switch-row .section-body { padding: 4px 12px 0px 12px !important; }
   #transfer-switch-row .inline-row:last-child { min-height: 0 !important; height: auto !important; max-height: fit-content !important; margin-bottom: 0 !important; padding-bottom: 0 !important; flex-wrap: nowrap !important; overflow: hidden !important; }
-  /* iPad + desktop PDF — keep all 8 items on one row (iPhone overrides this in safari-page-fix) */
-  #transfer-switch-row .inline-row:first-child { flex-wrap: nowrap !important; }
 }
 
 /* ===== DESKTOP PRINT — all elements ===== */
@@ -2331,8 +2329,12 @@ function printForm() {
     '  body.dark-mode legend { color:#1F2937!important; }',
     '  .toolbar,button,.theme-toggle-btn { display:none!important; }',
     '  .confirm-modal-backdrop,#seasonal-canvas { display:none!important; }',
-    '  #num_panels { width:3ch!important; min-width:3ch!important; }',
-    '  #num_ts { width:3ch!important; min-width:3ch!important; }',
+    '  #num_panels { width:3ch!important; min-width:3ch!important; max-width:3ch!important; flex-shrink:0!important; flex-grow:0!important; }',
+    '  #num_ts { width:3ch!important; min-width:3ch!important; max-width:3ch!important; flex-shrink:0!important; flex-grow:0!important; }',
+    '  /* Wrap Transfer Switch Type onto row 2 for all print */',
+    '  #transfer-switch-row .inline-row:first-child { flex-wrap:wrap!important; align-content:flex-start!important; }',
+    '  #transfer-switch-row .inline-row:first-child > *:nth-child(n+5) { order:1!important; }',
+    '  #transfer-switch-row .inline-row:first-child::after { content:""; flex-basis:100%!important; height:0!important; order:0!important; }',
     '}'
   ].join('\n');
   document.head.appendChild(printStyle);
