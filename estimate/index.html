@@ -2382,7 +2382,9 @@ function printForm() {
     function _onVisible() {
       if (document.visibilityState === 'visible') { triggerRestore(300); }
     }
-    document.addEventListener('visibilitychange', _onVisible);
+    // visibilitychange fires the moment the iOS print sheet slides up (page goes hidden),
+    // which strips styles while the user is still viewing the preview — skip it on mobile.
+    if (!isMobile) document.addEventListener('visibilitychange', _onVisible);
     var _safetyTimer = setTimeout(function() { triggerRestore(0); }, 30000);
     // ── Print — must be called synchronously within user gesture on iOS ──
     window.print();
