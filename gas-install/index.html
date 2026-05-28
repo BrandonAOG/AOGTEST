@@ -641,21 +641,43 @@ canvas { display: block; max-width: 100%; }
     </div>
   </div>
 
-  <div class="card" style="border-color:var(--blue2);background:linear-gradient(to right,#f4f8ff,#fff);">
-    <div class="card-title" style="color:var(--blue2);">Google Gemini API Key <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--muted)">— free, no credit card needed</span></div>
+
+  <div class="card" style="border-color:#76b900;background:linear-gradient(to right,#f2f8ee,#fff);">
+    <div class="card-title" style="color:#4a7a00;">🟢 NVIDIA NIM API Key <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--muted)">— free, no credit card, 136 models</span></div>
     <div class="fgrid" style="align-items:flex-end;">
       <div class="fg">
-        <label>Gemini API Key</label>
-        <input id="geminiKey" type="password" placeholder="AIzaSy…" oninput="saveGeminiKey()" autocomplete="off">
-        <div class="field-note">Optional — only needed for spec sheet AI extraction and panel schedule parsing. Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue2);">aistudio.google.com</a> → Get API Key. Free tier: 1,500 requests/day. Setback lookup is now instant and free — no key needed.</div>
+        <label>NVIDIA NIM API Key</label>
+        <input id="nimKey" type="password" placeholder="nvapi-…" oninput="saveNimKey()" autocomplete="off">
+        <div class="field-note">
+          Get a free key at <a href="https://build.nvidia.com" target="_blank" style="color:#4a7a00;font-weight:600;">build.nvidia.com</a> → pick any model → <strong>Get API Key</strong>.
+          Key starts with <code style="background:#f0f8e8;padding:1px 5px;border-radius:3px;font-family:var(--mono);">nvapi-</code>.
+          Free: 40 req/min · 1,000 credits · 136 models (Llama 3.3 70B, DeepSeek, Qwen3, Mistral). No credit card.
+        </div>
       </div>
       <div class="fg" style="max-width:160px;">
         <label>&nbsp;</label>
-        <button class="btn btn-ghost" onclick="testGeminiKey()" id="btnTestGemini">Test Key</button>
+        <button class="btn btn-ghost" onclick="testNimKey()" id="btnTestNim" style="border-color:#76b900;color:#4a7a00;">Test NIM Key</button>
       </div>
     </div>
-    <div id="geminiKeyStatus"></div>
+    <div id="nimKeyStatus"></div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid #d4e8c0;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-family:var(--mono);margin-bottom:10px;">Gemini Key (fallback — optional)</div>
+      <div class="fgrid" style="align-items:flex-end;">
+        <div class="fg">
+          <label>Gemini API Key</label>
+          <input id="geminiKey" type="password" placeholder="AIzaSy… (used if NIM key not set)" oninput="saveGeminiKey()" autocomplete="off">
+          <div class="field-note">Free at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue2);">aistudio.google.com</a>. Fallback when NIM hits rate limit. 1,500 req/day.</div>
+        </div>
+        <div class="fg" style="max-width:160px;">
+          <label>&nbsp;</label>
+          <button class="btn btn-ghost" onclick="testGeminiKey()" id="btnTestGemini">Test Gemini</button>
+        </div>
+      </div>
+      <div id="geminiKeyStatus"></div>
+    </div>
   </div>
+
+
 
   <div class="card">
     <div class="card-title">Contractor</div>
@@ -1442,6 +1464,318 @@ const JURISDICTION_RESEARCH = {
 };
 
 
+/* ═══════════════════════════════════════════════════════════════
+   MULTI-PANEL SCHEDULE STATE & FUNCTIONS
+═══════════════════════════════════════════════════════════════ */
+const panelSchedules = [null, null, null, null];
+let panelLoadData = null;
+const PANEL_NAMES = ['Main Panel', 'Sub-Panel 1', 'Sub-Panel 2', 'Sub-Panel 3'];
+
+function handlePanelDrop(e, idx) {
+  e.preventDefault();
+  document.getElementById('pslot-' + idx).classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') loadPanelFile(f, idx);
+  else showPanelStatus(idx, 'error', 'PDF only');
+}
+function handlePanelUpload(e, idx) { if (e.target.files[0]) loadPanelFile(e.target.files[0], idx); }
+
+async function loadPanelFile(file, idx) {
+  panelSchedules[idx] = { file, name: PANEL_NAMES[idx], rawText: '', parsedData: null, status: 'loaded' };
+  document.getElementById('pdrop-' + idx).style.display = 'none';
+  const fd = document.getElementById('pfile-' + idx);
+  fd.style.display = 'flex';
+  fd.innerHTML = '<div class="ps-file"><span>📄</span><span class="ps-fname">' + file.name + '</span><button onclick="clearPanel(' + idx + ')" title="Remove">✕</button></div>';
+  setBadge(idx, 'busy', '⏳ Extracting…');
+  document.getElementById('pslot-' + idx).className = 'panel-slot parsing';
+  try {
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+    let text = '';
+    for (let i = 1; i <= Math.min(pdf.numPages, 8); i++) {
+      const pg = await pdf.getPage(i);
+      const tc = await pg.getTextContent();
+      text += tc.items.map(s => s.str + (s.hasEOL ? '\n' : ' ')).join('') + '\n\n';
+    }
+    panelSchedules[idx].rawText = text;
+    panelSchedules[idx].status = 'ready';
+    setBadge(idx, 'ok', '✓ Ready to Parse');
+    document.getElementById('pslot-' + idx).className = 'panel-slot has-file';
+    document.getElementById('pcircuits-' + idx).style.display = 'none';
+    updateParseBtn();
+  } catch(err) {
+    panelSchedules[idx].status = 'error';
+    setBadge(idx, 'err', '❌ Read Error');
+    document.getElementById('pslot-' + idx).className = 'panel-slot error';
+    showPanelParseStatus('error', 'Panel ' + (idx+1) + ' read error: ' + err.message);
+  }
+}
+
+function clearPanel(idx) {
+  panelSchedules[idx] = null;
+  document.getElementById('pdrop-' + idx).style.display = '';
+  document.getElementById('pfile-' + idx).style.display = 'none';
+  document.getElementById('pfile-' + idx).innerHTML = '';
+  document.getElementById('pcircuits-' + idx).style.display = 'none';
+  document.getElementById('pcircuits-' + idx).innerHTML = '';
+  document.getElementById('pslot-' + idx).className = 'panel-slot';
+  setBadge(idx, '', idx === 0 ? 'Awaiting Upload' : 'Optional');
+  updateParseBtn();
+  if (panelSchedules.every(p => !p)) {
+    panelLoadData = null;
+    document.getElementById('autoFillBadge').style.display = 'none';
+    document.getElementById('panelSummaryStrip').classList.remove('show');
+  }
+}
+
+function setBadge(idx, type, text) {
+  const b = document.getElementById('pbadge-' + idx);
+  b.textContent = text;
+  b.className = 'ps-badge' + (type ? ' ' + type : '');
+}
+function updateParseBtn() {
+  document.getElementById('btnParseAll').disabled = !panelSchedules.some(p => p && p.status === 'ready');
+}
+function showPanelParseStatus(type, msg) {
+  const el = document.getElementById('panelParseStatus');
+  const cls = { ok:'alert-ok', error:'alert-err', warn:'alert-warn', info:'alert-info' }[type] || 'alert-info';
+  const icon = { ok:'✅', error:'❌', warn:'⚠', info:'⏳' }[type] || 'ℹ';
+  el.innerHTML = '<div class="alert ' + cls + '">' + icon + ' ' + msg + '</div>';
+}
+function showPanelStatus(idx, type, msg) {
+  setBadge(idx, { ok:'ok', error:'err', warn:'busy' }[type] || '', msg);
+}
+
+/* ── AI PANEL PARSING — NVIDIA NIM primary, Gemini fallback ── */
+async function parseAllPanelsAI() {
+  const readyPanels = panelSchedules.map((p, i) => p && p.status === 'ready' ? { ...p, idx: i } : null).filter(Boolean);
+  if (!readyPanels.length) { showPanelParseStatus('warn', 'Upload at least one panel schedule PDF first.'); return; }
+  if (!getNimKey() && !getGeminiKey()) {
+    showPanelParseStatus('error', 'Enter a free NVIDIA NIM key (or Gemini key) in Step 1 to use AI panel parsing.');
+    return;
+  }
+  const btn = document.getElementById('btnParseAll');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Parsing with AI…';
+  const provider = getNimKey() ? 'NVIDIA NIM (Llama 3.3 70B)' : 'Gemini';
+  showPanelParseStatus('info', 'Analyzing ' + readyPanels.length + ' panel(s) via ' + provider + '…');
+  const results = [];
+  for (const panel of readyPanels) {
+    setBadge(panel.idx, 'busy', '⏳ AI Parsing…');
+    showPanelParseStatus('info', 'Analyzing ' + panel.name + ' (' + (panel.idx+1) + '/' + readyPanels.length + ') via ' + provider + '…');
+    const prompt = [
+      'You are an expert electrical engineer analyzing a panel schedule for a Florida residential property.',
+      '',
+      'PANEL SCHEDULE TEXT:',
+      panel.rawText.substring(0, 6000),
+      '',
+      'Parse this panel schedule and return ONLY valid JSON — no markdown, no explanation.',
+      'Return a JSON object with: panelLabel, mainBreakerAmps, voltage, circuits array (each with slot, description, breakerAmps, poles, volts, estimatedWatts, loadType), identifiedLoads (hvacWatts, rangeWatts, waterHeaterWatts, dryerWatts, poolWatts, evWatts, otherLargeWatts, otherLargeDescription, conditionedSqFt, subfeedAmps), notes.',
+      'LOAD TYPES: hvac=AC/heat pump, range=oven/range, waterheater=water heater, dryer=dryer, ev=EV/EVSE, pool=pool pump, spare=spare, subfeed=sub-panel feed, lighting/general=everything else.',
+      'estimatedWatts = amps x volts x 0.8. For HVAC use tons x 3517 if tonnage shown.'
+    ].join('\n');
+    try {
+      const { text: fullText } = await callAI({
+        system: 'You are a licensed electrical engineer. Parse panel schedules precisely. Return ONLY valid JSON — no markdown, no explanation. Every circuit must be in the circuits array.',
+        prompt,
+        maxTokens: 4000
+      });
+      const parsed = extractJSON(fullText);
+      if (!parsed) throw new Error('No valid JSON in response');
+      panelSchedules[panel.idx].parsedData = parsed;
+      panelSchedules[panel.idx].status = 'parsed';
+      setBadge(panel.idx, 'ok', '✓ ' + (parsed.circuits?.length || 0) + ' circuits');
+      document.getElementById('pslot-' + panel.idx).className = 'panel-slot has-file';
+      renderPanelCircuits(panel.idx, parsed);
+      results.push({ idx: panel.idx, data: parsed });
+    } catch(err) {
+      panelSchedules[panel.idx].status = 'error';
+      setBadge(panel.idx, 'err', '❌ Parse Error');
+      document.getElementById('pslot-' + panel.idx).className = 'panel-slot error';
+      showPanelParseStatus('error', panel.name + ': ' + err.message);
+    }
+  }
+  if (results.length > 0) {
+    aggregateAndApplyPanels(results.map(r => r.data));
+    btn.innerHTML = '⚡ Re-Parse All Panels';
+    btn.disabled = false;
+    showPanelParseStatus('ok', '✓ ' + results.length + ' panel(s) parsed via ' + provider + ' — load calc auto-filled.');
+  } else {
+    btn.innerHTML = '⚡ Parse All Panels with AI';
+    btn.disabled = false;
+  }
+}
+
+function renderPanelCircuits(idx, parsed) {
+  const div = document.getElementById('pcircuits-' + idx);
+  if (!parsed.circuits || !parsed.circuits.length) { div.style.display = 'none'; return; }
+  const typeColor = { hvac:'load-hvac', range:'load-range', waterheater:'load-wh', dryer:'load-dryer', ev:'load-ev', pool:'load-pool', spare:'load-general', subfeed:'load-general', general:'load-general', lighting:'load-general' };
+  const typeLabel = { hvac:'❄ HVAC', range:'🔥 Range', waterheater:'🚿 W/H', dryer:'👕 Dryer', ev:'🔌 EV', pool:'🏊 Pool', spare:'○ Spare', subfeed:'→ Sub', general:'⚡ Gen', lighting:'💡 Light' };
+  const rows = parsed.circuits.map(c =>
+    '<tr><td style="color:var(--muted);font-size:9px">' + (c.slot||'—') + '</td><td>' + (c.description||'—') + '</td><td class="' + (typeColor[c.loadType]||'load-general') + '">' + (typeLabel[c.loadType]||c.loadType) + '</td><td style="text-align:right">' + (c.breakerAmps||'—') + 'A</td><td style="text-align:right">' + (c.volts||'—') + 'V</td><td style="text-align:right;font-weight:600">' + (c.estimatedWatts ? c.estimatedWatts.toLocaleString() : '—') + '</td></tr>'
+  ).join('');
+  div.innerHTML = '<table><thead><tr><th>#</th><th>Description</th><th>Type</th><th>Amps</th><th>V</th><th>Est. W</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  div.style.display = 'block';
+  document.getElementById('pslot-' + idx).style.maxHeight = '420px';
+}
+
+/* ── NEC 220.82 AGGREGATION FROM PANELS ── */
+function aggregateAndApplyPanels(panelDataArr) {
+  let hvacWatts=0, rangeWatts=0, whWatts=0, dryerWatts=0, poolWatts=0, evWatts=0, otherWatts=0, otherDesc='', mainBkrAmps=0, sqftEstimate=null;
+  const panelInfos = [];
+  for (const pd of panelDataArr) {
+    const il = pd.identifiedLoads || {};
+    if ((il.hvacWatts||0) > hvacWatts) hvacWatts = il.hvacWatts||0;
+    rangeWatts += il.rangeWatts||0; whWatts += il.waterHeaterWatts||0; dryerWatts += il.dryerWatts||0; poolWatts += il.poolWatts||0; evWatts += il.evWatts||0;
+    if ((il.otherLargeWatts||0) > otherWatts) { otherWatts=il.otherLargeWatts; otherDesc=il.otherLargeDescription||''; }
+    if ((pd.mainBreakerAmps||0) > mainBkrAmps) mainBkrAmps=pd.mainBreakerAmps;
+    if (il.conditionedSqFt && !sqftEstimate) sqftEstimate=il.conditionedSqFt;
+    panelInfos.push({ label:pd.panelLabel||'Panel', mainBkr:pd.mainBreakerAmps, voltage:pd.voltage, circuits:(pd.circuits?.length||0) });
+  }
+  const hvacTons = hvacWatts>0 ? (hvacWatts/3517).toFixed(1) : 0;
+  panelLoadData = { hvacWatts, hvacTons:parseFloat(hvacTons), rangeWatts, whWatts, dryerWatts, poolWatts, evWatts, otherWatts, otherDesc, mainBkrAmps, sqftEstimate, panelInfos };
+  const setIfBetter = (id, val, cond) => { if (!cond) return; const el=document.getElementById(id); if (el && (!el.value||el.value==='0')) el.value=val; };
+  setIfBetter('acTons', hvacTons, hvacTons>0); setIfBetter('rangeW', rangeWatts, rangeWatts>0);
+  setIfBetter('whW', whWatts, whWatts>0); setIfBetter('dryerW', dryerWatts, dryerWatts>0);
+  setIfBetter('poolW', poolWatts, poolWatts>0); setIfBetter('evW', evWatts, evWatts>0);
+  setIfBetter('otherLoadW', otherWatts, otherWatts>0); if (otherDesc) setIfBetter('otherLoadName', otherDesc, true);
+  if (mainBkrAmps>0) setIfBetter('mainBkr', mainBkrAmps, true);
+  if (sqftEstimate) setIfBetter('sqft', sqftEstimate, true);
+  document.getElementById('autoFillBadge').style.display = 'inline-flex';
+  renderPanelSummaryStrip(panelLoadData); calcLoad(); live();
+}
+
+function renderPanelSummaryStrip(d) {
+  const strip=document.getElementById('panelSummaryStrip'), grid=document.getElementById('panelSummaryGrid'), note=document.getElementById('panelSummaryNote');
+  if (!strip||!grid||!note) return;
+  const sqft=parseFloat(g('sqft')||0), genLighting=sqft*3, smallAppl=4500, sub1=genLighting+smallAppl;
+  const demand1=sub1>10000?10000+(sub1-10000)*0.4:sub1;
+  const otherLoads=d.rangeWatts*0.8+d.whWatts+d.dryerWatts*0.8+d.poolWatts+d.evWatts+d.otherWatts;
+  const totalVA=demand1+d.hvacWatts+otherLoads, amps=totalVA/240;
+  grid.innerHTML=[{val:d.panelInfos.length,lbl:'Panels'},{val:d.panelInfos.reduce((a,p)=>a+p.circuits,0),lbl:'Circuits'},{val:Math.round(totalVA/1000).toLocaleString()+' kVA',lbl:'Calc Load'},{val:amps.toFixed(1)+'A',lbl:'@240V'}].map(c=>'<div class="pss-cell"><div class="pss-val">'+c.val+'</div><div class="pss-lbl">'+c.lbl+'</div></div>').join('');
+  note.innerHTML='Panels: '+d.panelInfos.map(p=>p.label+(p.mainBkr?' ('+p.mainBkr+'A)':'')).join(' + ')+' &nbsp;|&nbsp; HVAC: '+(d.hvacTons>0?d.hvacTons+' ton':'—')+' &nbsp;|&nbsp; Range: '+(d.rangeWatts?d.rangeWatts+'W':'—')+' &nbsp;|&nbsp; W/H: '+(d.whWatts?d.whWatts+'W':'—')+' &nbsp;|&nbsp; Dryer: '+(d.dryerWatts?d.dryerWatts+'W':'—')+(d.evWatts?' &nbsp;|&nbsp; EV: '+d.evWatts+'W':'')+(d.poolWatts?' &nbsp;|&nbsp; Pool: '+d.poolWatts+'W':'');
+  strip.classList.add('show');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NVIDIA NIM API — Primary AI provider
+   Free tier: 40 RPM, 1,000 credits on signup, 136 models
+   OpenAI-compatible endpoint: integrate.api.nvidia.com/v1
+   Get key at: build.nvidia.com → any model → Get API Key
+   Key format: nvapi-...
+═══════════════════════════════════════════════════════════════ */
+const NIM_KEY_STORAGE    = 'genPermit_nimKey';
+const NIM_ENDPOINT       = 'https://integrate.api.nvidia.com/v1/chat/completions';
+const NIM_MODEL_PRIMARY  = 'meta/llama-3.3-70b-instruct';   // Best free-tier general model
+const NIM_MODEL_FAST     = 'meta/llama-3.1-8b-instruct';    // Fast fallback for simple tasks
+
+function getNimKey() {
+  const el = document.getElementById('nimKey');
+  if (el && el.value.trim()) return el.value.trim();
+  return localStorage.getItem(NIM_KEY_STORAGE) || '';
+}
+
+function saveNimKey() {
+  const key = document.getElementById('nimKey')?.value?.trim() || '';
+  if (key) {
+    localStorage.setItem(NIM_KEY_STORAGE, key);
+    document.getElementById('nimKeyStatus').innerHTML =
+      '<div class="alert alert-ok" style="margin-top:8px;">✅ NVIDIA NIM key saved — AI features ready.</div>';
+  }
+}
+
+async function testNimKey() {
+  const key = getNimKey();
+  const statusEl = document.getElementById('nimKeyStatus');
+  const btn = document.getElementById('btnTestNim');
+  if (!key) {
+    statusEl.innerHTML = '<div class="alert alert-warn" style="margin-top:8px;">⚠ Enter your nvapi- key first.</div>';
+    return;
+  }
+  if (!key.startsWith('nvapi-')) {
+    statusEl.innerHTML = '<div class="alert alert-warn" style="margin-top:8px;">⚠ NVIDIA keys start with <code>nvapi-</code> — check your key.</div>';
+    return;
+  }
+  btn.disabled = true; btn.textContent = '⏳ Testing…';
+  try {
+    const { text } = await nimAPI({ prompt: 'Reply with the single word OK.', maxTokens: 5 });
+    if (text) {
+      localStorage.setItem(NIM_KEY_STORAGE, key);
+      statusEl.innerHTML = '<div class="alert alert-ok" style="margin-top:8px;">✅ NVIDIA NIM key valid — using Llama 3.3 70B for AI parsing.</div>';
+    }
+  } catch(e) {
+    statusEl.innerHTML = '<div class="alert alert-err" style="margin-top:8px;">❌ ' + e.message + '</div>';
+  } finally { btn.disabled = false; btn.textContent = 'Test NIM Key'; }
+}
+
+/**
+ * nimAPI — calls NVIDIA NIM (OpenAI-compatible format)
+ * Much simpler than Gemini — standard OpenAI messages format.
+ */
+async function nimAPI({ prompt, system = '', maxTokens = 2000, model = NIM_MODEL_PRIMARY }) {
+  const key = getNimKey();
+  if (!key) throw new Error('NO_NIM_KEY');
+
+  const messages = [];
+  if (system) messages.push({ role: 'system', content: system });
+  messages.push({ role: 'user', content: prompt });
+
+  const resp = await fetch(NIM_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + key
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.1,
+      max_tokens: maxTokens,
+      stream: false
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    const msg = err.message || err.detail || ('HTTP ' + resp.status);
+    if (resp.status === 401) throw new Error('Invalid NVIDIA key — check nvapi- key at build.nvidia.com');
+    if (resp.status === 402) throw new Error('NVIDIA NIM credits exhausted — add more at build.nvidia.com or use Gemini fallback');
+    if (resp.status === 429) throw new Error('NVIDIA NIM rate limit (40 RPM) — wait a moment');
+    throw new Error('NIM error: ' + msg);
+  }
+
+  const data = await resp.json();
+  const text = data.choices?.[0]?.message?.content || '';
+  if (!text) throw new Error('Empty response from NVIDIA NIM');
+  debugLog('NIM response', text.substring(0, 200));
+  return { text };
+}
+
+/**
+ * callAI — unified AI caller: tries NVIDIA NIM first, falls back to Gemini
+ * Both APIs return { text } so callers don't need to know which was used.
+ */
+async function callAI({ prompt, system = '', maxTokens = 2000 }) {
+  const nimKey = getNimKey();
+  const gemKey = getGeminiKey();
+
+  if (nimKey) {
+    try {
+      return await nimAPI({ prompt, system, maxTokens });
+    } catch(e) {
+      debugLog('NIM failed, trying Gemini fallback', e.message);
+      if (!gemKey) throw e; // No fallback available
+      // Fall through to Gemini
+    }
+  }
+
+  if (gemKey) {
+    return await geminiAPI({ prompt, system, maxTokens });
+  }
+
+  throw new Error('NO_KEY — add a free NVIDIA NIM key at build.nvidia.com (or Gemini key at aistudio.google.com)');
+}
+
 function getGeminiKey() {
   const el = document.getElementById('geminiKey');
   if (el && el.value.trim()) return el.value.trim();
@@ -1732,7 +2066,7 @@ async function processSpec(file) {
 
     // Pass 2: Gemini AI fills in anything regex missed (if key available)
     let finalResult = regexResult;
-    if (missingFields.length > 0 && getGeminiKey()) {
+    if (missingFields.length > 0 && (getNimKey() || getGeminiKey())) {
       zone.querySelector('.uz-sub').textContent = '🤖 AI extracting spec data…';
       try {
         const aiPrompt = `You are an expert at reading generator spec sheets. Extract the following data from this spec sheet text.
@@ -1755,7 +2089,7 @@ Return ONLY this JSON (use null for fields not found):
   "ht": <height in inches as number or null>
 }`;
 
-        const { text: aiText } = await geminiAPI({
+        const { text: aiText } = await callAI({
           system: 'You are an expert at reading generator spec sheets. Return ONLY valid JSON — no markdown.',
           prompt: aiPrompt,
           maxTokens: 600
@@ -1777,7 +2111,7 @@ Return ONLY this JSON (use null for fields not found):
 
     showExtracted(finalResult);
     fillSpecFields(finalResult);
-    const aiUsed = missingFields.length > 0 && getGeminiKey();
+    const aiUsed = missingFields.length > 0 && (getNimKey() || getGeminiKey());
     zone.querySelector('.uz-sub').textContent = aiUsed
       ? 'Extracted ✓ (regex + AI) — verify fields below'
       : 'Extracted ✓ — verify fields below';
@@ -4001,10 +4335,15 @@ window.onload = () => {
 
   const restored = restoreAutosave();
   // Load saved Gemini key
+  const savedNimKey = localStorage.getItem(NIM_KEY_STORAGE);
+  if (savedNimKey) {
+    const nimKeyEl = document.getElementById('nimKey');
+    if (nimKeyEl) { nimKeyEl.value = savedNimKey; document.getElementById('nimKeyStatus').innerHTML = '<div class="alert alert-ok" style="margin-top:8px;">✅ NVIDIA NIM key loaded — AI ready.</div>'; }
+  }
   const savedKey = localStorage.getItem(GEMINI_KEY_STORAGE);
   if (savedKey) {
     const keyEl = document.getElementById('geminiKey');
-    if (keyEl) { keyEl.value = savedKey; document.getElementById('geminiKeyStatus').innerHTML = `<div class="alert alert-ok" style="margin-top:8px;">✅ Key loaded — AI features ready.</div>`; }
+    if (keyEl) { keyEl.value = savedKey; document.getElementById('geminiKeyStatus').innerHTML = '<div class="alert alert-ok" style="margin-top:8px;">✅ Gemini fallback key loaded.</div>'; }
   }
   if (restored) {
     // Set permitDate default only if nothing was restored
