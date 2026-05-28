@@ -48,11 +48,11 @@
     font-family:var(--mono);font-size:13px;padding:9px 11px;border-radius:7px;outline:none;
   }
   .search input:focus{border-color:var(--signal)}
-  .search button{
+  .search #go{
     background:var(--signal);color:#191100;border:none;font-family:var(--disp);font-weight:700;
     font-size:13px;letter-spacing:.04em;padding:0 15px;border-radius:7px;cursor:pointer;text-transform:uppercase;
   }
-  .search button:hover{background:#ffc23d}
+  .search #go:hover{background:#ffc23d}
   .hint{margin-top:8px;font-size:10.5px;color:var(--faint);font-family:var(--mono);line-height:1.5}
   .hint b{color:var(--dim)}
 
@@ -119,6 +119,19 @@
   .badge.live{color:#0a1a12;background:var(--good);border-color:var(--good)}
   .freshline{font-family:var(--mono);font-size:9.5px;color:var(--good);padding:2px 0 4px;display:flex;align-items:center;gap:6px}
   .freshline.snap{color:var(--signal)}
+  /* ---- Clear button inside search input ---- */
+  .inputwrap{position:relative;flex:1;min-width:0;display:flex;align-items:center}
+  .inputwrap input{width:100%;padding-right:32px}
+  .clearbtn{
+    position:absolute;right:10px;top:50%;transform:translateY(-50%);
+    background:none;border:none;padding:0;margin:0;cursor:pointer;
+    color:var(--faint);font-size:20px;line-height:1;display:none;
+    font-family:var(--mono);transition:color .15s;opacity:0.6;
+    width:20px;height:20px;text-align:center;
+  }
+  .clearbtn:hover{color:var(--dim);opacity:1}
+  .clearbtn.visible{display:block}
+
   /* ---- Address autocomplete suggestions ---- */
   .searchwrap{position:relative}
   .suggest{position:absolute;z-index:1200;left:0;right:0;top:calc(100% + 4px);
@@ -206,13 +219,16 @@
     </div>
     <div class="kick">Florida Parcel &amp; Flood Instrument</div>
     <h1>Property Lookup</h1>
-    <p>Flood &amp; jurisdiction query official servers in real time. Owner/parcel auto-uses the <b>live county feed</b> where wired (Collier, Manatee, Sarasota) and the dated state roll elsewhere. Add any county's live URL below. Florida only.</p>
+    <p>Flood &amp; jurisdiction query official servers in real time. Owner/parcel auto-uses the <b>live county feed</b> where wired (Collier, Lee, Charlotte, Manatee, Sarasota) and the dated state roll elsewhere. Add any county's live URL below. Florida only.</p>
   </header>
 
   <div class="search">
     <div class="searchwrap">
       <div class="searchrow">
-        <input id="addr" type="text" placeholder="Enter a Florida address…" autocomplete="off" autocapitalize="words" inputmode="text">
+        <div class="inputwrap">
+          <input id="addr" type="text" placeholder="Enter a Florida address…" autocomplete="off" autocapitalize="words" inputmode="text">
+          <button class="clearbtn" id="clearBtn" aria-label="Clear search" tabindex="-1">×</button>
+        </div>
         <button id="go">Find</button>
       </div>
       <div class="suggest" id="suggest"></div>
@@ -226,6 +242,10 @@
         <button id="liveTest">Test</button>
       </div>
       <div class="lstat" id="liveStatus"></div>
+      <div class="arow" style="margin-top:8px">
+        <button id="diagBtn" style="flex:1">🔧 Diagnose live feeds at last point</button>
+      </div>
+      <div class="lstat" id="diagStatus"></div>
       <div class="lhint">
         Paste a county's parcel <b>FeatureServer/MapServer layer</b> URL (ending in <code>/0</code>, etc.). When connected, owner &amp; parcel come from that <b>live</b> county feed instead of the annual state roll — fields auto-detect.
         <br>Lee County GIS: <a href="https://maps.leegov.com/datasets/lee-county-parcels/about" target="_blank" rel="noopener">maps.leegov.com</a> · directory: <a href="https://leegis.leegov.com/arcgis/rest/services" target="_blank" rel="noopener">leegis.leegov.com</a>
@@ -298,13 +318,31 @@ const STORE = {
 let lastLoc=null;
 function saveLoc(lat,lng){ lastLoc={lat,lng}; STORE.set('fl_loc', JSON.stringify({lat,lng,z:(typeof map!=='undefined'&&map.getZoom)?map.getZoom():18})); }
 
-/* Pre-wired LIVE county parcel feeds (verified queryable polygon layers w/ owner).
-   Keyed by normalized county name. Each is validated at runtime; if it ever fails
-   (down, blocked, moved) the tool silently falls back to the statewide roll. */
+/* Pre-wired LIVE county parcel feeds (queryable polygon layers w/ owner, updated nightly).
+   Each county may list MULTIPLE candidate endpoints — the tool tries them in order at runtime
+   and uses the first that returns a parcel at the clicked point. If all fail (down, moved,
+   CORS-blocked) it silently falls back to the dated statewide FDOR roll. Keyed by county name.
+   ⚠️ Endpoints marked "verify" were located via the county's public GIS but not test-queried
+   from this build environment; confirm in a browser. Layer must allow public CORS. */
 const COUNTY_LIVE = {
-  COLLIER : { url:"https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/MapServer/0/query", label:"Collier County GIS" },
-  MANATEE : { url:"https://www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/LocationInfo/MapServer/74/query", label:"Manatee (SWFWMD/PA)" },
-  SARASOTA: { url:"https://www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/LocationInfo/MapServer/79/query", label:"Sarasota (SWFWMD/PA)" }
+  COLLIER : { label:"Collier County GIS", urls:[
+    "https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/MapServer/0/query"
+  ]},
+  LEE     : { label:"Lee County PA (nightly)", urls:[
+    // Lee County GIS — leegis.leegov.com is a live ArcGIS server; parcels w/ ownership, updated nightly. (verify layer index)
+    "https://leegis.leegov.com/arcgis/rest/services/LeeParcels/MapServer/0/query",
+    "https://leegis.leegov.com/arcgis/rest/services/AGOL/AGOL_Layers_LCGIS/MapServer/0/query"
+  ]},
+  CHARLOTTE: { label:"Charlotte County GIS", urls:[
+    // Charlotte County public GIS parcels (verify host/layer)
+    "https://agis.charlottecountyfl.gov/arcgis/rest/services/Parcels/MapServer/0/query"
+  ]},
+  MANATEE : { label:"Manatee (SWFWMD/PA)", urls:[
+    "https://www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/LocationInfo/MapServer/74/query"
+  ]},
+  SARASOTA: { label:"Sarasota (SWFWMD/PA)", urls:[
+    "https://www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/LocationInfo/MapServer/79/query"
+  ]}
 };
 
 /* ---------- Forerunner resident portals (flood zone + Elevation Certificate by address) ----------
@@ -487,7 +525,68 @@ async function testLiveSource(){
   }
 }
 
-/* Heuristic field detection — works across counties regardless of naming */
+/* ---------- Live-feed diagnostic ----------
+   "Failed to fetch" is opaque — the browser won't say if it's CORS, a bad URL, or a dead host.
+   We separate them: a normal CORS fetch of ?f=json either (a) returns JSON (URL+CORS OK, maybe
+   a JSON error if the path is wrong), or (b) throws. If it throws, a no-cors probe tells us
+   whether the HOST is reachable (→ CORS block, needs proxy) or not (→ wrong host / down). */
+async function probeEndpoint(rawUrl){
+  const root=layerRoot(normalizeLayerUrl(rawUrl));
+  const metaUrl=root+'?f=json';
+  // 1) normal CORS fetch
+  try{
+    const r=await fetch(metaUrl,{signal:AbortSignal.timeout?AbortSignal.timeout(12000):undefined});
+    const j=await r.json();
+    if(j && j.error){
+      return { verdict:'badpath', cors:'ok', detail:'server reachable & CORS-OK, but this layer/path is wrong ('+(j.error.message||('code '+j.error.code))+'). Edit the layer index.', root };
+    }
+    if(j && j.fields){
+      const fields=j.fields.map(f=>f.name);
+      const d=detectFields(fields);
+      return { verdict:'ok', cors:'ok', name:j.name, owner:d.owner, pid:d.pid,
+        lastEdit:(j.editingInfo&&j.editingInfo.lastEditDate)?new Date(j.editingInfo.lastEditDate):null,
+        detail:'reachable, CORS-OK, queryable'+((d.owner||d.pid)?'':' — but no owner/parcel field detected'), root };
+    }
+    return { verdict:'badpath', cors:'ok', detail:'reachable & CORS-OK but not a queryable layer (point at a layer index like /0).', root };
+  }catch(e){
+    // 2) normal fetch failed → distinguish CORS block from unreachable via no-cors
+    try{
+      await fetch(root, {mode:'no-cors', signal:AbortSignal.timeout?AbortSignal.timeout(12000):undefined});
+      // no-cors resolved (opaque) → the HOST answered, so the normal fetch died on CORS
+      return { verdict:'cors', cors:'blocked', detail:'host is reachable but blocks browser (CORS) requests. A direct client-side fetch can NOT work — route this layer through a proxy. The data is public, so a proxy is fine.', root };
+    }catch(e2){
+      return { verdict:'unreachable', cors:'unknown', detail:'host did not respond at all (wrong domain, DNS, server down, or network). Check the URL host.', root };
+    }
+  }
+}
+
+async function diagnoseLiveFeeds(){
+  const out=document.getElementById('diagStatus');
+  if(!lastLoc){ out.innerHTML='<span style="color:var(--warn)">Click a point on the map first, then diagnose.</span>'; return; }
+  const cn = (window.__lastCounty||'').trim();
+  const reg = cn ? COUNTY_LIVE[norm(cn)] : null;
+  const targets=[];
+  if(reg){ (reg.urls||(reg.url?[reg.url]:[])).forEach(u=>targets.push({label:reg.label,url:u})); }
+  const manual=document.getElementById('liveUrl').value.trim();
+  if(manual) targets.push({label:'your pasted URL',url:manual});
+  if(!targets.length){ out.innerHTML='<span style="color:var(--faint)">No pre-wired feed for '+(cn?esc(titleCase(cn))+' County':'this point')+'. Paste a candidate URL above to test it.</span>'; return; }
+
+  out.innerHTML='<span style="color:var(--signal)">probing '+targets.length+' endpoint'+(targets.length>1?'s':'')+' for '+(cn?esc(titleCase(cn))+' County':'this point')+'…</span>';
+  const color={ok:'var(--good)',badpath:'var(--signal)',cors:'var(--warn)',unreachable:'var(--warn)'};
+  const lines=[];
+  for(const t of targets){
+    const p=await probeEndpoint(t.url);
+    const tag=({ok:'LIVE-OK',badpath:'BAD PATH',cors:'CORS-BLOCKED',unreachable:'UNREACHABLE'})[p.verdict];
+    const mark=({ok:'✓',badpath:'△',cors:'⊘',unreachable:'✗'})[p.verdict];
+    let extra='';
+    if(p.verdict==='ok') extra=(p.name?' · '+esc(p.name):'')+(p.owner?' · owner→'+esc(p.owner):'')+(p.pid?' · parcel→'+esc(p.pid):'')+(p.lastEdit?' · updated '+p.lastEdit.toLocaleDateString():'');
+    lines.push('<div style="margin-top:6px;border-top:1px solid #1c242e;padding-top:6px">'+
+      '<span style="color:'+color[p.verdict]+';font-weight:600">'+mark+' '+tag+'</span>'+extra+
+      '<br><span style="color:var(--faint);word-break:break-all">'+esc(p.root)+'</span>'+
+      '<br><span style="color:var(--dim)">'+esc(p.detail)+'</span></div>');
+  }
+  out.innerHTML=lines.join('');
+}
 function detectFields(fields){
   const F=fields.map(f=>({raw:f,U:String(f).toUpperCase()}));
   const find=(res)=>{ for(const re of res){ const m=F.find(f=>re.test(f.U)); if(m) return m.raw; } return null; };
@@ -667,6 +766,7 @@ async function runLookup(lat,lng){
   /* ---- Location / jurisdiction ---- */
   let countyName = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
   let cityName   = (!city.__err   && city.features   && city.features[0])   ? city.features[0].attributes.NAME   : null;
+  window.__lastCounty = countyName || '';   // for the live-feed diagnostic
   const paUrl = countyName ? PA[norm(countyName)] : null;
 
   html += `<div class="card"><div class="ch"><span class="icn">[ JUR ]</span><h2>Jurisdiction</h2>
@@ -683,15 +783,21 @@ async function runLookup(lat,lng){
   if(liveSource.url){                                   // manual paste takes priority
     liveErr = (live && live.__err) ? live.__err : null;
     if(live && live.features && live.features[0]){ liveRes=live; liveMeta=liveSource.info||{}; }
-  } else if(countyName && COUNTY_LIVE[norm(countyName)]){ // auto pre-wired county feed
+  } else if(countyName && COUNTY_LIVE[norm(countyName)]){ // auto pre-wired county feed (tries candidates)
     const reg=COUNTY_LIVE[norm(countyName)];
-    const al = await arcQuery(reg.url, lat, lng, '*', true).catch(e=>({__err:e.message}));
-    if(myId!==runId) return;
-    if(al && al.__err) liveErr=al.__err;
-    else if(al && al.features && al.features[0]){
-      liveRes=al;
-      const info=await getLayerInfo(reg.url);
-      liveMeta={ name:reg.label||info.name, lastEdit:info.lastEdit };
+    const cands = reg.urls || (reg.url?[reg.url]:[]);
+    for(const cu of cands){
+      const al = await arcQuery(cu, lat, lng, '*', true).catch(e=>({__err:e.message}));
+      if(myId!==runId) return;
+      if(al && !al.__err && al.features && al.features[0]){
+        liveRes=al;
+        const info=await getLayerInfo(cu);
+        liveMeta={ name:reg.label||info.name, lastEdit:info.lastEdit };
+        liveErr=null;
+        break;                       // first candidate that returns a parcel wins
+      } else if(al && al.__err){
+        liveErr=al.__err;            // remember last error; keep trying remaining candidates
+      }
     }
   }
   const liveHit = !!liveRes;
@@ -985,7 +1091,23 @@ addrEl.addEventListener('keydown',e=>{
   if(e.key==='Enter') doSearch();
 });
 addrEl.addEventListener('blur',()=>setTimeout(hideSuggest,150));
+
+/* ---------- Clear button ---------- */
+const clearBtn = document.getElementById('clearBtn');
+function updateClearBtn(){
+  clearBtn.classList.toggle('visible', addrEl.value.length > 0);
+}
+addrEl.addEventListener('input', updateClearBtn);
+clearBtn.addEventListener('mousedown', e => {
+  e.preventDefault(); // don't blur the input
+  addrEl.value = '';
+  updateClearBtn();
+  hideSuggest();
+  addrEl.focus();
+  STORE.del('fl_addr');
+});
 document.getElementById('liveTest').onclick=testLiveSource;
+document.getElementById('diagBtn').onclick=diagnoseLiveFeeds;
 document.getElementById('liveUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();testLiveSource();}});
 
 /* autosave map view (address text is saved by the autocomplete input handler) */
@@ -1075,7 +1197,7 @@ const Sheet=(function(){
 window.Sheet=Sheet;
 
 (async function restore(){
-  const a=STORE.get('fl_addr'); if(a) document.getElementById('addr').value=a;
+  const a=STORE.get('fl_addr'); if(a){ document.getElementById('addr').value=a; updateClearBtn(); }
   const lu=STORE.get('fl_live');
   if(lu){ document.getElementById('liveUrl').value=lu; document.getElementById('adv').open=true; try{ await testLiveSource(); }catch(e){} }
   const loc=STORE.get('fl_loc');
@@ -1089,7 +1211,7 @@ window.Sheet=Sheet;
     if(STATEWIDE_INFO && STATEWIDE_INFO.lastEdit){
       const f=document.getElementById('foot');
       if(f) f.insertAdjacentHTML('afterbegin',
-        '<div style="color:var(--signal);margin-bottom:6px">State parcel roll last refreshed: '+STATEWIDE_INFO.lastEdit.toLocaleDateString()+' · live county feeds pre-wired for Collier, Manatee &amp; Sarasota</div>');
+        '<div style="color:var(--signal);margin-bottom:6px">State parcel roll last refreshed: '+STATEWIDE_INFO.lastEdit.toLocaleDateString()+' · live county feeds pre-wired for '+Object.keys(COUNTY_LIVE).map(k=>titleCase(k)).join(', ')+'</div>');
     }
   }catch(e){}
 })();
