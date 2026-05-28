@@ -684,6 +684,17 @@ canvas { display: block; max-width: 100%; }
     </div>
     <div id="propAddrSearchStatus" style="margin-bottom:12px;"></div>
 
+    <!-- Charlotte County GIS Quick Link -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:#fff8f0;border:1px solid #f0d8c0;border-radius:var(--r);flex-wrap:wrap;">
+      <span style="font-size:11px;font-family:var(--mono);color:var(--muted);">🗺 Verify parcel / folio on Charlotte County GIS:</span>
+      <a id="btnGisAddr" href="https://agis.charlottecountyfl.gov/ccgis/" target="_blank"
+        style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--orange);color:#fff;border-radius:6px;font-size:11px;font-family:var(--mono);font-weight:700;text-decoration:none;transition:background 0.15s;white-space:nowrap;"
+        onmouseover="this.style.background='#b84e18'" onmouseout="this.style.background='var(--orange)'">
+        🏛 Charlotte County GIS →
+      </a>
+      <span style="font-size:10px;font-family:var(--mono);color:var(--muted);">Confirm parcel #, ownership &amp; zoning</span>
+    </div>
+
     <div class="fgrid">
       <div class="fg"><label>Owner Name <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--green);font-size:10px;">↑ auto-filled</span></label><input id="ownerName" placeholder="John & Jane Smith" oninput="live()"></div>
       <div class="fg"><label>Property Address</label><input id="propAddr" placeholder="1234 Palm Ave" oninput="live()"></div>
@@ -758,7 +769,20 @@ canvas { display: block; max-width: 100%; }
       <div id="muniStatus"></div>
       <div id="muniResults"></div>
     </div>
-  </div>
+
+    <!-- Charlotte County GIS Reference Panel -->
+    <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(135deg,#fff8f0,#fff);border:1px solid #f0d8c0;border-radius:var(--r);display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div style="font-size:20px;">🗺</div>
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--orange);font-family:var(--mono);margin-bottom:2px;">Charlotte County GIS</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.5;">Look up parcel boundaries, zoning, flood layers &amp; ownership records before selecting jurisdiction.</div>
+      </div>
+      <a href="https://agis.charlottecountyfl.gov/ccgis/" target="_blank"
+        style="display:inline-flex;align-items:center;gap:6px;padding:8px 18px;background:var(--orange);color:#fff;border-radius:var(--r);font-size:12px;font-family:var(--mono);font-weight:700;text-decoration:none;transition:background 0.15s;flex-shrink:0;white-space:nowrap;"
+        onmouseover="this.style.background='#b84e18'" onmouseout="this.style.background='var(--orange)'">
+        Open Charlotte GIS →
+      </a>
+    </div>
 
   <div class="btn-row">
     <button class="btn btn-primary" onclick="goPage(1)">Next: Generator Specs →</button>
@@ -878,7 +902,7 @@ canvas { display: block; max-width: 100%; }
     <div id="floodJurContext" style="display:none;margin-top:12px;"></div>
 
     <!-- FEMA links -->
-    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <a id="femaFirmLink" href="https://msc.fema.gov/portal/search" target="_blank"
          style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--navy);color:#fff;border-radius:6px;font-size:11px;font-family:var(--mono);text-decoration:none;">
         🗺 FEMA Flood Map →
@@ -887,6 +911,12 @@ canvas { display: block; max-width: 100%; }
          style="display:none;align-items:center;gap:5px;padding:6px 12px;background:var(--blue);color:#fff;border-radius:6px;font-size:11px;font-family:var(--mono);text-decoration:none;">
         🏛 County Flood Page →
       </a>
+      <a id="btnGisFlood" href="https://agis.charlottecountyfl.gov/ccgis/" target="_blank"
+         style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--orange);color:#fff;border-radius:6px;font-size:11px;font-family:var(--mono);font-weight:700;text-decoration:none;transition:background 0.15s;"
+         onmouseover="this.style.background='#b84e18'" onmouseout="this.style.background='var(--orange)'">
+        🏛 Charlotte County GIS →
+      </a>
+      <span style="font-size:10px;font-family:var(--mono);color:var(--muted);">Verify flood zone &amp; elevation on county GIS layers</span>
     </div>
   </div>
 
@@ -3359,6 +3389,86 @@ async function searchPropertyByAddress() {
     let parcel = null, parcelSource = '';
     const diag = [];
 
+    // ── CHARLOTTE COUNTY — direct CC GIS parcel layer (authoritative source) ──
+    // Tries agis3.charlottecountyfl.gov first, then SWFWMD as fallback.
+    // On success, also updates GIS deep-links with the parcel ID for one-click verification.
+    if (!parcel && countyFromGeo === 'charlotte') {
+      try {
+        statusEl.innerHTML = '<div class="alert alert-info" style="font-size:12px;">⏳ Querying Charlotte County GIS parcel layer…</div>';
+        // CC GIS Essentials service — Accounts (parcel IDs) layer spatial query
+        // Layer 0 = Accounts (contains Account/parcel ID linked to Property Appraiser)
+        const ccGisUrl = 'https://agis3.charlottecountyfl.gov/arcgis/rest/services/Essentials/CCGISLayers/MapServer/0/query' +
+          '?geometry=' + lon + ',' + lat +
+          '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects' +
+          '&outFields=*&returnGeometry=false&resultRecordCount=1&f=json';
+        const ccr = await fetchWithTimeout(ccGisUrl, { mode: 'cors' }, 10000);
+        if (ccr.ok) {
+          const ccd = await ccr.json();
+          debugLog('CC GIS layer 0 response', ccd);
+          if (!ccd.error && ccd.features?.length) {
+            const a = ccd.features[0].attributes;
+            // Layer 0 typically has "Account" field = parcel/folio ID
+            const acct = String(a.Account || a.ACCOUNT || a.ACCT || a.Acct || '').trim();
+            if (acct) {
+              diag.push('CC-GIS-L0:HIT(acct=' + acct + ')');
+              // Now fetch owner/address from SWFWMD using the confirmed lat/lon
+              // (SWFWMD Charlotte layer 1 returns full owner data)
+              try {
+                const rec = await trySwfwmd('charlotte');
+                if (rec) {
+                  parcel = { ...rec, parcelId: acct || rec.parcelId, source: 'Charlotte County GIS + PA' };
+                  parcelSource = parcel.source;
+                  diag.push('CC-GIS+SWFWMD:HIT');
+                } else {
+                  // SWFWMD returned nothing — use account # alone, fill what we can
+                  parcel = {
+                    parcelId: acct, owner1: '', owner2: '',
+                    address: '', city: '', zip: '', zoning: '', sqft: null, dorCode: '',
+                    source: 'Charlotte County GIS'
+                  };
+                  parcelSource = parcel.source;
+                }
+              } catch(e2) {
+                // SWFWMD failed; still record the parcel ID
+                parcel = {
+                  parcelId: acct, owner1: '', owner2: '',
+                  address: '', city: '', zip: '', zoning: '', sqft: null, dorCode: '',
+                  source: 'Charlotte County GIS'
+                };
+                parcelSource = parcel.source;
+                diag.push('CC-GIS-SWFWMD-fallback:' + e2.message.substring(0,25));
+              }
+            } else {
+              diag.push('CC-GIS-L0:no Account field — fields: ' + Object.keys(a).slice(0,6).join(','));
+            }
+          } else {
+            diag.push('CC-GIS-L0:' + (ccd.error?.message || '0 features'));
+          }
+        } else {
+          diag.push('CC-GIS-L0:HTTP' + ccr.status);
+        }
+      } catch(e) { diag.push('CC-GIS-L0:' + e.message.substring(0,35)); }
+
+      // Fallback: SWFWMD Charlotte layer (layer 1) if CC GIS didn't get a parcel
+      if (!parcel) {
+        try {
+          statusEl.innerHTML = '<div class="alert alert-info" style="font-size:12px;">⏳ Checking Charlotte County PA records (SWFWMD)…</div>';
+          const rec = await trySwfwmd('charlotte');
+          if (rec) { parcel = rec; parcelSource = rec.source; diag.push('CC-SWFWMD-direct:HIT'); }
+          else diag.push('CC-SWFWMD-direct:0 results');
+        } catch(e) { diag.push('CC-SWFWMD-direct:' + e.message.substring(0,30)); }
+      }
+
+      // Update GIS deep-links with parcel ID for one-click verification
+      if (parcel?.parcelId) {
+        const ccGisParcelUrl = 'https://agis.charlottecountyfl.gov/ccgis/?search=' + encodeURIComponent(parcel.parcelId);
+        ['btnGisAddr','btnGisFlood'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.href = ccGisParcelUrl; el.title = 'Open parcel ' + parcel.parcelId + ' in Charlotte County GIS'; }
+        });
+      }
+    }
+
     // Lee County — direct Lee PA point search
     if (!parcel && countyFromGeo === 'lee') {
       try {
@@ -3607,10 +3717,18 @@ If you are not confident in the parcel number accuracy, set confidence to "low".
       ].filter(Boolean);
 
       const isGemini = parcelSource.startsWith('Gemini');
+      const isCCGis  = parcelSource.startsWith('Charlotte County GIS');
       let html = '<div style="padding:12px 14px;background:' + (isGemini ? 'var(--warn-bg)' : 'var(--green-bg)') + ';border:1px solid ' + (isGemini ? '#e8d080' : '#b8dfc8') + ';border-radius:var(--r);font-size:12px;">' +
         '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:' + (isGemini ? 'var(--warn)' : 'var(--green)') + ';font-family:var(--mono);margin-bottom:8px;">' + (isGemini ? '⚠ AI Estimate — ' : '✅ Found — ') + parcelSource + '</div>';
       if (isGemini) {
         html += '<div style="font-size:11px;color:var(--warn);margin-bottom:8px;font-family:var(--mono);">⚠ Parcel data from Gemini AI — verify the parcel # on your <a href="https://www.ccappraiser.com/RPSearchEnter.asp" target="_blank" style="color:var(--blue2);">county PA website</a> before submitting.</div>';
+      }
+      if (isCCGis && parcel.parcelId) {
+        const ccVerifyUrl = 'https://agis.charlottecountyfl.gov/ccgis/?search=' + encodeURIComponent(parcel.parcelId);
+        html += '<div style="margin-bottom:10px;padding:8px 10px;background:rgba(255,255,255,0.6);border-radius:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+          '<span style="font-size:10px;font-family:var(--mono);color:var(--muted);">🗺 Verify on Charlotte County GIS:</span>' +
+          '<a href="' + ccVerifyUrl + '" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:var(--orange);color:#fff;border-radius:5px;font-size:10px;font-family:var(--mono);font-weight:700;text-decoration:none;">Open Parcel ' + parcel.parcelId + ' in CC GIS →</a>' +
+          '</div>';
       }
       rows.forEach(r => {
         html += '<div style="display:flex;gap:8px;padding:2px 0;border-bottom:1px solid rgba(0,0,0,0.05);">' +
@@ -3623,7 +3741,7 @@ If you are not confident in the parcel number accuracy, set confidence to "low".
       const PA_LINKS = {
         'lee':         { name:'Lee County PA',         url:'https://www.leepa.org/Search/PropertySearch.aspx' },
         'collier':     { name:'Collier County PA',     url:'https://www.collierappraiser.com/Main_Search/search_rp.html' },
-        'charlotte':   { name:'Charlotte County PA',   url:'https://www.ccappraiser.com/RPSearchEnter.asp' },
+        'charlotte':   { name:'Charlotte County GIS',   url:'https://agis.charlottecountyfl.gov/ccgis/', note:'(also try: <a href="https://www.ccappraiser.com/RPSearchEnter.asp" target="_blank" style="color:var(--blue2);">CC Property Appraiser</a>)' },
         'sarasota':    { name:'Sarasota County PA',    url:'https://www.sc-pa.com/propertysearch/basicSearch' },
         'hillsborough':{ name:'Hillsborough County PA',url:'https://www.hcpafl.org/Property-Info/Search-for-a-Property' },
         'pinellas':    { name:'Pinellas County PA',    url:'https://www.pcpao.org/general-search.html' },
@@ -3650,7 +3768,7 @@ If you are not confident in the parcel number accuracy, set confidence to "low".
       statusEl.innerHTML = '<div class="alert alert-warn" style="font-size:12px;">' +
         '<strong>⚠ Could not auto-fill parcel data</strong>' +
         (paLink
-          ? '<div style="margin-top:8px;">Look up the parcel number directly on the <a href="' + paLink.url + '" target="_blank" style="color:var(--blue2);font-weight:600;">' + paLink.name + ' website →</a> then paste it in the Parcel # field below.</div>'
+          ? '<div style="margin-top:8px;">Look up the parcel number directly on the <a href="' + paLink.url + '" target="_blank" style="color:var(--blue2);font-weight:600;">' + paLink.name + ' →</a>' + (paLink.note ? ' ' + paLink.note : '') + ' then paste it in the Parcel # field below.</div>'
           : '<div style="margin-top:8px;">Look up the parcel number on your county property appraiser website and paste it in the Parcel # field below.</div>') +
         '<div style="margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--muted);">Address and city have been filled in. Only parcel # and owner name need manual entry.</div>' +
         '<div style="margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--muted);opacity:0.7;">' + diag.join(' · ') + '</div>' +
@@ -5418,6 +5536,26 @@ window.onload = () => {
   ['rangeW','whW','dryerW','poolW','evW','otherLoadW'].forEach(id => {
     if(!document.getElementById(id).value) document.getElementById(id).value='0';
   });
+
+  // Charlotte County GIS deep-link: update href when address changes
+  function updateGisLinks() {
+    const addr = (document.getElementById('propAddr')?.value||'').trim();
+    const city = (document.getElementById('propCity')?.value||'').trim();
+    const zip  = (document.getElementById('propZip')?.value||'').trim();
+    const query = [addr, city, zip, 'FL'].filter(Boolean).join(' ');
+    const baseGis = 'https://agis.charlottecountyfl.gov/ccgis/';
+    // CCGIS supports ?search= query param for address lookup
+    const url = query.length > 4 ? baseGis + '?search=' + encodeURIComponent(query) : baseGis;
+    ['btnGisAddr','btnGisFlood'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.href = url;
+    });
+  }
+  ['propAddr','propCity','propZip'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateGisLinks);
+  });
+  updateGisLinks();
 
   const restored = restoreAutosave();
   // Load saved Gemini key
