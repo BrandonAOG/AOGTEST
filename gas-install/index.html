@@ -1850,16 +1850,37 @@ function fillSpecFields(ex) {
    jurisdiction's current Code of Ordinances / LDC.
 ═══════════════════════════════════════════════════════════════ */
 async function loadSetbacksAndFlood() {
-  // Load setbacks instantly from pre-researched table
+  if (!selectedJur) {
+    showMuniStatus('warn', 'Select a jurisdiction first.');
+    return;
+  }
+
+  // Step 1: Load setbacks instantly from pre-researched table
   muniCodeLookup();
 
-  // Then kick off FEMA flood lookup if address is available
   const addr = g('propAddr');
-  if (addr) {
-    await lookupFloodZone();
-  } else {
+  if (!addr) {
     const muniRes = document.getElementById('muniResults');
-    if (muniRes) muniRes.insertAdjacentHTML('beforeend', '<div class="alert alert-warn" style="margin-top:10px;">⚠ Enter property address above to also auto-load flood zone + BFE.</div>');
+    if (muniRes) muniRes.insertAdjacentHTML('beforeend',
+      '<div class="alert alert-warn" style="margin-top:10px;">⚠ Enter property address in Step 1 to auto-load flood zone, zoning district, and parcel info.</div>'
+    );
+    return;
+  }
+
+  // Step 2: Flood zone lookup (geocodes address → lat/lon, then queries FEMA)
+  // Store lat/lon from geocoder so parcel lookup can reuse them
+  window._lastGeocodedLatLon = null;
+  await lookupFloodZone();
+
+  // Step 3: Parcel data lookup (zoning, folio, owner) — runs in parallel if we have coords
+  if (window._lastGeocodedLatLon) {
+    const { lat, lon } = window._lastGeocodedLatLon;
+    const parcel = await lookupParcelData(lat, lon);
+    applyParcelData(parcel);
+    // Re-render setback card now that we have the zoning district
+    if (parcel && parcel.zoning && selectedJur === 'City of Naples') {
+      showJurDetails();
+    }
   }
 }
 
@@ -2151,6 +2172,149 @@ function getNaplesDistrictSetbacks(zoneInput) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   FDOT STATEWIDE PARCEL SERVICE
+   Florida Dept of Transportation publishes parcel data for all
+   67 Florida counties via a public ArcGIS FeatureServer.
+   No API key required. Layers are numbered alphabetically by county.
+   Fields: ZONING, PARCEL_ID, OWN1, OWN2, PHY_ADDR1, PHY_CITY, DOR_UC
+═══════════════════════════════════════════════════════════════ */
+const FDOT_PARCEL_BASE = 'https://gis.fdot.gov/arcgis/rest/services/Parcels/FeatureServer';
+const FDOT_LAYER = {
+  // County layer numbers (alphabetical order among all 67 FL counties)
+  'Lee County':          35,  // LEE = 35th alphabetically
+  'Collier County':      11,  // COLLIER = 11th
+  'Charlotte County':     8,  // CHARLOTTE = 8th
+  'Sarasota County':     58,  // SARASOTA = 58th
+  'City of Naples':      11,  // Naples is within Collier County
+  'City of Marco Island':11,  // Marco Island is within Collier County
+  'City of Cape Coral':  35,  // Cape Coral is within Lee County
+  'City of Bonita Springs':35  // Bonita Springs is within Lee County
+};
+
+// Map FDOT DOR use codes to human-readable descriptions
+const DOR_USE_CODES = {
+  '0':'Vacant','1':'Single Family','2':'Mobile Home','3':'Multi-Family','4':'Condominium',
+  '5':'Cooperatives','6':'Retirement Homes','7':'Misc Residential','8':'Multi-Family<10',
+  '10':'Vacant Commercial','11':'Stores/One Story','12':'Mixed Use','13':'Dept Store',
+  '14':'Supermarket','15':'Regional Mall','16':'Community Shopping Center',
+  '20':'Vacant Industrial','21':'Food Processing','22':'Light Manufacturing',
+  '39':'Hotels/Motels','48':'Warehouses','70':'Vacant Institutional','71':'Churches',
+  '80':'Vacant Government','81':'Military','86':'County Gov','87':'State Gov','88':'Fed Gov',
+  '91':'Utility','99':'Acreage Not Zoned'
+};
+
+
+/* ═══════════════════════════════════════════════════════════════
+   PARCEL / ZONING AUTO-DETECT
+   Queries FDOT statewide parcel FeatureServer by lat/lon.
+   Returns zoning district, parcel ID, and owner info.
+═══════════════════════════════════════════════════════════════ */
+async function lookupParcelData(lat, lon) {
+  const layer = FDOT_LAYER[selectedJur];
+  if (!layer) return null;
+
+  const url = FDOT_PARCEL_BASE + '/' + layer + '/query' +
+    '?geometry=' + lon + ',' + lat +
+    '&geometryType=esriGeometryPoint' +
+    '&inSR=4326' +
+    '&spatialRel=esriSpatialRelIntersects' +
+    '&outFields=ZONING,PARCEL_ID,OWN1,OWN2,PHY_ADDR1,PHY_CITY,PHY_ZIPCD,DOR_UC,NO_BULDNG,LND_SQFOOT' +
+    '&returnGeometry=false' +
+    '&f=json';
+
+  try {
+    const resp = await fetch(url, { mode: 'cors' });
+    if (!resp.ok) throw new Error('FDOT HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data.features || data.features.length === 0) return null;
+    const a = data.features[0].attributes;
+    debugLog('FDOT parcel data', a);
+    return {
+      zoning:   (a.ZONING || '').trim(),
+      parcelId: (a.PARCEL_ID || '').trim(),
+      owner1:   (a.OWN1 || '').trim(),
+      owner2:   (a.OWN2 || '').trim(),
+      address:  (a.PHY_ADDR1 || '').trim(),
+      city:     (a.PHY_CITY || '').trim(),
+      zip:      (a.PHY_ZIPCD || '').trim(),
+      dorCode:  String(a.DOR_UC || '').trim(),
+      sqft:     a.LND_SQFOOT || null,
+      buildings:a.NO_BULDNG || null
+    };
+  } catch(err) {
+    debugLog('FDOT parcel lookup failed', err.message);
+    return null;
+  }
+}
+
+function applyParcelData(parcel) {
+  if (!parcel) return;
+
+  // Auto-fill parcel/folio number
+  if (parcel.parcelId) {
+    const parcelEl = document.getElementById('parcelNum');
+    if (parcelEl && !parcelEl.value) parcelEl.value = parcel.parcelId;
+  }
+
+  // Auto-fill owner name
+  if (parcel.owner1) {
+    const ownerEl = document.getElementById('ownerName');
+    if (ownerEl && !ownerEl.value) {
+      ownerEl.value = parcel.owner1 + (parcel.owner2 ? ' / ' + parcel.owner2 : '');
+    }
+  }
+
+  // Auto-fill zoning district if not already set
+  if (parcel.zoning) {
+    const zoneEl = document.getElementById('zoningDistrict');
+    if (zoneEl && !zoneEl.value) {
+      zoneEl.value = parcel.zoning;
+      live(); // trigger autosave + compliance
+    }
+  }
+
+  // For Naples: try to match FDOT zoning code to district table
+  if (selectedJur === 'City of Naples' && parcel.zoning) {
+    const distData = getNaplesDistrictSetbacks(parcel.zoning);
+    if (distData && JURISDICTIONS['City of Naples']) {
+      const j = JURISDICTIONS['City of Naples'];
+      j._dynamicSide  = distData.side;
+      j._dynamicRear  = distData.rear;
+      j._dynamicFront = distData.front;
+      debugLog('Naples district auto-matched', distData);
+    }
+  }
+
+  // Build parcel result card
+  const dorDesc = DOR_USE_CODES[parcel.dorCode] || ('DOR Code ' + parcel.dorCode);
+  const resEl = document.getElementById('muniResults');
+  if (!resEl) return;
+
+  const rows = [
+    parcel.parcelId ? ['Parcel / Folio #', parcel.parcelId] : null,
+    parcel.owner1   ? ['Owner',            parcel.owner1 + (parcel.owner2 ? ' / ' + parcel.owner2 : '')] : null,
+    parcel.zoning   ? ['Zoning District',  parcel.zoning] : null,
+    parcel.dorCode  ? ['Use Type',         dorDesc] : null,
+    parcel.sqft     ? ['Lot Size',         Math.round(parcel.sqft).toLocaleString() + ' sq ft (' + (parcel.sqft/43560).toFixed(2) + ' acres)'] : null,
+    parcel.buildings !== null ? ['Buildings on Parcel', parcel.buildings] : null,
+  ].filter(Boolean);
+
+  let html = '<div style="margin-top:10px;padding:12px 14px;background:var(--green-bg);border:1px solid #b8dfc8;border-radius:var(--r);">' +
+    '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--green);font-family:var(--mono);margin-bottom:8px;">✅ Parcel Data — FDOT Statewide Database</div>';
+
+  rows.forEach(function(row) {
+    html += '<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:12px;">' +
+      '<span style="font-family:var(--mono);font-size:10px;color:var(--muted);width:160px;flex-shrink:0;">' + row[0] + '</span>' +
+      '<span style="font-weight:600;">' + row[1] + '</span></div>';
+  });
+
+  html += '<div style="margin-top:6px;font-size:10px;color:var(--muted);font-family:var(--mono);">Source: FDOT Statewide Parcel Service. Parcel # and owner auto-filled above.</div>';
+  html += '</div>';
+
+  resEl.insertAdjacentHTML('beforeend', html);
+}
+
+/* ═══════════════════════════════════════════════════════════════
    FLOOD ZONE DATA — pre-researched per jurisdiction
    Source: FBC 8th Ed. §R322, FEMA NFHL, local floodplain ordinances
    Freeboard = local minimum above BFE for mechanical equipment
@@ -2433,8 +2597,12 @@ async function lookupFloodZone() {
       }
     }
 
+    // Store geocoded coords for parcel lookup reuse
+    window._lastGeocodedLatLon = { lat, lon };
+    debugLog('Geocoded coords stored', { lat, lon, method: geocodeMethod });
+
     const statusEl = document.getElementById(floodStatusId);
-    if (statusEl) statusEl.textContent = '⏳ Step 2 of 2 — Querying FEMA flood maps… (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')';
+    if (statusEl) statusEl.textContent = '⏳ Step 2 of 2 — Querying FEMA flood maps… (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')'
 
     /* ── STEP 2: FEMA NFHL REST API → flood zone + BFE ──
        CRITICAL: Must pass inSR=4326 so FEMA knows we are sending
