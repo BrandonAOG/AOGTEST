@@ -1908,6 +1908,7 @@ function renderPanelSummaryStrip(d) {
    Key format: nvapi-...
 ═══════════════════════════════════════════════════════════════ */
 const NIM_KEY_STORAGE    = 'genPermit_nimKey';
+const GEMINI_KEY_STORAGE = 'genPermit_geminiKey';
 const NIM_ENDPOINT       = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const NIM_MODEL_PRIMARY  = 'meta/llama-3.3-70b-instruct';   // Best free-tier general model
 const NIM_MODEL_FAST     = 'meta/llama-3.1-8b-instruct';    // Fast fallback for simple tasks
@@ -3310,103 +3311,164 @@ async function searchPropertyByAddress() {
     const countyFromGeo = detectFloridaCounty(matchedAddr || '');
     statusEl.innerHTML = '<div class="alert alert-info" style="font-size:12px;">⏳ Searching ' + (countyFromGeo || 'county') + ' property records…</div>';
 
-    // Step 3: Try county PA point-in-polygon first (most accurate)
-    const PA_ENDPOINTS = {
-      'lee':        { url: 'https://gissvr.leepa.org/gissvr/rest/services/ParcelsWFS/MapServer/0/query',              fields: 'FolioID,OwnerName,Others,Address1,City,ZIP,Zoning,PlatAcres' },
-      'collier':    { url: 'https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/mapserver/0/query',         fields: 'FOLIO,NAME1,NAME2,SITEADDR,SITECITY,USZIP,ZONING' },
-      'charlotte':  { url: 'https://gis.ccappraiser.com/arcgis/rest/services/PublicRecords/MapServer/0/query',         fields: 'PARCEL_ID,OWNER_NAME,SITUS_ADDR,SITUS_CITY,SITUS_ZIP,ZONING,USE_CODE,LAND_SQFT' },
-      'sarasota':   { url: 'https://gis.sc-pa.com/arcgis/rest/services/Parcels/MapServer/0/query',                    fields: 'PARCEL_ID,OWNER_NAME,SITE_ADDRESS,SITE_CITY,SITE_ZIP,ZONING,USE_CODE,LAND_SQFT' },
-      'hillsborough':{ url: 'https://gis.hcpafl.org/arcgis/rest/services/Property/FeatureServer/0/query',             fields: 'FOLIO,OWNER_1,OWNER_2,SITE_ADDR,SITE_CITY,SITE_ZIP,ZONING,DOR_CD,LAND_SQFT' },
-      'pinellas':   { url: 'https://gis.pcpao.gov/arcgis/rest/services/Public/Parcels/MapServer/0/query',             fields: 'PARCELNO,OWNER1,OWNER2,MAILADR1,MAILCITY,MAILZIP,LAND_SQFT' },
-      'manatee':    { url: 'https://maps.manateepao.gov/arcgis/rest/services/Parcels/MapServer/0/query',               fields: 'PARCEL_ID,OWNER_NAME,SITUS_ADDR,SITUS_CITY,SITUS_ZIP,ZONING,LAND_SQFT' },
-      'palmbeach':  { url: 'https://maps.pbcgov.org/arcgis/rest/services/Property_Appraiser/Parcels/MapServer/0/query', fields: 'PCN,OWN1,OWN2,LGL1,MUNI,ZIP,ZONING,LAND_SQFT' },
-      'broward':    { url: 'https://bcpagis.broward.org/arcgis/rest/services/Parcels/MapServer/0/query',               fields: 'FOLIO,OWNER1,OWNER2,SITUSADR,SITUSCITY,SITUSZIP,ZONING,LAND_SQFT' },
-      'miamidade':  { url: 'https://maps.miamidade.gov/arcgis/rest/services/Property_Search/MapServer/0/query',        fields: 'FOLIO,OWNER1,OWNER2,ADDRESS,CITY,ZIPCODE,ZONING,LAND_SQFT' },
-    };
-    const fieldMaps = {
-      lee:         { id:'FolioID',    o1:'OwnerName',   o2:'Others',    addr:'Address1',    city:'City',       zip:'ZIP',       zone:'Zoning',  sqft:null },
-      collier:     { id:'FOLIO',      o1:'NAME1',       o2:'NAME2',     addr:'SITEADDR',    city:'SITECITY',   zip:'USZIP',     zone:'ZONING',  sqft:null },
-      charlotte:   { id:'PARCEL_ID',  o1:'OWNER_NAME',  o2:'',          addr:'SITUS_ADDR',  city:'SITUS_CITY', zip:'SITUS_ZIP', zone:'ZONING',  sqft:'LAND_SQFT' },
-      sarasota:    { id:'PARCEL_ID',  o1:'OWNER_NAME',  o2:'',          addr:'SITE_ADDRESS',city:'SITE_CITY',  zip:'SITE_ZIP',  zone:'ZONING',  sqft:'LAND_SQFT' },
-      hillsborough:{ id:'FOLIO',      o1:'OWNER_1',     o2:'OWNER_2',   addr:'SITE_ADDR',   city:'SITE_CITY',  zip:'SITE_ZIP',  zone:'ZONING',  sqft:'LAND_SQFT' },
-      pinellas:    { id:'PARCELNO',   o1:'OWNER1',      o2:'OWNER2',    addr:'MAILADR1',    city:'MAILCITY',   zip:'MAILZIP',   zone:'',        sqft:'LAND_SQFT' },
-      manatee:     { id:'PARCEL_ID',  o1:'OWNER_NAME',  o2:'',          addr:'SITUS_ADDR',  city:'SITUS_CITY', zip:'SITUS_ZIP', zone:'ZONING',  sqft:'LAND_SQFT' },
-      palmbeach:   { id:'PCN',        o1:'OWN1',        o2:'OWN2',      addr:'LGL1',        city:'MUNI',       zip:'ZIP',       zone:'ZONING',  sqft:'LAND_SQFT' },
-      broward:     { id:'FOLIO',      o1:'OWNER1',      o2:'OWNER2',    addr:'SITUSADR',    city:'SITUSCITY',  zip:'SITUSZIP',  zone:'ZONING',  sqft:'LAND_SQFT' },
-      miamidade:   { id:'FOLIO',      o1:'OWNER1',      o2:'OWNER2',    addr:'ADDRESS',     city:'CITY',       zip:'ZIPCODE',   zone:'ZONING',  sqft:'LAND_SQFT' },
-    };
+    // Step 3: Point-in-polygon lookup
+    // Primary sources (CORS-enabled, confirmed working):
+    //   Lee County   → Lee PA ParcelsWFS (gissvr.leepa.org)
+    //   Charlotte, Citrus, DeSoto, Hardee, Hernando, Highlands, Hillsborough,
+    //   Lake, Levy, Manatee, Marion, Pasco, Pinellas, Polk, Sarasota, Sumter
+    //                → SWFWMD parcel_search (www45.swfwmd.state.fl.us) — public use allowed
+    //   Collier      → Collier County GIS (ags2.colliercountyfl.gov) — may have CORS issues
 
-    function normalizePA(attrs, key) {
-      const s = k => (attrs[k] || '').toString().trim();
-      const m = fieldMaps[key] || {};
-      const sqft = key === 'lee'
-        ? (attrs.PlatAcres ? Math.round(parseFloat(attrs.PlatAcres) * 43560) : null)
-        : (m.sqft ? parseFloat(attrs[m.sqft]) || null : null);
+    const SWFWMD_BASE = 'https://www45.swfwmd.state.fl.us/arcgis12/rest/services/BaseVector/parcel_search/MapServer';
+    const SWFWMD_LAYER = {
+      'charlotte':1,'citrus':2,'desoto':3,'hardee':4,'hernando':5,'highlands':6,
+      'hillsborough':7,'lake':8,'levy':9,'manatee':10,'marion':11,'pasco':12,
+      'pinellas':13,'polk':14,'sarasota':15,'sumter':16
+    };
+    // SWFWMD fields are consistent across all county layers
+    const SWFWMD_FIELDS = 'PARCELID,OWNNAME,SITEADD,SCITY,SZIP,ZONING,AREANO';
+
+    async function trySwfwmd(countyKey) {
+      const layer = SWFWMD_LAYER[countyKey];
+      if (!layer) return null;
+      const url = SWFWMD_BASE + '/' + layer + '/query' +
+        '?geometry=' + lon + ',' + lat +
+        '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects' +
+        '&outFields=' + SWFWMD_FIELDS + '&returnGeometry=false&resultRecordCount=1&f=json';
+      const r = await fetchWithTimeout(url, { mode: 'cors' }, 10000);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      if (d.error) throw new Error(d.error.message);
+      if (!d.features?.length) return null;
+      const a = d.features[0].attributes;
+      if (!a.PARCELID && !a.OWNNAME) return null;
       return {
-        parcelId: s(m.id   || 'PARCEL_ID'),
-        owner1:   titleCase(s(m.o1  || 'OWNER1')),
-        owner2:   m.o2 ? titleCase(s(m.o2)) : '',
-        address:  titleCase(s(m.addr || 'SITE_ADDR')),
-        city:     titleCase(s(m.city || 'SITE_CITY')),
-        zip:      s(m.zip  || 'SITE_ZIP'),
-        zoning:   s(m.zone || 'ZONING'),
-        sqft,
-        dorCode:  s('DOR_CODE') || s('USE_CODE') || s('DOR_CD') || '',
-        source:   key + ' property appraiser'
+        parcelId: String(a.PARCELID || '').trim(),
+        owner1:   titleCase(String(a.OWNNAME  || '').trim()),
+        owner2:   '',
+        address:  titleCase(String(a.SITEADD  || '').trim()),
+        city:     titleCase(String(a.SCITY    || '').trim()),
+        zip:      String(a.SZIP     || '').trim(),
+        zoning:   String(a.ZONING   || '').trim(),
+        sqft:     a.AREANO ? Math.round(parseFloat(a.AREANO) * 43560) : null,
+        dorCode:  '',
+        source:   countyKey + ' property appraiser (SWFWMD)'
       };
     }
-
-    // Build county priority list: detected county first, then common SW FL counties as fallback
-    const toTry = [];
-    if (countyFromGeo && PA_ENDPOINTS[countyFromGeo]) toTry.push(countyFromGeo);
-    ['lee','collier','charlotte','sarasota','hillsborough','pinellas','manatee'].forEach(c => {
-      if (!toTry.includes(c) && PA_ENDPOINTS[c]) toTry.push(c);
-    });
 
     let parcel = null, parcelSource = '';
     const diag = [];
 
-    for (const c of toTry) {
+    // Lee County — direct Lee PA point search
+    if (!parcel && countyFromGeo === 'lee') {
       try {
-        const ep = PA_ENDPOINTS[c];
-        const url = ep.url + '?geometry=' + lon + ',' + lat +
+        const url = 'https://gissvr.leepa.org/gissvr/rest/services/ParcelsWFS/MapServer/0/query' +
+          '?geometry=' + lon + ',' + lat +
           '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects' +
-          '&outFields=' + ep.fields + '&returnGeometry=false&resultRecordCount=1&f=json';
-        const r = await fetchWithTimeout(url, { mode: 'cors' }, 8000);
-        if (!r.ok) { diag.push(c + ':HTTP' + r.status); continue; }
-        const d = await r.json();
-        if (d.error) { diag.push(c + ':' + d.error.message); continue; }
-        if (!d.features?.length) { diag.push(c + ':0 results'); continue; }
-        const rec = normalizePA(d.features[0].attributes, c);
-        if (rec.parcelId || rec.owner1) { parcel = rec; parcelSource = rec.source; diag.push(c + ':HIT'); break; }
-        else diag.push(c + ':empty record');
-      } catch(e) { diag.push(c + ':' + e.message.substring(0,30)); debugLog('PA fail: ' + c, e.message); }
+          '&outFields=FolioID,OwnerName,Others,Address1,City,ZIP,Zoning,PlatAcres' +
+          '&returnGeometry=false&resultRecordCount=1&f=json';
+        const r = await fetchWithTimeout(url, { mode: 'cors' }, 10000);
+        if (r.ok) {
+          const d = await r.json();
+          if (!d.error && d.features?.length) {
+            const a = d.features[0].attributes;
+            if (a.FolioID || a.OwnerName) {
+              parcel = {
+                parcelId: String(a.FolioID   || '').trim(),
+                owner1:   titleCase(String(a.OwnerName || '').trim()),
+                owner2:   titleCase(String(a.Others    || '').trim()),
+                address:  titleCase(String(a.Address1  || '').trim()),
+                city:     titleCase(String(a.City      || '').trim()),
+                zip:      String(a.ZIP || '').trim(),
+                zoning:   String(a.Zoning || '').trim(),
+                sqft:     a.PlatAcres ? Math.round(parseFloat(a.PlatAcres) * 43560) : null,
+                dorCode:  '', source: 'lee property appraiser'
+              };
+              parcelSource = parcel.source; diag.push('Lee PA:HIT');
+            } else diag.push('Lee PA:empty');
+          } else diag.push('Lee PA:' + (d.error?.message || '0 results'));
+        } else diag.push('Lee PA:HTTP' + r.status);
+      } catch(e) { diag.push('Lee PA:' + e.message.substring(0,25)); }
     }
 
-    // Step 4: FDOR text search — fast indexed query, works for all 67 counties
+    // SWFWMD counties — single consistent endpoint
+    if (!parcel && countyFromGeo && SWFWMD_LAYER[countyFromGeo]) {
+      try {
+        const rec = await trySwfwmd(countyFromGeo);
+        if (rec) { parcel = rec; parcelSource = rec.source; diag.push('SWFWMD:HIT'); }
+        else diag.push('SWFWMD(' + countyFromGeo + '):0 results');
+      } catch(e) { diag.push('SWFWMD(' + countyFromGeo + '):' + e.message.substring(0,30)); }
+    }
+
+    // Collier County — try their GIS server
+    if (!parcel && countyFromGeo === 'collier') {
+      try {
+        const url = 'https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/mapserver/0/query' +
+          '?geometry=' + lon + ',' + lat +
+          '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects' +
+          '&outFields=FOLIO,NAME1,NAME2,SITEADDR,SITECITY,USZIP,ZONING' +
+          '&returnGeometry=false&resultRecordCount=1&f=json';
+        const r = await fetchWithTimeout(url, { mode: 'cors' }, 10000);
+        if (r.ok) {
+          const d = await r.json();
+          if (!d.error && d.features?.length) {
+            const a = d.features[0].attributes;
+            if (a.FOLIO || a.NAME1) {
+              parcel = {
+                parcelId: String(a.FOLIO     || '').trim(),
+                owner1:   titleCase(String(a.NAME1    || '').trim()),
+                owner2:   titleCase(String(a.NAME2    || '').trim()),
+                address:  titleCase(String(a.SITEADDR || '').trim()),
+                city:     titleCase(String(a.SITECITY || '').trim()),
+                zip:      String(a.USZIP || '').trim(),
+                zoning:   String(a.ZONING || '').trim(),
+                sqft: null, dorCode: '', source: 'collier property appraiser'
+              };
+              parcelSource = parcel.source; diag.push('Collier PA:HIT');
+            } else diag.push('Collier PA:empty');
+          } else diag.push('Collier PA:' + (d.error?.message || '0 results'));
+        } else diag.push('Collier PA:HTTP' + r.status);
+      } catch(e) { diag.push('Collier PA:' + e.message.substring(0,30)); }
+    }
+
+    // Step 4: FDOR text search — filter by zip code (indexed) + address prefix
     if (!parcel) {
       try {
-        const fips = countyFromGeo ? FDOR_COUNTY_FIPS[countyFromGeo] : null;
-        // Parse street number and name from the typed query
         const streetOnly = q.split(',')[0].trim().toUpperCase()
           .replace(/\bAVENUE\b/g,'AVE').replace(/\bSTREET\b/g,'ST').replace(/\bDRIVE\b/g,'DR')
           .replace(/\bROAD\b/g,'RD').replace(/\bBOULEVARD\b/g,'BLVD').replace(/\bLANE\b/g,'LN')
           .replace(/\bCOURT\b/g,'CT').replace(/\bCIRCLE\b/g,'CIR').replace(/\bTERRACE\b/g,'TER')
           .replace(/\bPLACE\b/g,'PL').replace(/\bPARKWAY\b/g,'PKWY').replace(/\bTRAIL\b/g,'TRL');
         const numMatch = streetOnly.match(/^(\d+)\s+(.+)/);
-        if (numMatch && fips) {
-          const addrPrefix = numMatch[1] + ' ' + numMatch[2].substring(0, 20);
-          const where = `PHY_ADDR1 LIKE '${addrPrefix}%' AND CO_NO = ${fips}`;
-          const url = FDOR_CADASTRAL_URL +
-            '?where=' + encodeURIComponent(where) +
-            '&outFields=PARCEL_ID,OWN_NAME,PHY_ADDR1,PHY_CITY,PHY_ZIPCD,DOR_UC,LND_SQFOOT' +
-            '&returnGeometry=false&resultRecordCount=5&f=json';
-          const r = await fetchWithTimeout(url, { mode: 'cors' }, 15000);
-          if (r.ok) {
-            const d = await r.json();
-            if (d.error) { diag.push('FDOR-text:' + d.error.message); }
-            else if (d.features?.length) {
-              const a = d.features[0].attributes;
+        // Use zip from typed query as the primary filter — much faster than CO_NO on this dataset
+        const zipTyped = (q.match(/\b(\d{5})\b/) || [])[1] || '';
+
+        if (numMatch && zipTyped) {
+          const houseNum   = numMatch[1];
+          const streetFull = numMatch[2];
+          const firstWord  = streetFull.split(' ')[0];
+          const variants   = [
+            houseNum + ' ' + streetFull.substring(0, 20),
+            houseNum + ' ' + firstWord,
+          ];
+
+          for (const addrPrefix of variants) {
+            if (parcel) break;
+            const where = `PHY_ZIPCD = '${zipTyped}' AND PHY_ADDR1 LIKE '${addrPrefix}%'`;
+            const url = FDOR_CADASTRAL_URL +
+              '?where=' + encodeURIComponent(where) +
+              '&outFields=PARCEL_ID,OWN_NAME,PHY_ADDR1,PHY_CITY,PHY_ZIPCD,DOR_UC,LND_SQFOOT,CO_NO' +
+              '&returnGeometry=false&resultRecordCount=5&f=json';
+            try {
+              const r = await fetchWithTimeout(url, { mode: 'cors' }, 15000);
+              if (!r.ok) { diag.push('FDOR-text:HTTP' + r.status); break; }
+              const d = await r.json();
+              if (d.error) { diag.push('FDOR-text:' + d.error.message); break; }
+              if (!d.features?.length) { diag.push('FDOR-text:0(' + addrPrefix + ',zip=' + zipTyped + ')'); continue; }
+              const best = d.features.find(f =>
+                String(f.attributes.PHY_ADDR1||'').toUpperCase().startsWith(houseNum + ' ')
+              ) || d.features[0];
+              const a = best.attributes;
               if (a.PARCEL_ID || a.OWN_NAME) {
                 parcel = {
                   parcelId: String(a.PARCEL_ID || '').trim(),
@@ -3420,28 +3482,25 @@ async function searchPropertyByAddress() {
                   source:   'Florida DOR Statewide Cadastral'
                 };
                 parcelSource = parcel.source;
-                diag.push('FDOR-text:HIT');
-              } else { diag.push('FDOR-text:empty attrs'); }
-            } else { diag.push('FDOR-text:0 results (CO_NO=' + fips + ', addr=' + addrPrefix + ')'); }
-          } else { diag.push('FDOR-text:HTTP' + r.status); }
+                diag.push('FDOR-text:HIT(' + addrPrefix + ')');
+              }
+            } catch(e) { diag.push('FDOR-text:' + e.message.substring(0,25)); break; }
+          }
         } else {
-          diag.push('FDOR-text:skipped (no fips=' + fips + ' or no num match)');
+          diag.push('FDOR-text:skipped(no zip in query - add zip code for non-Lee counties)');
         }
-      } catch(e) { diag.push('FDOR-text:' + e.message.substring(0,30)); }
+      } catch(e) { diag.push('FDOR-text:outer:' + e.message.substring(0,25)); }
     }
 
-    // Step 5: FDOR point fallback (slower but catches edge cases)
+    // Step 5: FDOR point fallback — no county filter, pure spatial intersect
     if (!parcel) {
       try {
-        const fips = countyFromGeo ? FDOR_COUNTY_FIPS[countyFromGeo] : null;
-        const where = fips ? `CO_NO = ${fips}` : '1=1';
         const url = FDOR_CADASTRAL_URL +
           '?geometry=' + lon + ',' + lat +
           '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects' +
-          '&where=' + encodeURIComponent(where) +
-          '&outFields=PARCEL_ID,OWN_NAME,PHY_ADDR1,PHY_CITY,PHY_ZIPCD,DOR_UC,LND_SQFOOT' +
+          '&outFields=PARCEL_ID,OWN_NAME,PHY_ADDR1,PHY_CITY,PHY_ZIPCD,DOR_UC,LND_SQFOOT,CO_NO' +
           '&returnGeometry=false&resultRecordCount=1&f=json';
-        const r = await fetchWithTimeout(url, { mode: 'cors' }, 20000);
+        const r = await fetchWithTimeout(url, { mode: 'cors' }, 25000);
         if (r.ok) {
           const d = await r.json();
           if (d.error) { diag.push('FDOR-pt:' + d.error.message); }
@@ -3460,14 +3519,66 @@ async function searchPropertyByAddress() {
                 source:   'Florida DOR Statewide Cadastral'
               };
               parcelSource = parcel.source;
-              diag.push('FDOR-pt:HIT');
+              diag.push('FDOR-pt:HIT(CO_NO=' + a.CO_NO + ')');
             } else { diag.push('FDOR-pt:empty attrs'); }
-          } else { diag.push('FDOR-pt:0 features (fips=' + fips + ')'); }
+          } else { diag.push('FDOR-pt:0 features (no filter)'); }
         } else { diag.push('FDOR-pt:HTTP' + r.status); }
-      } catch(e) { diag.push('FDOR-pt:' + e.message.substring(0,30)); debugLog('FDOR point fail', e.message); }
+      } catch(e) { diag.push('FDOR-pt:' + e.message.substring(0,30)); }
     }
 
-    // Step 5: Autofill
+    // Step 6: Gemini fallback — ask AI to look up Florida parcel data
+    if (!parcel) {
+      const gemKey = getGeminiKey();
+      if (gemKey) {
+        try {
+          statusEl.innerHTML = '<div class="alert alert-info" style="font-size:12px;">⏳ Asking Gemini for parcel data…</div>';
+          const prompt = `You are a Florida property records assistant. Look up the following Florida property address and return the parcel/folio number and owner name from public county property appraiser records.
+
+Address: ${q}
+
+Return ONLY a JSON object with these exact fields (no markdown, no explanation):
+{
+  "parcelId": "the parcel or folio number, or empty string if unknown",
+  "owner": "full owner name as it appears on the deed, or empty string if unknown",
+  "city": "city name",
+  "zip": "5-digit zip code",
+  "confidence": "high" or "low"
+}
+
+If you are not confident in the parcel number accuracy, set confidence to "low". Only set "high" if you are certain of the parcel ID.`;
+
+          const { text } = await geminiAPI({ prompt, maxTokens: 200 });
+          const clean = text.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(clean);
+          debugLog('Gemini parcel lookup', parsed);
+
+          if (parsed.parcelId || parsed.owner) {
+            parcel = {
+              parcelId: String(parsed.parcelId || '').trim(),
+              owner1:   titleCase(String(parsed.owner || '').trim()),
+              owner2:   '',
+              address:  q.split(',')[0].trim(),
+              city:     titleCase(String(parsed.city || '').trim()),
+              zip:      String(parsed.zip || '').trim(),
+              zoning:   '', sqft: null, dorCode: '',
+              source:   'Gemini AI' + (parsed.confidence === 'low' ? ' (unverified — please confirm)' : '')
+            };
+            parcelSource = parcel.source;
+            diag.push('Gemini:HIT(confidence=' + parsed.confidence + ')');
+          } else {
+            diag.push('Gemini:no data returned');
+          }
+        } catch(e) {
+          if (e.message === 'NO_KEY') diag.push('Gemini:no key');
+          else diag.push('Gemini:' + e.message.substring(0, 40));
+          debugLog('Gemini parcel lookup fail', e.message);
+        }
+      } else {
+        diag.push('Gemini:no key set');
+      }
+    }
+
+    // Step 7: Autofill
     if (parcel) {
       const fmt = n => n.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       if (parcel.owner1) {
@@ -3495,8 +3606,12 @@ async function searchPropertyByAddress() {
         parcel.sqft     ? ['Lot Size', Math.round(parcel.sqft).toLocaleString() + ' sq ft'] : null,
       ].filter(Boolean);
 
-      let html = '<div style="padding:12px 14px;background:var(--green-bg);border:1px solid #b8dfc8;border-radius:var(--r);font-size:12px;">' +
-        '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--green);font-family:var(--mono);margin-bottom:8px;">✅ Found — ' + parcelSource + '</div>';
+      const isGemini = parcelSource.startsWith('Gemini');
+      let html = '<div style="padding:12px 14px;background:' + (isGemini ? 'var(--warn-bg)' : 'var(--green-bg)') + ';border:1px solid ' + (isGemini ? '#e8d080' : '#b8dfc8') + ';border-radius:var(--r);font-size:12px;">' +
+        '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:' + (isGemini ? 'var(--warn)' : 'var(--green)') + ';font-family:var(--mono);margin-bottom:8px;">' + (isGemini ? '⚠ AI Estimate — ' : '✅ Found — ') + parcelSource + '</div>';
+      if (isGemini) {
+        html += '<div style="font-size:11px;color:var(--warn);margin-bottom:8px;font-family:var(--mono);">⚠ Parcel data from Gemini AI — verify the parcel # on your <a href="https://www.ccappraiser.com/RPSearchEnter.asp" target="_blank" style="color:var(--blue2);">county PA website</a> before submitting.</div>';
+      }
       rows.forEach(r => {
         html += '<div style="display:flex;gap:8px;padding:2px 0;border-bottom:1px solid rgba(0,0,0,0.05);">' +
           '<span style="font-family:var(--mono);font-size:10px;color:var(--muted);width:140px;flex-shrink:0;">' + r[0] + '</span>' +
@@ -3505,6 +3620,22 @@ async function searchPropertyByAddress() {
       html += '</div>';
       statusEl.innerHTML = html;
     } else {
+      const PA_LINKS = {
+        'lee':         { name:'Lee County PA',         url:'https://www.leepa.org/Search/PropertySearch.aspx' },
+        'collier':     { name:'Collier County PA',     url:'https://www.collierappraiser.com/Main_Search/search_rp.html' },
+        'charlotte':   { name:'Charlotte County PA',   url:'https://www.ccappraiser.com/RPSearchEnter.asp' },
+        'sarasota':    { name:'Sarasota County PA',    url:'https://www.sc-pa.com/propertysearch/basicSearch' },
+        'hillsborough':{ name:'Hillsborough County PA',url:'https://www.hcpafl.org/Property-Info/Search-for-a-Property' },
+        'pinellas':    { name:'Pinellas County PA',    url:'https://www.pcpao.org/general-search.html' },
+        'manatee':     { name:'Manatee County PA',     url:'https://www.manateepao.gov/property-search/' },
+        'palmbeach':   { name:'Palm Beach County PA',  url:'https://pbcpao.gov/property-search/' },
+        'broward':     { name:'Broward County PA',     url:'https://web.bcpa.net/BcpaClient/' },
+        'miamidade':   { name:'Miami-Dade County PA',  url:'https://www.miamidade.gov/pa/property_search.asp' },
+        'pasco':       { name:'Pasco County PA',       url:'https://pascopa.com/property-search/' },
+        'polk':        { name:'Polk County PA',        url:'https://www.polkpa.org/CamaDisplay.aspx' },
+      };
+      const paLink = countyFromGeo && PA_LINKS[countyFromGeo] ? PA_LINKS[countyFromGeo] : null;
+
       // Fill address/city from what was typed at minimum
       const parts = q.split(',').map(s => s.trim());
       if (parts[0] && !document.getElementById('propAddr').value) document.getElementById('propAddr').value = parts[0];
@@ -3512,14 +3643,18 @@ async function searchPropertyByAddress() {
         const cityPart = parts[1].replace(/\bFL\b/i,'').replace(/\d{5}/,'').trim();
         if (cityPart && !document.getElementById('propCity').value) document.getElementById('propCity').value = cityPart;
       }
+      const zipMatch2 = q.match(/\b(\d{5})\b/);
+      if (zipMatch2 && !document.getElementById('propZip').value) document.getElementById('propZip').value = zipMatch2[1];
       live();
-      statusEl.innerHTML = '<div class="alert alert-warn" style="font-size:12px;">⚠ Address geocoded but no parcel record found.' +
-        '<div style="margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--muted);">County: ' + (countyFromGeo||'unknown') + ' · ' + diag.join(' · ') + '</div>' +
-        '<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">' +
-        '<a href="https://leepa.org/Search/PropertySearch.aspx" target="_blank" style="color:var(--blue2);font-size:11px;">Lee PA</a> · ' +
-        '<a href="https://www.ccappraiser.com/search.asp" target="_blank" style="color:var(--blue2);font-size:11px;">Charlotte PA</a> · ' +
-        '<a href="https://www.sc-pa.com/propertysearch" target="_blank" style="color:var(--blue2);font-size:11px;">Sarasota PA</a>' +
-        '</div></div>';
+
+      statusEl.innerHTML = '<div class="alert alert-warn" style="font-size:12px;">' +
+        '<strong>⚠ Could not auto-fill parcel data</strong>' +
+        (paLink
+          ? '<div style="margin-top:8px;">Look up the parcel number directly on the <a href="' + paLink.url + '" target="_blank" style="color:var(--blue2);font-weight:600;">' + paLink.name + ' website →</a> then paste it in the Parcel # field below.</div>'
+          : '<div style="margin-top:8px;">Look up the parcel number on your county property appraiser website and paste it in the Parcel # field below.</div>') +
+        '<div style="margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--muted);">Address and city have been filled in. Only parcel # and owner name need manual entry.</div>' +
+        '<div style="margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--muted);opacity:0.7;">' + diag.join(' · ') + '</div>' +
+        '</div>';
     }
 
   } catch(err) {
