@@ -336,11 +336,21 @@ const FORERUNNER = {
      permitBy - 'address' | 'strap' | 'permit'  (how that portal is searched)
 */
 const DOCS = {
+  // --- Municipalities (checked FIRST; a city parcel uses its own portal, not the county's) ---
+  NAPLES: {
+    // City of Naples is its own jurisdiction inside Collier County — separate permitting & flood portal.
+    ecLayer: null,   // Naples EC lookup is via the Forerunner resident portal (not an ArcGIS layer)
+    ecMap:   "https://naplesfl.withforerunner.com/explore",
+    ecNote:  "City of Naples (not Collier County): search the address in the Naples flood portal for its Elevation Certificate. City Building Dept (239) 213-5020.",
+    permit:  "https://cityview2.iharriscomputer.com/CityofNaplesFlorida/Permit/Locator",
+    permitBy:"address"
+  },
+  // --- Counties (fallback for unincorporated parcels) ---
   COLLIER: {
     // Collier publishes an EC map app; this layer URL is a best guess and MUST be verified.
     ecLayer: "https://ags2.colliercountyfl.gov/gis/rest/services/agency/ElevationCertificates/MapServer/0",
     ecMap:   "https://www.collier.gov/County-Development/Operations-Regulatory-Management/Floodplain-Management",
-    ecNote:  "Collier keeps historic & current ECs for structures built after Sept 14, 1979 in zones A/V. Flood hotline (239) 252-2942.",
+    ecNote:  "Unincorporated Collier County. Keeps historic & current ECs for structures built after Sept 14, 1979 in zones A/V. Flood hotline (239) 252-2942.",
     permit:  "https://cvportal.colliercountyfl.gov/cityviewweb/",
     permitBy:"address"
   },
@@ -365,7 +375,7 @@ const ZONING = {
   MANATEE:{code:"https://library.municode.com/fl/manatee_county/codes/code_of_ordinances", permit:"https://www.mymanatee.org/departments/building___development_services"},
   // cities
   "MARCOISLAND":{code:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances", permit:"https://www.cityofmarcoisland.com/communityaffairs"},
-  NAPLES:{code:"https://library.municode.com/fl/naples/codes/code_of_ordinances", permit:"https://www.naplesgov.com/building"},
+  NAPLES:{code:"https://library.municode.com/fl/naples/codes/code_of_ordinances", permit:"https://cityview2.iharriscomputer.com/CityofNaplesFlorida/Permit/Locator"},
   "CAPECORAL":{code:"https://library.municode.com/fl/cape_coral/codes/code_of_ordinances", permit:"https://www.capecoral.gov/department/community_development/"},
   "FORTMYERS":{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", permit:"https://www.cityftmyers.com/166/Community-Development"},
   "BONITASPRINGS":{code:"https://library.municode.com/fl/bonita_springs/codes/code_of_ordinances", permit:"https://www.cityofbonitasprings.org/departments/community-development"},
@@ -781,7 +791,11 @@ async function runLookup(lat,lng){
   html += `</div></div>`;
 
   /* ---- Permits & Documents: Elevation Certificate (live where wired) + Survey/Site Plan links ---- */
-  const docCfg = countyName ? DOCS[norm(countyName)] : null;
+  // Jurisdiction-aware: a City of Naples parcel uses Naples' portal, NOT Collier County's.
+  // City keys are checked before the county key (city is its own permitting/flood authority).
+  const docCfg = (cityName && DOCS[norm(cityName)]) || (countyName && DOCS[norm(countyName)]) || null;
+  const docInCity = !!(cityName && DOCS[norm(cityName)]);   // true if the matched config is the city's
+  const docJur = docInCity ? titleCase(cityName) : (countyName ? titleCase(countyName)+' County' : 'the local jurisdiction');
   // best-effort parcel id for deep links (statewide roll field, or live feed)
   let strap=null;
   try{
@@ -795,10 +809,10 @@ async function runLookup(lat,lng){
   }catch(e){}
 
   html += `<div class="card"><div class="ch"><span class="icn">[ DOC ]</span><h2>Permits &amp; Documents</h2>
-    <div class="src">county floodplain /<br>permitting records</div></div><div class="cb">`;
+    <div class="src">${esc(docJur)}<br>floodplain / permits</div></div><div class="cb">`;
 
-  // --- City resident portal (Forerunner): best address-based EC lookup where available ---
-  const frDoc = cityName ? FORERUNNER[norm(cityName)] : null;
+  // --- City resident portal (Forerunner): shown when not already represented by a city DOCS entry ---
+  const frDoc = (cityName && !docInCity) ? FORERUNNER[norm(cityName)] : null;
   if(frDoc){
     html += `<a class="palink" href="${esc(frDoc.url)}" target="_blank" rel="noopener">↗ ${esc(frDoc.label)} — search this address for its Elevation Certificate</a>`;
     html += `<div class="note">${esc(titleCase(cityName))}'s resident portal lets you search an address and view the Elevation Certificate on file (plus local flood info). This is usually the quickest EC lookup for in-city properties.</div>`;
@@ -829,17 +843,18 @@ async function runLookup(lat,lng){
 
   // --- Always offer the human EC map / search page as fallback ---
   if(docCfg){
-    if(docCfg.ecMap) html += `<a class="palink" href="${esc(docCfg.ecMap)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(titleCase(countyName))} County elevation-certificate map / search</a>`;
+    if(docCfg.ecMap) html += `<a class="palink" href="${esc(docCfg.ecMap)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(docJur)} elevation-certificate map / search</a>`;
     if(docCfg.ecNote) html += `<div class="note">${esc(docCfg.ecNote)}</div>`;
   } else if(countyName){
     html += `<a class="palink" href="https://www.google.com/search?q=${encodeURIComponent(titleCase(countyName)+' County Florida elevation certificate map lookup')}" target="_blank" rel="noopener" style="margin-top:8px">↗ Find ${esc(titleCase(countyName))} County elevation-certificate lookup</a>`;
   }
 
   // --- Survey / Site Plan / permit history: deep link to the permitting portal (no public data feed exists) ---
+  // City portal wins when the parcel is in a city; else county; else the zoning-config portal.
   const portal = (docCfg && docCfg.permit) || (z && z.permit) || null;
-  html += `<div class="note warnbox" style="margin-top:10px"><b>Surveys &amp; site plans aren't a public map layer.</b> They live inside the building-permit file and are retrieved from the jurisdiction's permitting portal by ${docCfg&&docCfg.permitBy==='permit'?'permit record number':'address or parcel/STRAP number'}${strap?` (this parcel: <b style="color:var(--ink)">${esc(strap)}</b>)`:''}. Not every record is digitized.</div>`;
+  html += `<div class="note warnbox" style="margin-top:10px"><b>Surveys &amp; site plans aren't a public map layer.</b> They live in <b>${esc(docJur)}</b>'s building-permit file and are retrieved from its permitting portal by ${docCfg&&docCfg.permitBy==='permit'?'permit record number':'address or parcel/STRAP number'}${strap?` (this parcel: <b style="color:var(--ink)">${esc(strap)}</b>)`:''}. Not every record is digitized.</div>`;
   if(portal){
-    html += `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(jurName)} permitting portal (survey / site plan / permits)</a>`;
+    html += `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(docJur)} permitting portal (survey / site plan / permits)</a>`;
   } else if(countyName){
     html += `<a class="palink" href="https://www.google.com/search?q=${encodeURIComponent(titleCase(countyName)+' County Florida building permit portal search by address')}" target="_blank" rel="noopener" style="margin-top:8px">↗ Find ${esc(titleCase(countyName))} County permitting portal</a>`;
   }
