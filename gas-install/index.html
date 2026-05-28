@@ -3961,8 +3961,8 @@ async function lookupFloodZone() {
        2. Full address → Nominatim
        3. Street + ZIP variations → Census + Nominatim (expand abbreviations)
        4. Naples City GIS parcel lookup (City of Naples only)
-       4b. Charlotte County GIS geocoder (Port Charlotte, Punta Gorda, Englewood)
-       5. ZIP centroid → Census then Nominatim (gives approximate zone, clearly labelled)
+       4b. County PA parcel text search → centroid (Lee, Charlotte — any address in PA db)
+       5. ZIP centroid → Census → Nominatim (approximate zone, clearly labelled)
     */
     let geocodeMethod = '';
 
@@ -4101,26 +4101,84 @@ async function lookupFloodZone() {
               }
             }
 
-            // Attempt 4b: Charlotte County GIS geocoder — handles private/gated roads
-            // not in national databases. Free, no key — agis3.charlottecountyfl.gov
-            if (!lat && countyFromGeo === 'charlotte' || (!lat && (city || '').toLowerCase().includes('port charlotte') || (city || '').toLowerCase().includes('punta gorda') || (city || '').toLowerCase().includes('englewood'))) {
+            // Attempt 4b: County PA address search → centroid
+            // For private/gated roads not in national geocoders, the county
+            // Property Appraiser database has every address. We look up the
+            // parcel by address text and use its geometry centroid as coords.
+            if (!lat) {
               try {
                 const statusEl4b = document.getElementById(floodStatusId);
-                if (statusEl4b) statusEl4b.textContent = '⏳ Trying Charlotte County GIS geocoder…';
-                const ccGeoUrl = 'https://agis3.charlottecountyfl.gov/arcgis/rest/services/Locators/Charlotte_Composite/GeocodeServer/findAddressCandidates' +
-                  '?SingleLine=' + encodeURIComponent(addr + ', ' + (city || '') + ' FL ' + (zip || '')) +
-                  '&outFields=*&maxLocations=1&f=json';
-                const ccgr = await fetch(ccGeoUrl, { mode: 'cors' });
-                if (!ccgr.ok) throw new Error('CC GIS geocoder HTTP ' + ccgr.status);
-                const ccgd = await ccgr.json();
-                const cand = ccgd?.candidates?.[0];
-                if (!cand || cand.score < 60) throw new Error('CC GIS geocoder: no high-confidence match (score=' + (cand?.score || 0) + ')');
-                lat = cand.location.y; lon = cand.location.x;
-                matchedAddr = cand.address + ' — Charlotte County GIS geocoder (score ' + cand.score + ')';
-                geocodeMethod = 'Charlotte County GIS geocoder';
-                debugLog('Attempt 4b (CC GIS geocoder) OK', { lat, lon, score: cand.score });
-              } catch(e4cc) {
-                debugLog('Attempt 4b (CC GIS geocoder) failed', e4cc.message);
+                if (statusEl4b) statusEl4b.textContent = '⏳ Trying county property appraiser address lookup…';
+
+                // Parse address into number + street
+                const numMatch = addr.match(/^(\d+)\s+(.+)/);
+                if (numMatch) {
+                  const parts = { num: numMatch[1], street: numMatch[2].toUpperCase() };
+
+                  // Lee County: text search returns geometry
+                  if (countyFromGeo === 'lee') {
+                    const leeUrl = 'https://gissvr.leepa.org/gissvr/rest/services/ParcelsWFS/MapServer/0/query' +
+                      '?where=' + encodeURIComponent("Address1 LIKE '" + parts.num + " " + parts.street.substring(0,15) + "%'") +
+                      '&outFields=FolioID,Address1,City,ZIP' +
+                      '&returnGeometry=true&returnCentroid=true&outSR=4326' +
+                      '&resultRecordCount=1&f=json';
+                    const lr = await fetch(leeUrl, { mode: 'cors' });
+                    if (lr.ok) {
+                      const ld = await lr.json();
+                      const lf = ld?.features?.[0];
+                      if (lf) {
+                        let plat, plon;
+                        if (lf.centroid) { plat = lf.centroid.y; plon = lf.centroid.x; }
+                        else if (lf.geometry?.rings?.[0]) {
+                          const ring = lf.geometry.rings[0];
+                          plon = ring.reduce((s,p) => s+p[0], 0) / ring.length;
+                          plat = ring.reduce((s,p) => s+p[1], 0) / ring.length;
+                        }
+                        if (plat && plon) {
+                          lat = plat; lon = plon;
+                          matchedAddr = lf.attributes.Address1 + ' — Lee County PA parcel centroid';
+                          geocodeMethod = 'Lee County PA parcel lookup';
+                          debugLog('Attempt 4b (Lee PA) OK', { lat, lon });
+                        }
+                      }
+                    }
+                  }
+
+                  // SWFWMD Charlotte layer: spatial query already uses lat/lon,
+                  // but we can try FDOR text search → get a point back via FDOR
+                  if (!lat && countyFromGeo === 'charlotte') {
+                    const fdorFips = FDOR_COUNTY_FIPS?.['charlotte'];
+                    if (fdorFips) {
+                      const fdorUrl = FDOR_CADASTRAL_URL +
+                        '?where=' + encodeURIComponent("PHY_ADDR1 LIKE '" + parts.num + " " + parts.street.substring(0,15) + "%' AND CO_NO=" + fdorFips) +
+                        '&outFields=PHY_ADDR1,PHY_CITY,PHY_ZIPCD' +
+                        '&returnGeometry=true&returnCentroid=true&outSR=4326' +
+                        '&resultRecordCount=1&f=json';
+                      const fr = await fetch(fdorUrl, { mode: 'cors' });
+                      if (fr.ok) {
+                        const fd2 = await fr.json();
+                        const ff = fd2?.features?.[0];
+                        if (ff) {
+                          let plat, plon;
+                          if (ff.centroid) { plat = ff.centroid.y; plon = ff.centroid.x; }
+                          else if (ff.geometry?.rings?.[0]) {
+                            const ring = ff.geometry.rings[0];
+                            plon = ring.reduce((s,p) => s+p[0], 0) / ring.length;
+                            plat = ring.reduce((s,p) => s+p[1], 0) / ring.length;
+                          }
+                          if (plat && plon) {
+                            lat = plat; lon = plon;
+                            matchedAddr = ff.attributes.PHY_ADDR1 + ' — FDOR parcel centroid';
+                            geocodeMethod = 'Florida DOR parcel lookup';
+                            debugLog('Attempt 4b (FDOR Charlotte) OK', { lat, lon });
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              } catch(e4b) {
+                debugLog('Attempt 4b (PA lookup) failed', e4b.message);
               }
             }
 
@@ -4132,20 +4190,14 @@ async function lookupFloodZone() {
                 try {
                   const statusEl5 = document.getElementById(floodStatusId);
                   if (statusEl5) statusEl5.textContent = '⏳ Trying ZIP centroid fallback…';
-                  // Try Census first, then Nominatim for ZIP centroid
+                  // Try Census first, then Nominatim variations for ZIP centroid
                   let zipCoords = null;
-                  try {
-                    const r = await tryCensus(city + ' FL ' + zip);
-                    zipCoords = r;
-                  } catch(_) {
-                    try {
-                      const r = await tryNominatim((city || '') + ' FL ' + zip + ' USA');
-                      zipCoords = r;
-                    } catch(__) {
-                      // Also try just the ZIP alone with Nominatim
-                      const r = await tryNominatim(zip + ' Florida USA');
-                      zipCoords = r;
-                    }
+                  try { zipCoords = await tryCensus((city||'') + ' FL ' + zip); } catch(_) {}
+                  if (!zipCoords) {
+                    try { zipCoords = await tryNominatim(zip + ' Florida USA'); } catch(_) {}
+                  }
+                  if (!zipCoords) {
+                    zipCoords = await tryNominatim((city||'') + ' Florida USA');
                   }
                   lat = zipCoords.lat; lon = zipCoords.lon;
                   matchedAddr = 'ZIP ' + zip + ' centroid (street not in geocoder database — result is approximate)';
