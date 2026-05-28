@@ -50,7 +50,7 @@ var PRECACHE_URLS = [
   './load-calcs/',
   './breaker-conductor/',
   './conduit-fill/',
-  './sketch-pad/',
+  './property-lookup/',
   './gas-calc/',
   './spec-viewer/'
 ];
