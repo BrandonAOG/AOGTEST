@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Florida Property Lookup</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Spline+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#0d1117">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#11161d; --panel2:#161c25; --line:#222c38;
+    --ink:#e8edf2; --dim:#8a96a6; --faint:#5c6675;
+    --signal:#ffb000; --signal2:#ff8a3c;
+    --blueprint:#39d3ff; --good:#37d399; --warn:#ff5d5d;
+    --mono:'IBM Plex Mono',monospace; --disp:'Saira',sans-serif; --body:'Spline Sans',sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--body)}
+  #map{position:absolute;inset:0;z-index:1;background:#0d1117}
+  .leaflet-container{background:#0d1117}
+
+  /* ---- Panel ---- */
+  #panel{
+    position:absolute;z-index:1000;top:14px;left:14px;width:380px;max-width:calc(100vw - 28px);
+    max-height:calc(100vh - 28px);display:flex;flex-direction:column;
+    background:linear-gradient(180deg,#11161d,#0f141b);
+    border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 18px 50px rgba(0,0,0,.55);overflow:hidden;
+  }
+  header{padding:14px 16px 12px;border-bottom:1px solid var(--line);background:#0f141b}
+  header .kick{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--signal);text-transform:uppercase}
+  header h1{font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.01em;margin:3px 0 2px;line-height:1.05}
+  header p{margin:4px 0 0;font-size:11.5px;color:var(--dim);line-height:1.45}
+
+  .search{padding:12px 16px;border-bottom:1px solid var(--line);background:#11161d}
+  .searchrow{display:flex;gap:7px}
+  .search input{
+    flex:1;min-width:0;background:#0a0e13;border:1px solid var(--line);color:var(--ink);
+    font-family:var(--mono);font-size:13px;padding:9px 11px;border-radius:7px;outline:none;
+  }
+  .search input:focus{border-color:var(--signal)}
+  .search button{
+    background:var(--signal);color:#191100;border:none;font-family:var(--disp);font-weight:700;
+    font-size:13px;letter-spacing:.04em;padding:0 15px;border-radius:7px;cursor:pointer;text-transform:uppercase;
+  }
+  .search button:hover{background:#ffc23d}
+  .hint{margin-top:8px;font-size:10.5px;color:var(--faint);font-family:var(--mono);line-height:1.5}
+  .hint b{color:var(--dim)}
+
+  .body{overflow-y:auto;padding:6px 16px 16px}
+  .body::-webkit-scrollbar{width:8px}.body::-webkit-scrollbar-thumb{background:#222c38;border-radius:8px}
+
+  .status{font-family:var(--mono);font-size:11px;color:var(--dim);padding:11px 2px 5px;display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+  .dot.busy{background:var(--signal);animation:pulse 1s infinite}
+  .dot.ok{background:var(--good)} .dot.err{background:var(--warn)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:9px;margin-top:11px;overflow:hidden}
+  .card .ch{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);background:#13191f}
+  .card .ch .icn{font-family:var(--mono);font-size:11px;color:var(--signal);font-weight:600}
+  .card .ch h2{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:0;flex:1}
+  .card .src{font-family:var(--mono);font-size:9px;color:var(--faint);text-align:right;line-height:1.25}
+  .card .cb{padding:6px 12px 11px}
+
+  .field{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed #1c242e}
+  .field:last-child{border-bottom:none}
+  .field .k{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;flex:none;padding-top:1px;width:118px}
+  .field .v{font-family:var(--mono);font-size:12.5px;color:var(--ink);text-align:right;word-break:break-word;flex:1}
+  .field .v.big{font-size:14px;color:var(--signal);font-weight:600}
+  .field .v.zone{font-size:15px;font-weight:600}
+  .v.muted{color:var(--faint)}
+
+  .badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;border:1px solid}
+  .badge.sfha{color:var(--warn);border-color:#5a2222;background:#1f1212}
+  .badge.safe{color:var(--good);border-color:#1f4d3a;background:#0f1c16}
+  .badge.unk{color:var(--dim);border-color:#2a323c;background:#141a21}
+
+  .note{font-size:11px;color:var(--dim);line-height:1.5;padding:8px 0 2px}
+  .note.warnbox{background:#1c1408;border:1px solid #4a3408;border-radius:8px;padding:10px 11px;color:#f0d9a8}
+  .note.warnbox b{color:var(--signal)}
+  a.link{color:var(--blueprint);text-decoration:none;font-family:var(--mono);font-size:11.5px;word-break:break-all}
+  a.link:hover{text-decoration:underline}
+  .palink{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:#0a2733;border:1px solid #14485b;color:var(--blueprint);
+    font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.03em;padding:8px 12px;border-radius:7px;text-decoration:none}
+  .palink:hover{background:#0d3140}
+
+  footer{padding:11px 16px;border-top:1px solid var(--line);font-size:9.5px;color:var(--faint);line-height:1.5;font-family:var(--mono);background:#0d1219}
+
+  .layerswitch{position:absolute;z-index:1000;bottom:18px;right:18px;display:flex;background:#11161d;border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+  .layerswitch button{background:transparent;border:none;color:var(--dim);font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.05em;padding:9px 14px;cursor:pointer;text-transform:uppercase}
+  .layerswitch button.active{background:var(--signal);color:#191100}
+  .crosshair{position:absolute;z-index:999;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10.5px;color:var(--dim);background:rgba(13,17,23,.82);border:1px solid var(--line);padding:5px 12px;border-radius:20px;pointer-events:none}
+
+  .empty{text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;padding:26px 10px;line-height:1.6}
+
+  .adv{margin-top:9px;border-top:1px dashed #232d39;padding-top:9px}
+  .adv summary{cursor:pointer;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--blueprint);text-transform:uppercase;list-style:none;user-select:none}
+  .adv summary::-webkit-details-marker{display:none}
+  .adv summary::before{content:'▸ ';color:var(--faint)}
+  .adv[open] summary::before{content:'▾ '}
+  .adv .arow{display:flex;gap:6px;margin-top:8px}
+  .adv input{flex:1;min-width:0;background:#0a0e13;border:1px solid var(--line);color:var(--ink);font-family:var(--mono);font-size:11px;padding:7px 9px;border-radius:6px;outline:none}
+  .adv input:focus{border-color:var(--blueprint)}
+  .adv button{background:#0a2733;border:1px solid #14485b;color:var(--blueprint);font-family:var(--disp);font-weight:600;font-size:11px;padding:0 11px;border-radius:6px;cursor:pointer}
+  .adv button:hover{background:#0d3140}
+  .adv .lstat{margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--dim)}
+  .adv .lhint{margin-top:6px;font-size:10px;color:var(--faint);line-height:1.5}
+  .adv .lhint a{color:var(--blueprint);text-decoration:none}
+  .badge.live{color:#0a1a12;background:var(--good);border-color:var(--good)}
+  .freshline{font-family:var(--mono);font-size:9.5px;color:var(--good);padding:2px 0 4px;display:flex;align-items:center;gap:6px}
+  .freshline.snap{color:var(--signal)}
+  @media (max-width:520px){ header h1{font-size:19px} #panel{top:8px;left:8px} }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="crosshair" id="coordReadout">click the map to query a point</div>
+<div class="layerswitch">
+  <button id="btnSat" class="active">Satellite</button>
+  <button id="btnStreet">Street</button>
+</div>
+
+<div id="panel">
+  <header>
+    <a href="../" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--signal);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">&lsaquo; AOG Hub</a>
+    <div class="kick">Florida Parcel &amp; Flood Instrument</div>
+    <h1>Property Lookup</h1>
+    <p>Flood &amp; jurisdiction query official servers in real time. Owner/parcel auto-uses the <b>live county feed</b> where wired (Collier, Manatee, Sarasota) and the dated state roll elsewhere. Add any county's live URL below. Florida only.</p>
+  </header>
+
+  <div class="search">
+    <div class="searchrow">
+      <input id="addr" type="text" placeholder="Enter a Florida address…" autocomplete="off">
+      <button id="go">Find</button>
+    </div>
+    <div class="hint"><b>OR</b> click anywhere on the map to query that exact point — most reliable for getting the right parcel.</div>
+
+    <details class="adv" id="adv">
+      <summary>Live county source (nightly data)</summary>
+      <div class="arow">
+        <input id="liveUrl" type="text" placeholder="Paste a county parcel layer URL…" autocomplete="off">
+        <button id="liveTest">Test</button>
+      </div>
+      <div class="lstat" id="liveStatus"></div>
+      <div class="lhint">
+        Paste a county's parcel <b>FeatureServer/MapServer layer</b> URL (ending in <code>/0</code>, etc.). When connected, owner &amp; parcel come from that <b>live</b> county feed instead of the annual state roll — fields auto-detect.
+        <br>Lee County GIS: <a href="https://maps.leegov.com/datasets/lee-county-parcels/about" target="_blank" rel="noopener">maps.leegov.com</a> · directory: <a href="https://leegis.leegov.com/arcgis/rest/services" target="_blank" rel="noopener">leegis.leegov.com</a>
+      </div>
+    </details>
+  </div>
+
+  <div class="body" id="results">
+    <div class="empty">— awaiting a location —<br><br>Search an address or tap the map.</div>
+  </div>
+
+  <footer id="foot">
+    Sources: FL Dept. of Revenue statewide cadastral (county appraiser rolls) · FEMA National Flood Hazard Layer · FDOT administrative boundaries · US Census / OSM geocoding. Data reflects the most recent official rolls and <i>effective</i> FEMA maps — always verify with the county property appraiser before any legal, financial, or permitting decision.
+    <div id="swStatus" style="margin-top:7px;color:var(--faint)"></div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ============================================================
+   VERIFIED OFFICIAL ENDPOINTS (checked against live REST dirs)
+   ============================================================ */
+const EP = {
+  // FL Dept. of Revenue statewide parcels (FDOR Cadastral 2025, all 67 counties)
+  parcel : "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query",
+  // FEMA National Flood Hazard Layer - layer 28 = Flood Hazard Zones (S_FLD_HAZ_AR)
+  flood  : "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query",
+  // FDOT Florida Cities (municipal boundaries) - layer 7, field NAME
+  city   : "https://gis.fdot.gov/arcgis/rest/services/Admin_Boundaries/FeatureServer/7/query",
+  // FDOT Florida County boundaries - layer 5, field NAME
+  county : "https://gis.fdot.gov/arcgis/rest/services/Admin_Boundaries/FeatureServer/5/query",
+};
+
+/* County property appraiser sites (authoritative source for owner/parcel/zoning links).
+   Keyed by normalized county name (uppercase, alphanumeric only). */
+const PA = {
+ALACHUA:"https://www.acpafl.org/",BAKER:"https://www.bakerpa.com/",BAY:"https://baypa.net/",
+BRADFORD:"https://www.bradfordappraiser.com/",BREVARD:"https://www.bcpao.us/",BROWARD:"https://bcpa.net/",
+CALHOUN:"https://calhounpa.net/",CHARLOTTE:"https://www.ccappraiser.com/",CITRUS:"https://www.citruspa.org/",
+CLAY:"https://ccpao.com/",COLLIER:"https://www.collierappraiser.com/",COLUMBIA:"https://columbia.floridapa.com/",
+DESOTO:"https://www.desotopa.com/",DIXIE:"https://www.qpublic.net/fl/dixie/",DUVAL:"https://www.coj.net/departments/property-appraiser.aspx",
+ESCAMBIA:"https://www.escpa.org/",FLAGLER:"https://flaglerpa.com/",FRANKLIN:"https://franklincountypa.net/",
+GADSDEN:"https://gadsdenpa.com/",GILCHRIST:"https://www.qpublic.net/fl/gilchrist/",GLADES:"https://qpublic.net/fl/glades/",
+GULF:"https://gulfpa.com/",HAMILTON:"https://hamiltonpa.com/",HARDEE:"https://hardeepa.com/",
+HENDRY:"https://hendryprop.com/",HERNANDO:"https://hernandocountypa-florida.us/",HIGHLANDS:"https://www.hcpao.org/",
+HILLSBOROUGH:"https://www.hcpafl.org/",HOLMES:"https://www.qpublic.net/fl/holmes/",INDIANRIVER:"https://www.ircpa.org/",
+JACKSON:"https://www.qpublic.net/fl/jackson/",JEFFERSON:"https://jeffersonpa.net/",LAFAYETTE:"https://www.lafayettepa.com/",
+LAKE:"https://www.lakecopropappr.com/",LEE:"https://www.leepa.org/",LEON:"https://www.leonpa.gov/",
+LEVY:"https://www.qpublic.net/fl/levy/",LIBERTY:"https://libertypa.org/",MADISON:"https://madisonpa.com/",
+MANATEE:"https://www.manateepao.gov/",MARION:"https://www.pa.marion.fl.us/",MARTIN:"https://www.pa.martin.fl.us/",
+MIAMIDADE:"https://www.miamidade.gov/pa/",MONROE:"https://mcpafl.org/",NASSAU:"https://ncpafl.com/",
+OKALOOSA:"https://okaloosapa.com/",OKEECHOBEE:"https://www.okeechobeepa.com/",ORANGE:"https://ocpaweb.ocpafl.org/",
+OSCEOLA:"https://www.property-appraiser.org/",PALMBEACH:"https://www.pbcgov.org/papa/index.htm",PASCO:"https://pascopa.com/",
+PINELLAS:"https://www.pcpao.org/",POLK:"https://www.polkpa.org/",PUTNAM:"https://pa.putnam-fl.com/",
+SANTAROSA:"https://srcpa.gov/",SARASOTA:"https://www.sc-pa.com/",SEMINOLE:"https://www.scpafl.org/",
+STJOHNS:"https://www.sjcpa.gov/",STLUCIE:"https://www.paslc.gov/",SUMTER:"https://www.sumterpa.com/",
+SUWANNEE:"https://suwannee.floridapa.com/",TAYLOR:"https://qpublic.net/fl/taylor/",UNION:"https://union.floridapa.com/",
+VOLUSIA:"https://vcpa.vcgov.org/",WAKULLA:"https://mywakullapa.com/",WALTON:"https://waltonpa.com/",
+WASHINGTON:"https://www.qpublic.net/fl/washington/"
+};
+const norm = s => (s||"").toUpperCase().replace(/[^A-Z]/g,"");
+
+/* ---------- Safe persistent storage (autosave/autofill). No-ops if blocked. ---------- */
+const STORE = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+let lastLoc=null;
+function saveLoc(lat,lng){ lastLoc={lat,lng}; STORE.set('fl_loc', JSON.stringify({lat,lng,z:(typeof map!=='undefined'&&map.getZoom)?map.getZoom():18})); }
+
+/* Pre-wired LIVE county parcel feeds (verified queryable polygon layers w/ owner).
+   Keyed by normalized county name. Each is validated at runtime; if it ever fails
+   (down, blocked, moved) the tool silently falls back to the statewide roll. */
+const COUNTY_LIVE = {
+  COLLIER : { url:"https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/MapServer/0/query", label:"Collier County GIS" },
+  MANATEE : { url:"https://www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/LocationInfo/MapServer/74/query", label:"Manatee (SWFWMD/PA)" },
+  SARASOTA: { url:"https://www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/LocationInfo/MapServer/79/query", label:"Sarasota (SWFWMD/PA)" }
+};
+
+/* Zoning / permitting portals + Municode (zoning & setbacks live here, NOT the appraiser).
+   Keyed by normalized jurisdiction name (city first, else county). */
+const ZONING = {
+  // counties
+  COLLIER:{code:"https://library.municode.com/fl/collier_county/codes/land_development_code", permit:"https://cvportal.colliercountyfl.gov/cityviewweb/"},
+  LEE:{code:"https://library.municode.com/fl/lee_county/codes/land_development_code", permit:"https://www.leegov.com/dcd"},
+  CHARLOTTE:{code:"https://library.municode.com/fl/charlotte_county/codes/code_of_ordinances", permit:"https://www.charlottecountyfl.gov/services/buildingconstruction/"},
+  SARASOTA:{code:"https://library.municode.com/fl/sarasota_county/codes/code_of_ordinances", permit:"https://www.scgov.net/government/planning-and-development-services"},
+  MANATEE:{code:"https://library.municode.com/fl/manatee_county/codes/code_of_ordinances", permit:"https://www.mymanatee.org/departments/building___development_services"},
+  // cities
+  "MARCOISLAND":{code:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances", permit:"https://www.cityofmarcoisland.com/communityaffairs"},
+  NAPLES:{code:"https://library.municode.com/fl/naples/codes/code_of_ordinances", permit:"https://www.naplesgov.com/building"},
+  "CAPECORAL":{code:"https://library.municode.com/fl/cape_coral/codes/code_of_ordinances", permit:"https://www.capecoral.gov/department/community_development/"},
+  "FORTMYERS":{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", permit:"https://www.cityftmyers.com/166/Community-Development"},
+  "BONITASPRINGS":{code:"https://library.municode.com/fl/bonita_springs/codes/code_of_ordinances", permit:"https://www.cityofbonitasprings.org/departments/community-development"},
+  SANIBEL:{code:"https://library.municode.com/fl/sanibel/codes/code_of_ordinances", permit:"https://www.mysanibel.com/departments/planning-code-enforcement"},
+  ESTERO:{code:"https://library.municode.com/fl/estero/codes/code_of_ordinances", permit:"https://estero-fl.gov/departments/community-development/"},
+  "FORTMYERSBEACH":{code:"https://library.municode.com/fl/fort_myers_beach/codes/code_of_ordinances", permit:"https://www.fmbgov.com/government/community-development"},
+  "PUNTAGORDA":{code:"https://library.municode.com/fl/punta_gorda/codes/code_of_ordinances", permit:"https://www.pgorda.us/151/Urban-Design"},
+  SARASOTACITY:{code:"https://library.municode.com/fl/sarasota/codes/code_of_ordinances", permit:"https://www.sarasotafl.gov/government/development-services"},
+  VENICE:{code:"https://library.municode.com/fl/venice/codes/code_of_ordinances", permit:"https://www.venicegov.com/government/development-services"},
+  "NORTHPORT":{code:"https://library.municode.com/fl/north_port/codes/code_of_ordinances", permit:"https://www.northportfl.gov/government/neighborhood-development-services"},
+  BRADENTON:{code:"https://library.municode.com/fl/bradenton/codes/code_of_ordinances", permit:"https://www.cityofbradenton.com/162/Planning-Community-Development"},
+  PALMETTO:{code:"https://library.municode.com/fl/palmetto/codes/code_of_ordinances", permit:"https://www.palmettofl.org/152/Planning-Zoning"}
+};
+function municodeSearch(j){ return "https://www.google.com/search?q="+encodeURIComponent(j+" Florida land development code zoning setbacks municode"); }
+
+/* layer-metadata cache: name, last edit date, fields, detected mapping */
+const layerInfoCache={};
+async function getLayerInfo(queryUrl){
+  if(layerInfoCache[queryUrl]) return layerInfoCache[queryUrl];
+  const root=queryUrl.replace(/\/query$/i,'');
+  try{
+    const m=await (await fetch(root+'?f=json')).json();
+    const fields=(m.fields||[]).map(f=>f.name);
+    const info={ name:m.name||null,
+      lastEdit:(m.editingInfo&&m.editingInfo.lastEditDate)?new Date(m.editingInfo.lastEditDate):null,
+      fields, detect: fields.length?detectFields(fields):null };
+    layerInfoCache[queryUrl]=info; return info;
+  }catch(e){ const info={name:null,lastEdit:null,fields:[],detect:null,err:e.message}; layerInfoCache[queryUrl]=info; return info; }
+}
+let STATEWIDE_INFO=null; // filled on load
+
+/* ---------- Map ---------- */
+const map = L.map('map',{zoomControl:true,attributionControl:true}).setView([27.9,-83.4],7);
+const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  {maxZoom:19,attribution:"Imagery &copy; Esri"});
+const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+  {maxZoom:19,opacity:.9});
+const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {maxZoom:19,attribution:"&copy; OpenStreetMap contributors"});
+const satGroup = L.layerGroup([sat,labels]).addTo(map);
+
+const btnSat=document.getElementById('btnSat'), btnStreet=document.getElementById('btnStreet');
+btnSat.onclick=()=>{map.addLayer(satGroup);map.removeLayer(street);btnSat.classList.add('active');btnStreet.classList.remove('active');};
+btnStreet.onclick=()=>{map.addLayer(street);map.removeLayer(satGroup);btnStreet.classList.add('active');btnSat.classList.remove('active');};
+
+let marker=null, parcelLayer=null;
+map.on('click', e => runLookup(e.latlng.lat, e.latlng.lng));
+map.on('mousemove', e => {
+  document.getElementById('coordReadout').textContent =
+    `lat ${e.latlng.lat.toFixed(5)}   lng ${e.latlng.lng.toFixed(5)}`;
+});
+
+/* ---------- Helpers ---------- */
+const results = document.getElementById('results');
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function pointGeom(lat,lng){ return encodeURIComponent(JSON.stringify({x:lng,y:lat,spatialReference:{wkid:4326}})); }
+
+/* ---------- Live county source (optional, nightly data) ---------- */
+let liveSource = { url:null, info:null };
+
+function normalizeLayerUrl(u){
+  u=(u||'').trim().replace(/\?.*$/,'').replace(/\/+$/,'');
+  if(/\/query$/i.test(u)) return u;
+  if(/\/(FeatureServer|MapServer)\/\d+$/i.test(u)) return u+'/query';
+  // bare service root with no layer index -> assume layer 0
+  if(/\/(FeatureServer|MapServer)$/i.test(u)) return u+'/0/query';
+  return u;
+}
+function layerRoot(u){ return u.replace(/\/query$/i,''); }
+
+async function testLiveSource(){
+  const raw=document.getElementById('liveUrl').value;
+  const out=document.getElementById('liveStatus');
+  if(!raw.trim()){ liveSource={url:null,info:null}; out.innerHTML=''; STORE.del('fl_live'); return; }
+  const q=normalizeLayerUrl(raw);
+  out.innerHTML='<span style="color:var(--signal)">testing connection…</span>';
+  try{
+    const m=await (await fetch(layerRoot(q)+'?f=json')).json();
+    if(m.error) throw new Error(m.error.message||'service error');
+    const fields=(m.fields||[]).map(f=>f.name);
+    if(!m.fields) throw new Error('not a queryable layer (point to a layer index, e.g. /0)');
+    const d=detectFields(fields);
+    if(!d.owner && !d.pid) throw new Error('no owner/parcel field detected in this layer');
+    const lastEdit=m.editingInfo&&m.editingInfo.lastEditDate?new Date(m.editingInfo.lastEditDate):null;
+    liveSource={url:q, info:{name:m.name, lastEdit:lastEdit, fields, detect:d}};
+    STORE.set('fl_live', q);
+    out.innerHTML='<span style="color:var(--good)">✓ connected'+(m.name?' · '+esc(m.name):'')+
+      (lastEdit?' · updated '+lastEdit.toLocaleDateString():'')+'</span>'+
+      '<br><span style="color:var(--faint)">owner→'+esc(d.owner||'?')+'  parcel→'+esc(d.pid||'?')+'</span>';
+  }catch(e){
+    liveSource={url:null,info:null};
+    out.innerHTML='<span style="color:var(--warn)">✗ '+esc(e.message)+'</span>'+
+      '<br><span style="color:var(--faint)">tip: the layer must allow public access &amp; cross-origin (CORS) requests.</span>';
+  }
+}
+
+/* Heuristic field detection — works across counties regardless of naming */
+function detectFields(fields){
+  const F=fields.map(f=>({raw:f,U:String(f).toUpperCase()}));
+  const find=(res)=>{ for(const re of res){ const m=F.find(f=>re.test(f.U)); if(m) return m.raw; } return null; };
+  return {
+    owner: find([/^OWN_?NAME$/,/^OWNER$/,/^OWNER_?NAME$/,/^OWNERNAME$/,/^OWNER1$/,/^NAME1$/,/^O_NAME/,/OWN.*NAME/,/^GRANTEE/]),
+    owner2:find([/^OWN_?NAME2$/,/^OWNER2$/,/^OWNER_?NAME2$/,/^NAME2$/,/OWN.*NAME2/]),
+    pid:   find([/^STRAP/,/^PARCEL_?ID$/,/^PARCELID$/,/^PARID$/,/^FOLIO/,/^PIN$/,/^APN$/,/PARCEL.*(ID|NO|NUM)/,/PROP_?ID/]),
+    site:  find([/^SITE_?ADDR/,/^PHY_?ADDR1$/,/^PHY_?ADDR$/,/SITUS/,/^S_ADDR/,/SITE.*ADDR/,/^LOCATION$/,/SITEADDRESS/,/^ADDRESS$/]),
+    city:  find([/^SITE_?CITY$/,/^PHY_?CITY$/,/SITUS.*CITY/]),
+    jv:    find([/^JV$/,/^JUST_?VAL/,/^JUSTVALUE$/,/^MKT_?VAL/,/^MARKET/,/^TOTAL_?VAL/,/^JUST$/,/^TOTVAL/]),
+    land:  find([/^LND_?VAL/,/^LAND_?VAL/]),
+    yr:    find([/^ACT_?YR_?BLT$/,/^YR_?BLT$/,/^YEAR_?BUILT$/,/YRBLT/,/YEARBUILT/,/ACTYRBLT/,/^EFF_?YR/]),
+    liv:   find([/^TOT_?LVG_?AR/,/LIV.*AREA/,/^HEATED/,/TOTLIVING/,/LIVINGAREA/,/^GRSAR/]),
+    saleP: find([/^SALE_?PRC1$/,/^SALE_?PRICE$/,/^SALEAMT$/,/^LASTSALE/,/SALEPRICE/,/SALE.*AMT/,/^SALE_?PR/]),
+    saleY: find([/^SALE_?YR1$/,/^SALE_?YEAR$/,/SALEYR/,/SALE.*YEAR/,/SALEDATE1/])
+  };
+}
+
+async function arcQuery(url, lat, lng, outFields, withGeom){
+  const params =
+    `geometry=${pointGeom(lat,lng)}&geometryType=esriGeometryPoint&inSR=4326`+
+    `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent(outFields)}`+
+    `&returnGeometry=${withGeom?'true':'false'}${withGeom?'&outSR=4326':''}&f=json`;
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
+  try{
+    const r=await fetch(url+'?'+params,{signal:ctrl.signal});
+    clearTimeout(t);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    if(j.error) throw new Error(j.error.message||'service error');
+    return j;
+  }catch(e){ clearTimeout(t); throw e; }
+}
+
+function fmtMoney(n){ if(n==null||n==='') return null; const v=Number(n); if(isNaN(v)||v<=0) return null; return '$'+v.toLocaleString('en-US'); }
+function fmtNum(n){ if(n==null||n==='') return null; const v=Number(n); if(isNaN(v)||v<=0) return null; return v.toLocaleString('en-US'); }
+function pick(a, ...keys){ for(const k of keys){ if(a[k]!=null && String(a[k]).trim()!=='') return a[k]; } return null; }
+
+/* ---------- Geocoding (Census primary, Nominatim fallback) ---------- */
+async function geocode(q){
+  if(!/\b(fl|florida)\b/i.test(q)) q = q+', Florida';
+  // 1) US Census Geocoder (authoritative US address geocoder)
+  try{
+    const u=`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(q)}&benchmark=Public_AR_Current&format=json`;
+    const r=await fetch(u); const j=await r.json();
+    const m=j&&j.result&&j.result.addressMatches&&j.result.addressMatches[0];
+    if(m) return {lat:m.coordinates.y, lng:m.coordinates.x, label:m.matchedAddress, src:'US Census'};
+  }catch(e){/* fall through */}
+  // 2) Nominatim (OpenStreetMap) fallback
+  try{
+    const u=`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(q)}`;
+    const r=await fetch(u); const j=await r.json();
+    if(j&&j[0]) return {lat:+j[0].lat, lng:+j[0].lon, label:j[0].display_name, src:'OpenStreetMap'};
+  }catch(e){/* fall through */}
+  return null;
+}
+
+/* ---------- Render ---------- */
+function setStatus(state, text){
+  return `<div class="status"><span class="dot ${state}"></span><span>${esc(text)}</span></div>`;
+}
+function fieldRow(k,v,cls){ if(v==null||v==='') return ''; return `<div class="field"><div class="k">${esc(k)}</div><div class="v ${cls||''}">${v}</div></div>`; }
+
+function drawParcel(g){
+  try{
+    if(g&&g.rings){
+      const latlngs=g.rings.map(r=>r.map(p=>[p[1],p[0]]));
+      parcelLayer=L.polygon(latlngs,{color:'#39d3ff',weight:2,fillColor:'#39d3ff',fillOpacity:.12}).addTo(map);
+      map.fitBounds(parcelLayer.getBounds(),{maxZoom:19,padding:[60,60]});
+    }
+  }catch(e){}
+}
+
+/* Render a parcel from any county layer using auto-detected field names */
+function renderParcelGeneric(a, d){
+  let h='';
+  const owner = d.owner?pick(a,d.owner):null;
+  const own2  = d.owner2?pick(a,d.owner2):null;
+  const pid   = d.pid?pick(a,d.pid):null;
+  const site  = d.site?pick(a,d.site):null;
+  const city  = d.city?pick(a,d.city):null;
+  const jv    = d.jv?fmtMoney(pick(a,d.jv)):null;
+  const land  = d.land?fmtMoney(pick(a,d.land)):null;
+  const yr    = d.yr?pick(a,d.yr):null;
+  const liv   = d.liv?fmtNum(pick(a,d.liv)):null;
+  const sp    = d.saleP?fmtMoney(pick(a,d.saleP)):null;
+  const sy    = d.saleY?pick(a,d.saleY):null;
+  h += fieldRow('Owner', owner?esc(owner):'<span class="muted">field not detected</span>','big');
+  if(own2) h += fieldRow('Owner 2', esc(own2));
+  h += fieldRow('Parcel ID', pid?esc(pid):'<span class="muted">—</span>','big');
+  if(site) h += fieldRow('Site address', esc(site)+(city?'<br>'+esc(city):''));
+  if(jv)   h += fieldRow('Just (market) value', jv);
+  if(land) h += fieldRow('Land value', land);
+  if(yr)   h += fieldRow('Year built', esc(yr));
+  if(liv)  h += fieldRow('Living area', liv+' sq ft');
+  if(sp)   h += fieldRow('Last sale', sp+(sy?' ('+esc(sy)+')':''));
+  return h;
+}
+
+let runId=0;
+async function runLookup(lat,lng){
+  const myId=++runId;
+  // marker
+  if(marker) map.removeLayer(marker);
+  marker=L.circleMarker([lat,lng],{radius:6,color:'#ffb000',weight:2,fillColor:'#ffb000',fillOpacity:.9}).addTo(map);
+  if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
+  saveLoc(lat,lng);
+  document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
+
+  results.innerHTML = setStatus('busy','Querying official GIS services…');
+
+  // Fire all queries in parallel; each degrades independently.
+  const pParcel = arcQuery(EP.parcel, lat, lng, '*', true).catch(e=>({__err:e.message}));
+  const pFlood  = arcQuery(EP.flood,  lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false).catch(e=>({__err:e.message}));
+  const pCity   = arcQuery(EP.city,   lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
+  const pCounty = arcQuery(EP.county, lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
+  const pLive   = liveSource.url ? arcQuery(liveSource.url, lat, lng, '*', true).catch(e=>({__err:e.message})) : Promise.resolve(null);
+
+  const [parcel,flood,city,county,live] = await Promise.all([pParcel,pFlood,pCity,pCounty,pLive]);
+  if(myId!==runId) return; // a newer query superseded this one
+
+  let html='';
+
+  /* ---- Location / jurisdiction ---- */
+  let countyName = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
+  let cityName   = (!city.__err   && city.features   && city.features[0])   ? city.features[0].attributes.NAME   : null;
+  const paUrl = countyName ? PA[norm(countyName)] : null;
+
+  html += `<div class="card"><div class="ch"><span class="icn">[ JUR ]</span><h2>Jurisdiction</h2>
+    <div class="src">FDOT Admin<br>Boundaries</div></div><div class="cb">`;
+  html += `<div class="freshline"><span class="badge live">● LIVE</span> queried in real time</div>`;
+  html += fieldRow('County', countyName?esc(titleCase(countyName))+' County':'<span class="muted">— see appraiser link —</span>','big');
+  html += fieldRow('Municipality', cityName?esc(titleCase(cityName)):'<span class="muted">Unincorporated (no city)</span>');
+  html += fieldRow('Coordinates', `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+  if(paUrl) html += `<a class="palink" href="${paUrl}" target="_blank" rel="noopener">↗ Open ${esc(titleCase(countyName))} County Property Appraiser</a>`;
+  html += `</div></div>`;
+
+  /* ---- Parcel / owner : prefer LIVE feed (manual paste OR pre-wired county), else statewide roll ---- */
+  let liveRes=null, liveMeta=null, liveErr=null;
+  if(liveSource.url){                                   // manual paste takes priority
+    liveErr = (live && live.__err) ? live.__err : null;
+    if(live && live.features && live.features[0]){ liveRes=live; liveMeta=liveSource.info||{}; }
+  } else if(countyName && COUNTY_LIVE[norm(countyName)]){ // auto pre-wired county feed
+    const reg=COUNTY_LIVE[norm(countyName)];
+    const al = await arcQuery(reg.url, lat, lng, '*', true).catch(e=>({__err:e.message}));
+    if(myId!==runId) return;
+    if(al && al.__err) liveErr=al.__err;
+    else if(al && al.features && al.features[0]){
+      liveRes=al;
+      const info=await getLayerInfo(reg.url);
+      liveMeta={ name:reg.label||info.name, lastEdit:info.lastEdit };
+    }
+  }
+  const liveHit = !!liveRes;
+  const srcLabel = liveHit ? `live county feed` : `FL Dept. of Revenue<br>statewide roll`;
+
+  html += `<div class="card"><div class="ch"><span class="icn">[ PCL ]</span><h2>Parcel &amp; Owner</h2>
+    <div class="src">${srcLabel}</div></div><div class="cb">`;
+
+  if(liveHit){
+    const det=detectFields(Object.keys(liveRes.features[0].attributes));
+    const le=liveMeta&&liveMeta.lastEdit;
+    html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}</div>`;
+    html += renderParcelGeneric(liveRes.features[0].attributes, det);
+    drawParcel(liveRes.features[0].geometry);
+    if(parcel && !parcel.__err && parcel.features && parcel.features[0]){
+      const so=pick(parcel.features[0].attributes,'OWN_NAME');
+      const lo=det.owner?pick(liveRes.features[0].attributes,det.owner):null;
+      if(so && lo && norm(so)!==norm(lo))
+        html += `<div class="note">State annual roll lists owner as <b style="color:var(--dim)">${esc(so)}</b> — the live value above is newer.</div>`;
+    }
+  } else if(parcel && !parcel.__err && parcel.features && parcel.features[0]){
+    const sdate = (STATEWIDE_INFO&&STATEWIDE_INFO.lastEdit) ? STATEWIDE_INFO.lastEdit.toLocaleDateString() : 'Aug 2025 roll';
+    if(liveErr) html += `<div class="freshline snap"><span class="badge unk">roll</span> live feed unreachable (${esc(liveErr)}) — state roll · last refreshed ${esc(sdate)}</div>`;
+    else        html += `<div class="freshline snap"><span class="badge unk">roll</span> state annual roll · last refreshed ${esc(sdate)}</div>`;
+    const a=parcel.features[0].attributes;
+    const owner=pick(a,'OWN_NAME');
+    const own2 =pick(a,'OWN_NAME2','S_OWN_NAM2');
+    const pid  =pick(a,'PARCEL_ID');
+    const site =[pick(a,'PHY_ADDR1'),pick(a,'PHY_ADDR2')].filter(Boolean).join(' ');
+    const siteCity=[pick(a,'PHY_CITY'),pick(a,'PHY_ZIPCD')].filter(Boolean).join(' ');
+    const mail =[pick(a,'OWN_ADDR1'),pick(a,'OWN_ADDR2')].filter(Boolean).join(' ');
+    const mailCity=[pick(a,'OWN_CITY'),pick(a,'OWN_STATE'),pick(a,'OWN_ZIPCD')].filter(Boolean).join(' ');
+    const legal=pick(a,'S_LEGAL');
+    const sec=pick(a,'SEC'),twn=pick(a,'TWN'),rng=pick(a,'RNG');
+    const yr=pick(a,'ACT_YR_BLT'), bld=pick(a,'NO_BULDNG');
+    const liv2=fmtNum(pick(a,'TOT_LVG_AR')), lsf=fmtNum(pick(a,'LND_SQFOOT'));
+    const jv=fmtMoney(pick(a,'JV')), lnd=fmtMoney(pick(a,'LND_VAL'));
+    const ay=pick(a,'ASMNT_YR');
+    const sp=fmtMoney(pick(a,'SALE_PRC1')), sy=pick(a,'SALE_YR1');
+
+    html += fieldRow('Owner', owner?esc(owner):'<span class="muted">not listed</span>','big');
+    if(own2) html += fieldRow('Owner 2', esc(own2));
+    html += fieldRow('Parcel ID', pid?esc(pid):'<span class="muted">—</span>','big');
+    if(site)     html += fieldRow('Site address', esc(site)+(siteCity?'<br>'+esc(siteCity):''));
+    if(mail)     html += fieldRow('Owner mailing', esc(mail)+(mailCity?'<br>'+esc(mailCity):''));
+    if(sec||twn||rng) html += fieldRow('Sec-Twn-Rng', esc([sec,twn,rng].filter(Boolean).join(' - ')));
+    if(jv)  html += fieldRow('Just (market) value'+(ay?' '+esc(ay):''), jv);
+    if(lnd) html += fieldRow('Land value', lnd);
+    if(yr)  html += fieldRow('Year built', esc(yr)+(bld&&Number(bld)>1?` (${esc(bld)} bldgs)`:''));
+    if(liv2) html += fieldRow('Living area', liv2+' sq ft');
+    if(lsf) html += fieldRow('Land area', lsf+' sq ft');
+    if(sp&&sy) html += fieldRow('Last sale', sp+' ('+esc(sy)+')');
+    if(legal) html += fieldRow('Legal', '<span style="font-size:11px">'+esc(legal)+'</span>');
+    drawParcel(parcel.features[0].geometry);
+  } else if(parcel && parcel.__err){
+    html += `<div class="note">Parcel service did not respond (${esc(parcel.__err)}). Try again, or use the county appraiser link above.</div>`;
+  } else {
+    html += `<div class="note">No parcel found at this point. You may have clicked a road, water body, or just outside a parcel — nudge the marker onto the lot. (Coverage is statewide across all 67 counties.)</div>`;
+  }
+  html += `</div></div>`;
+
+  /* ---- Flood ---- */
+  html += `<div class="card"><div class="ch"><span class="icn">[ FLD ]</span><h2>FEMA Flood Hazard</h2>
+    <div class="src">FEMA National<br>Flood Hazard Layer</div></div><div class="cb">`;
+  html += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
+  if(flood.__err){
+    html += `<div class="note">Flood service did not respond (${esc(flood.__err)}).</div>`;
+  } else if(flood.features && flood.features.length){
+    const zones=flood.features.map(f=>f.attributes);
+    const z=zones[0];
+    const zone=z.FLD_ZONE||'—';
+    const sub=z.ZONE_SUBTY&&z.ZONE_SUBTY.trim()?z.ZONE_SUBTY:null;
+    const sfha=(z.SFHA_TF==='T');
+    const bfe=(z.STATIC_BFE!=null && Number(z.STATIC_BFE)>-9999) ? Number(z.STATIC_BFE) : null;
+    const depth=(z.DEPTH!=null && Number(z.DEPTH)>-9999 && Number(z.DEPTH)!==0)?Number(z.DEPTH):null;
+    const badge = sfha?`<span class="badge sfha">HIGH-RISK · SFHA</span>`
+                 : (zone==='X'||/X/.test(zone))?`<span class="badge safe">Reduced risk</span>`
+                 : `<span class="badge unk">${esc(zone)}</span>`;
+    html += `<div class="field"><div class="k">Flood zone</div><div class="v zone">${esc(zone)} ${badge}</div></div>`;
+    if(sub) html += fieldRow('Zone subtype', esc(sub));
+    html += fieldRow('In SFHA?', sfha?'Yes — mandatory insurance area':'No');
+    html += fieldRow('Base Flood Elev.', bfe!=null?esc(bfe)+' ft (NAVD88)':'<span class="muted">none published for this zone</span>');
+    if(depth!=null) html += fieldRow('Base flood depth', esc(depth)+' ft');
+    if(zones.length>1) html += fieldRow('Note','Point sits on a zone boundary — '+zones.length+' zones overlap here.');
+    html += `<div class="note" style="padding-top:9px">Static BFE comes straight from the effective FIRM. Many zones (e.g. AE on a wide floodplain, AO, or Zone X) carry no single static BFE — confirm the precise elevation on the FIRM panel / FEMA Map Service Center.</div>`;
+  } else {
+    html += `<div class="field"><div class="k">Flood zone</div><div class="v zone"><span class="badge unk">Not mapped</span></div></div>`;
+    html += `<div class="note">No effective NFHL polygon at this point. This usually means the area is unmapped or outside digital flood-map coverage — check the FEMA Map Service Center directly.</div>`;
+  }
+  html += `</div></div>`;
+
+  /* ---- Zoning & setbacks: from the local CODE + permitting portal, NOT the appraiser ---- */
+  const jurNorm = cityName?norm(cityName):(countyName?norm(countyName):null);
+  const z = jurNorm ? (ZONING[jurNorm] || (countyName?ZONING[norm(countyName)]:null)) : null;
+  const jurName = cityName?titleCase(cityName):(countyName?titleCase(countyName)+' County':'the local jurisdiction');
+  html += `<div class="card"><div class="ch"><span class="icn">[ ZON ]</span><h2>Zoning &amp; Setbacks</h2>
+    <div class="src">local code /<br>permitting portal</div></div><div class="cb">`;
+  html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number.</div>`;
+  if(z){
+    if(z.permit) html += `<a class="palink" href="${esc(z.permit)}" target="_blank" rel="noopener">↗ ${esc(jurName)} permitting / planning portal</a>`;
+    if(z.code)   html += `<a class="palink" href="${esc(z.code)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Land development code (Municode)</a>`;
+  } else {
+    html += `<a class="palink" href="${municodeSearch(jurName)}" target="_blank" rel="noopener">↗ Find ${esc(jurName)} code &amp; permitting portal</a>`;
+  }
+  html += `</div></div>`;
+
+  results.innerHTML = setStatus('ok','Done — '+(new Date()).toLocaleTimeString()) + html;
+}
+
+function titleCase(s){ return String(s||'').toLowerCase().replace(/\b([a-z])/g,m=>m.toUpperCase()).replace(/\bMc([a-z])/,(m,c)=>'Mc'+c.toUpperCase()); }
+
+/* ---------- Address search ---------- */
+async function doSearch(){
+  const q=document.getElementById('addr').value.trim();
+  if(!q) return;
+  results.innerHTML=setStatus('busy','Geocoding address…');
+  const g=await geocode(q);
+  if(!g){ results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
+  map.setView([g.lat,g.lng],18);
+  await runLookup(g.lat,g.lng);
+  // prepend the matched-address confirmation
+  const conf=`<div class="note" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — confirm the marker is on the right lot.</div>`;
+  results.insertAdjacentHTML('afterbegin',conf);
+}
+document.getElementById('go').onclick=doSearch;
+document.getElementById('addr').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+document.getElementById('liveTest').onclick=testLiveSource;
+document.getElementById('liveUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();testLiveSource();}});
+
+/* autosave address text + map view */
+document.getElementById('addr').addEventListener('input',()=>STORE.set('fl_addr',document.getElementById('addr').value||''));
+map.on('moveend',()=>{ if(lastLoc) STORE.set('fl_loc',JSON.stringify({lat:lastLoc.lat,lng:lastLoc.lng,z:map.getZoom()})); });
+
+/* ---------- Restore saved session (autofill + autoload) ---------- */
+(async function restore(){
+  const a=STORE.get('fl_addr'); if(a) document.getElementById('addr').value=a;
+  const lu=STORE.get('fl_live');
+  if(lu){ document.getElementById('liveUrl').value=lu; document.getElementById('adv').open=true; try{ await testLiveSource(); }catch(e){} }
+  const loc=STORE.get('fl_loc');
+  if(loc){ try{ const o=JSON.parse(loc); if(o&&typeof o.lat==='number'){ map.setView([o.lat,o.lng], o.z||18); await runLookup(o.lat,o.lng); } }catch(e){} }
+})();
+
+/* ---------- Statewide refresh date (footer) ---------- */
+(async()=>{
+  try{
+    STATEWIDE_INFO = await getLayerInfo(EP.parcel);
+    if(STATEWIDE_INFO && STATEWIDE_INFO.lastEdit){
+      const f=document.getElementById('foot');
+      if(f) f.insertAdjacentHTML('afterbegin',
+        '<div style="color:var(--signal);margin-bottom:6px">State parcel roll last refreshed: '+STATEWIDE_INFO.lastEdit.toLocaleDateString()+' · live county feeds pre-wired for Collier, Manatee &amp; Sarasota</div>');
+    }
+  }catch(e){}
+})();
+
+/* ---------- Service worker is provided by the AOG Hub (parent app) ---------- */
+(function(){ var el=document.getElementById('swStatus'); if(el) el.innerHTML='Part of the AOG Hub · offline &amp; install handled by the hub. Autosave is on.'; })();
+</script>
+</body>
+</html>
