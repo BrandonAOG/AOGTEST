@@ -146,6 +146,26 @@
   .suggest .sg .sgsrc{margin-left:auto;color:var(--faint);font-size:9.5px;flex:none;padding-top:1px}
   .suggest .sgmsg{padding:10px 12px;font-family:var(--mono);font-size:11px;color:var(--faint)}
 
+  /* ---- Search history dropdown ---- */
+  .history{position:absolute;z-index:1200;left:0;right:0;top:calc(100% + 4px);
+    background:#0a0e13;border:1px solid var(--line);border-radius:8px;overflow:hidden;
+    box-shadow:0 12px 30px rgba(0,0,0,.55);display:none}
+  .history.show{display:block}
+  .history-header{display:flex;align-items:center;justify-content:space-between;
+    padding:7px 12px 6px;border-bottom:1px solid #161d26}
+  .history-header span{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--faint)}
+  .history-header button{background:none;border:none;padding:0;cursor:pointer;
+    font-family:var(--mono);font-size:9.5px;color:var(--faint);letter-spacing:.05em;text-transform:uppercase}
+  .history-header button:hover{color:var(--warn)}
+  .history .hi{padding:9px 12px;font-family:var(--mono);font-size:12px;color:var(--dim);
+    cursor:pointer;border-bottom:1px solid #161d26;display:flex;align-items:center;gap:8px;line-height:1.3}
+  .history .hi:last-child{border-bottom:none}
+  .history .hi:hover,.history .hi.active{background:#11161d;color:var(--ink)}
+  .history .hi .hpin{color:var(--faint);font-size:10px;flex:none}
+  .history .hi .hdel{margin-left:auto;flex:none;color:var(--faint);font-size:11px;padding:2px 4px}
+  .history .hi .hdel:hover{color:var(--warn)}
+
   @media (max-width:520px){ header h1{font-size:19px} #panel{top:8px;left:8px} }
 
   /* ---- Mobile: panel becomes a snapping, draggable bottom sheet ---- */
@@ -232,6 +252,7 @@
         <button id="go">Find</button>
       </div>
       <div class="suggest" id="suggest"></div>
+      <div class="history" id="historyDrop"></div>
     </div>
     <div class="hint"><b>OR</b> tap anywhere on the map to query that exact point — most reliable for getting the right parcel.</div>
 
@@ -996,6 +1017,7 @@ async function doSearch(){
   results.innerHTML=setStatus('busy','Geocoding address…');
   const g=await geocode(q);
   if(!g){ results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
+  addToHistory(g.label || q);
   map.setView([g.lat,g.lng],18);
   await runLookup(g.lat,g.lng);
   // prepend the matched-address confirmation
@@ -1013,6 +1035,7 @@ function hideSuggest(){ sugEl.classList.remove('show'); sugEl.innerHTML=''; sugI
 function renderSuggest(items){
   sugItems=items; sugActive=-1;
   if(!items.length){ hideSuggest(); return; }
+  hideHistory();
   sugEl.innerHTML=items.map((it,i)=>
     `<div class="sg" data-i="${i}"><span class="pin">▸</span><span>${esc(it.label)}</span><span class="sgsrc">${esc(it.src)}</span></div>`
   ).join('');
@@ -1048,6 +1071,7 @@ async function chooseSuggestion(it){
   hideSuggest();
   addrEl.value=it.label;
   STORE.set('fl_addr',it.label);
+  addToHistory(it.label);
   results.innerHTML=setStatus('busy','Looking up that address…');
   map.setView([it.lat,it.lng],18);
   await runLookup(it.lat,it.lng);
@@ -1103,9 +1127,69 @@ clearBtn.addEventListener('mousedown', e => {
   addrEl.value = '';
   updateClearBtn();
   hideSuggest();
+  hideHistory();
   addrEl.focus();
   STORE.del('fl_addr');
 });
+
+/* ---------- Search history ---------- */
+const histEl = document.getElementById('historyDrop');
+const HIST_KEY = 'fl_search_history';
+const HIST_MAX = 8;
+
+function getHistory(){ try{ return JSON.parse(STORE.get(HIST_KEY)||'[]'); }catch(e){ return []; } }
+function saveHistory(arr){ STORE.set(HIST_KEY, JSON.stringify(arr)); }
+
+function addToHistory(label){
+  if(!label || label.length < 5) return;
+  let h = getHistory().filter(x => x !== label);
+  h.unshift(label);
+  if(h.length > HIST_MAX) h = h.slice(0, HIST_MAX);
+  saveHistory(h);
+}
+
+function hideHistory(){ histEl.classList.remove('show'); histEl.innerHTML=''; }
+
+function showHistory(){
+  const h = getHistory();
+  if(!h.length) return;
+  histEl.innerHTML =
+    `<div class="history-header"><span>↺ Recent</span><button id="clearHist">Clear all</button></div>` +
+    h.map((addr, i) =>
+      `<div class="hi" data-i="${i}"><span class="hpin">▸</span><span>${esc(addr)}</span><button class="hdel" data-i="${i}" title="Remove">×</button></div>`
+    ).join('');
+  histEl.classList.add('show');
+
+  document.getElementById('clearHist').addEventListener('mousedown', e => {
+    e.preventDefault(); saveHistory([]); hideHistory();
+  });
+  histEl.querySelectorAll('.hdel').forEach(btn => {
+    btn.addEventListener('mousedown', e => {
+      e.preventDefault(); e.stopPropagation();
+      let h2 = getHistory(); h2.splice(+btn.dataset.i, 1); saveHistory(h2);
+      showHistory(); addrEl.focus();
+    });
+  });
+}
+
+histEl.addEventListener('mousedown', e => {
+  const row = e.target.closest('.hi');
+  if(!row || e.target.classList.contains('hdel')) return;
+  e.preventDefault();
+  const h = getHistory();
+  const addr = h[+row.dataset.i];
+  if(!addr) return;
+  addrEl.value = addr;
+  updateClearBtn();
+  STORE.set('fl_addr', addr);
+  hideHistory();
+  doSearch();
+});
+
+addrEl.addEventListener('focus', () => {
+  if(!addrEl.value.trim()) showHistory();
+});
+addrEl.addEventListener('blur', () => setTimeout(hideHistory, 150));
 document.getElementById('liveTest').onclick=testLiveSource;
 document.getElementById('diagBtn').onclick=diagnoseLiveFeeds;
 document.getElementById('liveUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();testLiveSource();}});
