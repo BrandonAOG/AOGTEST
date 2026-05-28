@@ -630,12 +630,29 @@ canvas { display: block; max-width: 100%; }
 
   <div class="card">
     <div class="card-title">Owner / Property</div>
+
+    <!-- Address search row -->
+    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:18px;padding:14px 16px;background:var(--ice);border:1px solid var(--ice2);border-radius:var(--r);">
+      <div class="fg" style="flex:1;margin-bottom:0;">
+        <label>Property Address Search</label>
+        <input id="addrSearchInput" placeholder="1234 Palm Ave, Cape Coral, FL 33990" style="font-size:13px;"
+          onkeydown="if(event.key==='Enter')searchPropertyByAddress()"
+          oninput="document.getElementById('propAddrSearchStatus').innerHTML=''">
+      </div>
+      <button onclick="searchPropertyByAddress()" id="btnAddrSearch"
+        style="height:38px;padding:0 18px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;flex-shrink:0;transition:background 0.15s;"
+        onmouseover="this.style.background='var(--blue)'" onmouseout="this.style.background='var(--navy)'">
+        🔍 Search &amp; Autofill
+      </button>
+    </div>
+    <div id="propAddrSearchStatus" style="margin-bottom:12px;"></div>
+
     <div class="fgrid">
-      <div class="fg"><label>Owner Name</label><input id="ownerName" placeholder="John & Jane Smith" oninput="live()"></div>
+      <div class="fg"><label>Owner Name <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--green);font-size:10px;">↑ auto-filled</span></label><input id="ownerName" placeholder="John & Jane Smith" oninput="live()"></div>
       <div class="fg"><label>Property Address</label><input id="propAddr" placeholder="1234 Palm Ave" oninput="live()"></div>
       <div class="fg"><label>City</label><input id="propCity" placeholder="Cape Coral" oninput="live()"></div>
       <div class="fg"><label>Zip Code</label><input id="propZip" placeholder="33990" oninput="live()"></div>
-      <div class="fg"><label>Parcel / Folio #</label><input id="parcelNum" placeholder="05-44-23-C4-00123" oninput="live()"></div>
+      <div class="fg"><label>Parcel / Folio # <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--green);font-size:10px;">↑ auto-filled</span></label><input id="parcelNum" placeholder="05-44-23-C4-00123" oninput="live()"></div>
       <div class="fg"><label>Permit Date</label><input id="permitDate" type="date" oninput="live()"></div>
       <div class="fg"><label>Zoning District <span style="font-weight:400;text-transform:none;letter-spacing:0">(if known — e.g. R1-B, AG-2)</span></label><input id="zoningDistrict" placeholder="Leave blank to auto-detect" oninput="live()"></div>
     </div>
@@ -692,6 +709,7 @@ canvas { display: block; max-width: 100%; }
   <div class="card">
     <div class="card-title">Jurisdiction</div>
     <div class="jur-grid" id="jurGrid"></div>
+    <div id="jurLiveFetchStatus"></div>
     <div id="jurDetails"></div>
     <div id="muniLookupPanel" style="display:none;margin-top:16px;">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
@@ -1184,10 +1202,195 @@ canvas { display: block; max-width: 100%; }
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ═══════════════════════════════════════════════════════════════
-   JURISDICTION DATABASE
+   JURISDICTION DATABASE — LIVE FETCH LAYER
+   When an AI key is present, jurisdiction data is fetched live
+   and cached in localStorage (7-day TTL).
+   Static fallback tables remain below for offline/no-key use.
+═══════════════════════════════════════════════════════════════ */
+
+const JUR_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+const JUR_CACHE_PREFIX = 'genPermit_jur_v2_';
+
+function getJurCache(jurName) {
+  try {
+    const raw = localStorage.getItem(JUR_CACHE_PREFIX + jurName);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || !obj.ts || (Date.now() - obj.ts) > JUR_CACHE_TTL) return null;
+    return obj.data;
+  } catch(e) { return null; }
+}
+
+function setJurCache(jurName, data) {
+  try {
+    localStorage.setItem(JUR_CACHE_PREFIX + jurName, JSON.stringify({ ts: Date.now(), data }));
+  } catch(e) {}
+}
+
+function clearJurCache(jurName) {
+  try { localStorage.removeItem(JUR_CACHE_PREFIX + jurName); } catch(e) {}
+}
+
+/**
+ * fetchJurisdictionDataLive — queries AI for current setbacks, permit
+ * requirements, flood info, and contact details for a Florida jurisdiction.
+ * Returns a merged object that overrides the static fallback values.
+ */
+async function fetchJurisdictionDataLive(jurName, forceRefresh = false) {
+  if (!forceRefresh) {
+    const cached = getJurCache(jurName);
+    if (cached) {
+      debugLog('JUR cache hit', jurName);
+      return cached;
+    }
+  }
+
+  const nimKey = getNimKey();
+  const gemKey = getGeminiKey();
+  if (!nimKey && !gemKey) return null; // no AI key — use static fallback
+
+  const prompt = `You are a Florida building permit expert with up-to-date knowledge of local codes.
+
+Return ONLY valid JSON — no markdown, no explanation — for this jurisdiction:
+JURISDICTION: ${jurName}, Florida
+
+The JSON must have exactly this structure:
+{
+  "minSideSetback": <number, feet>,
+  "minRearSetback": <number, feet>,
+  "minFrontSetback": <number, feet>,
+  "minHouseSetback": <number, feet, distance from generator to house wall>,
+  "minWindowSetback": <number, feet, generator to window/opening — NFPA 37 §4.1.2>,
+  "minLPSetback": <number, feet, generator to LP tank>,
+  "noiseLimit": <number, dBA — local ordinance noise limit>,
+  "requiresElecPermit": <true/false>,
+  "requiresBldgPermit": <true/false>,
+  "requiresMechPermit": <true/false>,
+  "floodAboveBFE": <number, feet above BFE required for generator pad — usually 1 or 2>,
+  "notes": "<2-3 sentence summary of key local requirements and gotchas>",
+  "submitTo": "<department name and full address>",
+  "phone": "<permit office phone number>",
+  "codeSection": "<primary code section governing accessory structure/generator setbacks>",
+  "municodeUrl": "<direct URL to municode.com or official code page for this jurisdiction>",
+  "permitsUrl": "<direct URL to online permit portal or building department>",
+  "firmPrefix": "<FEMA FIRM panel prefix, e.g. 12071C>",
+  "communityNumber": "<FEMA community number, 6 digits>",
+  "floodPageUrl": "<URL to jurisdiction floodplain management page>",
+  "predominantZone": "<most common FEMA flood zone in this jurisdiction, e.g. AE>",
+  "freeboard": <number, feet — required freeboard above BFE for mechanical equipment>,
+  "fetchedLive": true,
+  "fetchedAt": "${new Date().toISOString()}"
+}
+
+Base setbacks on the current Florida Building Code (8th Ed., 2023), NFPA 37-2021, and ${jurName}'s current local Code of Ordinances or Land Development Code.
+For residential single-family zones (the most common case for a standby generator permit).
+Use the actual current phone numbers and addresses — these will be printed on permit documents.`;
+
+  try {
+    const { text } = await callAI({ prompt, system: 'You are a Florida permit expert. Return ONLY valid JSON with no markdown fences.', maxTokens: 1000 });
+    const parsed = extractJSON(text);
+    if (!parsed || typeof parsed.minSideSetback === 'undefined') throw new Error('Invalid JSON structure from AI');
+
+    // Merge into the static fallback so all fields exist
+    const staticData = JURISDICTIONS_STATIC[jurName] || {};
+    const merged = Object.assign({}, staticData, parsed, { fetchedLive: true });
+
+    setJurCache(jurName, merged);
+    debugLog('JUR live fetch OK', { jurName, side: merged.minSideSetback, rear: merged.minRearSetback });
+    return merged;
+  } catch(err) {
+    debugLog('JUR live fetch failed', { jurName, err: err.message });
+    return null; // caller will use static fallback
+  }
+}
+
+/**
+ * applyLiveJurData — merges live-fetched data into the active JURISDICTIONS
+ * object and refreshes the UI. Called after a successful live fetch.
+ */
+function applyLiveJurData(jurName, data) {
+  if (!data) return;
+  JURISDICTIONS[jurName] = Object.assign(JURISDICTIONS[jurName] || {}, data);
+  // Also update the research table
+  if (data.codeSection) {
+    JURISDICTION_RESEARCH[jurName] = Object.assign(JURISDICTION_RESEARCH[jurName] || {}, {
+      setbacks: {
+        side: data.minSideSetback,
+        rear: data.minRearSetback,
+        front: data.minFrontSetback,
+        house: data.minHouseSetback,
+        window: data.minWindowSetback
+      },
+      noiseLimit: data.noiseLimit,
+      codeSection: data.codeSection,
+      municodeUrl: data.municodeUrl,
+      permitsUrl: data.permitsUrl,
+      ahj: data.submitTo ? data.submitTo.split(',')[0] : '',
+      ahjPhone: data.phone,
+      ahjAddress: data.submitTo,
+      sourceNotes: data.notes,
+      confidence: 'live'
+    });
+  }
+  if (data.freeboard !== undefined) {
+    FLOOD_DATA[jurName] = Object.assign(FLOOD_DATA[jurName] || {}, {
+      freeboard: data.freeboard,
+      generatorFreeboard: data.floodAboveBFE || data.freeboard,
+      firmPrefix: data.firmPrefix,
+      communityNumber: data.communityNumber,
+      floodPageUrl: data.floodPageUrl,
+      predominantZone: data.predominantZone
+    });
+  }
+}
+
+/* ── LIVE FETCH STATUS HELPERS ── */
+function showJurFetchStatus(html) {
+  const el = document.getElementById('jurLiveFetchStatus');
+  if (el) el.innerHTML = html;
+}
+
+/* ── TRIGGER LIVE FETCH ON JURISDICTION SELECT ── */
+async function triggerLiveJurFetch(jurName, forceRefresh) {
+  const nimKey = getNimKey();
+  const gemKey = getGeminiKey();
+  if (!nimKey && !gemKey) {
+    showJurFetchStatus('<div class="alert alert-warn" style="margin-top:8px;font-size:11px;">ℹ Using pre-loaded data. Add an AI key (Step 1) to fetch live jurisdiction requirements.</div>');
+    return;
+  }
+
+  // Check cache first (unless forced refresh)
+  if (!forceRefresh) {
+    const cached = getJurCache(jurName);
+    if (cached) {
+      applyLiveJurData(jurName, cached);
+      const age = Math.round((Date.now() - new Date(cached.fetchedAt || 0).getTime()) / 3600000);
+      showJurFetchStatus('<div class="alert alert-ok" style="margin-top:8px;font-size:11px;">✅ Live data loaded from cache (' + (age < 1 ? 'just now' : age + 'h ago') + '). <button onclick="triggerLiveJurFetch(\'' + jurName.replace(/'/g,"\\'") + '\', true)" style="background:none;border:none;color:var(--blue2);cursor:pointer;font-size:11px;text-decoration:underline;padding:0;">Refresh →</button></div>');
+      showJurDetails(); complianceCheck();
+      return;
+    }
+  }
+
+  showJurFetchStatus('<div class="alert alert-info" style="margin-top:8px;font-size:11px;">⚡ Fetching live jurisdiction requirements via AI…</div>');
+
+  const data = await fetchJurisdictionDataLive(jurName, forceRefresh);
+  if (data) {
+    applyLiveJurData(jurName, data);
+    showJurFetchStatus('<div class="alert alert-ok" style="margin-top:8px;font-size:11px;">✅ Live data fetched — setbacks, permits, and flood requirements updated for <strong>' + jurName + '</strong>. <button onclick="triggerLiveJurFetch(\'' + jurName.replace(/'/g,"\\'") + '\', true)" style="background:none;border:none;color:var(--blue2);cursor:pointer;font-size:11px;text-decoration:underline;padding:0;">Refresh →</button></div>');
+  } else {
+    showJurFetchStatus('<div class="alert alert-warn" style="margin-top:8px;font-size:11px;">⚠ Could not fetch live data — using pre-loaded values. <button onclick="triggerLiveJurFetch(\'' + jurName.replace(/'/g,"\\'") + '\', true)" style="background:none;border:none;color:var(--blue2);cursor:pointer;font-size:11px;text-decoration:underline;padding:0;">Retry →</button></div>');
+  }
+
+  showJurDetails();
+  complianceCheck();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   JURISDICTION DATABASE — STATIC FALLBACK
+   Used when no AI key is available or live fetch fails.
    FBC 8th Ed. + NEC 2023 + local amendments
 ═══════════════════════════════════════════════════════════════ */
-const JURISDICTIONS = {
+const JURISDICTIONS_STATIC = {
   'Lee County': {
     minSideSetback: 5, minRearSetback: 5, minFrontSetback: 25,
     minHouseSetback: 18, minWindowSetback: 5, minLPSetback: 5,
@@ -1262,6 +1465,9 @@ const JURISDICTIONS = {
   }
 };
 
+// Live working copy — gets overwritten by live-fetched data when AI key present
+const JURISDICTIONS = JSON.parse(JSON.stringify(JURISDICTIONS_STATIC));
+
 let selectedJur = null;
 let currentPage = 0;
 let specFileData = null;
@@ -1281,7 +1487,7 @@ let wireData = {};
    Each entry includes setbacks, code refs, and direct MuniCode links.
    Contractors should always confirm with the AHJ before submission.
 ═══════════════════════════════════════════════════════════════ */
-const JURISDICTION_RESEARCH = {
+const JURISDICTION_RESEARCH_STATIC = {
   'Lee County': {
     setbacks: { side: 5, rear: 5, front: 25, house: 18, window: 5 },
     noiseLimit: 65,
@@ -1462,6 +1668,9 @@ const JURISDICTION_RESEARCH = {
     importantNotes: ['FPL notification required for interconnection', 'Follows Lee County LDC standards', 'Standard FBC 8th Ed. setbacks apply']
   }
 };
+
+// Live working copy of JURISDICTION_RESEARCH
+const JURISDICTION_RESEARCH = JSON.parse(JSON.stringify(JURISDICTION_RESEARCH_STATIC));
 
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2004,7 +2213,7 @@ function initJurGrid() {
     const t = document.createElement('div');
     t.className = 'jur-tile' + (name === selectedJur ? ' selected' : '');
     t.innerHTML = `${name}<div class="jur-sub">${JURISDICTIONS[name].requiresMechPermit?'Elec+Bldg+Mech':'Elec+Bldg'} permit</div>`;
-    t.onclick = () => { selectedJur = name; initJurGrid(); showJurDetails(); live(); };
+    t.onclick = () => { selectedJur = name; initJurGrid(); showJurDetails(); live(); triggerLiveJurFetch(name, false); };
     grid.appendChild(t);
   });
 }
@@ -2649,11 +2858,400 @@ function applyParcelData(parcel) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   FLOOD ZONE DATA — pre-researched per jurisdiction
-   Source: FBC 8th Ed. §R322, FEMA NFHL, local floodplain ordinances
-   Freeboard = local minimum above BFE for mechanical equipment
+   PROPERTY ADDRESS SEARCH — Owner / Property card
+   Geocodes address → queries FDOT statewide parcel service for
+   all 67 Florida counties (no jurisdiction pre-selection needed).
+   Autofills: Owner Name, Parcel/Folio #, City, Zip, Zoning.
+   Falls back to county-specific property appraiser APIs if FDOT fails.
 ═══════════════════════════════════════════════════════════════ */
-const FLOOD_DATA = {
+
+// Map Florida county names/keywords to FDOT layer numbers (alphabetical among 67 FL counties)
+const FDOT_COUNTY_LAYERS = {
+  'alachua':1,'baker':2,'bay':3,'bradford':4,'brevard':5,'broward':6,'calhoun':7,
+  'charlotte':8,'citrus':9,'clay':10,'collier':11,'columbia':12,'desoto':13,
+  'dixie':14,'duval':15,'escambia':16,'flagler':17,'franklin':18,'gadsden':19,
+  'gilchrist':20,'glades':21,'gulf':22,'hamilton':23,'hardee':24,'hendry':25,
+  'hernando':26,'highlands':27,'hillsborough':28,'holmes':29,'indianriver':30,
+  'jackson':31,'jefferson':32,'lafayette':33,'lake':34,'lee':35,'leon':36,
+  'levy':37,'liberty':38,'madison':39,'manatee':40,'marion':41,'martin':42,
+  'miamidade':43,'monroe':44,'nassau':45,'okaloosa':46,'okeechobee':47,
+  'orange':48,'osceola':49,'palmbeach':50,'pasco':51,'pinellas':52,'polk':53,
+  'putnam':54,'stjohns':55,'stlucie':56,'santarosa':57,'sarasota':58,
+  'seminole':59,'sumter':60,'suwannee':61,'taylor':62,'union':63,'volusia':64,
+  'wakulla':65,'walton':66,'washington':67
+};
+
+// Detect FL county from address / city string
+function detectFloridaCounty(addrStr) {
+  const s = addrStr.toLowerCase().replace(/[^a-z ]/g, '');
+  // Direct county mentions
+  for (const [k] of Object.entries(FDOT_COUNTY_LAYERS)) {
+    if (s.includes(k + ' county')) return k;
+  }
+  // City → county mappings for common FL cities
+  const cityMap = {
+    'cape coral':'lee','fort myers':'lee','bonita springs':'lee','estero':'lee',
+    'naples':'collier','marco island':'collier','immokalee':'collier',
+    'sarasota':'sarasota','venice':'sarasota','north port':'sarasota',
+    'port charlotte':'charlotte','punta gorda':'charlotte',
+    'tampa':'hillsborough','brandon':'hillsborough','plant city':'hillsborough',
+    'st petersburg':'pinellas','clearwater':'pinellas','largo':'pinellas',
+    'orlando':'orange','kissimmee':'osceola','sanford':'seminole',
+    'jacksonville':'duval','gainesville':'alachua','tallahassee':'leon',
+    'pensacola':'escambia','miami':'miamidade','hialeah':'miamidade',
+    'fort lauderdale':'broward','boca raton':'palmbeach','west palm beach':'palmbeach',
+    'palm beach':'palmbeach','ocala':'marion','daytona beach':'volusia',
+    'melbourne':'brevard','vero beach':'indianriver','fort pierce':'stlucie',
+    'stuart':'martin','lakeland':'polk','bradenton':'manatee'
+  };
+  for (const [city, county] of Object.entries(cityMap)) {
+    if (s.includes(city)) return county;
+  }
+  return null;
+}
+
+async function searchPropertyByAddress() {
+  const raw = document.getElementById('addrSearchInput').value.trim();
+  const statusEl = document.getElementById('propAddrSearchStatus');
+  const btn = document.getElementById('btnAddrSearch');
+
+  if (!raw) {
+    statusEl.innerHTML = '<div class="alert alert-warn" style="font-size:12px;">⚠ Enter a property address to search.</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Searching…';
+  statusEl.innerHTML = '<div class="alert alert-info" style="font-size:12px;">⏳ Geocoding address…</div>';
+
+  // Parse address parts from raw input if possible
+  const zipMatch = raw.match(/\b(\d{5})\b/);
+  const stateMatch = raw.match(/\bFL\b/i);
+  const detectedZip = zipMatch ? zipMatch[1] : '';
+  const county = detectFloridaCounty(raw);
+
+  try {
+    let lat, lon, matchedAddr;
+
+    // Step 1: Geocode via Census
+    try {
+      const censusUrl = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=' +
+        encodeURIComponent(raw) + '&benchmark=Public_AR_Current&format=json';
+      const r = await fetch(censusUrl, { mode: 'cors' });
+      const d = await r.json();
+      const m = d?.result?.addressMatches?.[0];
+      if (m) { lat = m.coordinates.y; lon = m.coordinates.x; matchedAddr = m.matchedAddress; }
+    } catch(e) { debugLog('Addr search census fail', e.message); }
+
+    // Step 2: Fallback to Nominatim
+    if (!lat) {
+      try {
+        const nomUrl = 'https://nominatim.openstreetmap.org/search?q=' +
+          encodeURIComponent(raw + (stateMatch ? '' : ' FL')) +
+          '&format=json&limit=1&countrycodes=us';
+        const r = await fetch(nomUrl, { mode: 'cors', headers: { 'Accept-Language': 'en' } });
+        const d = await r.json();
+        if (d && d[0]) { lat = parseFloat(d[0].lat); lon = parseFloat(d[0].lon); matchedAddr = d[0].display_name; }
+      } catch(e) { debugLog('Addr search nominatim fail', e.message); }
+    }
+
+    if (!lat || !lon) {
+      statusEl.innerHTML = '<div class="alert alert-warn" style="font-size:12px;">⚠ Could not geocode address. Try adding city and state (e.g. "1234 Palm Ave, Cape Coral, FL 33990").</div>';
+      btn.disabled = false; btn.innerHTML = '🔍 Search &amp; Autofill'; return;
+    }
+
+    statusEl.innerHTML = '<div class="alert alert-info" style="font-size:12px;">⏳ Querying county property records…</div>';
+    debugLog('Addr search geocoded', { lat, lon, matchedAddr });
+
+    // Step 3: Multi-source parcel lookup cascade
+    // Source A: County Property Appraiser ArcGIS services (authoritative, most reliable)
+    // Source B: FDOT statewide mirror (fallback — often stale)
+    let parcel = null;
+    let parcelSource = '';
+
+    /* ── County Property Appraiser ArcGIS endpoints ──
+       Each FL county PA runs their own ArcGIS FeatureServer.
+       We query by lat/lon point intersection — no address parsing needed.
+       Fields vary by county but owner/parcel/zoning are universal. */
+    const PA_ENDPOINTS = {
+      'lee':        { url: 'https://leepa.org/arcgis/rest/services/PublicAccess/MapService/MapServer/0/query',         fields: 'FOLIO_ID,OWNER1,OWNER2,SITE_ADDR,SITE_CITY,SITE_ZIP,ZONING,DOR_CODE,LAND_SQ_FT' },
+      'collier':    { url: 'https://www.collierappraiser.com/webmap/MapServer/0/query',                                fields: 'PARCEL_ID,OWNER_NAME,PHY_ADDR,PHY_CITY,PHY_ZIP,ZONING,DOR_CODE,LAND_SQFT' },
+      'charlotte':  { url: 'https://gis.ccappraiser.com/arcgis/rest/services/PublicRecords/MapServer/0/query',         fields: 'PARCEL_ID,OWNER_NAME,SITUS_ADDR,SITUS_CITY,SITUS_ZIP,ZONING,USE_CODE,LAND_SQFT' },
+      'sarasota':   { url: 'https://gis.sc-pa.com/arcgis/rest/services/Parcels/MapServer/0/query',                    fields: 'PARCEL_ID,OWNER_NAME,SITE_ADDRESS,SITE_CITY,SITE_ZIP,ZONING,USE_CODE,LAND_SQFT' },
+      'hillsborough':{ url: 'https://gis.hcpafl.org/arcgis/rest/services/Property/FeatureServer/0/query',             fields: 'FOLIO,OWNER_1,OWNER_2,SITE_ADDR,SITE_CITY,SITE_ZIP,ZONING,DOR_CD,LAND_SQFT' },
+      'pinellas':   { url: 'https://gis.pcpao.gov/arcgis/rest/services/Public/Parcels/MapServer/0/query',             fields: 'PARCELNO,OWNER1,OWNER2,MAILADR1,MAILCITY,MAILZIP,LAND_SQFT' },
+      'manatee':    { url: 'https://maps.manateepao.gov/arcgis/rest/services/Parcels/MapServer/0/query',               fields: 'PARCEL_ID,OWNER_NAME,SITUS_ADDR,SITUS_CITY,SITUS_ZIP,ZONING,LAND_SQFT' },
+      'palmbeach':  { url: 'https://maps.pbcgov.org/arcgis/rest/services/Property_Appraiser/Parcels/MapServer/0/query', fields: 'PCN,OWN1,OWN2,LGL1,MUNI,ZIP,ZONING,LAND_SQFT' },
+      'broward':    { url: 'https://bcpagis.broward.org/arcgis/rest/services/Parcels/MapServer/0/query',               fields: 'FOLIO,OWNER1,OWNER2,SITUSADR,SITUSCITY,SITUSZIP,ZONING,LAND_SQFT' },
+      'miamidade':  { url: 'https://maps.miamidade.gov/arcgis/rest/services/Property_Search/MapServer/0/query',        fields: 'FOLIO,OWNER1,OWNER2,ADDRESS,CITY,ZIPCODE,ZONING,LAND_SQFT' },
+    };
+
+    // Normalize raw PA response fields → unified parcel object
+    function normalizePARecord(attrs, countyKey) {
+      const s = k => (attrs[k] || '').toString().trim();
+      const n = k => parseFloat(attrs[k]) || null;
+      // Each county uses different field names — map to standard
+      const fieldMaps = {
+        lee:         { id:'FOLIO_ID',   o1:'OWNER1',      o2:'OWNER2',    addr:'SITE_ADDR',  city:'SITE_CITY',  zip:'SITE_ZIP',  zone:'ZONING',  sqft:'LAND_SQ_FT' },
+        collier:     { id:'PARCEL_ID',  o1:'OWNER_NAME',  o2:'',          addr:'PHY_ADDR',   city:'PHY_CITY',   zip:'PHY_ZIP',   zone:'ZONING',  sqft:'LAND_SQFT' },
+        charlotte:   { id:'PARCEL_ID',  o1:'OWNER_NAME',  o2:'',          addr:'SITUS_ADDR', city:'SITUS_CITY', zip:'SITUS_ZIP', zone:'ZONING',  sqft:'LAND_SQFT' },
+        sarasota:    { id:'PARCEL_ID',  o1:'OWNER_NAME',  o2:'',          addr:'SITE_ADDRESS',city:'SITE_CITY', zip:'SITE_ZIP',  zone:'ZONING',  sqft:'LAND_SQFT' },
+        hillsborough:{ id:'FOLIO',      o1:'OWNER_1',     o2:'OWNER_2',   addr:'SITE_ADDR',  city:'SITE_CITY',  zip:'SITE_ZIP',  zone:'ZONING',  sqft:'LAND_SQFT' },
+        pinellas:    { id:'PARCELNO',   o1:'OWNER1',      o2:'OWNER2',    addr:'MAILADR1',   city:'MAILCITY',   zip:'MAILZIP',   zone:'',        sqft:'LAND_SQFT' },
+        manatee:     { id:'PARCEL_ID',  o1:'OWNER_NAME',  o2:'',          addr:'SITUS_ADDR', city:'SITUS_CITY', zip:'SITUS_ZIP', zone:'ZONING',  sqft:'LAND_SQFT' },
+        palmbeach:   { id:'PCN',        o1:'OWN1',        o2:'OWN2',      addr:'LGL1',       city:'MUNI',       zip:'ZIP',       zone:'ZONING',  sqft:'LAND_SQFT' },
+        broward:     { id:'FOLIO',      o1:'OWNER1',      o2:'OWNER2',    addr:'SITUSADR',   city:'SITUSCITY',  zip:'SITUSZIP',  zone:'ZONING',  sqft:'LAND_SQFT' },
+        miamidade:   { id:'FOLIO',      o1:'OWNER1',      o2:'OWNER2',    addr:'ADDRESS',    city:'CITY',       zip:'ZIPCODE',   zone:'ZONING',  sqft:'LAND_SQFT' },
+      };
+      const m = fieldMaps[countyKey] || {};
+      return {
+        parcelId: s(m.id  || 'PARCEL_ID'),
+        owner1:   s(m.o1  || 'OWNER1'),
+        owner2:   m.o2 ? s(m.o2) : '',
+        address:  s(m.addr|| 'SITE_ADDR'),
+        city:     s(m.city|| 'SITE_CITY'),
+        zip:      s(m.zip || 'SITE_ZIP'),
+        zoning:   s(m.zone|| 'ZONING'),
+        sqft:     n(m.sqft|| 'LAND_SQFT'),
+        dorCode:  s('DOR_CODE') || s('USE_CODE') || s('DOR_CD') || '',
+        source:   countyKey + ' property appraiser'
+      };
+    }
+
+    // Try county PA ArcGIS by lat/lon
+    async function tryCountyPA(countyKey) {
+      const ep = PA_ENDPOINTS[countyKey];
+      if (!ep) return null;
+      const url = ep.url +
+        '?geometry=' + lon + ',' + lat +
+        '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects' +
+        '&outFields=' + ep.fields +
+        '&returnGeometry=false&f=json';
+      const r = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout(6000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      if (d.error) throw new Error(d.error.message || 'ArcGIS error');
+      if (!d.features || d.features.length === 0) return null;
+      const rec = normalizePARecord(d.features[0].attributes, countyKey);
+      if (!rec.parcelId && !rec.owner1) return null;
+      return rec;
+    }
+
+    // Try FDOT statewide mirror for a given layer number
+    async function tryFDOTLayer(layer) {
+      const url = FDOT_PARCEL_BASE + '/' + layer + '/query' +
+        '?geometry=' + lon + ',' + lat +
+        '&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects' +
+        '&outFields=ZONING,PARCEL_ID,OWN1,OWN2,PHY_ADDR1,PHY_CITY,PHY_ZIPCD,DOR_UC,NO_BULDNG,LND_SQFOOT' +
+        '&returnGeometry=false&f=json';
+      const r = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout(8000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      if (!d.features || d.features.length === 0) return null;
+      const a = d.features[0].attributes;
+      return {
+        parcelId: (a.PARCEL_ID || '').trim(),
+        owner1:   (a.OWN1 || '').trim(),
+        owner2:   (a.OWN2 || '').trim(),
+        address:  (a.PHY_ADDR1 || '').trim(),
+        city:     (a.PHY_CITY || '').trim(),
+        zip:      (a.PHY_ZIPCD || '').trim(),
+        zoning:   (a.ZONING || '').trim(),
+        sqft:     a.LND_SQFOOT || null,
+        dorCode:  String(a.DOR_UC || '').trim(),
+        source:   'FDOT statewide'
+      };
+    }
+
+    // Lee County PA also has a direct address search API — try it by address text
+    async function tryLeeAddressSearch(addrText) {
+      const numMatch = addrText.match(/^(\d+)/);
+      const streetPart = addrText.replace(/^\d+\s*/, '').replace(/,.*$/, '').trim().toUpperCase();
+      if (!numMatch || !streetPart) return null;
+      const url = 'https://leepa.org/Search/PropertySearch.aspx/SearchByAddress?' +
+        'streetNumber=' + encodeURIComponent(numMatch[1]) +
+        '&streetName=' + encodeURIComponent(streetPart);
+      // Lee PA's JSON API
+      const url2 = 'https://leepa.org/arcgis/rest/services/PublicAccess/MapService/MapServer/0/query' +
+        '?where=' + encodeURIComponent("SITE_ADDR LIKE '" + numMatch[1] + " " + streetPart.split(' ')[0] + "%'") +
+        '&outFields=FOLIO_ID,OWNER1,OWNER2,SITE_ADDR,SITE_CITY,SITE_ZIP,ZONING,LAND_SQ_FT' +
+        '&returnGeometry=false&resultRecordCount=1&f=json';
+      const r = await fetch(url2, { mode: 'cors', signal: AbortSignal.timeout(6000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      if (!d.features || d.features.length === 0) return null;
+      return normalizePARecord(d.features[0].attributes, 'lee');
+    }
+
+    // Build priority county list based on detected county + jurisdiction
+    const priorityCounties = [];
+    if (county && PA_ENDPOINTS[county]) priorityCounties.push(county);
+    const jurCountyMap = {
+      'Lee County':'lee','City of Cape Coral':'lee','City of Bonita Springs':'lee','City of Fort Myers':'lee',
+      'Collier County':'collier','City of Naples':'collier','City of Marco Island':'collier',
+      'Charlotte County':'charlotte','Sarasota County':'sarasota',
+      'City of Sarasota':'sarasota','City of Venice':'sarasota'
+    };
+    if (selectedJur && jurCountyMap[selectedJur] && !priorityCounties.includes(jurCountyMap[selectedJur])) {
+      priorityCounties.push(jurCountyMap[selectedJur]);
+    }
+    // If no hint, try SW FL counties first (most common use case for this tool)
+    if (priorityCounties.length === 0) {
+      priorityCounties.push('lee','collier','charlotte','sarasota','hillsborough','pinellas','manatee');
+    }
+
+    // Run county PA lookups
+    for (const c of priorityCounties) {
+      try {
+        statusEl.innerHTML = '<div class="alert alert-info" style="font-size:12px;">⏳ Checking ' + c.charAt(0).toUpperCase() + c.slice(1) + ' County property records…</div>';
+        const rec = await tryCountyPA(c);
+        if (rec && (rec.parcelId || rec.owner1)) {
+          parcel = rec;
+          parcelSource = rec.source;
+          debugLog('County PA hit: ' + c, rec);
+          break;
+        }
+      } catch(e) { debugLog('County PA ' + c + ' fail', e.message); }
+    }
+
+    // Fallback: Lee County address-text search (catches addresses where point-in-polygon missed)
+    if (!parcel && (county === 'lee' || priorityCounties.includes('lee'))) {
+      try {
+        statusEl.innerHTML = '<div class="alert alert-info" style="font-size:12px;">⏳ Trying Lee County address search…</div>';
+        const addrPart = raw.split(',')[0].trim();
+        const rec = await tryLeeAddressSearch(addrPart);
+        if (rec && (rec.parcelId || rec.owner1)) {
+          parcel = rec; parcelSource = 'Lee County PA (address search)';
+          debugLog('Lee PA address search hit', rec);
+        }
+      } catch(e) { debugLog('Lee PA address search fail', e.message); }
+    }
+
+    // Last resort: FDOT statewide mirror
+    if (!parcel) {
+      const fdotLayers = [];
+      if (county && FDOT_COUNTY_LAYERS[county]) fdotLayers.push(FDOT_COUNTY_LAYERS[county]);
+      if (selectedJur && FDOT_LAYER[selectedJur] && !fdotLayers.includes(FDOT_LAYER[selectedJur])) fdotLayers.push(FDOT_LAYER[selectedJur]);
+      if (fdotLayers.length === 0) fdotLayers.push(35, 11, 58, 8);
+      for (const layer of fdotLayers) {
+        try {
+          statusEl.innerHTML = '<div class="alert alert-info" style="font-size:12px;">⏳ Trying FDOT statewide database…</div>';
+          const rec = await tryFDOTLayer(layer);
+          if (rec && (rec.parcelId || rec.owner1)) {
+            parcel = rec; parcelSource = 'FDOT statewide';
+            debugLog('FDOT fallback hit on layer ' + layer, rec);
+            break;
+          }
+        } catch(e) { debugLog('FDOT layer ' + layer + ' fail', e.message); }
+      }
+    }
+
+    // Step 4: Autofill whatever we found
+    if (parcel) {
+      let filled = [];
+
+      if (parcel.owner1) {
+        const ownerStr = parcel.owner1 + (parcel.owner2 ? ' & ' + parcel.owner2 : '');
+        // Format owner name: "SMITH JOHN R" → "John R Smith"
+        const formatName = n => n.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        document.getElementById('ownerName').value = parcel.owner1.includes(' & ') || parcel.owner1.includes(' AND ')
+          ? ownerStr.split(/\s*[&\/]\s*/).map(formatName).join(' & ')
+          : formatName(ownerStr);
+        filled.push('Owner Name');
+      }
+
+      if (parcel.parcelId) {
+        document.getElementById('parcelNum').value = parcel.parcelId;
+        filled.push('Parcel #');
+      }
+
+      // Also fill address fields from parcel data if they're empty
+      const addrEl = document.getElementById('propAddr');
+      const cityEl = document.getElementById('propCity');
+      const zipEl  = document.getElementById('propZip');
+
+      if (parcel.address && !addrEl.value) {
+        // Format "1234 PALM AVE" → "1234 Palm Ave"
+        addrEl.value = parcel.address.replace(/\b(\w)/g, c => c.toUpperCase()).replace(/\b([A-Z]{2,})\b/g, w =>
+          w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+        filled.push('Address');
+      }
+      if (parcel.city && !cityEl.value) {
+        cityEl.value = parcel.city.replace(/\b(\w)/g, c => c.toUpperCase()).replace(/\b([A-Z]{2,})\b/g, w =>
+          w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+        filled.push('City');
+      }
+      if ((parcel.zip || detectedZip) && !zipEl.value) {
+        zipEl.value = parcel.zip || detectedZip;
+        filled.push('Zip');
+      }
+
+      if (parcel.zoning) {
+        const zoneEl = document.getElementById('zoningDistrict');
+        if (!zoneEl.value) { zoneEl.value = parcel.zoning; filled.push('Zoning'); }
+      }
+
+      live();
+
+      // Show result card
+      const dorDesc = DOR_USE_CODES[parcel.dorCode] || ('Code ' + parcel.dorCode);
+      const rows = [
+        parcel.parcelId ? ['Parcel / Folio #', parcel.parcelId] : null,
+        parcel.owner1   ? ['Owner', document.getElementById('ownerName').value] : null,
+        parcel.zoning   ? ['Zoning District', parcel.zoning] : null,
+        parcel.dorCode  ? ['Use Type', dorDesc] : null,
+        parcel.sqft     ? ['Lot Size', Math.round(parcel.sqft).toLocaleString() + ' sq ft'] : null,
+      ].filter(Boolean);
+
+      let html = '<div style="padding:12px 14px;background:var(--green-bg);border:1px solid #b8dfc8;border-radius:var(--r);font-size:12px;">' +
+        '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--green);font-family:var(--mono);margin-bottom:8px;">✅ Found — ' + (parcelSource || 'Florida Parcel Database') +
+        (matchedAddr ? ' &nbsp;·&nbsp; <span style="font-weight:400;color:var(--muted);">' + matchedAddr.split(',').slice(0,2).join(',') + '</span>' : '') + '</div>';
+      rows.forEach(row => {
+        html += '<div style="display:flex;gap:8px;padding:2px 0;border-bottom:1px solid rgba(0,0,0,0.05);">' +
+          '<span style="font-family:var(--mono);font-size:10px;color:var(--muted);width:140px;flex-shrink:0;">' + row[0] + '</span>' +
+          '<span style="font-weight:600;">' + row[1] + '</span></div>';
+      });
+      html += '<div style="margin-top:6px;font-size:10px;color:var(--muted);font-family:var(--mono);">Auto-filled: ' + filled.join(', ') + '</div></div>';
+
+      statusEl.innerHTML = html;
+    } else {
+      // Geocode succeeded but no parcel match — at minimum fill what we can from the search input
+      const parts = raw.split(',').map(s => s.trim());
+      if (parts.length >= 1 && !document.getElementById('propAddr').value) {
+        document.getElementById('propAddr').value = parts[0];
+      }
+      if (parts.length >= 2 && !document.getElementById('propCity').value) {
+        // Strip FL and zip from city part
+        const cityPart = parts[1].replace(/\bFL\b/i, '').replace(/\d{5}/, '').trim();
+        if (cityPart) document.getElementById('propCity').value = cityPart;
+      }
+      if (detectedZip && !document.getElementById('propZip').value) {
+        document.getElementById('propZip').value = detectedZip;
+      }
+      live();
+
+      statusEl.innerHTML = '<div class="alert alert-warn" style="font-size:12px;">' +
+        '<strong>⚠ No parcel record found</strong> — address was geocoded but all property databases returned empty.' +
+        '<br><span style="font-size:11px;color:var(--muted);">Try: add city name (e.g. "Cape Coral"), or look up directly:</span>' +
+        '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
+        '<a href="https://leepa.org/Search/PropertySearch.aspx" target="_blank" style="padding:4px 10px;background:var(--navy);color:#fff;border-radius:4px;font-size:10px;font-family:var(--mono);text-decoration:none;">Lee County PA →</a>' +
+        '<a href="https://www.collierappraiser.com/Main_Search/search_rp.html" target="_blank" style="padding:4px 10px;background:var(--navy);color:#fff;border-radius:4px;font-size:10px;font-family:var(--mono);text-decoration:none;">Collier County PA →</a>' +
+        '<a href="https://www.ccappraiser.com/search.asp" target="_blank" style="padding:4px 10px;background:var(--navy);color:#fff;border-radius:4px;font-size:10px;font-family:var(--mono);text-decoration:none;">Charlotte County PA →</a>' +
+        '<a href="https://www.sc-pa.com/propertysearch" target="_blank" style="padding:4px 10px;background:var(--navy);color:#fff;border-radius:4px;font-size:10px;font-family:var(--mono);text-decoration:none;">Sarasota County PA →</a>' +
+        '</div>' +
+        (matchedAddr ? '<div style="margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--muted);">Geocoded to: ' + matchedAddr + '</div>' : '') +
+        '</div>';
+    }
+  } catch(err) {
+    debugLog('searchPropertyByAddress error', err.message);
+    statusEl.innerHTML = '<div class="alert" style="background:var(--red-bg);color:var(--red);font-size:12px;">❌ Search failed: ' + err.message + '</div>';
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🔍 Search &amp; Autofill';
+}
+
+const FLOOD_DATA_STATIC = {
   'Lee County': {
     freeboard: 1,           // BFE + 1 ft (Lee County floodplain ordinance, FBC R322)
     generatorFreeboard: 1,  // Mechanical equipment must be at or above BFE+1 ft
@@ -2761,6 +3359,9 @@ const FLOOD_DATA = {
     notes: 'Bonita Springs: freeboard = BFE+1 ft. Shares Lee County FIRM panels. Coastal areas near Barefoot Beach may have VE zone designation — verify with FEMA MSC.'
   }
 };
+
+// Live working copy of FLOOD_DATA
+const FLOOD_DATA = JSON.parse(JSON.stringify(FLOOD_DATA_STATIC));
 
 /* ═══════════════════════════════════════════════════════════════
    FLOOD ZONE LOOKUP
