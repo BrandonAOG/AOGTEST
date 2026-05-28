@@ -149,11 +149,11 @@
     #panel.dragging{transition:none}          /* follow the finger 1:1 while dragging */
     /* fully hidden: slide the whole sheet off the bottom so the map is unobstructed */
     #panel.hidden{transform:translateY(105%)}
-    /* grab handle (tap target + drag origin) */
-    .sheet-grip{display:block;position:relative;height:22px;flex:none;cursor:grab;touch-action:none}
-    .sheet-grip::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);
-      width:42px;height:5px;border-radius:3px;background:#3a4756;transition:background .15s}
-    .sheet-grip:active::before{background:var(--signal)}
+    /* grab handle (tap target + drag origin) — clearly a slide bar */
+    .sheet-grip{display:block;position:relative;height:30px;flex:none;cursor:grab;touch-action:none}
+    .sheet-grip::before{content:"";position:absolute;top:11px;left:50%;transform:translateX(-50%);
+      width:54px;height:6px;border-radius:4px;background:#4a5868;transition:background .15s,width .15s}
+    .sheet-grip:active::before{background:var(--signal);width:64px}
 
     /* floating pull-up tab — only visible when the sheet is hidden */
     .sheet-tab{display:none;position:absolute;z-index:1100;bottom:14px;left:50%;transform:translateX(-50%);
@@ -164,7 +164,7 @@
 
     header{padding-top:4px}
     header p{display:none}            /* trim long intro on small screens */
-    .brandbar{margin-bottom:9px;padding-bottom:9px}
+    .brandbar{margin-bottom:9px;padding-bottom:9px;touch-action:none}
     .brand-logo{width:34px;height:34px}
     .brand-name{font-size:13px}
     /* stack Find button under the input for thumbs */
@@ -180,6 +180,7 @@
     .field .v{text-align:left}
     .layerswitch{bottom:auto;top:12px;right:12px}
     .crosshair{display:none}
+    footer{display:none}             /* hide sources/hub footer on phones */
     .suggest .sg{padding:13px 12px;font-size:13px}  /* bigger tap targets */
   }
   /* the grip & pull-up tab only exist on mobile; hide on desktop */
@@ -844,6 +845,13 @@ const Sheet=(function(){
   }
   grip.addEventListener('touchstart',down,{passive:false});
   grip.addEventListener('mousedown',down);
+  // also let the brand bar act as a drag surface (ignore taps on the Hub link)
+  const brand=panel.querySelector('.brandbar');
+  if(brand){
+    const brandDown=e=>{ if(e.target.closest('a,button')) return; down(e); };
+    brand.addEventListener('touchstart',brandDown,{passive:false});
+    brand.addEventListener('mousedown',brandDown);
+  }
   window.addEventListener('touchmove',move,{passive:false});
   window.addEventListener('mousemove',move);
   window.addEventListener('touchend',up);
