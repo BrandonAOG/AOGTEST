@@ -307,6 +307,53 @@ const COUNTY_LIVE = {
   SARASOTA: { url:"https://www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/LocationInfo/MapServer/79/query", label:"Sarasota (SWFWMD/PA)" }
 };
 
+/* ---------- Forerunner resident portals (flood zone + Elevation Certificate by address) ----------
+   Forerunner is a commercial floodplain platform, NOT an ArcGIS REST feed — it has no public
+   queryable endpoint, so we deep-link to the city's public portal rather than pull data in.
+   Its address search often returns richer, locally-maintained flood-zone info and the actual
+   EC on file. Keyed by normalized MUNICIPALITY (city) name. Add more cities as you confirm them. */
+const FORERUNNER = {
+  NAPLES: { url:"https://naplesfl.withforerunner.com/explore", label:"City of Naples flood portal (Forerunner)" }
+};
+
+/* ---------- Permits & Documents (Elevation Certificate / Survey / Site Plan) ----------
+   Elevation Certificates: some counties publish an EC *map app* backed by a queryable
+   ArcGIS feature layer whose records carry the cert PDF as an ATTACHMENT. Where we have
+   that layer URL we point-query it live and surface a direct PDF link; otherwise we fall
+   back to the county's EC map app / portal.
+
+   ⚠️ VERIFY THESE URLS IN A BROWSER. County REST endpoints move. To find/confirm one:
+     1. open the county EC map app, open devtools → Network, click a parcel
+     2. copy the .../FeatureServer/<n> (or MapServer/<n>) request URL it fires
+     3. paste it as `ecLayer` below (no /query suffix needed — code adds it)
+   The layer must (a) allow public CORS and (b) have "Has Attachments: true" for PDFs.
+
+   Keyed by normalized COUNTY name. Fields:
+     ecLayer  - queryable EC feature layer (point-intersect); omit if none known
+     ecMap    - human EC map app / search page (always shown as fallback)
+     ecNote   - county-specific caveat
+     permit   - permitting portal for survey/site-plan/permit-history (deep link)
+     permitBy - 'address' | 'strap' | 'permit'  (how that portal is searched)
+*/
+const DOCS = {
+  COLLIER: {
+    // Collier publishes an EC map app; this layer URL is a best guess and MUST be verified.
+    ecLayer: "https://ags2.colliercountyfl.gov/gis/rest/services/agency/ElevationCertificates/MapServer/0",
+    ecMap:   "https://www.collier.gov/County-Development/Operations-Regulatory-Management/Floodplain-Management",
+    ecNote:  "Collier keeps historic & current ECs for structures built after Sept 14, 1979 in zones A/V. Flood hotline (239) 252-2942.",
+    permit:  "https://cvportal.colliercountyfl.gov/cityviewweb/",
+    permitBy:"address"
+  },
+  LEE: {
+    // Lee's EC search is by permit record # (RES/COM/MRV), not address — so no point layer; link out.
+    ecLayer: null,
+    ecMap:   "https://www.leegov.com/dcd/BldPermitServ/elevcertsearch",
+    ecNote:  "Lee searches ECs by permit record # (RES/COM/MRV). Find the permit # for an address/STRAP in eConnect first. Email FIRMinfo@leegov.com if not found.",
+    permit:  "https://accelaaca.leegov.com/aca/",   // eConnect / ACA portal
+    permitBy:"address"
+  }
+};
+
 /* Zoning / permitting portals + Municode (zoning & setbacks live here, NOT the appraiser).
    Keyed by normalized jurisdiction name (city first, else county). */
 const ZONING = {
@@ -454,6 +501,58 @@ async function arcQuery(url, lat, lng, outFields, withGeom){
 function fmtMoney(n){ if(n==null||n==='') return null; const v=Number(n); if(isNaN(v)||v<=0) return null; return '$'+v.toLocaleString('en-US'); }
 function fmtNum(n){ if(n==null||n==='') return null; const v=Number(n); if(isNaN(v)||v<=0) return null; return v.toLocaleString('en-US'); }
 function pick(a, ...keys){ for(const k of keys){ if(a[k]!=null && String(a[k]).trim()!=='') return a[k]; } return null; }
+
+/* ---------- Elevation Certificate live query (point → feature → PDF attachment) ----------
+   Returns { features:[{attributes, oid}], docs:[{name,url}], date, err } or {err}. */
+function ecLayerRoot(u){ return (u||'').trim().replace(/\/query$/i,'').replace(/\/+$/,''); }
+function ecDetect(fields){
+  const F=fields.map(f=>String(f).toUpperCase());
+  const find=res=>{ for(const re of res){ const i=F.findIndex(f=>re.test(f)); if(i>=0) return fields[i]; } return null; };
+  return {
+    date: find([/ISSUE.?DATE/,/CERT.?DATE/,/SURVEY.?DATE/,/^DATE$/,/EFF.?DATE/,/_DATE$/]),
+    permit: find([/PERMIT/,/RECORD.?N/,/CASE.?N/]),
+    addr: find([/SITE.?ADDR/,/SITUS/,/^ADDRESS$/,/LOCATION/,/PHY.?ADDR/]),
+    link: find([/URL$/,/HYPERLINK/,/DOC.?LINK/,/PDF/,/^LINK$/,/WEBLINK/,/DOC.?PATH/])
+  };
+}
+async function queryEC(ecLayerUrl, lat, lng){
+  const root=ecLayerRoot(ecLayerUrl);
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
+  try{
+    // does the layer carry attachments? grab metadata
+    let hasAtt=false, oidField='OBJECTID';
+    try{
+      const m=await (await fetch(root+'?f=json',{signal:ctrl.signal})).json();
+      hasAtt=!!m.hasAttachments;
+      if(m.objectIdField) oidField=m.objectIdField;
+    }catch(e){/* keep going; query may still work */}
+    // point-intersect query, return all fields + OBJECTID
+    const params=`geometry=${pointGeom(lat,lng)}&geometryType=esriGeometryPoint&inSR=4326`+
+      `&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false&f=json`;
+    const j=await (await fetch(root+'/query?'+params,{signal:ctrl.signal})).json();
+    if(j.error) throw new Error(j.error.message||'service error');
+    const feats=(j.features||[]);
+    if(!feats.length){ clearTimeout(t); return { features:[], docs:[], hasAtt }; }
+    const f0=feats[0];
+    const det=ecDetect(Object.keys(f0.attributes));
+    const oid=f0.attributes[oidField] ?? f0.attributes.OBJECTID ?? f0.attributes.FID;
+    const docs=[];
+    // 1) direct hyperlink field, if any
+    if(det.link){ const u=pick(f0.attributes,det.link); if(u && /^https?:/i.test(u)) docs.push({name:'Elevation Certificate (PDF)',url:u}); }
+    // 2) ArcGIS attachments
+    if(hasAtt && oid!=null){
+      try{
+        const al=await (await fetch(root+'/'+oid+'/attachments?f=json',{signal:ctrl.signal})).json();
+        for(const a of (al.attachmentInfos||[])){
+          docs.push({ name:a.name||('Attachment '+a.id), url:root+'/'+oid+'/attachments/'+a.id });
+        }
+      }catch(e){/* attachments optional */}
+    }
+    clearTimeout(t);
+    const date=det.date?pick(f0.attributes,det.date):null;
+    return { features:feats, docs, det, oid, date, hasAtt };
+  }catch(e){ clearTimeout(t); return { err:e.message }; }
+}
 
 /* ---------- Geocoding (Census primary, Nominatim fallback) ---------- */
 async function geocode(q){
@@ -658,6 +757,12 @@ async function runLookup(lat,lng){
     html += `<div class="field"><div class="k">Flood zone</div><div class="v zone"><span class="badge unk">Not mapped</span></div></div>`;
     html += `<div class="note">No effective NFHL polygon at this point. This usually means the area is unmapped or outside digital flood-map coverage — check the FEMA Map Service Center directly.</div>`;
   }
+  // City-specific Forerunner portal often carries richer, locally-maintained flood-zone data
+  const fr = cityName ? FORERUNNER[norm(cityName)] : null;
+  if(fr){
+    html += `<a class="palink" href="${esc(fr.url)}" target="_blank" rel="noopener" style="margin-top:10px">↗ ${esc(fr.label)} — detailed flood zone by address</a>`;
+    html += `<div class="note">The above is the effective FEMA NFHL (the legal flood zone). ${esc(titleCase(cityName))} also maintains a resident flood portal that frequently has more detailed, locally-curated flood-zone and elevation info for an address — worth cross-checking.</div>`;
+  }
   html += `</div></div>`;
 
   /* ---- Zoning & setbacks: from the local CODE + permitting portal, NOT the appraiser ---- */
@@ -672,6 +777,71 @@ async function runLookup(lat,lng){
     if(z.code)   html += `<a class="palink" href="${esc(z.code)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Land development code (Municode)</a>`;
   } else {
     html += `<a class="palink" href="${municodeSearch(jurName)}" target="_blank" rel="noopener">↗ Find ${esc(jurName)} code &amp; permitting portal</a>`;
+  }
+  html += `</div></div>`;
+
+  /* ---- Permits & Documents: Elevation Certificate (live where wired) + Survey/Site Plan links ---- */
+  const docCfg = countyName ? DOCS[norm(countyName)] : null;
+  // best-effort parcel id for deep links (statewide roll field, or live feed)
+  let strap=null;
+  try{
+    if(liveRes && liveRes.features && liveRes.features[0]){
+      const det=detectFields(Object.keys(liveRes.features[0].attributes));
+      strap=det.pid?pick(liveRes.features[0].attributes,det.pid):null;
+    }
+    if(!strap && parcel && !parcel.__err && parcel.features && parcel.features[0]){
+      strap=pick(parcel.features[0].attributes,'PARCEL_ID');
+    }
+  }catch(e){}
+
+  html += `<div class="card"><div class="ch"><span class="icn">[ DOC ]</span><h2>Permits &amp; Documents</h2>
+    <div class="src">county floodplain /<br>permitting records</div></div><div class="cb">`;
+
+  // --- City resident portal (Forerunner): best address-based EC lookup where available ---
+  const frDoc = cityName ? FORERUNNER[norm(cityName)] : null;
+  if(frDoc){
+    html += `<a class="palink" href="${esc(frDoc.url)}" target="_blank" rel="noopener">↗ ${esc(frDoc.label)} — search this address for its Elevation Certificate</a>`;
+    html += `<div class="note">${esc(titleCase(cityName))}'s resident portal lets you search an address and view the Elevation Certificate on file (plus local flood info). This is usually the quickest EC lookup for in-city properties.</div>`;
+  }
+
+  // --- Elevation Certificate (live attempt where a layer is wired) ---
+  let ecRendered=false;
+  if(docCfg && docCfg.ecLayer){
+    const ec = await queryEC(docCfg.ecLayer, lat, lng).catch(e=>({err:e.message}));
+    if(myId!==runId) return;
+    if(ec && !ec.err && ec.features && ec.features.length){
+      html += `<div class="freshline"><span class="badge live">● LIVE</span> elevation certificate on file at this point</div>`;
+      if(ec.date) html += fieldRow('Cert / issue date', esc(String(ec.date)));
+      if(ec.docs && ec.docs.length){
+        for(const d of ec.docs){
+          html += `<a class="palink" href="${esc(d.url)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.name)}</a>`;
+        }
+      } else {
+        html += `<div class="note">A certificate record exists here, but no downloadable file was attached to it — open the county EC map to view it.</div>`;
+      }
+      ecRendered=true;
+    } else if(ec && ec.err){
+      html += `<div class="note">Elevation-certificate layer didn't respond (${esc(ec.err)}). It may block cross-origin (CORS) requests, or the URL needs updating. Use the county EC map below.</div>`;
+    } else {
+      html += `<div class="note">No elevation certificate found on file at this exact point. Newer or pre-1979 structures often have none — confirm on the county EC map below.</div>`;
+    }
+  }
+
+  // --- Always offer the human EC map / search page as fallback ---
+  if(docCfg){
+    if(docCfg.ecMap) html += `<a class="palink" href="${esc(docCfg.ecMap)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(titleCase(countyName))} County elevation-certificate map / search</a>`;
+    if(docCfg.ecNote) html += `<div class="note">${esc(docCfg.ecNote)}</div>`;
+  } else if(countyName){
+    html += `<a class="palink" href="https://www.google.com/search?q=${encodeURIComponent(titleCase(countyName)+' County Florida elevation certificate map lookup')}" target="_blank" rel="noopener" style="margin-top:8px">↗ Find ${esc(titleCase(countyName))} County elevation-certificate lookup</a>`;
+  }
+
+  // --- Survey / Site Plan / permit history: deep link to the permitting portal (no public data feed exists) ---
+  const portal = (docCfg && docCfg.permit) || (z && z.permit) || null;
+  html += `<div class="note warnbox" style="margin-top:10px"><b>Surveys &amp; site plans aren't a public map layer.</b> They live inside the building-permit file and are retrieved from the jurisdiction's permitting portal by ${docCfg&&docCfg.permitBy==='permit'?'permit record number':'address or parcel/STRAP number'}${strap?` (this parcel: <b style="color:var(--ink)">${esc(strap)}</b>)`:''}. Not every record is digitized.</div>`;
+  if(portal){
+    html += `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(jurName)} permitting portal (survey / site plan / permits)</a>`;
+  } else if(countyName){
+    html += `<a class="palink" href="https://www.google.com/search?q=${encodeURIComponent(titleCase(countyName)+' County Florida building permit portal search by address')}" target="_blank" rel="noopener" style="margin-top:8px">↗ Find ${esc(titleCase(countyName))} County permitting portal</a>`;
   }
   html += `</div></div>`;
 
