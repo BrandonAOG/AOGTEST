@@ -2317,48 +2317,119 @@ async function lookupFloodZone() {
   try {
     let lat, lon, matchedAddr;
 
-    /* ── STEP 1a: Census Geocoder (primary) ── */
-    try {
-      const geoUrl = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress' +
-        '?address=' + fullAddr +
-        '&benchmark=Public_AR_Current' +
-        '&format=json';
-      const geoResp = await fetch(geoUrl, { mode: 'cors' });
-      if (!geoResp.ok) throw new Error('HTTP ' + geoResp.status);
-      const geoData = await geoResp.json();
-      const match = geoData?.result?.addressMatches?.[0];
-      if (!match) throw new Error('no match returned');
-      lon = match.coordinates.x;
-      lat = match.coordinates.y;
-      matchedAddr = match.matchedAddress;
-      debugLog('Census geocoder OK', { lat, lon, matchedAddr });
-    } catch(geoErr) {
-      debugLog('Census geocoder failed', geoErr.message);
+    /* ── GEOCODING: 4-attempt cascade ──
+       Many SW Florida streets (gated communities, private roads) are not
+       in the Census TIGER database. We try progressively broader lookups:
+       1. Full address → Census
+       2. Full address → Nominatim  
+       3. Street + ZIP variations → Census (expand abbreviations)
+       4. ZIP centroid → Census (gives approximate zone, clearly labelled)
+    */
+    let geocodeMethod = '';
 
-      /* ── STEP 1b: Nominatim fallback ── */
+    // Helper: try Census with a given address string
+    async function tryCensus(testAddr) {
+      const url = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress' +
+        '?address=' + encodeURIComponent(testAddr) +
+        '&benchmark=Public_AR_Current&format=json';
+      const resp = await fetch(url, { mode: 'cors' });
+      if (!resp.ok) throw new Error('Census HTTP ' + resp.status);
+      const data = await resp.json();
+      const m = data?.result?.addressMatches?.[0];
+      if (!m) throw new Error('no match');
+      return { lat: m.coordinates.y, lon: m.coordinates.x, matchedAddr: m.matchedAddress };
+    }
+
+    // Helper: try Nominatim with a given query string
+    async function tryNominatim(q) {
+      const url = 'https://nominatim.openstreetmap.org/search' +
+        '?q=' + encodeURIComponent(q) +
+        '&format=json&limit=1&countrycodes=us';
+      const resp = await fetch(url, { mode: 'cors', headers: { 'Accept-Language': 'en' } });
+      if (!resp.ok) throw new Error('Nominatim HTTP ' + resp.status);
+      const data = await resp.json();
+      if (!data || !data[0]) throw new Error('no results');
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), matchedAddr: data[0].display_name };
+    }
+
+    // Expand common street abbreviations for retry attempts
+    function expandStreetAbbr(a) {
+      return a
+        .replace(/Ave/gi, 'Avenue')
+        .replace(/St/gi, 'Street')
+        .replace(/Dr/gi, 'Drive')
+        .replace(/Rd/gi, 'Road')
+        .replace(/Blvd/gi, 'Boulevard')
+        .replace(/Ln/gi, 'Lane')
+        .replace(/Ct/gi, 'Court')
+        .replace(/Cir/gi, 'Circle')
+        .replace(/Pl/gi, 'Place')
+        .replace(/Ter/gi, 'Terrace')
+        .replace(/Pkwy/gi, 'Parkway')
+        .replace(/Hwy/gi, 'Highway')
+        .replace(/NE/g, 'NE').replace(/NW/g, 'NW')
+        .replace(/SE/g, 'SE').replace(/SW/g, 'SW');
+    }
+
+    // Attempt 1: full address → Census
+    try {
+      const r = await tryCensus(addrRaw);
+      lat = r.lat; lon = r.lon; matchedAddr = r.matchedAddr;
+      geocodeMethod = 'Census geocoder';
+      debugLog('Attempt 1 (Census) OK', { lat, lon });
+    } catch(e1) {
+      debugLog('Attempt 1 (Census) failed', e1.message);
+
+      // Attempt 2: full address → Nominatim
       try {
-        const nomUrl = 'https://nominatim.openstreetmap.org/search' +
-          '?q=' + fullAddr +
-          '&format=json&limit=1&countrycodes=us';
-        const nomResp = await fetch(nomUrl, {
-          mode: 'cors',
-          headers: { 'Accept-Language': 'en' }
-        });
-        if (!nomResp.ok) throw new Error('HTTP ' + nomResp.status);
-        const nomData = await nomResp.json();
-        if (!nomData || !nomData[0]) throw new Error('no results');
-        lat = parseFloat(nomData[0].lat);
-        lon = parseFloat(nomData[0].lon);
-        matchedAddr = nomData[0].display_name;
-        debugLog('Nominatim fallback OK', { lat, lon });
-      } catch(nomErr) {
-        debugLog('Nominatim also failed', nomErr.message);
-        // Both geocoders failed — show manual fallback
-        throw new Error(
-          'Could not geocode "' + addrRaw + '" — ' + nomErr.message + '. ' +
-          'Check address in Step 1 (needs street number, street name, city, state, ZIP). ' +
-          'Use the FEMA MSC link below to look up manually.'
-        );
+        const r = await tryNominatim(addrRaw);
+        lat = r.lat; lon = r.lon; matchedAddr = r.matchedAddr;
+        geocodeMethod = 'OpenStreetMap geocoder';
+        debugLog('Attempt 2 (Nominatim) OK', { lat, lon });
+      } catch(e2) {
+        debugLog('Attempt 2 (Nominatim) failed', e2.message);
+
+        // Attempt 3: expand street abbreviations → Census + Nominatim
+        const expandedAddr = expandStreetAbbr(addrRaw);
+        try {
+          const r = await tryCensus(expandedAddr);
+          lat = r.lat; lon = r.lon; matchedAddr = r.matchedAddr;
+          geocodeMethod = 'Census geocoder (expanded street name)';
+          debugLog('Attempt 3 (Census expanded) OK', { lat, lon });
+        } catch(e3a) {
+          try {
+            const r = await tryNominatim(expandedAddr);
+            lat = r.lat; lon = r.lon; matchedAddr = r.matchedAddr;
+            geocodeMethod = 'OpenStreetMap (expanded street name)';
+            debugLog('Attempt 3 (Nominatim expanded) OK', { lat, lon });
+          } catch(e3b) {
+            debugLog('Attempt 3 failed', e3b.message);
+
+            // Attempt 4: ZIP code centroid — gives approximate flood zone
+            // Works for private/gated community streets not in any geocoder
+            if (zip) {
+              try {
+                const r = await tryCensus(city + ' FL ' + zip);
+                lat = r.lat; lon = r.lon;
+                matchedAddr = 'ZIP ' + zip + ' centroid (street not in geocoder database — result is approximate)';
+                geocodeMethod = 'ZIP centroid (approximate)';
+                debugLog('Attempt 4 (ZIP centroid) OK', { lat, lon });
+              } catch(e4) {
+                debugLog('Attempt 4 (ZIP) failed', e4.message);
+                throw new Error(
+                  'Street "' + addr + '" not found in any geocoder database. ' +
+                  'This is common for private/gated community roads. ' +
+                  'Enter BFE and flood zone manually in Step 3, or use the FEMA MSC link below.'
+                );
+              }
+            } else {
+              throw new Error(
+                'Street "' + addr + '" not found — enter ZIP code in Step 1 for ZIP-level flood zone lookup, ' +
+                'or enter BFE and flood zone manually in Step 3.'
+              );
+            }
+          }
+        }
       }
     }
 
@@ -2451,11 +2522,19 @@ async function lookupFloodZone() {
     };
     const zoneColor = zoneColors[mappedZone] || '#5a6a7e';
 
-    let html = `<div style="margin-top:12px;padding:14px 16px;background:${isSFHA ? '#fdeaea' : 'var(--green-bg)'};border:1px solid ${isSFHA ? '#f0b8b8' : '#b8dfc8'};border-radius:var(--r);">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-        <span style="font-size:22px;font-weight:800;font-family:var(--mono);color:${zoneColor};letter-spacing:-0.5px;">Zone ${fldZone}${subtype ? ' <small style=\"font-size:13px\">('+subtype+')</small>' : ''}</span>
-        <span style="padding:3px 10px;border-radius:99px;font-size:10px;font-family:var(--mono);font-weight:700;background:${isSFHA ? '#9b1c1c' : '#1a6b3a'};color:#fff;">${isSFHA ? '⚠ SPECIAL FLOOD HAZARD AREA' : '✓ NOT IN SFHA'}</span>
-      </div>`;
+    // If ZIP centroid was used, prepend an accuracy warning
+    let html = '';
+    if (geocodeMethod.includes('ZIP centroid') || geocodeMethod.includes('approximate')) {
+      html += '<div style="padding:8px 12px;background:var(--warn-bg);border:1px solid #f0d080;border-radius:6px;margin-top:12px;font-size:11px;color:var(--warn);">' +
+        '⚠ <strong>Approximate result</strong> — street address not found in geocoder database (common for private/gated roads). ' +
+        'Flood zone shown is for ZIP ' + zip + ' centroid. Verify exact BFE on FEMA MSC or county flood page.' +
+        '</div>';
+    }
+    html += '<div style="margin-top:12px;padding:14px 16px;background:' + (isSFHA ? '#fdeaea' : 'var(--green-bg)') + ';border:1px solid ' + (isSFHA ? '#f0b8b8' : '#b8dfc8') + ';border-radius:var(--r);">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">' +
+      '<span style="font-size:22px;font-weight:800;font-family:var(--mono);color:' + zoneColor + ';letter-spacing:-0.5px;">Zone ' + fldZone + (subtype ? ' <small style=\"font-size:13px\">('+subtype+')</small>' : '') + '</span>' +
+      '<span style="padding:3px 10px;border-radius:99px;font-size:10px;font-family:var(--mono);font-weight:700;background:' + (isSFHA ? '#9b1c1c' : '#1a6b3a') + ';color:#fff;">' + (isSFHA ? '⚠ SPECIAL FLOOD HAZARD AREA' : '✓ NOT IN SFHA') + '</span>' +
+      '</div>';
 
     const rows = [
       ['FIRM Zone',            `${fldZone}${subtype ? ' — ' + subtype : ''}`],
@@ -2463,7 +2542,7 @@ async function lookupFloodZone() {
       ['SFHA',                 isSFHA ? 'Yes — flood insurance required with federal mortgage' : 'No — minimal flood hazard'],
       ['Min Generator Elevation', minGenElev ? `${minGenElev} ft NAVD88 (BFE ${bfeVal} ft + ${freeboard} ft freeboard)` : 'Verify with FIRM panel'],
       ['DFIRM Panel',          dfirmId || 'See FEMA MSC'],
-      ['Geocoded Address',     matchedAddr],
+      ['Geocoded Address',     matchedAddr + (geocodeMethod ? ' [via ' + geocodeMethod + ']' : '')],
     ];
 
     rows.forEach(([l,v]) => {
