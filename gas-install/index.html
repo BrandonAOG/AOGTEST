@@ -2784,7 +2784,7 @@ async function lookupFloodZone() {
   const floodStatusId = 'floodStatusInline';
   const existing = document.getElementById(floodStatusId);
   if (existing) existing.remove();
-  resEl.insertAdjacentHTML('beforeend', '<div id="' + floodStatusId + '" class="alert alert-info" style="margin-top:10px;">⏳ Step 1 of 2 — Geocoding address…</div>');
+  resEl.insertAdjacentHTML('beforeend', '<div id="' + floodStatusId + '" class="alert alert-info" style="margin-top:10px;">⏳ Step 1 of 3 — Geocoding address…</div>');
 
   // Build the full address string for all geocoders
   const addrRaw = addr + ', ' + (city || '') + ' FL ' + (zip || '');
@@ -2815,13 +2815,15 @@ async function lookupFloodZone() {
   try {
     let lat, lon, matchedAddr;
 
-    /* ── GEOCODING: 4-attempt cascade ──
+    /* ── GEOCODING: 5-attempt cascade ──
        Many SW Florida streets (gated communities, private roads) are not
        in the Census TIGER database. We try progressively broader lookups:
        1. Full address → Census
-       2. Full address → Nominatim  
-       3. Street + ZIP variations → Census (expand abbreviations)
-       4. ZIP centroid → Census (gives approximate zone, clearly labelled)
+       2. Full address → Nominatim
+       3. Street + ZIP variations → Census + Nominatim (expand abbreviations)
+       4. Naples City GIS parcel lookup (City of Naples only) — handles
+          private roads & gated communities not in national geocoders
+       5. ZIP centroid → Census (gives approximate zone, clearly labelled)
     */
     let geocodeMethod = '';
 
@@ -2903,28 +2905,90 @@ async function lookupFloodZone() {
           } catch(e3b) {
             debugLog('Attempt 3 failed', e3b.message);
 
-            // Attempt 4: ZIP code centroid — gives approximate flood zone
-            // Works for private/gated community streets not in any geocoder
-            if (zip) {
+            // Attempt 4: Naples City GIS parcel lookup (City of Naples only)
+            // Queries the Naples ArcGIS FeatureServer directly by STR_NUM + STR_NAME.
+            // Handles private roads and gated communities not in national geocoders.
+            // Free, no API key — open ArcGIS REST service at g.naplesgov.com
+            if (selectedJur === 'City of Naples') {
               try {
-                const r = await tryCensus(city + ' FL ' + zip);
-                lat = r.lat; lon = r.lon;
-                matchedAddr = 'ZIP ' + zip + ' centroid (street not in geocoder database — result is approximate)';
-                geocodeMethod = 'ZIP centroid (approximate)';
-                debugLog('Attempt 4 (ZIP centroid) OK', { lat, lon });
-              } catch(e4) {
-                debugLog('Attempt 4 (ZIP) failed', e4.message);
+                const statusEl4 = document.getElementById(floodStatusId);
+                if (statusEl4) statusEl4.textContent = '⏳ Trying Naples City GIS parcel lookup…';
+                // Parse street number and name from address
+                const streetNum  = addr.match(/^\d+/)?.[0] || '';
+                // Strip number, then strip suffix (Ave, St, Dr, etc.) and anything after
+                const streetName = addr
+                  .replace(/^\d+\s*/, '')
+                  .replace(/\s+(Ave|Avenue|St|Street|Dr|Drive|Rd|Road|Blvd|Boulevard|Ln|Lane|Ct|Court|Cir|Circle|Pl|Place|Ter|Terrace|Pkwy|Parkway|Hwy|Highway|Way|Blf|Bnd|Brg|Brk|Burg|Byp|Cp|Cpe|Cswy|Cor|Cors|Crse|Crst|Xing|Ext|Fld|Flds|Flt|Flts|Frd|Frds|Frst|Frwy|Gdn|Gdns|Gtwy|Gln|Glns|Grn|Grns|Grv|Grvs|Hbr|Hbrs|Hl|Hls|Holw|Inlt|Is|Iss|Jct|Jcts|Knl|Knls|Lk|Lks|Lndg|Mdw|Mdws|Ml|Mls|Mnr|Mnrs|Msn|Mtwy|Mt|Mtn|Mtns|Nck|Orch|Oval|Opas|Park|Pass|Path|Pike|Pne|Pnes|Plns|Plz|Pt|Pts|Prt|Prts|Pr|Radl|Ramp|Rnch|Rpds|Rst|Rdg|Rdgs|Riv|Rue|Run|Shl|Shls|Shoal|Shoals|Skwy|Smt|Spg|Spgs|Spur|Sq|Sqrs|Sta|Stra|Strm|Trak|Trfy|Trl|Trlr|Tunl|Upas|Un|Uns|Vly|Vlys|Via|Viadct|Vis|Vst|Wl|Wls|Wl|Wls|Wy|Wys)\b.*/i, '')
+                  .trim()
+                  .toUpperCase();
+                if (!streetNum || !streetName) throw new Error('could not parse street number/name from: ' + addr);
+                debugLog('Naples GIS query', { streetNum, streetName });
+                const naplesUrl =
+                  'https://g.naplesgov.com/arcgis/rest/services/City/Parcels/FeatureServer/0/query' +
+                  '?where=' + encodeURIComponent("STR_NUM='" + streetNum + "' AND STR_NAME LIKE '" + streetName + "%'") +
+                  '&outFields=STR_NUM,STR_NAME,STR_TYPE,FLN' +
+                  '&returnGeometry=true' +
+                  '&returnCentroid=true' +
+                  '&outSR=4326' +
+                  '&resultRecordCount=1' +
+                  '&f=json';
+                const nr = await fetch(naplesUrl, { mode: 'cors' });
+                if (!nr.ok) throw new Error('Naples GIS HTTP ' + nr.status);
+                const nd = await nr.json();
+                if (nd.error) throw new Error('Naples GIS: ' + nd.error.message);
+                const nf = nd?.features?.[0];
+                if (!nf) throw new Error('no parcel match for ' + streetNum + ' ' + streetName);
+                // Use centroid if returned, else compute ring centroid from polygon geometry
+                let plat, plon;
+                if (nf.centroid) {
+                  plat = nf.centroid.y; plon = nf.centroid.x;
+                } else if (nf.geometry?.rings?.[0]) {
+                  const ring = nf.geometry.rings[0];
+                  plon = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+                  plat = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+                } else {
+                  throw new Error('Naples GIS returned feature with no usable geometry');
+                }
+                lat = plat; lon = plon;
+                const attr = nf.attributes;
+                matchedAddr = (attr.STR_NUM + ' ' + attr.STR_NAME + ' ' + (attr.STR_TYPE || '')).trim() +
+                  ' — Naples City GIS parcel centroid' +
+                  (attr.FLN ? ' (folio ' + attr.FLN + ')' : '');
+                geocodeMethod = 'Naples City GIS parcel lookup';
+                debugLog('Attempt 4 (Naples GIS) OK', { lat, lon, folio: attr.FLN });
+              } catch(e4naples) {
+                debugLog('Attempt 4 (Naples GIS) failed', e4naples.message);
+                // fall through to ZIP centroid below
+              }
+            }
+
+            // Attempt 5: ZIP code centroid — gives approximate flood zone
+            // Works for private/gated community streets not in any geocoder
+            // (skipped if Naples GIS already found coords above)
+            if (!lat) {
+              if (zip) {
+                try {
+                  const statusEl5 = document.getElementById(floodStatusId);
+                  if (statusEl5) statusEl5.textContent = '⏳ Trying ZIP centroid fallback…';
+                  const r = await tryCensus(city + ' FL ' + zip);
+                  lat = r.lat; lon = r.lon;
+                  matchedAddr = 'ZIP ' + zip + ' centroid (street not in geocoder database — result is approximate)';
+                  geocodeMethod = 'ZIP centroid (approximate)';
+                  debugLog('Attempt 5 (ZIP centroid) OK', { lat, lon });
+                } catch(e5) {
+                  debugLog('Attempt 5 (ZIP) failed', e5.message);
+                  throw new Error(
+                    'Street "' + addr + '" not found in any geocoder database. ' +
+                    'This is common for private/gated community roads. ' +
+                    'Enter BFE and flood zone manually in Step 3, or use the FEMA MSC link below.'
+                  );
+                }
+              } else {
                 throw new Error(
-                  'Street "' + addr + '" not found in any geocoder database. ' +
-                  'This is common for private/gated community roads. ' +
-                  'Enter BFE and flood zone manually in Step 3, or use the FEMA MSC link below.'
+                  'Street "' + addr + '" not found — enter ZIP code in Step 1 for ZIP-level flood zone lookup, ' +
+                  'or enter BFE and flood zone manually in Step 3.'
                 );
               }
-            } else {
-              throw new Error(
-                'Street "' + addr + '" not found — enter ZIP code in Step 1 for ZIP-level flood zone lookup, ' +
-                'or enter BFE and flood zone manually in Step 3.'
-              );
             }
           }
         }
@@ -2936,7 +3000,7 @@ async function lookupFloodZone() {
     debugLog('Geocoded coords stored', { lat, lon, method: geocodeMethod });
 
     const statusEl = document.getElementById(floodStatusId);
-    if (statusEl) statusEl.textContent = '⏳ Step 2 of 2 — Querying FEMA flood maps… (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')'
+    if (statusEl) statusEl.textContent = '⏳ Step 3 of 3 — Querying FEMA flood maps… (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')'
 
     /* ── STEP 2: FEMA NFHL REST API → flood zone + BFE ──
        CRITICAL: Must pass inSR=4326 so FEMA knows we are sending
@@ -3024,12 +3088,17 @@ async function lookupFloodZone() {
     };
     const zoneColor = zoneColors[mappedZone] || '#5a6a7e';
 
-    // If ZIP centroid was used, prepend an accuracy warning
+    // Prepend accuracy notice based on geocode method used
     let html = '';
     if (geocodeMethod.includes('ZIP centroid') || geocodeMethod.includes('approximate')) {
       html += '<div style="padding:8px 12px;background:var(--warn-bg);border:1px solid #f0d080;border-radius:6px;margin-top:12px;font-size:11px;color:var(--warn);">' +
-        '⚠ <strong>Approximate result</strong> — street address not found in geocoder database (common for private/gated roads). ' +
+        '⚠ <strong>Approximate result</strong> — street address not found in any geocoder database (common for private/gated roads). ' +
         'Flood zone shown is for ZIP ' + zip + ' centroid. Verify exact BFE on FEMA MSC or county flood page.' +
+        '</div>';
+    } else if (geocodeMethod.includes('Naples City GIS parcel')) {
+      html += '<div style="padding:8px 12px;background:var(--ice);border:1px solid var(--ice2);border-radius:6px;margin-top:12px;font-size:11px;color:var(--blue);">' +
+        'ℹ️ <strong>Located via Naples City GIS parcel database</strong> — address was not found in national geocoders but was matched ' +
+        'to a City of Naples parcel record. Flood zone is based on the parcel centroid. Verify on FEMA MSC if precision is critical.' +
         '</div>';
     }
     html += '<div style="margin-top:12px;padding:14px 16px;background:' + (isSFHA ? '#fdeaea' : 'var(--green-bg)') + ';border:1px solid ' + (isSFHA ? '#f0b8b8' : '#b8dfc8') + ';border-radius:var(--r);">' +
