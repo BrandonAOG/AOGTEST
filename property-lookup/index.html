@@ -144,14 +144,23 @@
       height:var(--sheet-h, 50vh);max-height:92vh;
       border-radius:18px 18px 0 0;border-left:none;border-right:none;border-bottom:none;
       box-shadow:0 -10px 40px rgba(0,0,0,.6);
-      transition:height .28s cubic-bezier(.22,1,.36,1);
+      transition:height .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1);
     }
     #panel.dragging{transition:none}          /* follow the finger 1:1 while dragging */
+    /* fully hidden: slide the whole sheet off the bottom so the map is unobstructed */
+    #panel.hidden{transform:translateY(105%)}
     /* grab handle (tap target + drag origin) */
     .sheet-grip{display:block;position:relative;height:22px;flex:none;cursor:grab;touch-action:none}
     .sheet-grip::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);
       width:42px;height:5px;border-radius:3px;background:#3a4756;transition:background .15s}
     .sheet-grip:active::before{background:var(--signal)}
+
+    /* floating pull-up tab — only visible when the sheet is hidden */
+    .sheet-tab{display:none;position:absolute;z-index:1100;bottom:14px;left:50%;transform:translateX(-50%);
+      background:var(--signal);color:#191100;border:none;border-radius:22px;
+      font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:.04em;
+      padding:11px 20px;box-shadow:0 6px 22px rgba(0,0,0,.5);cursor:pointer}
+    .sheet-tab.show{display:inline-flex;align-items:center;gap:7px}
 
     header{padding-top:4px}
     header p{display:none}            /* trim long intro on small screens */
@@ -173,13 +182,14 @@
     .crosshair{display:none}
     .suggest .sg{padding:13px 12px;font-size:13px}  /* bigger tap targets */
   }
-  /* the grip only exists on mobile; hide on desktop */
-  .sheet-grip{display:none}
+  /* the grip & pull-up tab only exist on mobile; hide on desktop */
+  .sheet-grip,.sheet-tab{display:none}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div class="crosshair" id="coordReadout">click the map to query a point</div>
+<button class="sheet-tab" id="sheetTab" aria-label="Show property panel">⌃ Property panel</button>
 <div class="layerswitch">
   <button id="btnSat" class="active">Satellite</button>
   <button id="btnStreet">Street</button>
@@ -781,16 +791,27 @@ map.on('moveend',()=>{ if(lastLoc) STORE.set('fl_loc',JSON.stringify({lat:lastLo
 const Sheet=(function(){
   const panel=document.getElementById('panel');
   const grip=document.getElementById('sheetGrip');
+  const tab=document.getElementById('sheetTab');
   const isMobile=()=>window.matchMedia('(max-width:680px)').matches;
   // snap heights as fraction of viewport: peek (search only), half, full
   const SNAPS=[0.16,0.50,0.88];
   let idx=1;                                   // start at half
+  let hidden=false;
   const vh=()=>window.innerHeight;
   function apply(px){ panel.style.setProperty('--sheet-h', px+'px'); }
-  function snapTo(i){ idx=Math.max(0,Math.min(SNAPS.length-1,i)); if(isMobile()) apply(Math.round(SNAPS[idx]*vh())); }
+  function show(){ hidden=false; panel.classList.remove('hidden'); tab.classList.remove('show'); }
+  function hide(){
+    if(!isMobile()) return;
+    hidden=true; panel.classList.add('hidden'); tab.classList.add('show');
+  }
+  function snapTo(i){
+    idx=Math.max(0,Math.min(SNAPS.length-1,i));
+    if(isMobile()){ show(); apply(Math.round(SNAPS[idx]*vh())); }
+  }
   function setState(name){            // semantic helpers for the lookup flow
     if(!isMobile()) return;
-    if(name==='peek') snapTo(0);
+    if(name==='hidden') hide();
+    else if(name==='peek') snapTo(0);
     else if(name==='full') snapTo(2);
     else snapTo(1);
   }
@@ -807,14 +828,16 @@ const Sheet=(function(){
     if(!dragging) return;
     const y=(e.touches?e.touches[0].clientY:e.clientY);
     let h=startH+(startY-y);                    // drag up = taller
-    h=Math.max(vh()*0.10,Math.min(vh()*0.92,h));
+    h=Math.max(vh()*0.06,Math.min(vh()*0.92,h));
     apply(h);
   }
   function up(){
     if(!dragging) return;
     dragging=false; panel.classList.remove('dragging');
     const frac=panel.getBoundingClientRect().height/vh();
-    // snap to nearest defined point
+    // dragged below the peek point → dismiss entirely so the map is fully visible
+    if(frac < SNAPS[0]*0.75){ hide(); return; }
+    // otherwise snap to nearest defined point
     let best=0,bd=1e9;
     SNAPS.forEach((s,i)=>{ const d=Math.abs(s-frac); if(d<bd){bd=d;best=i;} });
     snapTo(best);
@@ -825,16 +848,18 @@ const Sheet=(function(){
   window.addEventListener('mousemove',move);
   window.addEventListener('touchend',up);
   window.addEventListener('mouseup',up);
-  // tapping the grip (no drag) cycles peek -> half -> full -> half...
+  // pull-up tab brings the sheet back (at peek, so the map stays mostly visible)
+  tab.addEventListener('click',()=>{ snapTo(0); });
+  // tapping the grip (no drag) cycles peek -> half -> full -> peek...
   let tapStartY=0,moved=false;
   grip.addEventListener('touchstart',e=>{tapStartY=e.touches[0].clientY;moved=false;},{passive:true});
   grip.addEventListener('touchmove',e=>{ if(Math.abs(e.touches[0].clientY-tapStartY)>6) moved=true; },{passive:true});
-  grip.addEventListener('click',()=>{ if(moved) return; snapTo(idx>=2?1:idx+1); });
+  grip.addEventListener('click',()=>{ if(moved) return; snapTo(idx>=2?0:idx+1); });
   // re-apply on resize/orientation change
-  window.addEventListener('resize',()=>{ if(isMobile()) snapTo(idx); else panel.style.removeProperty('--sheet-h'); });
+  window.addEventListener('resize',()=>{ if(isMobile()){ if(!hidden) snapTo(idx); } else { panel.style.removeProperty('--sheet-h'); panel.classList.remove('hidden'); tab.classList.remove('show'); } });
   // init
   if(isMobile()) snapTo(1);
-  return { setState };
+  return { setState, hide, show };
 })();
 window.Sheet=Sheet;
 
