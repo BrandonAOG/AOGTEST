@@ -3950,15 +3950,19 @@ async function lookupFloodZone() {
   try {
     let lat, lon, matchedAddr;
 
+    // Detect county from city/address for county-specific geocoder fallbacks
+    const countyFromGeo = detectFloridaCounty((city || '') + ' ' + (addr || '') + ' ' + (zip || ''))
+                       || (selectedJur ? selectedJur.toLowerCase().replace(/county|city of|town of/gi,'').trim() : '');
+
     /* ── GEOCODING: 5-attempt cascade ──
        Many SW Florida streets (gated communities, private roads) are not
        in the Census TIGER database. We try progressively broader lookups:
        1. Full address → Census
        2. Full address → Nominatim
        3. Street + ZIP variations → Census + Nominatim (expand abbreviations)
-       4. Naples City GIS parcel lookup (City of Naples only) — handles
-          private roads & gated communities not in national geocoders
-       5. ZIP centroid → Census (gives approximate zone, clearly labelled)
+       4. Naples City GIS parcel lookup (City of Naples only)
+       4b. Charlotte County GIS geocoder (Port Charlotte, Punta Gorda, Englewood)
+       5. ZIP centroid → Census then Nominatim (gives approximate zone, clearly labelled)
     */
     let geocodeMethod = '';
 
@@ -4097,16 +4101,53 @@ async function lookupFloodZone() {
               }
             }
 
+            // Attempt 4b: Charlotte County GIS geocoder — handles private/gated roads
+            // not in national databases. Free, no key — agis3.charlottecountyfl.gov
+            if (!lat && countyFromGeo === 'charlotte' || (!lat && (city || '').toLowerCase().includes('port charlotte') || (city || '').toLowerCase().includes('punta gorda') || (city || '').toLowerCase().includes('englewood'))) {
+              try {
+                const statusEl4b = document.getElementById(floodStatusId);
+                if (statusEl4b) statusEl4b.textContent = '⏳ Trying Charlotte County GIS geocoder…';
+                const ccGeoUrl = 'https://agis3.charlottecountyfl.gov/arcgis/rest/services/Locators/Charlotte_Composite/GeocodeServer/findAddressCandidates' +
+                  '?SingleLine=' + encodeURIComponent(addr + ', ' + (city || '') + ' FL ' + (zip || '')) +
+                  '&outFields=*&maxLocations=1&f=json';
+                const ccgr = await fetch(ccGeoUrl, { mode: 'cors' });
+                if (!ccgr.ok) throw new Error('CC GIS geocoder HTTP ' + ccgr.status);
+                const ccgd = await ccgr.json();
+                const cand = ccgd?.candidates?.[0];
+                if (!cand || cand.score < 60) throw new Error('CC GIS geocoder: no high-confidence match (score=' + (cand?.score || 0) + ')');
+                lat = cand.location.y; lon = cand.location.x;
+                matchedAddr = cand.address + ' — Charlotte County GIS geocoder (score ' + cand.score + ')';
+                geocodeMethod = 'Charlotte County GIS geocoder';
+                debugLog('Attempt 4b (CC GIS geocoder) OK', { lat, lon, score: cand.score });
+              } catch(e4cc) {
+                debugLog('Attempt 4b (CC GIS geocoder) failed', e4cc.message);
+              }
+            }
+
             // Attempt 5: ZIP code centroid — gives approximate flood zone
             // Works for private/gated community streets not in any geocoder
-            // (skipped if Naples GIS already found coords above)
+            // (skipped if a previous attempt already found coords)
             if (!lat) {
               if (zip) {
                 try {
                   const statusEl5 = document.getElementById(floodStatusId);
                   if (statusEl5) statusEl5.textContent = '⏳ Trying ZIP centroid fallback…';
-                  const r = await tryCensus(city + ' FL ' + zip);
-                  lat = r.lat; lon = r.lon;
+                  // Try Census first, then Nominatim for ZIP centroid
+                  let zipCoords = null;
+                  try {
+                    const r = await tryCensus(city + ' FL ' + zip);
+                    zipCoords = r;
+                  } catch(_) {
+                    try {
+                      const r = await tryNominatim((city || '') + ' FL ' + zip + ' USA');
+                      zipCoords = r;
+                    } catch(__) {
+                      // Also try just the ZIP alone with Nominatim
+                      const r = await tryNominatim(zip + ' Florida USA');
+                      zipCoords = r;
+                    }
+                  }
+                  lat = zipCoords.lat; lon = zipCoords.lon;
                   matchedAddr = 'ZIP ' + zip + ' centroid (street not in geocoder database — result is approximate)';
                   geocodeMethod = 'ZIP centroid (approximate)';
                   debugLog('Attempt 5 (ZIP centroid) OK', { lat, lon });
