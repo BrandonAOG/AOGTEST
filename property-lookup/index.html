@@ -335,8 +335,7 @@ const FORERUNNER = {
      permit   - permitting portal for survey/site-plan/permit-history (deep link)
      permitBy - 'address' | 'strap' | 'permit'  (how that portal is searched)
 */
-const DOCS = {
-  // --- Municipalities (checked FIRST; a city parcel uses its own portal, not the county's) ---
+const DOCS_CITY = {
   NAPLES: {
     // City of Naples is its own jurisdiction inside Collier County — separate permitting & flood portal.
     ecLayer: null,   // Naples EC lookup is via the Forerunner resident portal (not an ArcGIS layer)
@@ -344,8 +343,9 @@ const DOCS = {
     ecNote:  "City of Naples (not Collier County): search the address in the Naples flood portal for its Elevation Certificate. City Building Dept (239) 213-5020.",
     permit:  "https://cityview2.iharriscomputer.com/CityofNaplesFlorida/Permit/Locator",
     permitBy:"address"
-  },
-  // --- Counties (fallback for unincorporated parcels) ---
+  }
+};
+const DOCS_COUNTY = {
   COLLIER: {
     // Collier publishes an EC map app; this layer URL is a best guess and MUST be verified.
     ecLayer: "https://ags2.colliercountyfl.gov/gis/rest/services/agency/ElevationCertificates/MapServer/0",
@@ -363,32 +363,46 @@ const DOCS = {
     permitBy:"address"
   }
 };
+/* Resolve documents config: city first (by municipality), else county. */
+function resolveDocs(cityName, countyName){
+  if(cityName && DOCS_CITY[norm(cityName)]) return { cfg:DOCS_CITY[norm(cityName)], inCity:true };
+  if(countyName && DOCS_COUNTY[norm(countyName)]) return { cfg:DOCS_COUNTY[norm(countyName)], inCity:false };
+  return { cfg:null, inCity:false };
+}
 
 /* Zoning / permitting portals + Municode (zoning & setbacks live here, NOT the appraiser).
-   Keyed by normalized jurisdiction name (city first, else county). */
-const ZONING = {
-  // counties
+   Split into CITY and COUNTY namespaces so a municipality and a county that share a name
+   (e.g. City of Sarasota vs Sarasota County) never collide. Resolution is always
+   city-by-cityName, else county-by-countyName. */
+const ZONING_COUNTY = {
   COLLIER:{code:"https://library.municode.com/fl/collier_county/codes/land_development_code", permit:"https://cvportal.colliercountyfl.gov/cityviewweb/"},
   LEE:{code:"https://library.municode.com/fl/lee_county/codes/land_development_code", permit:"https://www.leegov.com/dcd"},
   CHARLOTTE:{code:"https://library.municode.com/fl/charlotte_county/codes/code_of_ordinances", permit:"https://www.charlottecountyfl.gov/services/buildingconstruction/"},
   SARASOTA:{code:"https://library.municode.com/fl/sarasota_county/codes/code_of_ordinances", permit:"https://www.scgov.net/government/planning-and-development-services"},
-  MANATEE:{code:"https://library.municode.com/fl/manatee_county/codes/code_of_ordinances", permit:"https://www.mymanatee.org/departments/building___development_services"},
-  // cities
-  "MARCOISLAND":{code:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances", permit:"https://www.cityofmarcoisland.com/communityaffairs"},
+  MANATEE:{code:"https://library.municode.com/fl/manatee_county/codes/code_of_ordinances", permit:"https://www.mymanatee.org/departments/building___development_services"}
+};
+const ZONING_CITY = {
+  MARCOISLAND:{code:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances", permit:"https://www.cityofmarcoisland.com/communityaffairs"},
   NAPLES:{code:"https://library.municode.com/fl/naples/codes/code_of_ordinances", permit:"https://cityview2.iharriscomputer.com/CityofNaplesFlorida/Permit/Locator"},
-  "CAPECORAL":{code:"https://library.municode.com/fl/cape_coral/codes/code_of_ordinances", permit:"https://www.capecoral.gov/department/community_development/"},
-  "FORTMYERS":{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", permit:"https://www.cityftmyers.com/166/Community-Development"},
-  "BONITASPRINGS":{code:"https://library.municode.com/fl/bonita_springs/codes/code_of_ordinances", permit:"https://www.cityofbonitasprings.org/departments/community-development"},
+  CAPECORAL:{code:"https://library.municode.com/fl/cape_coral/codes/code_of_ordinances", permit:"https://energovweb.capecoral.gov/EnerGovProd/selfservice#/home"},
+  FORTMYERS:{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", permit:"https://www.cityftmyers.com/166/Community-Development"},
+  BONITASPRINGS:{code:"https://library.municode.com/fl/bonita_springs/codes/code_of_ordinances", permit:"https://www.cityofbonitasprings.org/departments/community-development"},
   SANIBEL:{code:"https://library.municode.com/fl/sanibel/codes/code_of_ordinances", permit:"https://www.mysanibel.com/departments/planning-code-enforcement"},
   ESTERO:{code:"https://library.municode.com/fl/estero/codes/code_of_ordinances", permit:"https://estero-fl.gov/departments/community-development/"},
-  "FORTMYERSBEACH":{code:"https://library.municode.com/fl/fort_myers_beach/codes/code_of_ordinances", permit:"https://www.fmbgov.com/government/community-development"},
-  "PUNTAGORDA":{code:"https://library.municode.com/fl/punta_gorda/codes/code_of_ordinances", permit:"https://www.pgorda.us/151/Urban-Design"},
-  SARASOTACITY:{code:"https://library.municode.com/fl/sarasota/codes/code_of_ordinances", permit:"https://www.sarasotafl.gov/government/development-services"},
+  FORTMYERSBEACH:{code:"https://library.municode.com/fl/fort_myers_beach/codes/code_of_ordinances", permit:"https://www.fmbgov.com/government/community-development"},
+  PUNTAGORDA:{code:"https://library.municode.com/fl/punta_gorda/codes/code_of_ordinances", permit:"https://www.pgorda.us/151/Urban-Design"},
+  SARASOTA:{code:"https://library.municode.com/fl/sarasota/codes/code_of_ordinances", permit:"https://www.sarasotafl.gov/government/development-services"},  // City of Sarasota (was wrongly keyed SARASOTACITY)
   VENICE:{code:"https://library.municode.com/fl/venice/codes/code_of_ordinances", permit:"https://www.venicegov.com/government/development-services"},
-  "NORTHPORT":{code:"https://library.municode.com/fl/north_port/codes/code_of_ordinances", permit:"https://www.northportfl.gov/government/neighborhood-development-services"},
+  NORTHPORT:{code:"https://library.municode.com/fl/north_port/codes/code_of_ordinances", permit:"https://www.northportfl.gov/government/neighborhood-development-services"},
   BRADENTON:{code:"https://library.municode.com/fl/bradenton/codes/code_of_ordinances", permit:"https://www.cityofbradenton.com/162/Planning-Community-Development"},
   PALMETTO:{code:"https://library.municode.com/fl/palmetto/codes/code_of_ordinances", permit:"https://www.palmettofl.org/152/Planning-Zoning"}
 };
+/* Resolve zoning config: city first (by municipality), else county. */
+function resolveZoning(cityName, countyName){
+  if(cityName && ZONING_CITY[norm(cityName)]) return { cfg:ZONING_CITY[norm(cityName)], inCity:true };
+  if(countyName && ZONING_COUNTY[norm(countyName)]) return { cfg:ZONING_COUNTY[norm(countyName)], inCity:false };
+  return { cfg:null, inCity:false };
+}
 function municodeSearch(j){ return "https://www.google.com/search?q="+encodeURIComponent(j+" Florida land development code zoning setbacks municode"); }
 
 /* layer-metadata cache: name, last edit date, fields, detected mapping */
@@ -776,9 +790,12 @@ async function runLookup(lat,lng){
   html += `</div></div>`;
 
   /* ---- Zoning & setbacks: from the local CODE + permitting portal, NOT the appraiser ---- */
-  const jurNorm = cityName?norm(cityName):(countyName?norm(countyName):null);
-  const z = jurNorm ? (ZONING[jurNorm] || (countyName?ZONING[norm(countyName)]:null)) : null;
-  const jurName = cityName?titleCase(cityName):(countyName?titleCase(countyName)+' County':'the local jurisdiction');
+  const zr = resolveZoning(cityName, countyName);
+  const z = zr.cfg;
+  // jurName reflects what the links actually point to: the city only if we resolved to a city entry
+  const jurName = zr.inCity ? titleCase(cityName)
+                : (z ? titleCase(countyName)+' County'
+                : (cityName?titleCase(cityName):(countyName?titleCase(countyName)+' County':'the local jurisdiction')));
   html += `<div class="card"><div class="ch"><span class="icn">[ ZON ]</span><h2>Zoning &amp; Setbacks</h2>
     <div class="src">local code /<br>permitting portal</div></div><div class="cb">`;
   html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number.</div>`;
@@ -793,9 +810,10 @@ async function runLookup(lat,lng){
   /* ---- Permits & Documents: Elevation Certificate (live where wired) + Survey/Site Plan links ---- */
   // Jurisdiction-aware: a City of Naples parcel uses Naples' portal, NOT Collier County's.
   // City keys are checked before the county key (city is its own permitting/flood authority).
-  const docCfg = (cityName && DOCS[norm(cityName)]) || (countyName && DOCS[norm(countyName)]) || null;
-  const docInCity = !!(cityName && DOCS[norm(cityName)]);   // true if the matched config is the city's
-  const docJur = docInCity ? titleCase(cityName) : (countyName ? titleCase(countyName)+' County' : 'the local jurisdiction');
+  const dr = resolveDocs(cityName, countyName);
+  const docCfg = dr.cfg;
+  const docInCity = dr.inCity;   // true if the matched config is the city's
+  const docJur = docInCity ? titleCase(cityName) : (docCfg ? titleCase(countyName)+' County' : (countyName ? titleCase(countyName)+' County' : 'the local jurisdiction'));
   // best-effort parcel id for deep links (statewide roll field, or live feed)
   let strap=null;
   try{
