@@ -1690,7 +1690,7 @@ function fieldRow(k,v,cls){ if(v==null||v==='') return ''; return `<div class="f
 /* Render the Naples setback quick-reference for a detected district. Convenience copy from Ch. 58;
    the live § deep-link is the source of truth. Handles by-use (R3-6) and base+conditional notes. */
 function ft(n){ return (n===Math.floor(n)?String(n):String(n)).replace(/\.5$/,'½')+' ft'; }
-function renderNaplesSetbacks(districtCode){
+function renderNaplesSetbacks(districtCode, yearBuilt){
   const e=naplesSetbacks(districtCode); if(!e) return '';
   const secUrl = e.section ? municodeSection(e.section) : null;
   let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">≈ QUICK REF</span> Naples setbacks${e.label?' · '+esc(e.label):''}${e.section?' · § '+esc(e.section):''}</div>`;
@@ -1714,7 +1714,35 @@ function renderNaplesSetbacks(districtCode){
   }
   h+=`<div class="note warnbox" style="margin-top:4px"><b>Quick reference only — verify against the live code.</b> Hand-entered from Naples Ch. 58 and may not reflect the latest amendments, overlays, or conditions. Confirm before any permitting/design decision.</div>`;
   if(secUrl) h+=`<a class="palink" href="${esc(secUrl)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § ${esc(e.section)} — live in Municode</a>`;
+  h+=renderNaplesGeneratorRules(yearBuilt);
   return h;
+}
+
+/* ---------- Naples § 56-41 mechanical-equipment / generator siting (Always On Generators) ----------
+   Always-applicable rules (fuel near a line, auto-cycle window, screening) render for every Naples
+   parcel. The pre-ordinance 36" side-yard allowance for NEW generators is gated on year-built, with
+   an explicit soft-data warning: roll year-built is NOT a permit date, and the ordinance's exact
+   effective date isn't encoded here. The cutoff used for the gate is a conservative proxy. */
+const NAPLES_56_41_CUTOFF_YEAR = 2007;   // proxy: "permitted & constructed prior to the ordinance"
+function renderNaplesGeneratorRules(yearBuilt){
+  const yNum = yearBuilt!=null ? parseInt(String(yearBuilt).replace(/[^0-9]/g,''),10) : NaN;
+  const haveYear = !isNaN(yNum) && yNum>1800 && yNum<2100;
+  let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · § 56-41</span> mechanical-equipment siting (City of Naples)</div>`;
+  // Always-applicable provisions
+  g+=`<div class="note"><b>Fuel near a property line:</b> a permanently installed generator within <b>15 ft of any property line</b> must run on propane, natural gas, or fuel with similar exhaust. Gasoline and diesel are prohibited within 15 ft of a property line.</div>`;
+  g+=`<div class="note"><b>Auto-cycling window:</b> automatic exercise/self-test may only run <b>9:00 a.m.–4:00 p.m., Monday–Thursday.</b></div>`;
+  g+=`<div class="note"><b>Screening:</b> all new and replaced equipment must be screened from view to its full height, per applicable fencing/landscaping rules and the manufacturer's specs.</div>`;
+  g+=`<div class="note"><b>New construction / major work:</b> equipment installed with new construction, or with additions/alterations exceeding 50% of the structure's assessed value, may <b>not</b> sit in a required yard at all.</div>`;
+  // Year-gated 36" side-yard allowance
+  if(haveYear && yNum < NAPLES_56_41_CUTOFF_YEAR){
+    g+=`<div class="note warnbox"><b>Possible 36″ side-yard allowance.</b> County records show this structure built <b>${esc(String(yNum))}</b>. For a single-family home <i>permitted and constructed before the § 56-41 ordinance's effective date</i>, a new generator may encroach up to <b>36 inches into a required SIDE yard</b> (side yard only — not front or rear). <b>Verify before relying on this:</b> the year shown is the assessor's build year, not the permit date, and the exact ordinance effective date is not confirmed here. Confirm both with the City of Naples Building Dept (239) 213-5020.</div>`;
+  } else if(haveYear){
+    g+=`<div class="note warnbox"><b>No automatic side-yard allowance.</b> County records show this structure built <b>${esc(String(yNum))}</b>, which does not clearly predate the § 56-41 ordinance, so assume a new generator must stay out of the required yard. Confirm the home's permit date and the ordinance date with the City of Naples Building Dept (239) 213-5020 if you believe it qualifies.</div>`;
+  } else {
+    g+=`<div class="note warnbox"><b>Build year unknown — side-yard allowance can't be assessed.</b> § 56-41 lets a new generator encroach up to 36″ into a required <b>side</b> yard only for single-family homes permitted and built before the ordinance's effective date. No reliable build/permit year is available here — confirm with the City of Naples Building Dept (239) 213-5020.</div>`;
+  }
+  g+=`<a class="palink" href="https://library.municode.com/fl/naples/codes/code_of_ordinances?nodeId=PTIICOOR_CH56SUST_ARTIISTAPALDI_S56-41MEEQ" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 56-41 — live in Municode</a>`;
+  return g;
 }
 
 function drawParcel(g){
@@ -1781,6 +1809,7 @@ async function runLookup(lat,lng,searchCtx){
   if(myId!==runId) return; // a newer query superseded this one
 
   let html='';
+  let parcelYearBuilt=null;   // captured from whichever parcel source answers; used for Naples § 56-41 generator gating
 
   /* ---- Location / jurisdiction ---- */
   let countyName = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
@@ -1887,6 +1916,7 @@ async function runLookup(lat,lng,searchCtx){
 
   if(liveHit){
     const det=detectFields(Object.keys(liveRes.features[0].attributes));
+    if(det.yr){ const _y=pick(liveRes.features[0].attributes,det.yr); if(_y) parcelYearBuilt=_y; }
     const le=liveMeta&&liveMeta.lastEdit;
     html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}</div>`;
     html += renderParcelGeneric(liveRes.features[0].attributes, det);
@@ -1931,6 +1961,7 @@ async function runLookup(lat,lng,searchCtx){
     const legal=pick(a,'S_LEGAL');
     const sec=pick(a,'SEC'),twn=pick(a,'TWN'),rng=pick(a,'RNG');
     const yr=pick(a,'ACT_YR_BLT'), bld=pick(a,'NO_BULDNG');
+    if(yr) parcelYearBuilt=yr;
     const liv2=fmtNum(pick(a,'TOT_LVG_AR')), lsf=fmtNum(pick(a,'LND_SQFOOT'));
     const jv=fmtMoney(pick(a,'JV')), lnd=fmtMoney(pick(a,'LND_VAL'));
     const ay=pick(a,'ASMNT_YR');
@@ -2035,7 +2066,7 @@ async function runLookup(lat,lng,searchCtx){
     if(zhit.code!=null && String(zhit.code).trim()!=='') html += fieldRow('Zoning district', esc(String(zhit.code)), 'big');
     if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
-    if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code); }
+    if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code, parcelYearBuilt); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
