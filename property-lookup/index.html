@@ -856,7 +856,45 @@ const NAPLES_SETBACKS = {
     heightAdd:"All yards add +1 ft for each 2 ft of building height over 45 ft.",
     frontNote:"30 ft base, +1 ft per 2 ft of height over 45 ft; 6 ft of front yard landscaped per Chapter 50.",
     sideNote:"15 ft base, +1 ft per 2 ft of height over 45 ft. Pools 15 ft from side line; not in any utility/drainage easement.",
-    rearNote:"25 ft base, +1 ft per 2 ft of height over 45 ft. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement." }
+    rearNote:"25 ft base, +1 ft per 2 ft of height over 45 ft. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement." },
+  "HC":     { section:"58-506", label:"Highway Commercial (HC)", front:20, side:10, rear:25,
+    frontNote:"All 20 ft of the front yard must be landscaped per Chapter 50.",
+    sideNote:"10 ft base; increases to 25 ft where the adjoining lot is in a residential district." },
+  "C1":     { section:"58-536", label:"C1 Retail Shopping", front:10, side:0, rear:25,
+    sideNote:"Zero-lot-line allowed: a building may sit ON the side lot line OR a minimum of 10 ft from it. Where the adjoining lot is in another zone with a different side-yard requirement, a minimum 10 ft side yard is required." },
+  "C1-A":   { section:"58-566", label:"C1-A Commercial Core", front:10, side:0, rear:25,
+    sideNote:"Zero-lot-line allowed: a building may sit ON the side lot line OR a minimum of 10 ft from it. Where the adjoining lot is in another zone with a different side-yard requirement, a minimum 10 ft side yard is required." },
+  "C2":     { section:"58-596", label:"C2", front:10, side:0, rear:25,
+    frontNote:"6 ft of the 10 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"Zero-lot-line allowed: a building may sit ON the side lot line OR a minimum of 10 ft from it. Where the adjoining lot is in another zone with a different side-yard requirement, a minimum 10 ft side yard is required." },
+  "C2-A":   { section:"58-626", label:"C2-A", front:20, side:0, rear:25,
+    frontNote:"6 ft of the 20 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"Zero-lot-line allowed: a building may sit ON the side lot line OR a minimum of 10 ft from it. Where the adjoining lot is in another zone with a different side-yard requirement, a minimum 10 ft side yard is required.",
+    rearNote:"25 ft base. No rear yard required for boat-service buildings or marinas, nor for structures/docks integrally related in use and function, or where an existing structure is partly supported by pilings. Outdoor seating/dining under canvas awnings open on three sides may encroach into a required waterfront rear yard if a 5-ft-wide public pedestrian walkway is maintained." },
+  "C3":     { section:"58-656", label:"C3 Heavy Commercial", front:10, side:0, rear:25,
+    frontNote:"6 ft of the 10 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"Zero-lot-line allowed: a building may sit ON the side lot line OR a minimum of 10 ft from it. Where the adjoining lot is in another zone with a different side-yard requirement, a minimum 10 ft side yard is required." },
+  "C4":     { section:"58-686", label:"C4", front:10, side:0, rear:25,
+    frontNote:"6 ft of the 10 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"Zero-lot-line allowed: a building may sit ON the side lot line OR a minimum of 10 ft from it. Where the adjoining lot is in another zone with a different side-yard requirement, a minimum 10 ft side yard is required." },
+  "I":      { section:"58-716", label:"I (Industrial)", front:25, side:0, rear:15,
+    frontNote:"6 ft of the 25 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"Zero-lot-line allowed: a building may sit ON the side lot line OR a minimum of 10 ft from it. Where the adjoining lot is in another zone with a different side-yard requirement, a minimum 10 ft side yard is required." },
+  "M":      { section:"58-746", label:"M", front:20, side:0, rear:20,
+    frontNote:"6 ft of the 20 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"Zero-lot-line allowed: a building may sit ON the side lot line OR a minimum of 7½ ft from it. Where the adjoining lot is in another zone with a different side-yard requirement, a minimum 7½ ft side yard is required." },
+  "O":      { section:"58-776", label:"O", front:20, side:0, rear:20,
+    frontNote:"6 ft of the 20 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"Zero-lot-line allowed: a building may sit ON the side lot line OR a minimum of 10 ft from it. Where the adjoining lot is in another zone with a different side-yard requirement, a minimum 10 ft side yard is required." },
+  "PS":     { section:"58-836", label:"PS (Public Service)", front:20, side:10, rear:25,
+    heightAdd:"Each yard must equal the requirement of the MOST RESTRICTIVE adjacent zoning district; the figures below are absolute floors and may be larger depending on what abuts the lot.",
+    frontNote:"20 ft floor (6 ft landscaped per Chapter 50) — but at least the most restrictive adjacent district's front yard.",
+    sideNote:"10 ft floor — but at least the most restrictive adjacent district's side yard.",
+    rearNote:"25 ft floor — but at least the most restrictive adjacent district's rear yard." },
+  "BP":     { section:"58-936", label:"BP (Business Park)", front:25, side:10, rear:15,
+    frontNote:"6 ft of the 25 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"The total of all side yards must equal 20% of lot width, capped at 50 ft total; no single side yard less than 10 ft. Unified plan allowed for lots under common ownership. Lots adjacent to a residential zoning district require a minimum 50 ft side yard.",
+    rearNote:"15 ft base. 50 ft where adjacent to a residential zoning district; 25 ft where adjacent to a water body." }
 };
 /* Normalize a zoning code for forgiving matching: uppercase, strip non-alphanumerics. */
 function normZoneKey(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
@@ -1659,9 +1697,10 @@ function renderNaplesSetbacks(districtCode){
   function block(o, heading){
     let b='';
     if(heading) b+=`<div class="field"><div class="k" style="opacity:.7">${esc(heading)}</div><div class="v"></div></div>`;
-    if(o.front!=null) b+=fieldRow('Front yard', ft(o.front)+(o.heightAdd?' +':''), 'big');
-    if(o.side!=null)  b+=fieldRow('Side yard', ft(o.side));
-    if(o.rear!=null)  b+=fieldRow('Rear yard', ft(o.rear));
+    const yd=v=>v===0?'On lot line (0 ft)':ft(v);
+    if(o.front!=null) b+=fieldRow('Front yard', yd(o.front)+(o.heightAdd?' +':''), 'big');
+    if(o.side!=null)  b+=fieldRow('Side yard', yd(o.side));
+    if(o.rear!=null)  b+=fieldRow('Rear yard', yd(o.rear));
     if(o.frontNote) b+=`<div class="note" style="padding-top:2px"><b>Front:</b> ${esc(o.frontNote)}</div>`;
     if(o.sideNote)  b+=`<div class="note" style="padding-top:2px"><b>Side:</b> ${esc(o.sideNote)}</div>`;
     if(o.rearNote)  b+=`<div class="note" style="padding-top:2px"><b>Rear:</b> ${esc(o.rearNote)}</div>`;
@@ -1733,11 +1772,10 @@ async function runLookup(lat,lng,searchCtx){
   const pCity    = arcQuery(EP.city,    lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
   const pCounty  = arcQuery(EP.county,  lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
   const pLive    = liveSource.url ? arcQuery(liveSource.url, lat, lng, '*', true).catch(e=>({__err:e.message})) : Promise.resolve(null);
-  const pUtil    = (async()=>{
-    const u = await resolveUtilQueryUrl();
-    if(!u) return {__err:'no territory endpoint resolved'};
-    return arcQuery(u, lat, lng, '*', false).catch(e=>({__err:e.message}));
-  })();
+  const _utilUrl = await resolveUtilQueryUrl();
+  const pUtil    = _utilUrl
+    ? arcQuery(_utilUrl, lat, lng, '*', false).catch(e=>({__err:e.message}))
+    : Promise.resolve(null);
 
   const [parcel,flood,city,county,live,util] = await Promise.all([pParcel,pFlood,pCity,pCounty,pLive,pUtil]);
   if(myId!==runId) return; // a newer query superseded this one
@@ -1940,7 +1978,7 @@ async function runLookup(lat,lng,searchCtx){
     const bfe=(z.STATIC_BFE!=null && Number(z.STATIC_BFE)>-9999) ? Number(z.STATIC_BFE) : null;
     const depth=(z.DEPTH!=null && Number(z.DEPTH)>-9999 && Number(z.DEPTH)!==0)?Number(z.DEPTH):null;
     const badge = sfha?`<span class="badge sfha">HIGH-RISK · SFHA</span>`
-                 : (zone==='X'||/X/.test(zone))?`<span class="badge safe">Reduced risk</span>`
+                 : /^X\b/.test(String(zone).trim().toUpperCase())?`<span class="badge safe">Reduced risk</span>`
                  : `<span class="badge unk">${esc(zone)}</span>`;
     html += `<div class="field"><div class="k">Flood zone</div><div class="v zone">${esc(zone)} ${badge}</div></div>`;
     if(sub) html += fieldRow('Zone subtype', esc(sub));
