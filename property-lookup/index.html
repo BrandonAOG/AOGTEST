@@ -897,6 +897,78 @@ async function geocode(q){
   return null;
 }
 
+/* ---------- Rooftop snap: correct an interpolated geocode to the real parcel ----------
+   Census/Nominatim interpolate a position from the house-number range along a street, which
+   lands 1–3 houses off. We re-query the statewide parcel roll right around that point and snap
+   to the parcel whose SITE ADDRESS actually matches the searched house number + street name.
+   Returns {lat,lng,matched} or null (in which case we keep the geocoded point). */
+/* Normalize an address into comparable tokens, KEEPING direction + suffix (these distinguish
+   Cape Coral's 9th Pl vs 9th Ter vs 9th Ct vs 9th Ln). The bare house number is dropped. */
+const DIRMAP={NORTH:'N',SOUTH:'S',EAST:'E',WEST:'W',NORTHEAST:'NE',NORTHWEST:'NW',SOUTHEAST:'SE',SOUTHWEST:'SW'};
+const SUFMAP={STREET:'ST',AVENUE:'AVE',BOULEVARD:'BLVD',DRIVE:'DR',ROAD:'RD',LANE:'LN',COURT:'CT',
+  CIRCLE:'CIR',TERRACE:'TER',TERR:'TER',PLACE:'PL',PARKWAY:'PKWY',HIGHWAY:'HWY',TRAIL:'TRL',
+  POINT:'PT',SQUARE:'SQ',CROSSING:'XING',COVE:'CV',TRACE:'TRCE'};
+function streetTokens(s){
+  return (s||'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').split(/\s+/)
+    .filter(Boolean)
+    .map(t=>DIRMAP[t]||SUFMAP[t]||t)
+    .filter(t=>!/^\d+$/.test(t));     // drop bare house number / zip; keep ordinals like 9TH and suffixes
+}
+function houseNum(s){ const m=(s||'').match(/\d+/); return m?m[0]:null; }
+
+/* area-weighted centroid of an Esri polygon ring [[x,y],...] */
+function ringCentroid(ring){
+  let a=0,cx=0,cy=0;
+  for(let i=0,n=ring.length,j=n-1;i<n;j=i++){
+    const x0=ring[j][0],y0=ring[j][1],x1=ring[i][0],y1=ring[i][1];
+    const f=x0*y1-x1*y0; a+=f; cx+=(x0+x1)*f; cy+=(y0+y1)*f;
+  }
+  if(Math.abs(a)<1e-12){ let sx=0,sy=0; ring.forEach(p=>{sx+=p[0];sy+=p[1];}); return [sx/ring.length, sy/ring.length]; }
+  a*=0.5; return [cx/(6*a), cy/(6*a)];
+}
+/* centroid of an Esri feature (uses .centroid if present, else largest ring) */
+function featCentroid(f){
+  if(f.centroid && typeof f.centroid.x==='number') return [f.centroid.x, f.centroid.y];
+  const rings=(f.geometry&&f.geometry.rings)||[]; if(!rings.length) return null;
+  let best=null,ba=-1;
+  for(const r of rings){ let a=0; for(let i=0,n=r.length,j=n-1;i<n;j=i++){ a+=r[j][0]*r[i][1]-r[i][0]*r[j][1]; } a=Math.abs(a); if(a>ba){ba=a;best=r;} }
+  return best?ringCentroid(best):null;
+}
+
+async function snapToParcelByAddress(q, lat, lng){
+  const hn=houseNum(q); if(!hn) return null;
+  const want=new Set(streetTokens(q));
+  const d=0.0035;                                          // ~380 m envelope (a generous block)
+  const env=`${lng-d},${lat-d},${lng+d},${lat+d}`;
+  // Filter to the exact house number on the server, pull geometry, compute centroid ourselves.
+  // Two PHY_ADDR1 forms are common: "4615 SW 9TH PL" and (rarely) "4615". Match both.
+  const where=`PHY_ADDR1 LIKE '${hn} %' OR PHY_ADDR1 = '${hn}'`;
+  const params=`where=${encodeURIComponent(where)}`+
+    `&geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+    `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent('PHY_ADDR1,PHY_CITY,PHY_ZIPCD')}`+
+    `&returnGeometry=true&returnCentroid=true&outSR=4326&resultRecordCount=40&f=json`;
+  let j;
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+    const r=await fetch(EP.parcel+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return null; j=await r.json();
+    if(j.error) return null;
+  }catch(e){ return null; }
+  const feats=(j&&j.features)||[];
+  let best=null, bestScore=-1;
+  for(const f of feats){
+    const a=f.attributes||{};
+    if(houseNum(a.PHY_ADDR1)!==hn) continue;               // exact house number
+    const c=featCentroid(f); if(!c) continue;
+    const toks=new Set(streetTokens(a.PHY_ADDR1));
+    let overlap=0; want.forEach(t=>{ if(toks.has(t)) overlap++; });
+    const dd=(c[1]-lat)*(c[1]-lat)+(c[0]-lng)*(c[0]-lng);   // proximity tie-break (lng=c[0], lat=c[1])
+    const score=overlap*1000 - dd*1e6;
+    if(score>bestScore){ bestScore=score; best={lat:c[1],lng:c[0],matched:[a.PHY_ADDR1,a.PHY_CITY,a.PHY_ZIPCD].filter(Boolean).join(' ')}; }
+  }
+  return best;
+}
+
 /* ---------- Render ---------- */
 function setStatus(state, text){
   return `<div class="status"><span class="dot ${state}"></span><span>${esc(text)}</span></div>`;
@@ -1274,10 +1346,14 @@ async function doSearch(){
   const g=await geocode(q);
   if(!g){ results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
   addToHistory(g.label || q);
-  map.setView([g.lat,g.lng],18);
-  await runLookup(g.lat,g.lng);
-  // prepend the matched-address confirmation
-  const conf=`<div class="note" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — confirm the marker is on the right lot.</div>`;
+  results.innerHTML=setStatus('busy','Pinpointing the parcel…');
+  const snap=await snapToParcelByAddress(q, g.lat, g.lng);
+  const pt = snap ? snap : g;
+  map.setView([pt.lat,pt.lng], snap?19:18);
+  await runLookup(pt.lat,pt.lng);
+  const conf = snap
+    ? `<div class="note" style="padding:2px 2px 4px"><span class="badge live" style="font-size:9px">● SNAPPED</span> Matched to parcel: <b style="color:var(--ink)">${esc(snap.matched)}</b> — corrected onto the actual lot.</div>`
+    : `<div class="note" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — this is an interpolated street position; confirm the marker is on the right lot.</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 document.getElementById('go').onclick=doSearch;
@@ -1328,10 +1404,14 @@ async function chooseSuggestion(it){
   addrEl.value=it.label;
   STORE.set('fl_addr',it.label);
   addToHistory(it.label);
-  results.innerHTML=setStatus('busy','Looking up that address…');
-  map.setView([it.lat,it.lng],18);
-  await runLookup(it.lat,it.lng);
-  const conf=`<div class="note" style="padding:2px 2px 4px">Matched (${esc(it.src)}): <b style="color:var(--ink)">${esc(it.label)}</b> — confirm the marker is on the right lot.</div>`;
+  results.innerHTML=setStatus('busy','Pinpointing the parcel…');
+  const snap=await snapToParcelByAddress(it.label, it.lat, it.lng);
+  const pt = snap ? snap : it;
+  map.setView([pt.lat,pt.lng], snap?19:18);
+  await runLookup(pt.lat,pt.lng);
+  const conf = snap
+    ? `<div class="note" style="padding:2px 2px 4px"><span class="badge live" style="font-size:9px">● SNAPPED</span> Matched to parcel: <b style="color:var(--ink)">${esc(snap.matched)}</b> — corrected onto the actual lot.</div>`
+    : `<div class="note" style="padding:2px 2px 4px">Matched (${esc(it.src)}): <b style="color:var(--ink)">${esc(it.label)}</b> — interpolated street position; confirm the marker is on the right lot.</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 
