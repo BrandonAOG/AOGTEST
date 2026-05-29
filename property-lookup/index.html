@@ -280,7 +280,7 @@
 
   <footer id="foot">
     <div style="color:var(--signal);font-family:var(--disp);font-weight:600;letter-spacing:.08em;margin-bottom:6px">ALWAYS ON GENERATORS · PROPERTY LOOKUP</div>
-    Sources: FL Dept. of Revenue statewide cadastral (county appraiser rolls) · FEMA National Flood Hazard Layer · FDOT administrative boundaries · US Census / OSM geocoding. Data reflects the most recent official rolls and <i>effective</i> FEMA maps — always verify with the county property appraiser before any legal, financial, or permitting decision.
+    Sources: FL Dept. of Revenue statewide cadastral (county appraiser rolls) · FEMA National Flood Hazard Layer · FDOT administrative boundaries · HIFLD Electric Retail Service Territories · US Census / OSM geocoding. Data reflects the most recent official rolls and <i>effective</i> FEMA maps — always verify with the county property appraiser before any legal, financial, or permitting decision.
     <div id="swStatus" style="margin-top:7px;color:var(--faint)"></div>
   </footer>
 </div>
@@ -291,13 +291,9 @@
    VERIFIED OFFICIAL ENDPOINTS (checked against live REST dirs)
    ============================================================ */
 const EP = {
-  // FL Dept. of Revenue statewide parcels (FDOR Cadastral 2025, all 67 counties)
   parcel : "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query",
-  // FEMA National Flood Hazard Layer - layer 28 = Flood Hazard Zones (S_FLD_HAZ_AR)
   flood  : "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query",
-  // FDOT Florida Cities (municipal boundaries) - layer 7, field NAME
   city   : "https://gis.fdot.gov/arcgis/rest/services/Admin_Boundaries/FeatureServer/7/query",
-  // FDOT Florida County boundaries - layer 5, field NAME
   county : "https://gis.fdot.gov/arcgis/rest/services/Admin_Boundaries/FeatureServer/5/query",
 };
 
@@ -329,6 +325,190 @@ VOLUSIA:"https://vcpa.vcgov.org/",WAKULLA:"https://mywakullapa.com/",WALTON:"htt
 WASHINGTON:"https://www.qpublic.net/fl/washington/"
 };
 const norm = s => (s||"").toUpperCase().replace(/[^A-Z]/g,"");
+
+/* ---------- Florida electric utility by county ----------
+   Primary utility serving the majority of each county's residential customers.
+   Some counties are split (e.g. parts of Polk served by TECO vs Duke vs Lakeland Electric)
+   — the dominant/most-likely utility is listed; cities with municipal utilities are noted. */
+const FL_UTILITY = {
+  ALACHUA:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com", note:"Gainesville Regional Utilities serves City of Gainesville." },
+  BAKER:      { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  BAY:        { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  BRADFORD:   { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  BREVARD:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  BROWARD:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  CALHOUN:    { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  CHARLOTTE:  { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  CITRUS:     { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  CLAY:       { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com", note:"Clay Electric Cooperative also serves portions of the county." },
+  COLLIER:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  COLUMBIA:   { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  DESOTO:     { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  DIXIE:      { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  DUVAL:      { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com", note:"JEA (Jacksonville Electric Authority) is the municipal utility for Jacksonville." },
+  ESCAMBIA:   { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  FLAGLER:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  FRANKLIN:   { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  GADSDEN:    { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  GILCHRIST:  { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  GLADES:     { name:"Glades Electric Cooperative", type:"Electric cooperative", phone:"(863) 946-6200", web:"https://www.gladeselectric.com" },
+  GULF:       { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  HAMILTON:   { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  HARDEE:     { name:"Peace River Electric Cooperative", type:"Electric cooperative", phone:"(863) 773-3174", web:"https://www.preco.com" },
+  HENDRY:     { name:"Glades Electric Cooperative", type:"Electric cooperative", phone:"(863) 946-6200", web:"https://www.gladeselectric.com" },
+  HERNANDO:   { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  HIGHLANDS:  { name:"Peace River Electric Cooperative", type:"Electric cooperative", phone:"(863) 773-3174", web:"https://www.preco.com", note:"Sebring Utilities Commission serves the City of Sebring." },
+  HILLSBOROUGH:{ name:"Tampa Electric (TECO)", type:"Investor-owned", phone:"(813) 223-0800", web:"https://www.tampaelectric.com" },
+  HOLMES:     { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  INDIANRIVER:{ name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  JACKSON:    { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  JEFFERSON:  { name:"Talquin Electric Cooperative", type:"Electric cooperative", phone:"(850) 627-7651", web:"https://www.talquinelectric.com" },
+  LAFAYETTE:  { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  LAKE:       { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida", note:"Utilities Commission of New Smyrna Beach and city utilities serve some areas." },
+  LEE:        { name:"Lee County Electric Cooperative (LCEC)", type:"Electric cooperative", phone:"(239) 656-2300", web:"https://www.lcec.net" },
+  LEON:       { name:"Talquin Electric Cooperative", type:"Electric cooperative", phone:"(850) 627-7651", web:"https://www.talquinelectric.com", note:"City of Tallahassee Electric Utility serves Tallahassee." },
+  LEVY:       { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  LIBERTY:    { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  MADISON:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  MANATEE:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  MARION:     { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida", note:"Ocala Electric Utility serves the City of Ocala." },
+  MARTIN:     { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  MIAMIDADE:  { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  MONROE:     { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  NASSAU:     { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  OKALOOSA:   { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  OKEECHOBEE: { name:"Glades Electric Cooperative", type:"Electric cooperative", phone:"(863) 946-6200", web:"https://www.gladeselectric.com" },
+  ORANGE:     { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida", note:"Orlando Utilities Commission (OUC) serves Orlando and parts of Orange County." },
+  OSCEOLA:    { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  PALMBEACH:  { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  PASCO:      { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  PINELLAS:   { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  POLK:       { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida", note:"Lakeland Electric serves the City of Lakeland. Tampa Electric serves southeastern Polk." },
+  PUTNAM:     { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  SANTAROSA:  { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  SARASOTA:   { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  SEMINOLE:   { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  STJOHNS:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  STLUCIE:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  SUMTER:     { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
+  SUWANNEE:   { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  TAYLOR:     { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  UNION:      { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  VOLUSIA:    { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida", note:"New Smyrna Beach Utilities Commission serves parts of eastern Volusia." },
+  WAKULLA:    { name:"Talquin Electric Cooperative", type:"Electric cooperative", phone:"(850) 627-7651", web:"https://www.talquinelectric.com" },
+  WALTON:     { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  WASHINGTON: { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+};
+
+/* ---------- Electric service-territory polygons — LOCAL data, computed in-browser ----------
+   The federal HIFLD Open portal was deactivated Aug 26 2025. Surviving national copies are now
+   either behind a login (EIA) or block browser access (CORS). So we don't depend on any live
+   external service. Instead we load a GeoJSON of real territory polygons ONCE (you supply it),
+   keep it in the browser, and do point-in-polygon locally. Real provider, or nothing — never a
+   county guess. Works offline. A live REST /query URL can still be pasted as a secondary source.
+
+   The GeoJSON should be EPSG:4326 (standard lon/lat GeoJSON). Property names are read
+   case-insensitively, so HIFLD/EIA field names (NAME, TYPE, TELEPHONE, WEBSITE, CUSTOMERS…)
+   or any equivalents work. See the on-card instructions for how to obtain the file. */
+
+let TERRITORIES = null;   // [{props:{}, polys:[[ring,[hole...]],...]}] once loaded, or null
+
+/* Parse a GeoJSON FeatureCollection/Feature into fast PIP structures. */
+function loadTerritoryGeoJSON(text){
+  const gj = (typeof text==='string') ? JSON.parse(text) : text;
+  const feats = gj.type==='FeatureCollection' ? gj.features
+              : gj.type==='Feature' ? [gj]
+              : Array.isArray(gj) ? gj : [];
+  const out=[];
+  for(const f of feats){
+    const g=f.geometry; if(!g) continue;
+    const props=f.properties||f.attributes||{};
+    if(g.type==='Polygon')      out.push({props, polys:[g.coordinates]});
+    else if(g.type==='MultiPolygon') out.push({props, polys:g.coordinates});
+  }
+  if(!out.length) throw new Error('No polygon features found in that file.');
+  TERRITORIES=out;
+  try{ STORE.set('fl_util_geojson', JSON.stringify(gj)); }catch(e){ /* too big for storage; keep in memory */ }
+  return out.length;
+}
+
+/* ray-casting PIP on a single linear ring of [lng,lat] pairs */
+function pointInRing(lng,lat,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0], yi=ring[i][1], xj=ring[j][0], yj=ring[j][1];
+    if(((yi>lat)!==(yj>lat)) && (lng < (xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi)) inside=!inside;
+  }
+  return inside;
+}
+/* a polygon = [outerRing, hole1, hole2,...]; inside outer and not inside any hole */
+function pointInPolygon(lng,lat,poly){
+  if(!poly.length || !pointInRing(lng,lat,poly[0])) return false;
+  for(let h=1;h<poly.length;h++){ if(pointInRing(lng,lat,poly[h])) return false; }
+  return true;
+}
+/* return the matching feature's props for a lat/lng, or null */
+function findUtilityAt(lat,lng){
+  if(!TERRITORIES) return null;
+  for(const t of TERRITORIES){
+    for(const poly of t.polys){ if(pointInPolygon(lng,lat,poly)) return t.props; }
+  }
+  return null;
+}
+
+/* ---- Loader UI handlers (file picker / drag-drop / paste) ---- */
+function handleTerritoryFile(file){
+  const r=new FileReader();
+  r.onload=()=>{ try{ const n=loadTerritoryGeoJSON(r.result); if(lastLoc) runLookup(lastLoc.lat,lastLoc.lng);
+      else { const s=document.getElementById('utilLoadMsg'); if(s) s.textContent=n+' territories loaded. Click the map or search an address.'; } }
+    catch(e){ const s=document.getElementById('utilLoadMsg'); if(s) s.textContent='Could not read that file: '+e.message; } };
+  r.onerror=()=>{ const s=document.getElementById('utilLoadMsg'); if(s) s.textContent='File read failed.'; };
+  r.readAsText(file);
+}
+function clearTerritoryData(){
+  TERRITORIES=null; STORE.del('fl_util_geojson');
+  if(lastLoc) runLookup(lastLoc.lat,lastLoc.lng);
+}
+
+/* Auto-load a territory file that ships next to this page (same-origin → no CORS, SW-cacheable). */
+const UTIL_GEOJSON_FILE = 'fl_electric_territories.geojson';
+async function autoLoadTerritories(){
+  if(TERRITORIES) return true;
+  try{
+    const r=await fetch(UTIL_GEOJSON_FILE, {cache:'force-cache'});
+    if(!r.ok) return false;
+    loadTerritoryGeoJSON(await r.text());
+    return true;
+  }catch(e){ return false; }
+}
+
+// ---- Optional secondary: a live REST /query URL the user hosts/verifies themselves ----
+let _utilUrlCache = undefined;
+async function resolveUtilQueryUrl(){
+  const override = STORE.get('fl_util_url');
+  if(override){ _utilUrlCache = override.trim().replace(/\/query\s*$/i,'') + '/query'; return _utilUrlCache; }
+  _utilUrlCache = null; return null;   // no live default — all known public ones are dead/auth-walled
+}
+function setUtilSource(){
+  const el=document.getElementById('utilUrlIn'); if(!el) return;
+  const v=el.value.trim();
+  if(v) STORE.set('fl_util_url', v); else STORE.del('fl_util_url');
+  _utilUrlCache=undefined;
+  if(lastLoc) runLookup(lastLoc.lat, lastLoc.lng);
+}
+/* HIFLD ownership-type codes → friendly labels */
+const HIFLD_TYPE = {
+  "INVESTOR OWNED":"Investor-owned utility", "MUNICIPAL":"Municipal utility",
+  "COOPERATIVE":"Electric cooperative", "POLITICAL SUBDIVISION":"Political subdivision",
+  "STATE":"State utility", "FEDERAL":"Federal utility", "DI":"Direct-serve industrial",
+  "RETAIL POWER MARKETER":"Retail power marketer", "WHOLESALE POWER MARKETER":"Wholesale power marketer"
+};
+/* case-insensitive single-attribute getter (territory layers vary in field casing) */
+function ciPick(a, ...keys){
+  const m={}; for(const k in a) m[k.toUpperCase()]=a[k];
+  for(const k of keys){ const v=m[k.toUpperCase()]; if(v!=null && String(v).trim()!=='') return v; }
+  return null;
+}
 
 /* ---------- Safe persistent storage (autosave/autofill). No-ops if blocked. ---------- */
 const STORE = {
@@ -773,13 +953,18 @@ async function runLookup(lat,lng){
   if(window.Sheet) Sheet.setState('full');   // bring results into view on mobile
 
   // Fire all queries in parallel; each degrades independently.
-  const pParcel = arcQuery(EP.parcel, lat, lng, '*', true).catch(e=>({__err:e.message}));
-  const pFlood  = arcQuery(EP.flood,  lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false).catch(e=>({__err:e.message}));
-  const pCity   = arcQuery(EP.city,   lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
-  const pCounty = arcQuery(EP.county, lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
-  const pLive   = liveSource.url ? arcQuery(liveSource.url, lat, lng, '*', true).catch(e=>({__err:e.message})) : Promise.resolve(null);
+  const pParcel  = arcQuery(EP.parcel,  lat, lng, '*', true).catch(e=>({__err:e.message}));
+  const pFlood   = arcQuery(EP.flood,   lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false).catch(e=>({__err:e.message}));
+  const pCity    = arcQuery(EP.city,    lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
+  const pCounty  = arcQuery(EP.county,  lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
+  const pLive    = liveSource.url ? arcQuery(liveSource.url, lat, lng, '*', true).catch(e=>({__err:e.message})) : Promise.resolve(null);
+  const pUtil    = (async()=>{
+    const u = await resolveUtilQueryUrl();
+    if(!u) return {__err:'no territory endpoint resolved'};
+    return arcQuery(u, lat, lng, '*', false).catch(e=>({__err:e.message}));
+  })();
 
-  const [parcel,flood,city,county,live] = await Promise.all([pParcel,pFlood,pCity,pCounty,pLive]);
+  const [parcel,flood,city,county,live,util] = await Promise.all([pParcel,pFlood,pCity,pCounty,pLive,pUtil]);
   if(myId!==runId) return; // a newer query superseded this one
 
   let html='';
@@ -1004,6 +1189,77 @@ async function runLookup(lat,lng){
     html += `<a class="palink" href="https://www.google.com/search?q=${encodeURIComponent(titleCase(countyName)+' County Florida building permit portal search by address')}" target="_blank" rel="noopener" style="margin-top:8px">↗ Find ${esc(titleCase(countyName))} County permitting portal</a>`;
   }
   html += `</div></div>`;
+
+  /* ---- Electric Utility ----
+     Source order: (1) local territory GeoJSON via in-browser point-in-polygon, (2) a live REST
+     /query override the user supplies. Real provider, or an honest "no data" + a loader. */
+  const localProps = findUtilityAt(lat,lng);                       // local data first (offline, reliable)
+  const restHit    = (util && !util.__err && util.features && util.features[0]) ? util.features[0].attributes : null;
+  const utilHit    = localProps || restHit;
+  const hitSource  = localProps ? 'local' : (restHit ? 'rest' : null);
+  const usingOverride = !!STORE.get('fl_util_url');
+
+  html += `<div class="card"><div class="ch"><span class="icn">[ PWR ]</span><h2>Electric Utility</h2>
+    <div class="src">${hitSource==='local'?'local territory<br>file · ORNL/EIA':'service territory<br>polygon'}</div></div><div class="cb">`;
+
+  if(utilHit){
+    const uName    = ciPick(utilHit,'NAME','UTILITY_NAME','UTILITYNAME','COMPANY','UTILITY') || 'Unnamed provider';
+    const uTypeRaw = ciPick(utilHit,'TYPE','OWNERSHIP');
+    const uType    = uTypeRaw ? (HIFLD_TYPE[String(uTypeRaw).toUpperCase()] || titleCase(uTypeRaw)) : null;
+    const uPhone   = ciPick(utilHit,'TELEPHONE','PHONE');
+    const uWebRaw  = ciPick(utilHit,'WEBSITE','WEB','URL');
+    const uWeb     = uWebRaw ? (/^https?:\/\//i.test(uWebRaw)?uWebRaw:'https://'+uWebRaw) : null;
+    const uCust    = ciPick(utilHit,'CUSTOMERS','CUST');
+    const uVintage = ciPick(utilHit,'SOURCEDATE','VAL_DATE','YEAR');
+
+    html += `<div class="freshline"><span class="badge live">● MATCH</span> ${hitSource==='local'?'point inside this territory polygon (local data)':'point-in-territory (live query)'}</div>`;
+    html += fieldRow('Utility', esc(uName), 'big');
+    if(uType)  html += fieldRow('Type', esc(uType));
+    if(uPhone) html += fieldRow('Phone', esc(String(uPhone)));
+    if(uCust && Number(uCust)>0) html += fieldRow('Customers served', fmtNum(uCust));
+    if(uWeb)   html += `<a class="palink" href="${esc(uWeb)}" target="_blank" rel="noopener">↗ ${esc(uName)} website</a>`;
+    html += `<div class="note">The point sits inside this provider's real service-territory polygon${uVintage?' (data vintage '+esc(String(uVintage))+')':''}. Right at a boundary seam or for brand-new construction, confirm with the provider before quoting.</div>`;
+    html += `<div class="note" style="font-size:10px">Data source: ${hitSource==='local'?'your loaded territory file':'live REST source'}. <a href="#" onclick="clearTerritoryData();return false;" style="color:var(--blueprint)">Replace/clear data</a></div>`;
+  } else if(TERRITORIES){
+    // We HAVE data, the point just isn't inside any polygon.
+    html += `<div class="freshline snap"><span class="badge unk">no match</span> point is outside every loaded territory</div>`;
+    html += `<div class="note">Loaded ${TERRITORIES.length} territories, but this exact point falls inside none of them — often water, right-of-way, or a gap between polygons. Nudge the marker onto the structure and try again. No provider is shown rather than guessing one. <a href="#" onclick="clearTerritoryData();return false;" style="color:var(--blueprint)">Replace/clear data</a></div>`;
+  } else {
+    // No local data loaded yet and no working REST source.
+    const uerr = (util && util.__err) ? util.__err : null;
+    html += `<div class="freshline snap"><span class="badge unk">no data</span> territory file not loaded</div>`;
+    html += `<div class="note">The Florida territory polygons normally load automatically from <b>${esc(UTIL_GEOJSON_FILE)}</b> in the same folder as this page. If you're seeing this, that file isn't beside the page yet — drop it below to load it for this session.</div>`;
+    // Primary path: load a GeoJSON file (drag/drop or pick).
+    html += `<div id="utilDrop" style="margin-top:10px;border:1px dashed #2a3a4a;border-radius:8px;padding:12px;text-align:center;cursor:pointer">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--blueprint)">⬇ Drop a territories .geojson here, or click to choose</div>
+        <input id="utilFile" type="file" accept=".geojson,.json,application/geo+json,application/json" style="display:none">
+        <div id="utilLoadMsg" class="lhint" style="margin-top:6px"></div>
+      </div>`;
+    html += `<details class="adv" style="margin-top:8px"><summary>How to get the Florida territory file</summary>
+      <div class="lhint">One-time setup. The ORNL/HIFLD "Electric Retail Service Territories" data is archived publicly (no login) at ICPSR/DataLumos: <a href="https://www.datalumos.org/datalumos/project/239091" target="_blank" rel="noopener">datalumos.org/datalumos/project/239091</a>. Open the shapefile in free <a href="https://qgis.org" target="_blank" rel="noopener">QGIS</a>, select the Florida providers (FPL, Duke, TECO, LCEC, Lakeland, OUC, JEA, co-ops, etc.), then <b>Export → Save Features As → GeoJSON</b> with CRS <b>EPSG:4326</b>. Load that file here. Keeping just Florida keeps it small and fast.</div></details>`;
+    // Secondary path: a live REST /query URL (if you host your own service).
+    html += `<details class="adv" style="margin-top:6px"><summary>Advanced: use a live REST query URL instead</summary>
+      <div class="arow">
+        <input id="utilUrlIn" placeholder="Paste a verified …/FeatureServer/<n>/query URL" value="${esc(STORE.get('fl_util_url')||'')}">
+        <button onclick="setUtilSource()">Use</button>
+      </div>
+      <div class="lhint">Only works if the layer is public AND sends CORS headers. Most national copies no longer do, which is why the local file above is the reliable path.${uerr?' Last attempt: '+esc(uerr)+'.':''}</div></details>`;
+  }
+  if(usingOverride){
+    html += `<div class="note">Using your custom REST source. <a href="#" onclick="STORE.del('fl_util_url');_utilUrlCache=undefined;if(lastLoc)runLookup(lastLoc.lat,lastLoc.lng);return false;" style="color:var(--blueprint)">Reset</a></div>`;
+  }
+  html += `</div></div>`;
+  // wire up the file loader (after this HTML is injected below)
+  setTimeout(()=>{
+    const drop=document.getElementById('utilDrop'), inp=document.getElementById('utilFile');
+    if(drop&&inp){
+      drop.onclick=()=>inp.click();
+      inp.onchange=e=>{ if(e.target.files&&e.target.files[0]) handleTerritoryFile(e.target.files[0]); };
+      ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.style.borderColor='var(--signal)';}));
+      ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.style.borderColor='#2a3a4a';}));
+      drop.addEventListener('drop',e=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handleTerritoryFile(f); });
+    }
+  },0);
 
   results.innerHTML = setStatus('ok','Done — '+(new Date()).toLocaleTimeString()) + html;
 }
@@ -1282,6 +1538,9 @@ window.Sheet=Sheet;
 
 (async function restore(){
   const a=STORE.get('fl_addr'); if(a){ document.getElementById('addr').value=a; updateClearBtn(); }
+  const tg=STORE.get('fl_util_geojson');
+  if(tg){ try{ loadTerritoryGeoJSON(tg); }catch(e){} }     // re-load saved territory data first
+  if(!TERRITORIES){ await autoLoadTerritories(); }          // else load the file shipped beside this page
   const lu=STORE.get('fl_live');
   if(lu){ document.getElementById('liveUrl').value=lu; document.getElementById('adv').open=true; try{ await testLiveSource(); }catch(e){} }
   const loc=STORE.get('fl_loc');
