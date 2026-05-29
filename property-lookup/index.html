@@ -620,14 +620,19 @@ function saveLoc(lat,lng){ lastLoc={lat,lng}; STORE.set('fl_loc', JSON.stringify
    ⚠️ Endpoints marked "verify" were located via the county's public GIS but not test-queried
    from this build environment; confirm in a browser. Layer must allow public CORS. */
 const COUNTY_LIVE = {
-  COLLIER : { label:"Collier County GIS (Property Appraiser source)", urls:[
-    // Collier's enterprise GIS parcels (sourced from the Property Appraiser; owner field NAME1).
-    // CORS from the county server isn't guaranteed; if it blocks the browser the tool falls back to
-    // the dated statewide roll and the "verify on appraiser" link still works.
+  COLLIER : { label:"Collier County (Property Appraiser, nightly)", urls:[
+    // ✅ confirmed: Collier's parcels layer on ArcGIS Online (CORS-friendly, same org as zoning).
+    // Fields: NAME1 (owner, NAME2-5 additional), FOLIO (parcel), LOTUNIT, TOTALACRES. Lean layer —
+    // value/site/sales come from the statewide roll fallback; "Verify on appraiser" covers deep detail.
+    "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcels/FeatureServer/42/query",
+    // Secondary: Collier enterprise GIS (Property Appraiser source). CORS not guaranteed from county server.
     "https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/MapServer/0/query"
   ]},
-  LEE     : { label:"Lee County PA (nightly)", urls:[
-    // Lee County GIS — leegis.leegov.com is a live ArcGIS server; parcels w/ ownership, updated nightly. (verify layer index)
+  LEE     : { label:"Lee County (Property Appraiser, nightly)", urls:[
+    // ✅ confirmed: Lee's hosted parcels layer on ArcGIS Online (CORS-friendly), updated nightly.
+    // Fields: O_NAME (owner), STRAP (parcel), SITEADDR/SITECITY, JUST (value), HEATEDAREA, S_1AMOUNT/S_1DATE (sale).
+    "https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/Lee_County_Parcels/FeatureServer/0/query",
+    // Secondary candidates on Lee's enterprise server (CORS not guaranteed):
     "https://leegis.leegov.com/arcgis/rest/services/LeeParcels/MapServer/0/query",
     "https://leegis.leegov.com/arcgis/rest/services/AGOL/AGOL_Layers_LCGIS/MapServer/0/query"
   ]},
@@ -1133,11 +1138,11 @@ function detectFields(fields){
     site:  find([/^SITE_?ADDR/,/^PHY_?ADDR1$/,/^PHY_?ADDR$/,/SITUS/,/^S_ADDR/,/SITE.*ADDR/,/^LOCATION$/,/SITEADDRESS/,/^ADDRESS$/]),
     city:  find([/^SITE_?CITY$/,/^PHY_?CITY$/,/SITUS.*CITY/]),
     jv:    find([/^JV$/,/^JUST_?VAL/,/^JUSTVALUE$/,/^MKT_?VAL/,/^MARKET/,/^TOTAL_?VAL/,/^JUST$/,/^TOTVAL/]),
-    land:  find([/^LND_?VAL/,/^LAND_?VAL/]),
-    yr:    find([/^ACT_?YR_?BLT$/,/^YR_?BLT$/,/^YEAR_?BUILT$/,/YRBLT/,/YEARBUILT/,/ACTYRBLT/,/^EFF_?YR/]),
+    land:  find([/^LND_?VAL/,/^LAND_?VAL/,/^LAND$/]),
+    yr:    find([/^ACT_?YR_?BLT$/,/^YR_?BLT$/,/^YEAR_?BUILT$/,/YRBLT/,/YEARBUILT/,/ACTYRBLT/,/^EFF_?YR/,/^MAXBUILTY$/,/^NEWBUILT$/]),
     liv:   find([/^TOT_?LVG_?AR/,/LIV.*AREA/,/^HEATED/,/TOTLIVING/,/LIVINGAREA/,/^GRSAR/]),
-    saleP: find([/^SALE_?PRC1$/,/^SALE_?PRICE$/,/^SALEAMT$/,/^LASTSALE/,/SALEPRICE/,/SALE.*AMT/,/^SALE_?PR/]),
-    saleY: find([/^SALE_?YR1$/,/^SALE_?YEAR$/,/SALEYR/,/SALE.*YEAR/,/SALEDATE1/])
+    saleP: find([/^SALE_?PRC1$/,/^SALE_?PRICE$/,/^SALEAMT$/,/^LASTSALE/,/SALEPRICE/,/SALE.*AMT/,/^SALE_?PR/,/^S_1AMOUNT$/]),
+    saleY: find([/^SALE_?YR1$/,/^SALE_?YEAR$/,/SALEYR/,/SALE.*YEAR/,/SALEDATE1/,/^S_1DATE$/])
   };
 }
 
@@ -1157,6 +1162,19 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
   }catch(e){ clearTimeout(t); throw e; }
 }
 const ENRICH_TIMEOUT = 6000;   // shorter timeout for secondary/enrichment lookups so a dead server fails fast
+
+/* Retry wrapper: ArcGIS Online services occasionally fail transiently (a timeout/5xx comes back
+   without CORS headers, so the browser reports a "CORS error"). One quick retry clears most of
+   these. Used for the primary statewide/county parcel lookups. */
+async function arcQueryRetry(url, lat, lng, outFields, withGeom, timeoutMs, tries){
+  let lastErr=null;
+  const n=tries||2;
+  for(let i=0;i<n;i++){
+    try{ return await arcQuery(url, lat, lng, outFields, withGeom, timeoutMs); }
+    catch(e){ lastErr=e; if(i<n-1) await new Promise(r=>setTimeout(r,400)); }
+  }
+  throw lastErr;
+}
 
 function fmtMoney(n){ if(n==null||n==='') return null; const v=Number(n); if(isNaN(v)||v<=0) return null; return '$'+v.toLocaleString('en-US'); }
 function fmtNum(n){ if(n==null||n==='') return null; const v=Number(n); if(isNaN(v)||v<=0) return null; return v.toLocaleString('en-US'); }
@@ -1371,7 +1389,7 @@ async function runLookup(lat,lng){
   if(window.Sheet) Sheet.setState('full');   // bring results into view on mobile
 
   // Fire all queries in parallel; each degrades independently.
-  const pParcel  = arcQuery(EP.parcel,  lat, lng, '*', true).catch(e=>({__err:e.message}));
+  const pParcel  = arcQueryRetry(EP.parcel, lat, lng, '*', true).catch(e=>({__err:e.message}));
   const pFlood   = arcQuery(EP.flood,   lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false).catch(e=>({__err:e.message}));
   const pCity    = arcQuery(EP.city,    lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
   const pCounty  = arcQuery(EP.county,  lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
@@ -1403,7 +1421,7 @@ async function runLookup(lat,lng){
         const reg=COUNTY_LIVE[norm(countyName)]; const cands=reg.urls||(reg.url?[reg.url]:[]);
         let res=null, meta=null, err=null;
         for(const cu of cands){
-          const al = await arcQuery(cu, lat, lng, '*', true, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
+          const al = await arcQueryRetry(cu, lat, lng, '*', true, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
           if(al && !al.__err && al.features && al.features[0]){
             res=al; const info=await getLayerInfo(cu).catch(()=>null);
             meta={ name:reg.label||(info&&info.name), lastEdit:(info&&info.lastEdit)||null }; err=null; break;
