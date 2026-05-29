@@ -94,7 +94,14 @@
     font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.03em;padding:8px 12px;border-radius:7px;text-decoration:none}
   .palink:hover{background:#0d3140}
 
-  footer{padding:11px 16px;border-top:1px solid var(--line);font-size:9.5px;color:var(--faint);line-height:1.5;font-family:var(--mono);background:#0d1219}
+  footer{border-top:1px solid var(--line);font-size:9.5px;color:var(--faint);line-height:1.5;font-family:var(--mono);background:#0d1219;padding:0}
+  #footToggle{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:none;border:none;cursor:pointer;
+    color:var(--dim);font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:8px 16px;}
+  #footToggle:hover{color:var(--signal)}
+  #footToggle .fchev{font-size:11px;line-height:1;transition:transform .25s}
+  #footBody{max-height:0;overflow:hidden;transition:max-height .3s ease;padding:0 16px}
+  footer:not(.collapsed) #footBody{max-height:360px;padding:2px 16px 12px}
+  footer:not(.collapsed) #footToggle .fchev{transform:rotate(180deg)}
 
   .layerswitch{position:absolute;z-index:1000;bottom:18px;right:18px;display:flex;background:#11161d;border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.5)}
   .layerswitch button{background:transparent;border:none;color:var(--dim);font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.05em;padding:9px 14px;cursor:pointer;text-transform:uppercase}
@@ -291,10 +298,15 @@
     <div class="empty">— awaiting a location —<br><br>Search an address or tap the map.</div>
   </div>
 
-  <footer id="foot">
-    <div style="color:var(--signal);font-family:var(--disp);font-weight:600;letter-spacing:.08em;margin-bottom:6px">ALWAYS ON GENERATORS · PROPERTY LOOKUP</div>
-    Sources: FL Dept. of Revenue statewide cadastral (county appraiser rolls) · FEMA National Flood Hazard Layer · FDOT administrative boundaries · HIFLD Electric Retail Service Territories · US Census / OSM geocoding. Data reflects the most recent official rolls and <i>effective</i> FEMA maps — always verify with the county property appraiser before any legal, financial, or permitting decision.
-    <div id="swStatus" style="margin-top:7px;color:var(--faint)"></div>
+  <footer id="foot" class="collapsed">
+    <button id="footToggle" type="button" aria-label="Show sources &amp; details" aria-expanded="false">
+      <span class="fchev">▲</span><span>Sources &amp; details</span>
+    </button>
+    <div id="footBody">
+      <div style="color:var(--signal);font-family:var(--disp);font-weight:600;letter-spacing:.08em;margin-bottom:6px">ALWAYS ON GENERATORS · PROPERTY LOOKUP</div>
+      Sources: FL Dept. of Revenue statewide cadastral (county appraiser rolls) · FEMA National Flood Hazard Layer · FDOT administrative boundaries · HIFLD Electric Retail Service Territories · US Census / OSM geocoding. Data reflects the most recent official rolls and <i>effective</i> FEMA maps — always verify with the county property appraiser before any legal, financial, or permitting decision.
+      <div id="swStatus" style="margin-top:7px;color:var(--faint)"></div>
+    </div>
   </footer>
 </div>
 
@@ -606,6 +618,47 @@ const FORERUNNER = {
   NAPLES: { url:"https://naplesfl.withforerunner.com/explore", label:"City of Naples flood portal (Forerunner)" }
 };
 
+/* ---------- LIVE county flood cross-check (vs the effective FEMA NFHL) ----------
+   Some counties host their own adopted DFIRM as a queryable polygon layer. We point-query
+   it and show its zone NEXT TO the effective NFHL zone, flagging any disagreement (often a
+   pending/preliminary revision or a local LOMR). The zone field auto-detects; everything is
+   wrapped so a cached/CORS-blocked/robots-blocked layer simply doesn't render the cross-check
+   (the FEMA NFHL card is unaffected) — and we always offer the official county viewer link.
+   ⚠️ COLLIER layer is the county's published "Flood Zones" sublayer; it's a CACHED map service,
+      so live query + public CORS are NOT confirmed from here — verify in a browser. */
+const COUNTY_FLOOD_LIVE = {
+  COLLIER: { label:"Collier County 2024 DFIRM",
+    viewer:"https://experience.arcgis.com/experience/70ae02cb985c4d288556ba5d00629fc7",
+    urls:[
+      "https://ags.colliergov.net/arcgis/rest/services/Operational/FemaFloodZones/MapServer/2/query" // Flood Zones — verify query/CORS
+    ]}
+};
+function detectFloodZoneField(fields){
+  const up=fields.map(f=>({raw:f,u:String(f).toUpperCase()}));
+  const find=pats=>{ for(const p of pats){ const h=up.find(f=>p.test(f.u)); if(h) return h.raw; } return null; };
+  return { zone:find([/^FLD_?ZONE$/,/^FLOOD_?ZONE$/,/^ZONE$/,/FLD.?ZONE/,/FLOOD.?ZONE/,/ZONE/]),
+           sub: find([/^ZONE_?SUBTY/,/SUBTY/,/^FLD_?SUBTY/]) };
+}
+async function queryCountyFlood(lat,lng,countyName){
+  const reg = countyName ? COUNTY_FLOOD_LIVE[norm(countyName)] : null;
+  if(!reg) return null;
+  const cands = reg.urls || (reg.url?[reg.url]:[]);
+  for(const cu of cands){
+    const r = await arcQuery(cu, lat, lng, '*', false).catch(e=>({__err:e.message}));
+    if(r && !r.__err && r.features && r.features[0]){
+      const a = r.features[0].attributes || {};
+      const det = detectFloodZoneField(Object.keys(a));
+      const zone = det.zone!=null ? a[det.zone] : null;
+      const sub  = (det.sub!=null && a[det.sub]!=null && String(a[det.sub]).trim()!=='') ? a[det.sub] : null;
+      if(zone!=null && String(zone).trim()!==''){
+        const info = await getLayerInfo(cu).catch(()=>null);
+        return { zone, sub, layerName:(info&&info.name)||reg.label, lastEdit:(info&&info.lastEdit)||null, url:cu };
+      }
+    }
+  }
+  return null;
+}
+
 /* ---------- Permits & Documents (Elevation Certificate / Survey / Site Plan) ----------
    Elevation Certificates: some counties publish an EC *map app* backed by a queryable
    ArcGIS feature layer whose records carry the cert PDF as an ATTACHMENT. Where we have
@@ -722,8 +775,14 @@ const ZONING_LIVE = {
     "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/6/query", // Town of Fort Myers Beach
     "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/7/query"  // City of Bonita Springs
   ]},
-  COLLIER: { label:"Collier County GIS Zoning", urls:[
-    "https://ags2.colliercountyfl.gov/gis/rest/services/agency/Zoning/MapServer/0/query" // best-effort — verify
+  COLLIER: { label:"Collier County Zoning",
+    codeField:"ZONING",                       // full district incl. overlay, e.g. RMF-6GH
+    extra:[ {field:"BASE", label:"Base district"},        // e.g. RMF-6
+            {field:"DISTRICT", label:"Category"} ],       // e.g. Residential
+    urls:[
+    // ✅ confirmed: the zoning polygon layer Collier's Planning & Zoning app reads on parcel click,
+    // hosted on ArcGIS Online (CORS-friendly).
+    "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Zoning_Links_view/FeatureServer/0/query"
   ]}
 };
 
@@ -754,29 +813,46 @@ let zoningSource = { url:null };
 /* Point-query the resolved zoning layer(s). Returns {code,desc,layerName,lastEdit,url}
    or null when nothing is wired / no polygon covers the point. Never throws. */
 async function queryZoning(lat,lng, cityName, countyName){
-  let cands = [], pin = null;   // pin = {codeField, descField} when a registry entry specifies them
-  if(zoningSource.url){ cands = [zoningSource.url]; }                 // manual paste wins
+  let cands = [], pin = null, isOverride=false;   // pin = explicit {codeField,descField} from a registry entry
+  if(zoningSource.url){ cands = [zoningSource.url]; isOverride=true; }   // manual paste wins
   else {
     const cityReg = cityName ? ZONING_LIVE_CITY[norm(cityName)] : null;   // city is its own zoning authority
     const reg = cityReg || (countyName ? ZONING_LIVE[norm(countyName)] : null);
-    if(reg){ cands = reg.urls || (reg.url?[reg.url]:[]); pin = (reg.codeField||reg.descField) ? {codeField:reg.codeField, descField:reg.descField} : null; }
+    if(reg){ cands = reg.urls || (reg.url?[reg.url]:[]); pin = (reg.codeField||reg.descField||reg.extra) ? {codeField:reg.codeField, descField:reg.descField, extra:reg.extra} : null; }
   }
+  const multi = cands.length>1;                    // probing several layers → be stricter about what we trust
+  const folio = v => v!=null && /^[0-9]{6,}$/.test(String(v).trim());   // parcel-folio numbers aren't districts
   for(const cu of cands){
     const r = await arcQuery(cu, lat, lng, '*', false).catch(e=>({__err:e.message}));
-    if(r && !r.__err && r.features && r.features[0]){
-      const a = r.features[0].attributes || {};
-      // prefer pinned field names; fall back to auto-detection
-      const det = detectZoningFields(Object.keys(a));
-      const codeKey = (pin && pin.codeField && a[pin.codeField]!==undefined) ? pin.codeField : det.code;
-      let   descKey = (pin && pin.descField && a[pin.descField]!==undefined) ? pin.descField : det.desc;
-      if(descKey===codeKey) descKey=null;
-      const code = codeKey!=null ? a[codeKey] : null;
-      const desc = descKey!=null ? a[descKey] : null;
-      if((code!=null && String(code).trim()!=='') || (desc!=null && String(desc).trim()!=='')){
-        const info = await getLayerInfo(cu).catch(()=>null);
-        return { code, desc, layerName:(info&&info.name)||null, lastEdit:(info&&info.lastEdit)||null, url:cu };
+    if(!(r && !r.__err && r.features && r.features[0])) continue;
+    const a = r.features[0].attributes || {};
+    const det = detectZoningFields(Object.keys(a));
+    const urlish = v => v!=null && /^https?:\/\//i.test(String(v).trim());
+    // a zoning-map-sheet PDF link is useful on its own — capture it, but never show it AS the district
+    let sheetUrl=null;
+    for(const k of Object.keys(a)){ const v=a[k]; if(urlish(v) && /\.pdf|zoning|gmd/i.test(String(v))){ sheetUrl=String(v).trim(); break; } }
+    const codeKey = (pin && pin.codeField && a[pin.codeField]!==undefined) ? pin.codeField : det.code;
+    let   descKey = (pin && pin.descField && a[pin.descField]!==undefined) ? pin.descField : det.desc;
+    if(descKey===codeKey) descKey=null;
+    let code = codeKey!=null ? a[codeKey] : null;
+    let desc = descKey!=null ? a[descKey] : null;
+    if(folio(code)||urlish(code)) code=null;       // not a district: a folio number or a hyperlink
+    if(folio(desc)||urlish(desc)) desc=null;
+    // pinned supporting fields (e.g. base district, general category)
+    let extras=[];
+    if(pin && Array.isArray(pin.extra)){
+      for(const ex of pin.extra){
+        const v = (ex.field && a[ex.field]!=null) ? a[ex.field] : null;
+        if(v!=null && String(v).trim()!=='' && !folio(v) && !urlish(v) && norm(v)!==norm(code)) extras.push({label:ex.label||ex.field, value:String(v)});
       }
     }
+    if(!((code!=null && String(code).trim()!=='') || (desc!=null && String(desc).trim()!=='') || extras.length || sheetUrl)) continue;
+    const info = await getLayerInfo(cu).catch(()=>null);
+    if(multi && !isOverride){                       // only accept a probed layer whose name looks zoning-related
+      const nm = (info && info.name) ? info.name.toLowerCase() : '';
+      if(nm && !/zon|pud|district|land\s?use|overlay/.test(nm)) continue;
+    }
+    return { code, desc, extras, sheetUrl, layerName:(info&&info.name)||null, lastEdit:(info&&info.lastEdit)||null, url:cu };
   }
   return null;
 }
@@ -1310,12 +1386,14 @@ async function runLookup(lat,lng){
   html += `<div class="card"><div class="ch"><span class="icn">[ FLD ]</span><h2>FEMA Flood Hazard</h2>
     <div class="src">FEMA National<br>Flood Hazard Layer</div></div><div class="cb">`;
   html += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
+  let nfhlZone=null;   // captured for the county cross-check below
   if(flood.__err){
     html += `<div class="note">Flood service did not respond (${esc(flood.__err)}).</div>`;
   } else if(flood.features && flood.features.length){
     const zones=flood.features.map(f=>f.attributes);
     const z=zones[0];
     const zone=z.FLD_ZONE||'—';
+    nfhlZone=zone;
     const sub=z.ZONE_SUBTY&&z.ZONE_SUBTY.trim()?z.ZONE_SUBTY:null;
     const sfha=(z.SFHA_TF==='T');
     const bfe=(z.STATIC_BFE!=null && Number(z.STATIC_BFE)>-9999) ? Number(z.STATIC_BFE) : null;
@@ -1333,6 +1411,24 @@ async function runLookup(lat,lng){
   } else {
     html += `<div class="field"><div class="k">Flood zone</div><div class="v zone"><span class="badge unk">Not mapped</span></div></div>`;
     html += `<div class="note">No effective NFHL polygon at this point. This usually means the area is unmapped or outside digital flood-map coverage — check the FEMA Map Service Center directly.</div>`;
+  }
+  // --- LIVE county DFIRM cross-check (e.g. Collier's adopted 2024 map) vs the effective NFHL above ---
+  const cfReg = countyName ? COUNTY_FLOOD_LIVE[norm(countyName)] : null;
+  if(cfReg){
+    const cf = await queryCountyFlood(lat, lng, countyName).catch(()=>null);
+    if(myId!==runId) return;
+    if(cf && cf.zone!=null && String(cf.zone).trim()!==''){
+      const cz=String(cf.zone).trim();
+      let flag;
+      if(nfhlZone==null || nfhlZone==='—')      flag=`<span class="badge unk">county only</span>`;
+      else if(norm(cz)===norm(nfhlZone))         flag=`<span class="badge safe">matches FEMA</span>`;
+      else                                       flag=`<span class="badge sfha">differs · FEMA says ${esc(nfhlZone)}</span>`;
+      html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> county cross-check${cf.lastEdit?' · layer updated '+esc(cf.lastEdit.toLocaleDateString()):''}</div>`;
+      html += `<div class="field"><div class="k">${esc(cfReg.label)}</div><div class="v zone">${esc(cz)} ${flag}</div></div>`;
+      if(cf.sub) html += fieldRow('County zone subtype', esc(cf.sub));
+      html += `<div class="note">Read live from ${esc(cfReg.label)}'s GIS. When it differs from the effective FEMA NFHL above, that's usually a pending/preliminary revision or a local LOMR — the county viewer is the authoritative adopted map.</div>`;
+    }
+    if(cfReg.viewer) html += `<a class="palink" href="${esc(cfReg.viewer)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(cfReg.label)} viewer (official adopted map)</a>`;
   }
   // City-specific Forerunner portal often carries richer, locally-maintained flood-zone data
   const fr = cityName ? FORERUNNER[norm(cityName)] : null;
@@ -1355,12 +1451,18 @@ async function runLookup(lat,lng){
   // --- LIVE zoning-district detection (point-in-polygon against a county/city zoning layer) ---
   const zhit = await queryZoning(lat, lng, cityName, countyName).catch(()=>null);
   if(myId!==runId) return;
-  if(zhit && ((zhit.code!=null&&String(zhit.code).trim()!=='') || (zhit.desc!=null&&String(zhit.desc).trim()!==''))){
-    html += `<div class="freshline"><span class="badge live">● LIVE</span> zoning polygon at this point${zhit.layerName?' · '+esc(zhit.layerName):''}</div>`;
+  if(zhit && ((zhit.code!=null&&String(zhit.code).trim()!=='') || (zhit.desc!=null&&String(zhit.desc).trim()!=='') || (zhit.extras&&zhit.extras.length))){
+    html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> zoning polygon at this point${zhit.layerName?' · '+esc(zhit.layerName):''}</div>`;
     if(zhit.code!=null && String(zhit.code).trim()!=='') html += fieldRow('Zoning district', esc(String(zhit.code)), 'big');
+    if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
-    html += `<div class="note" style="padding-top:6px">District read straight from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
+    if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
+    html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
+  } else if(zhit && zhit.sheetUrl){
+    html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> zoning map sheet located for this point</div>`;
+    html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener">↗ Official zoning map sheet (PDF)</a>`;
+    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Read the district off the map sheet above; setbacks &amp; use standards come from <b>${esc(jurName)}</b>'s adopted land development code (Municode) and permitting portal.</div>`;
   } else {
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
   }
@@ -1369,6 +1471,12 @@ async function runLookup(lat,lng){
     if(z.code)   html += `<a class="palink" href="${esc(z.code)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Land development code (Municode)</a>`;
   } else {
     html += `<a class="palink" href="${municodeSearch(jurName)}" target="_blank" rel="noopener">↗ Find ${esc(jurName)} code &amp; permitting portal</a>`;
+  }
+  // Collier County (unincorporated / not resolved to a city): link the official ADOPTED zoning
+  // map sheets at the Clerk of Courts — the legal map of record, for verifying the GIS read.
+  if(norm(countyName)==='COLLIER' && !zr.inCity){
+    html += `<a class="palink" href="https://www.collierclerk.com/zoning-maps/" target="_blank" rel="noopener" style="margin-top:8px">↗ Official adopted zoning map sheets (Clerk of Courts)</a>`;
+    html += `<div class="note">Collier's legally adopted zoning map, archived as searchable map sheets. Not point-queryable, so use it to confirm the district above for any legal/permitting decision.</div>`;
   }
   html += `</div></div>`;
 
@@ -1867,7 +1975,7 @@ window.Sheet=Sheet;
   try{
     STATEWIDE_INFO = await getLayerInfo(EP.parcel);
     if(STATEWIDE_INFO && STATEWIDE_INFO.lastEdit){
-      const f=document.getElementById('foot');
+      const f=document.getElementById('footBody')||document.getElementById('foot');
       if(f) f.insertAdjacentHTML('afterbegin',
         '<div style="color:var(--signal);margin-bottom:6px">State parcel roll last refreshed: '+STATEWIDE_INFO.lastEdit.toLocaleDateString()+' · live county feeds pre-wired for '+Object.keys(COUNTY_LIVE).map(k=>titleCase(k)).join(', ')+'</div>');
     }
@@ -1876,6 +1984,17 @@ window.Sheet=Sheet;
 
 /* ---------- Offline + updates handled by the AOG Hub service worker (../sw.js via update-banner.js) ---------- */
 (function(){ var el=document.getElementById('swStatus'); if(el) el.innerHTML='Part of the AOG Hub · offline &amp; updates handled by the hub. Autosave is on.'; })();
+
+/* ---------- Collapsible sources/hub footer (collapsed on launch; arrow pulls it up/down) ---------- */
+(function(){
+  var f=document.getElementById('foot'), b=document.getElementById('footToggle');
+  if(!f||!b) return;
+  b.addEventListener('click',function(){
+    var collapsed=f.classList.toggle('collapsed');
+    b.setAttribute('aria-expanded', collapsed?'false':'true');
+    b.setAttribute('aria-label', collapsed?'Show sources & details':'Hide sources & details');
+  });
+})();
 </script>
 </body>
 </html>
