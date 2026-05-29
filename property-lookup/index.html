@@ -765,7 +765,7 @@ const ZONING_COUNTY = {
 };
 const ZONING_CITY = {
   MARCOISLAND:{code:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances", permit:"https://www.cityofmarcoisland.com/o/comi/page/permitting-portal-information"},
-  NAPLES:{code:"https://library.municode.com/fl/naples/codes/code_of_ordinances", permit:"https://cityview2.iharriscomputer.com/CityofNaplesFlorida/Permit/Locator"},
+  NAPLES:{code:"https://library.municode.com/fl/naples/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/naples/codes/code_of_ordinances?nodeId=PTIICOOR_CH58ZO", permit:"https://cityview2.iharriscomputer.com/CityofNaplesFlorida/Permit/Locator"},
   CAPECORAL:{code:"https://library.municode.com/fl/cape_coral/codes/code_of_ordinances", permit:"https://energovweb.capecoral.gov/EnerGovProd/selfservice#/home"},
   FORTMYERS:{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", permit:"https://www.cityftmyers.com/166/Community-Development"},
   BONITASPRINGS:{code:"https://library.municode.com/fl/bonita_springs/codes/code_of_ordinances", permit:"https://cityofbonitaspringscd.org/"},
@@ -786,6 +786,92 @@ function resolveZoning(cityName, countyName){
   return { cfg:null, inCity:false };
 }
 function municodeSearch(j){ return "https://www.google.com/search?q="+encodeURIComponent(j+" Florida land development code zoning setbacks municode"); }
+
+/* ---------- City of Naples setback QUICK-REFERENCE (Code of Ordinances, Ch. 58) ----------
+   Hand-entered from Municode. These are a CONVENIENCE COPY — the live § deep-link beside each
+   result is the source of truth (ordinances change; this table can go stale). Numbers are base
+   minimums in feet; conditional rules (height-additive, by-use, by-story, waterfront, alley, pool)
+   are preserved in the *Note fields rather than flattened. Add districts by pasting another entry. */
+const NAPLES_SETBACKS = {
+  "RE":     { section:"58-56",  front:75, side:15,   rear:75,
+    sideNote:"15 ft applies to the first 15 ft of vertical height; additional height must stay within a 12:12 slope beyond the initial setback." },
+  "R1-E":   { section:"58-86",  front:50, side:15,   rear:35,
+    sideNote:"15 ft applies to the first 15 ft of vertical height; additional height within a 12:12 slope. Guesthouses & staff residences add 0.5 ft per ft of height above the first 15 ft.",
+    rearNote:"May reduce to 15 ft for garages/carports with direct alley access, or utility sheds ≤100 sq ft, where abutting a public alley. Unroofed/open-mesh-screened pools allowed in rear setback but no closer than 15 ft to rear lot line; not within any utility/drainage easement." },
+  "R1-15A": { section:"58-116", front:40, side:12.5, rear:30,
+    sideNote:"12½ ft applies to the first 12½ ft of vertical height; additional height within a 12:12 slope. Gable roof ends ≤20 ft height may encroach with conditions (see § 58-116).",
+    rearNote:"Non-gulf-facing waterfront rear = most restrictive of 30 ft from mean high-water line OR the platted waterfront building line.",
+    frontNote:"On lots fronting more than one street, one front yard may reduce to 35 ft (owner's choice, city manager approval). Mechanical-equipment & encroachment rules apply (§ 58-116)." },
+  "R1-15":  { section:"58-146", front:40, side:10,   rear:30,
+    sideNote:"10 ft applies to the first 15 ft of vertical height; additional height within a 12:12 slope.",
+    rearNote:"May reduce to 15 ft for garages/carports with direct alley access, or utility sheds ≤100 sq ft, where abutting a public alley. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement.",
+    frontNote:"On multi-street-frontage lots, one front yard may reduce to 35 ft (owner's choice, city manager approval)." },
+  "R1-10":  { section:"58-176", front:30, side:7.5,  rear:25,
+    sideNote:"7½ ft applies to the first 15 ft of vertical height; additional height within a 12:12 slope.",
+    rearNote:"May reduce to 15 ft for garages/carports with direct alley access, or utility sheds ≤100 sq ft, where abutting a public alley. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement.",
+    frontNote:"On multi-street-frontage lots, one front yard may reduce to 25 ft (owner's choice, city manager approval). Seagate Subdivision (Sand Dollar Ln/Seagate Dr): yard abutting Seagate Dr treated as a rear yard." },
+  "R1-10A": { section:"58-206", front:30, side:10,   rear:25,
+    sideNote:"10 ft applies to the first 15 ft of vertical height; additional height within a 12:12 slope.",
+    rearNote:"May reduce to 15 ft for garages/carports with direct alley access, or utility sheds ≤100 sq ft, where abutting a public alley. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement.",
+    frontNote:"Front yard is 40 ft for lots on Crayton Rd & Park Shore Dr. On multi-street-frontage lots one front yard may reduce to 25 ft, except corner lots on Crayton Rd/Park Shore Dr must keep ≥35 ft on one of those roads." },
+  "R1-7.5": { section:"58-236", front:25, side:7.5,  rear:20,
+    sideNote:"7½ ft applies to the first 15 ft of vertical height; additional height within a 12:12 slope.",
+    rearNote:"May reduce to 15 ft for garages/carports with direct alley access, or utility sheds ≤100 sq ft, where abutting a public alley. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement.",
+    frontNote:"On multi-street-frontage lots, one front yard may reduce to 20 ft (owner's choice, city manager approval)." },
+  "R3-6":   { section:"58-266", byUse:{
+      "Single-family": { front:25, side:7.5, rear:20,
+        sideNote:"1-story: 7½ ft. 2-story: 10 ft for yards abutting properties outside the project site (7½ ft may be approved for homes on individually platted lots abutting like lots in the same development, via site plan review). Pools 7½ ft from side line; not in any utility/drainage easement.",
+        rearNote:"Pools allowed in rear setback but no closer than 15 ft to rear lot line; not in any utility/drainage easement." },
+      "Multifamily":   { front:35, side:15, rear:30,
+        rearNote:"Pools allowed in rear setback but no closer than 15 ft to rear lot line; not in any utility/drainage easement." } } },
+  "R3-12":  { section:"58-296", front:25, side:7.5, rear:20,
+    frontNote:"6 ft of the 25 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"By height — 1-story: 7½ ft; 2-story: 10 ft; 3-story: 12½ ft. 7½ ft may be approved for single-family on individually platted lots abutting like lots in same development (site plan review). Pools 7½ ft from side line; not in any utility/drainage easement.",
+    rearNote:"Pools allowed in rear setback but no closer than 15 ft to rear lot line; not in any utility/drainage easement." },
+  "R3T-12": { section:"58-326", front:25, side:7.5, rear:20,
+    frontNote:"6 ft of the 25 ft front yard must be landscaped per Chapter 50.",
+    sideNote:"By height — 1-story: 7½ ft; 2-story: 10 ft; 3-story: 12½ ft. 7½ ft may be approved for single-family on individually platted lots abutting like lots in same development (site plan review). Pools 7½ ft from side line; not in any utility/drainage easement.",
+    rearNote:"Pools allowed in rear setback but no closer than 15 ft to rear lot line; not in any utility/drainage easement." },
+  "R3-15":  { section:"58-356", front:25, side:15, rear:25,
+    heightAdd:"All yards add +1 ft for each 1 ft of building height over 30 ft.",
+    frontNote:"25 ft base, +1 ft per ft of height over 30 ft; 6 ft of front yard landscaped per Chapter 50.",
+    sideNote:"15 ft base, +1 ft per ft of height over 30 ft. 7½ ft may be approved for single-family on individually platted lots abutting like lots (site plan review). Pools 15 ft from side line; not in any utility/drainage easement.",
+    rearNote:"25 ft base, +1 ft per ft of height over 30 ft. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement." },
+  "R3-15CS":{ section:"58-386", label:"R3-15 multifamily Coquina Sands (CS)", front:25, side:15, rear:25,
+    heightAdd:"All yards add +1 ft for each 1 ft of building height over 30 ft.",
+    frontNote:"25 ft base, +1 ft per ft of height over 30 ft; 6 ft of front yard landscaped per Chapter 50.",
+    sideNote:"15 ft base, +1 ft per ft of height over 30 ft. Pools 15 ft from side line; not in any utility/drainage easement.",
+    rearNote:"25 ft base, +1 ft per ft of height over 30 ft. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement." },
+  "R3-15MOR":{ section:"58-416", label:"R3-15 multifamily Moorings (MOR)", front:25, side:15, rear:25,
+    heightAdd:"All yards add +1 ft for each 1 ft of building height over 30 ft.",
+    frontNote:"25 ft base, +1 ft per ft of height over 30 ft; 6 ft of front yard landscaped per Chapter 50.",
+    sideNote:"15 ft base, +1 ft per ft of height over 30 ft. Pools 15 ft from side line; not in any utility/drainage easement.",
+    rearNote:"25 ft base, +1 ft per ft of height over 30 ft. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement." },
+  "R3-18":  { section:"58-446", front:30, side:15, rear:25,
+    heightAdd:"All yards add +1 ft for each 2 ft of building height over 45 ft.",
+    frontNote:"30 ft base, +1 ft per 2 ft of height over 45 ft; 6 ft of front yard landscaped per Chapter 50.",
+    sideNote:"15 ft base, +1 ft per 2 ft of height over 45 ft. Pools 15 ft from side line; not in any utility/drainage easement.",
+    rearNote:"25 ft base, +1 ft per 2 ft of height over 45 ft. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement." },
+  "R3T-18": { section:"58-476", front:30, side:15, rear:25,
+    heightAdd:"All yards add +1 ft for each 2 ft of building height over 45 ft.",
+    frontNote:"30 ft base, +1 ft per 2 ft of height over 45 ft; 6 ft of front yard landscaped per Chapter 50.",
+    sideNote:"15 ft base, +1 ft per 2 ft of height over 45 ft. Pools 15 ft from side line; not in any utility/drainage easement.",
+    rearNote:"25 ft base, +1 ft per 2 ft of height over 45 ft. Pools no closer than 15 ft to rear lot line; not in any utility/drainage easement." }
+};
+/* Normalize a zoning code for forgiving matching: uppercase, strip non-alphanumerics. */
+function normZoneKey(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+/* Look up Naples setbacks for a detected district. Exact → normalized → base-code prefix match. */
+function naplesSetbacks(districtCode){
+  if(!districtCode) return null;
+  const want=normZoneKey(districtCode);
+  const idx={}; for(const k in NAPLES_SETBACKS) idx[normZoneKey(k)]=NAPLES_SETBACKS[k];
+  if(idx[want]) return idx[want];
+  const keys=Object.keys(idx).sort((a,b)=>b.length-a.length);
+  for(const k of keys){ if(want.startsWith(k) || k.startsWith(want)) return idx[k]; }
+  return null;
+}
+/* Deep link to a specific Ch. 58 section in Naples Municode. */
+function municodeSection(sec){ return "https://library.municode.com/fl/naples/codes/code_of_ordinances?nodeId="+encodeURIComponent("PTIICOOR_CH58ZO_S"+String(sec).replace(/[^0-9-]/g,'')); }
 
 /* ---------- LIVE zoning-district detection (point → zoning polygon) ----------
    Same idea as COUNTY_LIVE, but for zoning districts. Each jurisdiction lists
@@ -1563,6 +1649,35 @@ function setStatus(state, text){
 }
 function fieldRow(k,v,cls){ if(v==null||v==='') return ''; return `<div class="field"><div class="k">${esc(k)}</div><div class="v ${cls||''}">${v}</div></div>`; }
 
+/* Render the Naples setback quick-reference for a detected district. Convenience copy from Ch. 58;
+   the live § deep-link is the source of truth. Handles by-use (R3-6) and base+conditional notes. */
+function ft(n){ return (n===Math.floor(n)?String(n):String(n)).replace(/\.5$/,'½')+' ft'; }
+function renderNaplesSetbacks(districtCode){
+  const e=naplesSetbacks(districtCode); if(!e) return '';
+  const secUrl = e.section ? municodeSection(e.section) : null;
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">≈ QUICK REF</span> Naples setbacks${e.label?' · '+esc(e.label):''}${e.section?' · § '+esc(e.section):''}</div>`;
+  function block(o, heading){
+    let b='';
+    if(heading) b+=`<div class="field"><div class="k" style="opacity:.7">${esc(heading)}</div><div class="v"></div></div>`;
+    if(o.front!=null) b+=fieldRow('Front yard', ft(o.front)+(o.heightAdd?' +':''), 'big');
+    if(o.side!=null)  b+=fieldRow('Side yard', ft(o.side));
+    if(o.rear!=null)  b+=fieldRow('Rear yard', ft(o.rear));
+    if(o.frontNote) b+=`<div class="note" style="padding-top:2px"><b>Front:</b> ${esc(o.frontNote)}</div>`;
+    if(o.sideNote)  b+=`<div class="note" style="padding-top:2px"><b>Side:</b> ${esc(o.sideNote)}</div>`;
+    if(o.rearNote)  b+=`<div class="note" style="padding-top:2px"><b>Rear:</b> ${esc(o.rearNote)}</div>`;
+    return b;
+  }
+  if(e.byUse){
+    for(const use in e.byUse) h+=block(e.byUse[use], use);
+  } else {
+    if(e.heightAdd) h+=`<div class="note warnbox"><b>Height-additive:</b> ${esc(e.heightAdd)} The numbers below are base minimums.</div>`;
+    h+=block(e);
+  }
+  h+=`<div class="note warnbox" style="margin-top:4px"><b>Quick reference only — verify against the live code.</b> Hand-entered from Naples Ch. 58 and may not reflect the latest amendments, overlays, or conditions. Confirm before any permitting/design decision.</div>`;
+  if(secUrl) h+=`<a class="palink" href="${esc(secUrl)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § ${esc(e.section)} — live in Municode</a>`;
+  return h;
+}
+
 function drawParcel(g){
   try{
     if(g&&g.rings){
@@ -1882,6 +1997,7 @@ async function runLookup(lat,lng,searchCtx){
     if(zhit.code!=null && String(zhit.code).trim()!=='') html += fieldRow('Zoning district', esc(String(zhit.code)), 'big');
     if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
+    if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
@@ -1894,7 +2010,13 @@ async function runLookup(lat,lng,searchCtx){
   }
   if(z){
     if(z.permit) html += `<a class="palink" href="${esc(z.permit)}" target="_blank" rel="noopener">↗ ${esc(jurName)} permitting / planning portal</a>`;
-    if(z.code)   html += `<a class="palink" href="${esc(z.code)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Land development code (Municode)</a>`;
+    if(z.zoningCh){
+      const distTxt = (zhit && zhit.code) ? esc(String(zhit.code)) : 'your district';
+      html += `<a class="palink" href="${esc(z.zoningCh)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Setbacks for ${distTxt} — zoning code, live (Municode)</a>`;
+      html += `<div class="note">Opens ${esc(jurName)}'s live zoning chapter. Find the <b>${(zhit&&zhit.code)?esc(String(zhit.code)):'detected'}</b> district section for its exact front/side/rear setbacks — always the current adopted text, never cached here.</div>`;
+    } else if(z.code){
+      html += `<a class="palink" href="${esc(z.code)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Land development code (Municode)</a>`;
+    }
   } else {
     html += `<a class="palink" href="${municodeSearch(jurName)}" target="_blank" rel="noopener">↗ Find ${esc(jurName)} code &amp; permitting portal</a>`;
   }
