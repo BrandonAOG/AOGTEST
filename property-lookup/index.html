@@ -510,6 +510,44 @@ function ciPick(a, ...keys){
   return null;
 }
 
+/* ---------- Natural-gas service territories (LDC franchise areas) — local, in-browser PIP ----------
+   Same mechanism as electric. A gas LDC "service territory" is where a utility is franchised to
+   serve — NOT proof a main reaches a given lot. So: inside a territory → gas MAY be available
+   (confirm a main with the utility); outside all territories → propane required. */
+let GAS_TERRITORIES = null;
+const GAS_GEOJSON_FILE = 'fl_gas_territories.geojson';
+function loadGasGeoJSON(text){
+  const gj=(typeof text==='string')?JSON.parse(text):text;
+  const feats=gj.type==='FeatureCollection'?gj.features:gj.type==='Feature'?[gj]:Array.isArray(gj)?gj:[];
+  const out=[];
+  for(const f of feats){ const g=f.geometry; if(!g) continue; const props=f.properties||f.attributes||{};
+    if(g.type==='Polygon') out.push({props,polys:[g.coordinates]});
+    else if(g.type==='MultiPolygon') out.push({props,polys:g.coordinates}); }
+  if(!out.length) throw new Error('No polygon features found in that file.');
+  GAS_TERRITORIES=out;
+  try{ STORE.set('fl_gas_geojson', JSON.stringify(gj)); }catch(e){}
+  return out.length;
+}
+function findGasAt(lat,lng){
+  if(!GAS_TERRITORIES) return null;
+  for(const t of GAS_TERRITORIES){ for(const poly of t.polys){ if(pointInPolygon(lng,lat,poly)) return t.props; } }
+  return null;
+}
+async function autoLoadGas(){
+  if(GAS_TERRITORIES) return true;
+  try{ const r=await fetch(GAS_GEOJSON_FILE,{cache:'force-cache'}); if(!r.ok) return false; loadGasGeoJSON(await r.text()); return true; }
+  catch(e){ return false; }
+}
+function handleGasFile(file){
+  const r=new FileReader();
+  r.onload=()=>{ try{ const n=loadGasGeoJSON(r.result); if(lastLoc) runLookup(lastLoc.lat,lastLoc.lng);
+      else { const s=document.getElementById('gasLoadMsg'); if(s) s.textContent=n+' gas territories loaded.'; } }
+    catch(e){ const s=document.getElementById('gasLoadMsg'); if(s) s.textContent='Could not read that file: '+e.message; } };
+  r.onerror=()=>{ const s=document.getElementById('gasLoadMsg'); if(s) s.textContent='File read failed.'; };
+  r.readAsText(file);
+}
+function clearGasData(){ GAS_TERRITORIES=null; STORE.del('fl_gas_geojson'); if(lastLoc) runLookup(lastLoc.lat,lastLoc.lng); }
+
 /* ---------- Safe persistent storage (autosave/autofill). No-ops if blocked. ---------- */
 const STORE = {
   get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
@@ -935,38 +973,48 @@ function featCentroid(f){
   return best?ringCentroid(best):null;
 }
 
-async function snapToParcelByAddress(q, lat, lng){
-  const hn=houseNum(q); if(!hn) return null;
-  const want=new Set(streetTokens(q));
-  const d=0.0035;                                          // ~380 m envelope (a generous block)
+async function _queryParcelsByHouse(hn, lat, lng, d){
   const env=`${lng-d},${lat-d},${lng+d},${lat+d}`;
-  // Filter to the exact house number on the server, pull geometry, compute centroid ourselves.
-  // Two PHY_ADDR1 forms are common: "4615 SW 9TH PL" and (rarely) "4615". Match both.
   const where=`PHY_ADDR1 LIKE '${hn} %' OR PHY_ADDR1 = '${hn}'`;
   const params=`where=${encodeURIComponent(where)}`+
     `&geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
     `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent('PHY_ADDR1,PHY_CITY,PHY_ZIPCD')}`+
-    `&returnGeometry=true&returnCentroid=true&outSR=4326&resultRecordCount=40&f=json`;
-  let j;
+    `&returnGeometry=true&returnCentroid=true&outSR=4326&resultRecordCount=200&f=json`;
   try{
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
     const r=await fetch(EP.parcel+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
-    if(!r.ok) return null; j=await r.json();
-    if(j.error) return null;
-  }catch(e){ return null; }
-  const feats=(j&&j.features)||[];
-  let best=null, bestScore=-1;
-  for(const f of feats){
-    const a=f.attributes||{};
-    if(houseNum(a.PHY_ADDR1)!==hn) continue;               // exact house number
-    const c=featCentroid(f); if(!c) continue;
-    const toks=new Set(streetTokens(a.PHY_ADDR1));
-    let overlap=0; want.forEach(t=>{ if(toks.has(t)) overlap++; });
-    const dd=(c[1]-lat)*(c[1]-lat)+(c[0]-lng)*(c[0]-lng);   // proximity tie-break (lng=c[0], lat=c[1])
-    const score=overlap*1000 - dd*1e6;
-    if(score>bestScore){ bestScore=score; best={lat:c[1],lng:c[0],matched:[a.PHY_ADDR1,a.PHY_CITY,a.PHY_ZIPCD].filter(Boolean).join(' ')}; }
+    if(!r.ok) return []; const j=await r.json(); if(j.error) return [];
+    return (j.features)||[];
+  }catch(e){ return []; }
+}
+async function snapToParcelByAddress(q, lat, lng){
+  const hn=houseNum(q); if(!hn) return null;
+  const want=new Set(streetTokens(q));            // e.g. "64th street west" -> {64TH, ST, W}
+  // Widen the search box in steps. Lehigh Acres etc. have big lots / long blocks, so the
+  // interpolated geocode can sit a long way from the real parcel. Stop at the first ring that
+  // yields a confident match (exact house number + a street-token overlap).
+  for(const d of [0.004, 0.012, 0.03]){           // ~440 m, ~1.3 km, ~3.3 km
+    const feats=await _queryParcelsByHouse(hn,lat,lng,d);
+    let best=null,bestScore=-1;
+    for(const f of feats){
+      const a=f.attributes||{};
+      if(houseNum(a.PHY_ADDR1)!==hn) continue;     // exact house number required
+      const c=featCentroid(f); if(!c) continue;
+      const toks=new Set(streetTokens(a.PHY_ADDR1));
+      let overlap=0; want.forEach(t=>{ if(toks.has(t)) overlap++; });
+      const dd=(c[1]-lat)*(c[1]-lat)+(c[0]-lng)*(c[0]-lng);
+      const score=overlap*1000 - dd*1e6;           // street match dominates; nearest breaks ties
+      if(score>bestScore){ bestScore=score; best={lat:c[1],lng:c[0],overlap,
+        matched:[a.PHY_ADDR1,a.PHY_CITY,a.PHY_ZIPCD].filter(Boolean).join(' ')}; }
+    }
+    // Accept only if the street actually matches (overlap>0) OR there was just one candidate and
+    // the box is tight (so it's almost certainly the right lot). Otherwise widen and retry.
+    if(best && (best.overlap>0 || (d<=0.012 && feats.filter(f=>houseNum((f.attributes||{}).PHY_ADDR1)===hn).length===1))){
+      return best;
+    }
+    if(best && d>=0.03) return best;                // last resort: best nearest exact-number match
   }
-  return best;
+  return null;
 }
 
 /* ---------- Render ---------- */
@@ -1333,6 +1381,50 @@ async function runLookup(lat,lng){
     }
   },0);
 
+  /* ---- Fuel: Natural Gas vs Propane ----
+     Based on the gas LDC service-territory polygon. Inside → gas may be available (confirm a
+     main with the utility); outside all territories → propane required. No data → loader. */
+  const gasHit = findGasAt(lat,lng);
+  html += `<div class="card"><div class="ch"><span class="icn">[ FUEL ]</span><h2>Natural Gas / Propane</h2>
+    <div class="src">gas LDC service<br>territory</div></div><div class="cb">`;
+  if(gasHit){
+    const gName = ciPick(gasHit,'NAME','COMPANY','UTILITY_NAME','OPERATOR','LDC_NAME') || 'a natural gas utility';
+    const gPhone= ciPick(gasHit,'TELEPHONE','PHONE');
+    const gWebRaw=ciPick(gasHit,'WEBSITE','WEB','URL'); const gWeb=gWebRaw?(/^https?:\/\//i.test(gWebRaw)?gWebRaw:'https://'+gWebRaw):null;
+    html += `<div class="freshline"><span class="badge live">● IN TERRITORY</span> a gas utility is franchised to serve this area</div>`;
+    html += fieldRow('Likely fuel','Natural gas may be available','big');
+    html += fieldRow('Gas utility', esc(gName));
+    if(gPhone) html += fieldRow('Confirm with', esc(String(gPhone)));
+    if(gWeb)   html += `<a class="palink" href="${esc(gWeb)}" target="_blank" rel="noopener">↗ ${esc(gName)} website</a>`;
+    html += `<div class="note warnbox"><b>Service territory ≠ a main at the curb.</b> This point is inside ${esc(gName)}'s franchised area, so natural gas is plausible — but distribution mains don't reach every street. Confirm an active main / available tap at the exact address with the utility before specifying a natural-gas unit. If there's no main, propane (LP) is required.</div>`;
+  } else if(GAS_TERRITORIES){
+    html += `<div class="freshline snap"><span class="badge unk">propane</span> outside every natural-gas service territory</div>`;
+    html += fieldRow('Required fuel','Propane (LP)','big');
+    html += `<div class="note">This point falls outside all loaded natural-gas service territories — no gas utility is franchised here, so a natural-gas unit isn't an option; plan for propane (LP). For a brand-new address, it's still worth a quick check against current utility info.</div>`;
+  } else {
+    html += `<div class="freshline snap"><span class="badge unk">no data</span> load a natural-gas territory file</div>`;
+    html += `<div class="note">To tell natural gas vs propane this needs <b>${esc(GAS_GEOJSON_FILE)}</b> beside this page (same idea as the electric file). Drop it below to load it now.</div>`;
+    html += `<div id="gasDrop" style="margin-top:10px;border:1px dashed #2a3a4a;border-radius:8px;padding:12px;text-align:center;cursor:pointer">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--blueprint)">⬇ Drop a gas-territories .geojson here, or click to choose</div>
+        <input id="gasFile" type="file" accept=".geojson,.json,application/geo+json,application/json" style="display:none">
+        <div id="gasLoadMsg" class="lhint" style="margin-top:6px"></div>
+      </div>`;
+  }
+  if(gasHit || GAS_TERRITORIES){
+    html += `<div class="note" style="font-size:10px"><a href="#" onclick="clearGasData();return false;" style="color:var(--blueprint)">Replace/clear gas data</a></div>`;
+  }
+  html += `</div></div>`;
+  setTimeout(()=>{
+    const drop=document.getElementById('gasDrop'), inp=document.getElementById('gasFile');
+    if(drop&&inp){
+      drop.onclick=()=>inp.click();
+      inp.onchange=e=>{ if(e.target.files&&e.target.files[0]) handleGasFile(e.target.files[0]); };
+      ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.style.borderColor='var(--signal)';}));
+      ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.style.borderColor='#2a3a4a';}));
+      drop.addEventListener('drop',e=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handleGasFile(f); });
+    }
+  },0);
+
   results.innerHTML = setStatus('ok','Done — '+(new Date()).toLocaleTimeString()) + html;
 }
 
@@ -1400,12 +1492,15 @@ async function fetchSuggestions(q){
 }
 
 async function chooseSuggestion(it){
+  const typed=(addrEl.value||'').trim();           // what the user actually typed (before we overwrite it)
   hideSuggest();
   addrEl.value=it.label;
   STORE.set('fl_addr',it.label);
   addToHistory(it.label);
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
-  const snap=await snapToParcelByAddress(it.label, it.lat, it.lng);
+  // Anchor the match on the typed house number/street when present; use the suggestion only for location.
+  const matchStr = houseNum(typed) ? typed : it.label;
+  const snap=await snapToParcelByAddress(matchStr, it.lat, it.lng);
   const pt = snap ? snap : it;
   map.setView([pt.lat,pt.lng], snap?19:18);
   await runLookup(pt.lat,pt.lng);
@@ -1621,6 +1716,9 @@ window.Sheet=Sheet;
   const tg=STORE.get('fl_util_geojson');
   if(tg){ try{ loadTerritoryGeoJSON(tg); }catch(e){} }     // re-load saved territory data first
   if(!TERRITORIES){ await autoLoadTerritories(); }          // else load the file shipped beside this page
+  const gg=STORE.get('fl_gas_geojson');
+  if(gg){ try{ loadGasGeoJSON(gg); }catch(e){} }            // gas territories: saved copy first
+  if(!GAS_TERRITORIES){ await autoLoadGas(); }              // else the gas file shipped beside this page
   const lu=STORE.get('fl_live');
   if(lu){ document.getElementById('liveUrl').value=lu; document.getElementById('adv').open=true; try{ await testLiveSource(); }catch(e){} }
   const loc=STORE.get('fl_loc');
