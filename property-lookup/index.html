@@ -565,7 +565,7 @@ const GAS_GEOJSON_FILE = 'fl_gas_territories.geojson';
    nearly all of SWFL; a few municipalities run their own systems. Confirm a main at the address. */
 const FL_GAS = {
   COLLIER:  { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas is the franchised LDC across Collier (Naples/Marco/unincorporated). City of Naples also operates a municipal gas system in parts of the city." },
-  LEE:      { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas serves Lee incl. Fort Myers, Cape Coral, Sanibel/Captiva & Fort Myers Beach areas where mains exist." },
+  LEE:      { name:"Limited natural gas — mostly propane (LP)", phone:null, web:null, note:"Most of Lee County, including nearly all of Cape Coral, has NO piped natural gas — homes use propane (LP) from suppliers like Suburban, AmeriGas or Ferrellgas. Piped natural gas (TECO Peoples Gas) reaches only limited pockets, mainly parts of Fort Myers. Assume propane unless a gas main is confirmed at the address." },
   CHARLOTTE:{ name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas is the franchised LDC in Charlotte County (Port Charlotte/Punta Gorda) where mains reach." },
   SARASOTA: { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas serves much of Sarasota County; the City of Sarasota also has a municipal gas utility." },
   MANATEE:  { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com" },
@@ -2076,12 +2076,25 @@ async function runLookup(lat,lng,searchCtx){
     const gName = ciPick(gasHit,'NAME','COMPANY','UTILITY_NAME','OPERATOR','LDC_NAME') || 'a natural gas utility';
     const gPhone= ciPick(gasHit,'TELEPHONE','PHONE');
     const gWebRaw=ciPick(gasHit,'WEBSITE','WEB','URL'); const gWeb=gWebRaw?(/^https?:\/\//i.test(gWebRaw)?gWebRaw:'https://'+gWebRaw):null;
-    html += `<div class="freshline"><span class="badge live">● IN TERRITORY</span> a gas utility is franchised to serve this area</div>`;
-    html += fieldRow('Likely fuel','Natural gas may be available','big');
-    html += fieldRow('Gas utility', esc(gName));
-    if(gPhone) html += fieldRow('Confirm with', esc(String(gPhone)));
-    if(gWeb)   html += `<a class="palink" href="${esc(gWeb)}" target="_blank" rel="noopener">↗ ${esc(gName)} website</a>`;
-    html += `<div class="note warnbox"><b>Service territory ≠ a main at the curb.</b> This point is inside ${esc(gName)}'s franchised area, so natural gas is plausible — but distribution mains don't reach every street. Confirm an active main / available tap at the exact address with the utility before specifying a natural-gas unit. If there's no main, propane (LP) is required.</div>`;
+    // Known propane-dominant areas: the franchise polygon covers them, but mains are largely absent in
+    // practice (e.g. nearly all of Cape Coral / most of Lee). Lead with that reality, not the franchise name.
+    const propaneDominant = norm(cityName)==='CAPECORAL' ||
+      (norm(countyName)==='LEE' && norm(cityName)!=='FORTMYERS');
+    if(propaneDominant){
+      html += `<div class="freshline snap"><span class="badge unk">mostly propane</span> in ${esc(gName)}'s franchise area, but mains are sparse here</div>`;
+      html += fieldRow('Likely fuel','Propane (LP) — natural gas rare','big');
+      html += fieldRow('Franchise holder', esc(gName));
+      if(gPhone) html += fieldRow('Confirm gas with', esc(String(gPhone)));
+      if(gWeb)   html += `<a class="palink" href="${esc(gWeb)}" target="_blank" rel="noopener">↗ ${esc(gName)} website</a>`;
+      html += `<div class="note warnbox"><b>Plan for propane unless a main is confirmed.</b> ${esc(gName)} holds the natural-gas franchise for this area, but most of ${norm(cityName)==='CAPECORAL'?'Cape Coral':'this part of Lee County'} has no distribution mains in the ground — homes use propane (LP) from suppliers like Suburban, AmeriGas or Ferrellgas. Only confirm natural gas if the utility verifies an active main at the exact address.</div>`;
+    } else {
+      html += `<div class="freshline"><span class="badge live">● IN TERRITORY</span> a gas utility is franchised to serve this area</div>`;
+      html += fieldRow('Likely fuel','Natural gas may be available','big');
+      html += fieldRow('Gas utility', esc(gName));
+      if(gPhone) html += fieldRow('Confirm with', esc(String(gPhone)));
+      if(gWeb)   html += `<a class="palink" href="${esc(gWeb)}" target="_blank" rel="noopener">↗ ${esc(gName)} website</a>`;
+      html += `<div class="note warnbox"><b>Service territory ≠ a main at the curb.</b> This point is inside ${esc(gName)}'s franchised area, so natural gas is plausible — but distribution mains don't reach every street. Confirm an active main / available tap at the exact address with the utility before specifying a natural-gas unit. If there's no main, propane (LP) is required.</div>`;
+    }
   } else if(GAS_TERRITORIES){
     html += `<div class="freshline snap"><span class="badge unk">propane</span> outside every natural-gas service territory</div>`;
     html += fieldRow('Required fuel','Propane (LP)','big');
@@ -2093,7 +2106,12 @@ async function runLookup(lat,lng,searchCtx){
       html += fieldRow('Likely gas utility', esc(ghint.name), 'big');
       if(ghint.phone) html += fieldRow('Phone', esc(ghint.phone));
       if(ghint.web)   html += `<a class="palink" href="${esc(ghint.web)}" target="_blank" rel="noopener">↗ ${esc(ghint.name)} website</a>`;
-      html += `<div class="note warnbox"><b>Service area ≠ a main at the curb.</b> ${ghint.note?esc(ghint.note)+' ':''}This is the county's franchised LDC, not a point-verified answer — distribution mains don't reach every street. Confirm an active main at the exact address; if none, propane (LP) is required. Load the gas territory file below for point-level detection.</div>`;
+      if(ghint.phone || ghint.web){
+        html += `<div class="note warnbox"><b>Service area ≠ a main at the curb.</b> ${ghint.note?esc(ghint.note)+' ':''}This is the county's franchised LDC, not a point-verified answer — distribution mains don't reach every street. Confirm an active main at the exact address; if none, propane (LP) is required. Load the gas territory file below for point-level detection.</div>`;
+      } else {
+        // propane-dominant / no single LDC
+        html += `<div class="note warnbox">${ghint.note?esc(ghint.note)+' ':''}This is a general area characterization, not a point-verified answer. Confirm at the specific address. Load the gas territory file below for point-level detection.</div>`;
+      }
     } else {
       html += `<div class="freshline snap"><span class="badge unk">no data</span> load a natural-gas territory file</div>`;
       html += `<div class="note">To tell natural gas vs propane this needs <b>${esc(GAS_GEOJSON_FILE)}</b> beside this page (same idea as the electric file). Drop it below to load it now.</div>`;
