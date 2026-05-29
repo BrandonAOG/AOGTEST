@@ -106,8 +106,8 @@
   .layerswitch{position:absolute;z-index:1000;bottom:18px;right:18px;display:flex;background:#11161d;border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.5)}
   .layerswitch button{background:transparent;border:none;color:var(--dim);font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.05em;padding:9px 14px;cursor:pointer;text-transform:uppercase}
   .layerswitch button.active{background:var(--signal);color:#191100}
-  .bnd-tip{background:#ff8c1a;color:#191100;border:none;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.04em;padding:2px 7px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
-  .bnd-tip::before{border-top-color:#ff8c1a !important}
+  .bnd-tip{background:#ff8c1a;color:#10151b;border:none;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.04em;padding:2px 7px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  .bnd-tip .leaflet-tooltip-tip{background:#ff8c1a}
   .crosshair{position:absolute;z-index:999;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10.5px;color:var(--dim);background:rgba(13,17,23,.82);border:1px solid var(--line);padding:5px 12px;border-radius:20px;pointer-events:none}
 
   .empty{text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;padding:26px 10px;line-height:1.6}
@@ -236,7 +236,7 @@
 <div class="layerswitch">
   <button id="btnSat" class="active">Satellite</button>
   <button id="btnStreet">Street</button>
-  <button id="btnBounds" class="active" title="Toggle incorporated city-limit outlines">◰ City limits</button>
+  <button id="btnBounds" class="active" title="Toggle color-coded incorporated city-limit outlines">◰ City limits</button>
 </div>
 
 <div id="panel">
@@ -353,6 +353,22 @@ WASHINGTON:"https://www.qpublic.net/fl/washington/"
 };
 const norm = s => (s||"").toUpperCase().replace(/[^A-Z]/g,"");
 
+/* Build a deep link into the county property-appraiser record for a given parcel id, when the
+   county supports a stable URL pattern; otherwise return the appraiser home page (still useful).
+   SWFL patterns verified by structure; others fall back to the PA home page. */
+function appraiserParcelLink(countyName, pid){
+  const c=norm(countyName); const home=PA[c]||null;
+  if(!pid) return home;
+  const digits=String(pid).replace(/[^0-9]/g,'');
+  switch(c){
+    case 'COLLIER':  return digits?`https://www.collierappraiser.com/main_search/RecordDetail.html?FolioID=${digits}`:home;
+    case 'LEE':      return `https://www.leepa.org/Search/PropertySearch.aspx`;            // STRAP search
+    case 'CHARLOTTE':return digits?`https://www.ccappraiser.com/Show_parcel.aspx?acct=${digits}`:home;
+    case 'SARASOTA': return digits?`https://www.sc-pa.com/propertysearch/parcel/details/${digits}`:home;
+    default:         return home;
+  }
+}
+
 /* ---------- Florida electric utility by county ----------
    Primary utility serving the majority of each county's residential customers.
    Some counties are split (e.g. parts of Polk served by TECO vs Duke vs Lakeland Electric)
@@ -368,7 +384,7 @@ const FL_UTILITY = {
   CHARLOTTE:  { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
   CITRUS:     { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
   CLAY:       { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com", note:"Clay Electric Cooperative also serves portions of the county." },
-  COLLIER:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
+  COLLIER:    { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com", note:"FPL serves nearly all of Collier including Naples, Marco Island & unincorporated areas. Lee County Electric Cooperative (LCEC) serves the far-northern/Immokalee-area fringe and parts of eastern Collier." },
   COLUMBIA:   { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
   DESOTO:     { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
   DIXIE:      { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
@@ -392,7 +408,7 @@ const FL_UTILITY = {
   JEFFERSON:  { name:"Talquin Electric Cooperative", type:"Electric cooperative", phone:"(850) 627-7651", web:"https://www.talquinelectric.com" },
   LAFAYETTE:  { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
   LAKE:       { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida", note:"Utilities Commission of New Smyrna Beach and city utilities serve some areas." },
-  LEE:        { name:"Lee County Electric Cooperative (LCEC)", type:"Electric cooperative", phone:"(239) 656-2300", web:"https://www.lcec.net" },
+  LEE:        { name:"Lee County Electric Cooperative (LCEC)", type:"Electric cooperative", phone:"(239) 656-2300", web:"https://www.lcec.net", note:"LCEC serves Cape Coral, Sanibel, Pine Island, North Fort Myers, Lehigh Acres & much of the county. FPL serves the City of Fort Myers and some adjacent areas — the two split Lee, so confirm by address." },
   LEON:       { name:"Talquin Electric Cooperative", type:"Electric cooperative", phone:"(850) 627-7651", web:"https://www.talquinelectric.com", note:"City of Tallahassee Electric Utility serves Tallahassee." },
   LEVY:       { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
   LIBERTY:    { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
@@ -543,6 +559,19 @@ function ciPick(a, ...keys){
    (confirm a main with the utility); outside all territories → propane required. */
 let GAS_TERRITORIES = null;
 const GAS_GEOJSON_FILE = 'fl_gas_territories.geojson';
+
+/* County-level natural-gas LDC hint (approximate, not point-verified). Used as a labeled fallback
+   when the gas territory polygon file isn't loaded. TECO Peoples Gas is the franchised LDC across
+   nearly all of SWFL; a few municipalities run their own systems. Confirm a main at the address. */
+const FL_GAS = {
+  COLLIER:  { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas is the franchised LDC across Collier (Naples/Marco/unincorporated). City of Naples also operates a municipal gas system in parts of the city." },
+  LEE:      { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas serves Lee incl. Fort Myers, Cape Coral, Sanibel/Captiva & Fort Myers Beach areas where mains exist." },
+  CHARLOTTE:{ name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas is the franchised LDC in Charlotte County (Port Charlotte/Punta Gorda) where mains reach." },
+  SARASOTA: { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas serves much of Sarasota County; the City of Sarasota also has a municipal gas utility." },
+  MANATEE:  { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com" },
+  HENDRY:   { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Limited gas-main coverage; much of Hendry is propane (LP)." },
+  GLADES:   { name:"(limited / none)", phone:null, web:null, note:"Little to no franchised natural-gas distribution — plan for propane (LP)." }
+};
 function loadGasGeoJSON(text){
   const gj=(typeof text==='string')?JSON.parse(text):text;
   const feats=gj.type==='FeatureCollection'?gj.features:gj.type==='Feature'?[gj]:Array.isArray(gj)?gj:[];
@@ -591,7 +620,10 @@ function saveLoc(lat,lng){ lastLoc={lat,lng}; STORE.set('fl_loc', JSON.stringify
    ⚠️ Endpoints marked "verify" were located via the county's public GIS but not test-queried
    from this build environment; confirm in a browser. Layer must allow public CORS. */
 const COUNTY_LIVE = {
-  COLLIER : { label:"Collier County GIS", urls:[
+  COLLIER : { label:"Collier County GIS (Property Appraiser source)", urls:[
+    // Collier's enterprise GIS parcels (sourced from the Property Appraiser; owner field NAME1).
+    // CORS from the county server isn't guaranteed; if it blocks the browser the tool falls back to
+    // the dated statewide roll and the "verify on appraiser" link still works.
     "https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/MapServer/0/query"
   ]},
   LEE     : { label:"Lee County PA (nightly)", urls:[
@@ -895,13 +927,21 @@ btnStreet.onclick=()=>{map.addLayer(street);map.removeLayer(satGroup);btnStreet.
 let marker=null, parcelLayer=null;
 map.on('click', e => runLookup(e.latlng.lat, e.latlng.lng));
 
-/* ---------- City/county separation: orange incorporated city-limit outlines ----------
-   Draws incorporated municipality polygons (FDOT Admin_Boundaries layer 7) as orange
-   outlines for the current view. Everything OUTSIDE an orange line is unincorporated
-   county. Re-fetches on pan/zoom (debounced) and only when zoomed in enough to be useful. */
+/* ---------- City/county separation: color-coded INCORPORATED city outlines ----------
+   The FDOT "Florida Cities Bndy" layer is built from US Census place data, which mixes
+   incorporated municipalities WITH unincorporated communities (CDPs). We filter to
+   incorporated places only (Census CLASSFP starts with 'C'; CDPs are 'U1'/'U2'), so
+   communities are no longer outlined. Each city gets its own stable color derived from
+   its name, so adjacent cities are easy to tell apart. Outside any outline = unincorporated. */
+const CITY_PALETTE = ['#ff8c1a','#3fd0ff','#7cff5c','#ff5ca8','#c08bff','#ffe14d','#5cffd4','#ff6b5c','#9cff2e','#5c9bff','#ff9ed6','#4dffa0'];
+function cityColor(name){
+  let h=0; const s=String(name||'');
+  for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))>>>0; }
+  return CITY_PALETTE[h % CITY_PALETTE.length];
+}
 let boundsLayer = L.geoJSON(null, {
-  style:{ color:'#ff8c1a', weight:2.5, opacity:.95, fill:false, dashArray:null },
-  onEachFeature:(f,lyr)=>{ const nm=f.properties&&(f.properties.NAME||f.properties.name); if(nm) lyr.bindTooltip(String(nm),{sticky:true,direction:'top',className:'bnd-tip'}); }
+  style:(f)=>{ const nm=f.properties&&(f.properties.NAME||f.properties.name); return { color:cityColor(nm), weight:2.5, opacity:.95, fill:false }; },
+  onEachFeature:(f,lyr)=>{ const nm=f.properties&&(f.properties.NAME||f.properties.name); if(nm){ lyr.bindTooltip(String(nm),{sticky:true,direction:'top',className:'bnd-tip'}); lyr.on('tooltipopen',ev=>{ const el=ev.tooltip&&ev.tooltip.getElement(); if(el){ const col=cityColor(nm); el.style.background=col; el.style.color='#10151b'; const arrow=el.querySelector('.leaflet-tooltip-tip'); if(arrow) arrow.style.background=col; } }); } }
 }).addTo(map);
 let boundsOn=true, boundsBusy=false, boundsKey='';
 async function refreshBoundaries(){
@@ -912,14 +952,32 @@ async function refreshBoundaries(){
   if(key===boundsKey || boundsBusy) return;                                    // skip redundant fetches
   boundsBusy=true;
   const env=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
-  const url=EP.city.replace(/\/query$/,'/query')+
+  // CLASSFP LIKE 'C%' = incorporated places only (excludes CDP communities U1/U2)
+  const where=encodeURIComponent("CLASSFP LIKE 'C%'");
+  const url=EP.city+
     `?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
-    `&spatialRel=esriSpatialRelIntersects&outFields=NAME&returnGeometry=true&outSR=4326&f=geojson`;
+    `&spatialRel=esriSpatialRelIntersects&where=${where}&outFields=NAME,CLASSFP,LSAD`+
+    `&returnGeometry=true&outSR=4326&f=geojson`;
   try{
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
-    const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
-    if(r.ok){ const gj=await r.json();
-      if(gj && gj.features){ boundsLayer.clearLayers(); boundsLayer.addData(gj); boundsKey=key; } }
+    let r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
+    let gj = r.ok ? await r.json() : null;
+    // fallback: if the where-clause filter isn't supported, fetch all and filter client-side by name
+    if(!gj || !gj.features){
+      const url2=EP.city+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+        `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=NAME,CLASSFP,LSAD&returnGeometry=true&outSR=4326&f=geojson`;
+      const r2=await fetch(url2); if(r2.ok) gj=await r2.json();
+    }
+    if(gj && gj.features){
+      // keep only incorporated places (defensive client-side filter too)
+      gj.features = gj.features.filter(f=>{
+        const c=(f.properties&&(f.properties.CLASSFP||f.properties.classfp)||'').toString().toUpperCase();
+        const l=(f.properties&&(f.properties.LSAD||f.properties.lsad)||'').toString();
+        if(c) return c.startsWith('C');           // C* = incorporated
+        return l==='25'||l==='43'||l==='47'||l==='21'||l==='53'||l==='62'; // city/town/village LSAD codes
+      });
+      boundsLayer.clearLayers(); boundsLayer.addData(gj); boundsKey=key;
+    }
   }catch(e){ /* leave existing outlines on failure */ }
   finally{ boundsBusy=false; }
 }
@@ -1375,6 +1433,10 @@ async function runLookup(lat,lng){
     html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}</div>`;
     html += renderParcelGeneric(liveRes.features[0].attributes, det);
     drawParcel(liveRes.features[0].geometry);
+    { const lpid = det.pid?pick(liveRes.features[0].attributes,det.pid):null;
+      const vurl = appraiserParcelLink(countyName, lpid);
+      if(vurl) html += `<a class="palink" href="${esc(vurl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Verify on ${esc(titleCase(countyName))} County Property Appraiser${lpid?' (parcel '+esc(String(lpid))+')':''}</a>`;
+    }
     if(parcel && !parcel.__err && parcel.features && parcel.features[0]){
       const so=pick(parcel.features[0].attributes,'OWN_NAME');
       const lo=det.owner?pick(liveRes.features[0].attributes,det.owner):null;
@@ -1414,6 +1476,9 @@ async function runLookup(lat,lng){
     if(lsf) html += fieldRow('Land area', lsf+' sq ft');
     if(sp&&sy) html += fieldRow('Last sale', sp+' ('+esc(sy)+')');
     if(legal) html += fieldRow('Legal', '<span style="font-size:11px">'+esc(legal)+'</span>');
+    { const vurl = appraiserParcelLink(countyName, pid);
+      if(vurl) html += `<a class="palink" href="${esc(vurl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Verify on ${esc(titleCase(countyName))} County Property Appraiser${pid?' (parcel '+esc(String(pid))+')':''}</a>`;
+    }
     drawParcel(parcel.features[0].geometry);
   } else if(parcel && parcel.__err){
     html += `<div class="note">Parcel service did not respond (${esc(parcel.__err)}). Try again, or use the county appraiser link above.</div>`;
@@ -1625,11 +1690,29 @@ async function runLookup(lat,lng){
     // We HAVE data, the point just isn't inside any polygon.
     html += `<div class="freshline snap"><span class="badge unk">no match</span> point is outside every loaded territory</div>`;
     html += `<div class="note">Loaded ${TERRITORIES.length} territories, but this exact point falls inside none of them — often water, right-of-way, or a gap between polygons. Nudge the marker onto the structure and try again. No provider is shown rather than guessing one. <a href="#" onclick="clearTerritoryData();return false;" style="color:var(--blueprint)">Replace/clear data</a></div>`;
+    const hint = countyName ? FL_UTILITY[norm(countyName)] : null;
+    if(hint){
+      html += `<div class="freshline snap" style="margin-top:8px"><span class="badge unk">approx</span> county-level provider (not point-verified)</div>`;
+      html += fieldRow('Likely utility', esc(hint.name)+(hint.type?' · '+esc(hint.type):''));
+      if(hint.phone) html += fieldRow('Phone', esc(hint.phone));
+      if(hint.note)  html += `<div class="note">${esc(hint.note)}</div>`;
+    }
   } else {
-    // No local data loaded yet and no working REST source.
+    // No local data loaded yet and no working REST source — show county-level best guess, clearly labeled.
     const uerr = (util && util.__err) ? util.__err : null;
-    html += `<div class="freshline snap"><span class="badge unk">no data</span> territory file not loaded</div>`;
-    html += `<div class="note">The Florida territory polygons normally load automatically from <b>${esc(UTIL_GEOJSON_FILE)}</b> in the same folder as this page. If you're seeing this, that file isn't beside the page yet — drop it below to load it for this session.</div>`;
+    const hint = countyName ? FL_UTILITY[norm(countyName)] : null;
+    if(hint){
+      html += `<div class="freshline snap"><span class="badge unk">approx</span> county-level provider · territory file not loaded</div>`;
+      html += fieldRow('Likely utility', esc(hint.name), 'big');
+      if(hint.type)  html += fieldRow('Type', esc(hint.type));
+      if(hint.phone) html += fieldRow('Phone', esc(hint.phone));
+      if(hint.web)   html += `<a class="palink" href="${esc(hint.web)}" target="_blank" rel="noopener">↗ ${esc(hint.name)} website</a>`;
+      if(hint.note)  html += `<div class="note warnbox">${esc(hint.note)}</div>`;
+      html += `<div class="note">This is the county's dominant provider, <b>not</b> a point-verified answer — SWFL counties are split between providers (FPL / LCEC / city utilities). For an exact match by location, load the territory polygon file below.</div>`;
+    } else {
+      html += `<div class="freshline snap"><span class="badge unk">no data</span> territory file not loaded</div>`;
+      html += `<div class="note">The Florida territory polygons normally load automatically from <b>${esc(UTIL_GEOJSON_FILE)}</b> in the same folder as this page. If you're seeing this, that file isn't beside the page yet — drop it below to load it for this session.</div>`;
+    }
     // Primary path: load a GeoJSON file (drag/drop or pick).
     html += `<div id="utilDrop" style="margin-top:10px;border:1px dashed #2a3a4a;border-radius:8px;padding:12px;text-align:center;cursor:pointer">
         <div style="font-family:var(--mono);font-size:11px;color:var(--blueprint)">⬇ Drop a territories .geojson here, or click to choose</div>
@@ -1683,8 +1766,17 @@ async function runLookup(lat,lng){
     html += fieldRow('Required fuel','Propane (LP)','big');
     html += `<div class="note">This point falls outside all loaded natural-gas service territories — no gas utility is franchised here, so a natural-gas unit isn't an option; plan for propane (LP). For a brand-new address, it's still worth a quick check against current utility info.</div>`;
   } else {
-    html += `<div class="freshline snap"><span class="badge unk">no data</span> load a natural-gas territory file</div>`;
-    html += `<div class="note">To tell natural gas vs propane this needs <b>${esc(GAS_GEOJSON_FILE)}</b> beside this page (same idea as the electric file). Drop it below to load it now.</div>`;
+    const ghint = countyName ? FL_GAS[norm(countyName)] : null;
+    if(ghint){
+      html += `<div class="freshline snap"><span class="badge unk">approx</span> county-level gas LDC · territory file not loaded</div>`;
+      html += fieldRow('Likely gas utility', esc(ghint.name), 'big');
+      if(ghint.phone) html += fieldRow('Phone', esc(ghint.phone));
+      if(ghint.web)   html += `<a class="palink" href="${esc(ghint.web)}" target="_blank" rel="noopener">↗ ${esc(ghint.name)} website</a>`;
+      html += `<div class="note warnbox"><b>Service area ≠ a main at the curb.</b> ${ghint.note?esc(ghint.note)+' ':''}This is the county's franchised LDC, not a point-verified answer — distribution mains don't reach every street. Confirm an active main at the exact address; if none, propane (LP) is required. Load the gas territory file below for point-level detection.</div>`;
+    } else {
+      html += `<div class="freshline snap"><span class="badge unk">no data</span> load a natural-gas territory file</div>`;
+      html += `<div class="note">To tell natural gas vs propane this needs <b>${esc(GAS_GEOJSON_FILE)}</b> beside this page (same idea as the electric file). Drop it below to load it now.</div>`;
+    }
     html += `<div id="gasDrop" style="margin-top:10px;border:1px dashed #2a3a4a;border-radius:8px;padding:12px;text-align:center;cursor:pointer">
         <div style="font-family:var(--mono);font-size:11px;color:var(--blueprint)">⬇ Drop a gas-territories .geojson here, or click to choose</div>
         <input id="gasFile" type="file" accept=".geojson,.json,application/geo+json,application/json" style="display:none">
