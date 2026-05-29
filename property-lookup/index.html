@@ -273,6 +273,18 @@
         <br>Lee County GIS: <a href="https://maps.leegov.com/datasets/lee-county-parcels/about" target="_blank" rel="noopener">maps.leegov.com</a> · directory: <a href="https://leegis.leegov.com/arcgis/rest/services" target="_blank" rel="noopener">leegis.leegov.com</a>
       </div>
     </details>
+
+    <details class="adv" id="advZon">
+      <summary>Zoning district layer (live detection)</summary>
+      <div class="arow">
+        <input id="zonUrl" type="text" placeholder="Paste a zoning polygon layer URL…" autocomplete="off">
+        <button id="zonTest">Test</button>
+      </div>
+      <div class="lstat" id="zonStatus"></div>
+      <div class="lhint">
+        Lee County — Cape Coral, Fort Myers, Bonita Springs, Estero, Fort Myers Beach &amp; unincorporated — detects the zoning district automatically. For <b>any other SWFL jurisdiction</b> (Charlotte, Sarasota, Manatee, a specific city…), paste its zoning <b>polygon layer</b> URL (ending in <code>/0</code>, etc.) and the district field auto-detects. Unset = the code/permitting links below.
+      </div>
+    </details>
   </div>
 
   <div class="body" id="results">
@@ -683,6 +695,92 @@ function resolveZoning(cityName, countyName){
 }
 function municodeSearch(j){ return "https://www.google.com/search?q="+encodeURIComponent(j+" Florida land development code zoning setbacks municode"); }
 
+/* ---------- LIVE zoning-district detection (point → zoning polygon) ----------
+   Same idea as COUNTY_LIVE, but for zoning districts. Each jurisdiction lists
+   candidate zoning-POLYGON layer /query URLs; tried in order at runtime, first
+   hit at the clicked point wins. The zoning-code field is AUTO-DETECTED, so any
+   public ArcGIS zoning layer works without code edits — including one pasted in
+   the Advanced panel. If nothing is wired (or every candidate is down / CORS-
+   blocked / returns no polygon) it silently falls back to the Municode +
+   permitting links rendered below.
+   ✅ LEE  = verified against the live REST directory: Lee's consolidated
+            DCD_Zoning service. Its sublayers cover unincorporated Lee PLUS the
+            cities of Cape Coral, Fort Myers, Estero, Fort Myers Beach and Bonita
+            Springs (field ZONING = code, ZONE = full district name).
+   ⚠️ COLLIER = best-effort, located on Collier's public GIS host (same server as
+            its verified parcels feed) but NOT test-queried here — confirm in a
+            browser. Degrades gracefully if the path/index differs.
+   For any other SWFL county/city (Charlotte, Sarasota, Manatee, individual
+   cities, etc.) paste that jurisdiction's zoning layer URL in the Advanced
+   panel — it takes priority over this table and auto-detects the field. */
+const ZONING_LIVE = {
+  LEE: { label:"Lee County DCD Zoning", urls:[
+    "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/0/query", // unincorporated Lee
+    "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/1/query", // City of Cape Coral
+    "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/2/query", // City of Fort Myers
+    "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/5/query", // Village of Estero
+    "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/6/query", // Town of Fort Myers Beach
+    "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/7/query"  // City of Bonita Springs
+  ]},
+  COLLIER: { label:"Collier County GIS Zoning", urls:[
+    "https://ags2.colliercountyfl.gov/gis/rest/services/agency/Zoning/MapServer/0/query" // best-effort — verify
+  ]}
+};
+
+/* City-level zoning layers (checked BEFORE the county table, since a city is its own
+   zoning authority). Entries may pin codeField/descField when the layer's field names
+   aren't obvious to the auto-detector. Keyed by normalized municipality name. */
+const ZONING_LIVE_CITY = {
+  NAPLES: { label:"City of Naples Zoning", codeField:"Layer", descField:"Descript", urls:[
+    // ✅ verified: City of Naples public GIS (backs the official city zoning map viewer)
+    "https://g.naplesgov.com/arcgis/rest/services/Planning/Zoning/FeatureServer/0/query"
+  ]}
+};
+
+/* Auto-detect the zoning code & description fields from a layer's attribute keys.
+   Code is matched before bare-"ZONE" so Lee's ZONING(code)/ZONE(name) split resolves right. */
+function detectZoningFields(fields){
+  const up = fields.map(f=>({raw:f, u:String(f).toUpperCase()}));
+  const find = pats => { for(const p of pats){ const h=up.find(f=>p.test(f.u)); if(h) return h.raw; } return null; };
+  const code = find([/^ZONING$/,/^ZONE_?CODE$/,/^ZONECODE$/,/^ZONE_?ABBR/,/^ZON_?CODE/,/^ZONE_?CLASS/,/^ZONE_?SYMB/,/^DISTRICT$/,/^ZONE$/,/ZONING/,/ZONE/,/DISTRICT/]);
+  let desc  = find([/^ZONE_?DESC/,/^ZONEDESC/,/^ZONE_?NAME/,/^ZONINGNM/,/^ZONINGDESC/,/^DESCRIPT/,/^ZONE_?TYPE/,/^GENERAL/,/^ZONE$/,/DESC/,/NAME/]);
+  if(desc===code) desc=null;
+  return { code, desc };
+}
+
+/* Manual zoning-layer override (pasted in the Advanced panel; persisted). */
+let zoningSource = { url:null };
+
+/* Point-query the resolved zoning layer(s). Returns {code,desc,layerName,lastEdit,url}
+   or null when nothing is wired / no polygon covers the point. Never throws. */
+async function queryZoning(lat,lng, cityName, countyName){
+  let cands = [], pin = null;   // pin = {codeField, descField} when a registry entry specifies them
+  if(zoningSource.url){ cands = [zoningSource.url]; }                 // manual paste wins
+  else {
+    const cityReg = cityName ? ZONING_LIVE_CITY[norm(cityName)] : null;   // city is its own zoning authority
+    const reg = cityReg || (countyName ? ZONING_LIVE[norm(countyName)] : null);
+    if(reg){ cands = reg.urls || (reg.url?[reg.url]:[]); pin = (reg.codeField||reg.descField) ? {codeField:reg.codeField, descField:reg.descField} : null; }
+  }
+  for(const cu of cands){
+    const r = await arcQuery(cu, lat, lng, '*', false).catch(e=>({__err:e.message}));
+    if(r && !r.__err && r.features && r.features[0]){
+      const a = r.features[0].attributes || {};
+      // prefer pinned field names; fall back to auto-detection
+      const det = detectZoningFields(Object.keys(a));
+      const codeKey = (pin && pin.codeField && a[pin.codeField]!==undefined) ? pin.codeField : det.code;
+      let   descKey = (pin && pin.descField && a[pin.descField]!==undefined) ? pin.descField : det.desc;
+      if(descKey===codeKey) descKey=null;
+      const code = codeKey!=null ? a[codeKey] : null;
+      const desc = descKey!=null ? a[descKey] : null;
+      if((code!=null && String(code).trim()!=='') || (desc!=null && String(desc).trim()!=='')){
+        const info = await getLayerInfo(cu).catch(()=>null);
+        return { code, desc, layerName:(info&&info.name)||null, lastEdit:(info&&info.lastEdit)||null, url:cu };
+      }
+    }
+  }
+  return null;
+}
+
 /* layer-metadata cache: name, last edit date, fields, detected mapping */
 const layerInfoCache={};
 async function getLayerInfo(queryUrl){
@@ -762,6 +860,28 @@ async function testLiveSource(){
     liveSource={url:null,info:null};
     out.innerHTML='<span style="color:var(--warn)">✗ '+esc(e.message)+'</span>'+
       '<br><span style="color:var(--faint)">tip: the layer must allow public access &amp; cross-origin (CORS) requests.</span>';
+  }
+}
+
+/* ---------- Zoning-layer override: validate + persist a pasted zoning polygon layer ---------- */
+async function testZoningSource(){
+  const raw=document.getElementById('zonUrl').value||'';
+  const out=document.getElementById('zonStatus');
+  if(!raw.trim()){ zoningSource={url:null}; out.innerHTML=''; STORE.del('fl_zoning_url'); return; }
+  const q=normalizeLayerUrl(raw);
+  out.innerHTML='<span style="color:var(--signal)">testing connection…</span>';
+  const info=await getLayerInfo(q);
+  if(info && !info.err){
+    zoningSource={url:q};
+    STORE.set('fl_zoning_url', q);
+    const det=detectZoningFields(info.fields||[]);
+    out.innerHTML='<span style="color:var(--good)">✓ connected'+(info.name?' · '+esc(info.name):'')+
+      (info.lastEdit?' · updated '+info.lastEdit.toLocaleDateString():'')+'</span>'+
+      '<br><span style="color:var(--faint)">district field → '+esc(det.code||'(none obvious — will still try)')+'</span>';
+  }else{
+    zoningSource={url:null};
+    out.innerHTML='<span style="color:var(--warn)">✗ '+esc((info&&info.err)||'could not read layer')+'</span>'+
+      '<br><span style="color:var(--faint)">tip: point to a layer index (e.g. /0) that allows public access &amp; cross-origin (CORS) requests.</span>';
   }
 }
 
@@ -1231,7 +1351,19 @@ async function runLookup(lat,lng){
                 : (cityName?titleCase(cityName):(countyName?titleCase(countyName)+' County':'the local jurisdiction')));
   html += `<div class="card"><div class="ch"><span class="icn">[ ZON ]</span><h2>Zoning &amp; Setbacks</h2>
     <div class="src">local code /<br>permitting portal</div></div><div class="cb">`;
-  html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number.</div>`;
+
+  // --- LIVE zoning-district detection (point-in-polygon against a county/city zoning layer) ---
+  const zhit = await queryZoning(lat, lng, cityName, countyName).catch(()=>null);
+  if(myId!==runId) return;
+  if(zhit && ((zhit.code!=null&&String(zhit.code).trim()!=='') || (zhit.desc!=null&&String(zhit.desc).trim()!==''))){
+    html += `<div class="freshline"><span class="badge live">● LIVE</span> zoning polygon at this point${zhit.layerName?' · '+esc(zhit.layerName):''}</div>`;
+    if(zhit.code!=null && String(zhit.code).trim()!=='') html += fieldRow('Zoning district', esc(String(zhit.code)), 'big');
+    if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
+    html += `<div class="note" style="padding-top:6px">District read straight from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
+    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
+  } else {
+    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
+  }
   if(z){
     if(z.permit) html += `<a class="palink" href="${esc(z.permit)}" target="_blank" rel="noopener">↗ ${esc(jurName)} permitting / planning portal</a>`;
     if(z.code)   html += `<a class="palink" href="${esc(z.code)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Land development code (Municode)</a>`;
@@ -1623,6 +1755,8 @@ addrEl.addEventListener('focus', () => {
 });
 addrEl.addEventListener('blur', () => setTimeout(hideHistory, 150));
 document.getElementById('liveTest').onclick=testLiveSource;
+document.getElementById('zonTest').onclick=testZoningSource;
+document.getElementById('zonUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();testZoningSource();}});
 document.getElementById('diagBtn').onclick=diagnoseLiveFeeds;
 document.getElementById('liveUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();testLiveSource();}});
 
@@ -1722,6 +1856,8 @@ window.Sheet=Sheet;
   if(!GAS_TERRITORIES){ await autoLoadGas(); }              // else the gas file shipped beside this page
   const lu=STORE.get('fl_live');
   if(lu){ document.getElementById('liveUrl').value=lu; document.getElementById('adv').open=true; try{ await testLiveSource(); }catch(e){} }
+  const zu=STORE.get('fl_zoning_url');
+  if(zu){ document.getElementById('zonUrl').value=zu; zoningSource={url:zu}; document.getElementById('advZon').open=true; }
   const loc=STORE.get('fl_loc');
   if(loc){ try{ const o=JSON.parse(loc); if(o&&typeof o.lat==='number'){ map.setView([o.lat,o.lng], o.z||18); await runLookup(o.lat,o.lng); } }catch(e){} }
 })();
