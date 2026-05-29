@@ -1162,6 +1162,7 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
   }catch(e){ clearTimeout(t); throw e; }
 }
 const ENRICH_TIMEOUT = 6000;   // shorter timeout for secondary/enrichment lookups so a dead server fails fast
+const COUNTY_FEED_TIMEOUT = 13000;  // primary county parcel feeds get a generous timeout (dense areas can be slow)
 
 /* Retry wrapper: ArcGIS Online services occasionally fail transiently (a timeout/5xx comes back
    without CORS headers, so the browser reports a "CORS error"). One quick retry clears most of
@@ -1234,21 +1235,28 @@ async function queryEC(ecLayerUrl, lat, lng){
 
 /* ---------- Geocoding (Census primary, Nominatim fallback) ---------- */
 async function geocode(q){
-  if(!/\b(fl|florida)\b/i.test(q)) q = q+', Florida';
-  // 1) US Census Geocoder (authoritative US address geocoder)
+  const all=await geocodeAll(q);
+  return all.length?all[0]:null;
+}
+/* Return MULTIPLE geocode candidates (Census first, then OSM), each {lat,lng,label,src}. */
+async function geocodeAll(q){
+  let qq = /\b(fl|florida)\b/i.test(q) ? q : q+', Florida';
+  const out=[];
   try{
-    const u=`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(q)}&benchmark=Public_AR_Current&format=json`;
-    const r=await fetch(u); const j=await r.json();
-    const m=j&&j.result&&j.result.addressMatches&&j.result.addressMatches[0];
-    if(m) return {lat:m.coordinates.y, lng:m.coordinates.x, label:m.matchedAddress, src:'US Census'};
-  }catch(e){/* fall through */}
-  // 2) Nominatim (OpenStreetMap) fallback
+    const u=`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(qq)}&benchmark=Public_AR_Current&format=json`;
+    const j=await (await fetch(u)).json();
+    const ms=(j&&j.result&&j.result.addressMatches)||[];
+    for(const m of ms.slice(0,5)) out.push({lat:m.coordinates.y,lng:m.coordinates.x,label:m.matchedAddress,src:'US Census'});
+  }catch(e){}
   try{
-    const u=`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(q)}`;
-    const r=await fetch(u); const j=await r.json();
-    if(j&&j[0]) return {lat:+j[0].lat, lng:+j[0].lon, label:j[0].display_name, src:'OpenStreetMap'};
-  }catch(e){/* fall through */}
-  return null;
+    const u=`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(qq)}`;
+    const j=await (await fetch(u)).json();
+    for(const m of (j||[])){
+      if(out.some(o=>o.label===m.display_name)) continue;
+      out.push({lat:+m.lat,lng:+m.lon,label:m.display_name,src:'OpenStreetMap'});
+    }
+  }catch(e){}
+  return out;
 }
 
 /* ---------- Rooftop snap: correct an interpolated geocode to the real parcel ----------
@@ -1268,7 +1276,33 @@ function streetTokens(s){
     .map(t=>DIRMAP[t]||SUFMAP[t]||t)
     .filter(t=>!/^\d+$/.test(t));     // drop bare house number / zip; keep ordinals like 9TH and suffixes
 }
-function houseNum(s){ const m=(s||'').match(/\d+/); return m?m[0]:null; }
+/* The distinctive street-NAME tokens only (drop suffix, direction, city/state/country words), e.g.
+   "5127 Coronado Parkway, Cape Coral, FL" -> ["CORONADO"]. Used to verify a parcel is on the
+   street you searched, so a geocoder that returns the wrong street (Coronado vs Del Prado) is caught. */
+const STREET_STOP=new Set(['ST','AVE','BLVD','DR','RD','LN','CT','CIR','TER','PL','PKWY','HWY','TRL','PT','SQ','XING','CV','TRCE','WAY','LOOP','RUN','PASS','PATH','WALK','ROW','PLZ',
+  'N','S','E','W','NE','NW','SE','SW','CAPE','CORAL','FORT','MYERS','NAPLES','BONITA','SPRINGS','ESTERO','SANIBEL','LEE','COLLIER','CHARLOTTE','COUNTY','FLORIDA','FL','UNITED','STATES','USA','BEACH','PORT']);
+function streetCore(s){
+  return streetTokens(s).filter(t=>!STREET_STOP.has(t) && !/^\d+$/.test(t));
+}
+/* Does a parcel's address sit on the same street the user searched? Requires the distinctive
+   street-name token(s) to overlap. Lenient when we can't parse either side (returns true). */
+function sameStreet(searchStr, parcelAddr){
+  const a=new Set(streetCore(searchStr)), b=new Set(streetCore(parcelAddr));
+  if(!a.size || !b.size) return true;            // can't tell — don't block
+  for(const t of a){ if(b.has(t)) return true; }
+  return false;
+}
+function houseNum(s){
+  if(!s) return null;
+  const str=String(s).trim();
+  // Prefer a house number at the very START of the address (standalone token, optional letter like 12A).
+  let m=str.match(/^\s*(\d{1,6})(?:[A-Za-z])?\b/);
+  if(m) return m[1];
+  // Otherwise first standalone 1-6 digit run that is NOT part of a longer digit string.
+  m=str.match(/(?:^|\s)(\d{1,6})(?=\s|,|$)/);
+  return m?m[1]:null;
+}
+function searchUnit(s){ const m=(s||'').match(/(?:#|\bunit\b|\bapt\b|\bste\b)\s*([A-Za-z0-9\-]+)/i); return m?m[1].toUpperCase().replace(/[^A-Z0-9]/g,''):null; }
 
 /* area-weighted centroid of an Esri polygon ring [[x,y],...] */
 function ringCentroid(ring){
@@ -1287,6 +1321,196 @@ function featCentroid(f){
   let best=null,ba=-1;
   for(const r of rings){ let a=0; for(let i=0,n=r.length,j=n-1;i<n;j=i++){ a+=r[j][0]*r[i][1]-r[i][0]*r[j][1]; } a=Math.abs(a); if(a>ba){ba=a;best=r;} }
   return best?ringCentroid(best):null;
+}
+
+/* Pick the MOST SPECIFIC parcel when a point intersects several (e.g. a condo/multi-unit
+   master "5102-5116" record overlapping the individual unit). The specific unit is almost
+   always the smallest-area polygon, so we choose the feature with the smallest geometry.
+   Returns {feature, count}. Falls back to features[0] if areas can't be computed. */
+function ringPolyArea(rings){
+  if(!rings||!rings.length) return Infinity;
+  let total=0;
+  for(const r of rings){ let a=0; for(let i=0,n=r.length,j=n-1;i<n;j=i++){ a+=r[j][0]*r[i][1]-r[i][0]*r[j][1]; } total+=Math.abs(a)/2; }
+  return total||Infinity;
+}
+function pickSpecificParcel(features){
+  if(!features||!features.length) return {feature:null,count:0};
+  if(features.length===1) return {feature:features[0],count:1};
+  let best=features[0], bestA=Infinity;
+  for(const f of features){
+    const rings=f.geometry&&f.geometry.rings;
+    const a=rings?ringPolyArea(rings):Infinity;
+    if(a<bestA){ bestA=a; best=f; }
+  }
+  return {feature:best,count:features.length};
+}
+
+/* Query a county parcel feed BY ADDRESS, then pick the unit matching the search. If the exact house
+   number isn't found (common: searched address doesn't exist as a parcel — e.g. "5127" when the condo
+   complex is all addressed "5126 + unit"), fall back to the nearest same-street parcel and flag it as
+   approximate. Returns {feature, matchedAddr, exact, count, approx, note} or null. */
+/* ---------- Authoritative county address-point resolver (NG911) ----------
+   Counties publish an NG911 master address layer: one point per real mailing address (incl. condo/
+   unit addresses that AREN'T their own parcel), each carrying exact lat/lng AND the linked parcel
+   STRAP. This is what LeePA's internal search uses. We query it by house number + street; if found,
+   we get the authoritative point AND the parcel id directly — deterministic, no geocoder drift.
+   ✅ LEE verified: Add_Number / St_Name / Unit / STRAP / Longitude / Latitude. */
+const NG911 = {
+  LEE: {
+    url:"https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/NG911_Address_Points/FeatureServer/0/query",
+    numField:"Add_Number", stField:"St_Name", unitField:"Unit", strapField:"STRAP",
+    lonField:"Longitude", latField:"Latitude", addrField:"Full_Address"
+  }
+};
+/* Look up an address in the county NG911 layer. Returns {lat,lng,strap,unit,addr,matches:[...]} or null. */
+async function resolveAddressNG911(countyName, ctx){
+  const cfg = countyName ? NG911[norm(countyName)] : null;
+  if(!cfg || !ctx || !ctx.hn) return null;
+  const core = ctx.raw ? streetCore(ctx.raw) : [];
+  if(!core.length) return null;
+  const tok = core[0].replace(/'/g,"''");
+  const where = `${cfg.numField}=${ctx.hn} AND UPPER(${cfg.stField}) LIKE '%${tok}%'`;
+  const params = `where=${encodeURIComponent(where)}&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=50&f=json`;
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
+    const r=await fetch(cfg.url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return null; const j=await r.json(); if(j.error||!j.features||!j.features.length) return null;
+    const rows=j.features.map(f=>f.attributes);
+    // If a unit was searched, prefer the row matching that unit.
+    let chosen=rows[0];
+    if(ctx.unit){
+      const u=ctx.unit;
+      const hit=rows.find(a=>String(a[cfg.unitField]||'').toUpperCase().replace(/[^A-Z0-9]/g,'')===u);
+      if(hit) chosen=hit;
+    }
+    const lng = chosen[cfg.lonField] ?? (j.features[0].geometry&&j.features[0].geometry.x);
+    const lat = chosen[cfg.latField] ?? (j.features[0].geometry&&j.features[0].geometry.y);
+    const straps=[...new Set(rows.map(a=>a[cfg.strapField]).filter(Boolean))];
+    return { lat:+lat, lng:+lng, strap:chosen[cfg.strapField]||null, allStraps:straps,
+             unit:chosen[cfg.unitField]||null, addr:chosen[cfg.addrField]||null, matches:rows.length };
+  }catch(e){ return null; }
+}
+/* Fetch a parcel directly by its STRAP from a county feed (used after NG911 gives us the STRAP). */
+async function queryFeedByStrap(feedUrl, strap){
+  if(!strap) return null;
+  const root=feedUrl.replace(/\/query$/i,'');
+  const info=await getLayerInfo(feedUrl).catch(()=>null);
+  const fields=(info&&info.fields)||[];
+  const sf=['STRAP','PARCELID','PARCEL_ID','FOLIO','PARCELNO','PIN','PARCEL'].find(f=>fields.includes(f));
+  if(!sf) return null;
+  const raw=String(strap).replace(/'/g,"''");
+  const bare=raw.replace(/[^0-9A-Za-z]/g,'');
+  const where=`${sf}='${raw}' OR ${sf}='${bare}'`;
+  const params=`where=${encodeURIComponent(where)}&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=5&f=json`;
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
+    const r=await fetch(root+'/query?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return null; const j=await r.json(); if(j.error||!j.features||!j.features.length) return null;
+    return j.features[0];
+  }catch(e){ return null; }
+}
+
+async function queryFeedByAddress(feedUrl, ctx, lat, lng){
+  if(!ctx||!ctx.hn) return null;
+  const root=feedUrl.replace(/\/query$/i,'');
+  const info=await getLayerInfo(feedUrl).catch(()=>null);
+  const fields=(info&&info.fields)||[];
+  const addrField = ['SITEADDR','PHY_ADDR1','SITE_ADDR','SITUS','FULLADDR','ADDRESS'].find(f=>fields.includes(f));
+  const numField  = ['SITENUMBER','SITE_NUM','HOUSE_NUM','STR_NUM'].find(f=>fields.includes(f));
+  const stField   = ['SITESTREET','STREET','STREETNAME','ST_NAME'].find(f=>fields.includes(f));
+  if(!addrField && !numField) return null;          // no usable address field (e.g. Collier lean layer)
+  const q=s=>String(s).replace(/'/g,"''");
+  // Geographic guard: only consider parcels within ~3km of the search point, so a same-numbered
+  // address in another town (e.g. 5127 Genesee in Bokeelia) can never be matched.
+  const envParams = (typeof lat==='number' && typeof lng==='number')
+    ? `&geometry=${encodeURIComponent((lng-0.03)+','+(lat-0.03)+','+(lng+0.03)+','+(lat+0.03))}`+
+      `&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects`
+    : '';
+  async function run(where){
+    const params=`where=${encodeURIComponent(where)}${envParams}&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=300&f=json`;
+    try{
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
+      const r=await fetch(root+'/query?'+params,{signal:ctrl.signal}); clearTimeout(t);
+      if(!r.ok) return []; const j=await r.json(); if(j.error||!j.features) return []; return j.features;
+    }catch(e){ return []; }
+  }
+  // 1) exact house number (string-quoted — these fields are strings)
+  let where = numField ? `${numField} = '${q(ctx.hn)}'`
+                       : `${addrField} LIKE '${q(ctx.hn)} %' OR ${addrField} = '${q(ctx.hn)}'`;
+  let feats = await run(where);
+  if(feats.length){
+    const m=pickParcelByAddress(feats, ctx);
+    if(m) return { ...m, approx:false };
+  }
+  // Exact house number not found (range-addressed condo/multifamily, e.g. 5127 → "5201-5217"). Fall
+  // back to the NEAREST parcel ON THE SAME STREET within a tight ~150m radius of the point. The tight
+  // radius + same-street requirement means it can only grab the immediately adjacent building, never a
+  // same-numbered address elsewhere.
+  if(stField && (typeof lat==='number') && ctx.raw){
+    const core=streetCore(ctx.raw);
+    if(core.length){
+      const tok=core[0];
+      const near = await (async()=>{
+        const where=`${stField} LIKE '%${q(tok)}%'`;
+        const tight=`&geometry=${encodeURIComponent((lng-0.0016)+','+(lat-0.0016)+','+(lng+0.0016)+','+(lat+0.0016))}`+
+          `&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects`;  // ~150m box
+        const params=`where=${encodeURIComponent(where)}${tight}&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=100&f=json`;
+        try{
+          const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
+          const r=await fetch(root+'/query?'+params,{signal:ctrl.signal}); clearTimeout(t);
+          if(!r.ok) return []; const j=await r.json(); if(j.error||!j.features) return []; return j.features;
+        }catch(e){ return []; }
+      })();
+      // keep only parcels actually on the searched street, then pick the geographically nearest
+      const onStreet = near.filter(f=>sameStreet(ctx.raw, parcelAddrText(f.attributes||{})));
+      let best=null,bd=Infinity;
+      for(const f of onStreet){ const c=featCentroid(f); if(!c) continue; const d=(c[1]-lat)**2+(c[0]-lng)**2; if(d<bd){bd=d;best=f;} }
+      if(best){ const a=best.attributes||{};
+        return { feature:best, matchedAddr:parcelAddrText(a), exact:false, count:onStreet.length, approx:true,
+          note:`No parcel is addressed exactly ${ctx.hn} here — it's likely a unit of a nearby building. Showing the closest ${esc(core.join(' '))} parcel (${parcelAddrText(a)||'unknown'}). Verify the specific unit on the appraiser.` };
+      }
+    }
+  }
+  return null;
+}
+
+/* Address fields a parcel layer might carry, in priority order, joined into one string. */
+function parcelAddrText(a){
+  if(!a) return '';
+  const direct = a.SITEADDR||a.PHY_ADDR1||a.SITE_ADDR||a.SITUS||a.FULLADDR||a.ADDRESS;
+  if(direct) return String(direct);
+  const parts=[a.SITENUMBER,a.SITESTREET,a.SITEUNIT].filter(Boolean);
+  if(parts.length) return parts.join(' ');
+  return '';
+}
+function parcelUnit(a){
+  if(!a) return null;
+  const u = a.SITEUNIT||a.UNIT||a.UNITNUM||a.UNIT_NO;
+  if(u && String(u).trim()) return String(u).trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const txt=parcelAddrText(a); const m=txt.match(/(?:#|UNIT|APT|STE)\s*([A-Z0-9\-]+)/i);
+  return m?m[1].toUpperCase().replace(/[^A-Z0-9]/g,''):null;
+}
+/* From several parcels at one point, choose the one whose ADDRESS matches the searched address.
+   Scores: exact house# (required) + street-token overlap + exact unit match (big bonus).
+   Returns {feature, count, matchedAddr, exact} or null if no address-bearing match. */
+function pickParcelByAddress(features, searchCtx){
+  if(!features||!features.length||!searchCtx) return null;
+  const hn=searchCtx.hn, wantToks=searchCtx.toks||new Set(), wantUnit=searchCtx.unit;
+  let best=null, bestScore=-1, anyAddr=false;
+  for(const f of features){
+    const a=f.attributes||{}; const txt=parcelAddrText(a); if(!txt) continue; anyAddr=true;
+    if(hn && houseNum(txt)!==hn) continue;                  // exact house number required when known
+    if(searchCtx.raw && !sameStreet(searchCtx.raw, txt)) continue;   // must be on the SAME street
+    const toks=new Set(streetTokens(txt)); let overlap=0; wantToks.forEach(t=>{ if(toks.has(t)) overlap++; });
+    const u=parcelUnit(a);
+    const unitMatch = (wantUnit && u && u===wantUnit) ? 1 : 0;
+    const unitMiss  = (wantUnit && u && u!==wantUnit) ? 1 : 0;
+    const score = unitMatch*10000 + overlap*100 - unitMiss*50;
+    if(score>bestScore){ bestScore=score; best={feature:f, matchedAddr:txt,
+      exact: (hn?houseNum(txt)===hn:true) && (!wantUnit || unitMatch===1) }; }
+  }
+  if(!anyAddr || !best) return null;
+  return { feature:best.feature, count:features.length, matchedAddr:best.matchedAddr, exact:best.exact };
 }
 
 async function _queryParcelsByHouse(hn, lat, lng, d){
@@ -1376,7 +1600,7 @@ function renderParcelGeneric(a, d){
 }
 
 let runId=0;
-async function runLookup(lat,lng){
+async function runLookup(lat,lng,searchCtx){
   const myId=++runId;
   // marker
   if(marker) map.removeLayer(marker);
@@ -1421,11 +1645,59 @@ async function runLookup(lat,lng){
         const reg=COUNTY_LIVE[norm(countyName)]; const cands=reg.urls||(reg.url?[reg.url]:[]);
         let res=null, meta=null, err=null;
         for(const cu of cands){
-          const al = await arcQueryRetry(cu, lat, lng, '*', true, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
-          if(al && !al.__err && al.features && al.features[0]){
-            res=al; const info=await getLayerInfo(cu).catch(()=>null);
-            meta={ name:reg.label||(info&&info.name), lastEdit:(info&&info.lastEdit)||null }; err=null; break;
-          } else if(al && al.__err){ err=al.__err; }
+          let al=null, matchedAddr=null, exactUnit=true, multi=0;
+          // 0) AUTHORITATIVE: resolve the typed address via the county NG911 address layer, which maps
+          //    a mailing address (incl. condo units that aren't their own parcel) to the exact parcel
+          //    STRAP. Deterministic — this is what LeePA's own search does. Fetch that parcel by STRAP.
+          if(searchCtx && searchCtx.hn){
+            const ng = await resolveAddressNG911(countyName, searchCtx).catch(()=>null);
+            if(ng && ng.strap){
+              const pf = await queryFeedByStrap(cu, ng.strap).catch(()=>null);
+              if(pf){
+                al={features:[pf]}; matchedAddr=ng.addr||null; multi=1;
+                exactUnit = ng.unit ? (!searchCtx.unit || String(ng.unit).toUpperCase().replace(/[^A-Z0-9]/g,'')===searchCtx.unit) : true;
+                al.__ng911=true;
+                al.__ngLat=ng.lat; al.__ngLng=ng.lng;
+                if(ng.matches>1 && !searchCtx.unit) al.__note=`This address has ${ng.matches} units, all on parcel ${ng.strap}. Showing that parcel${ng.addr?' ('+esc(ng.addr)+')':''}; pick a unit on the appraiser for unit-level detail.`;
+              }
+            }
+          }
+          // 1) POINT-IN-POLYGON. The geocoded point usually falls inside the correct parcel —
+          //    including range-addressed condo/multifamily parcels (e.g. 5127 → the 5201-5217 parcel).
+          const pr = (al) ? null : await arcQueryRetry(cu, lat, lng, '*', true, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
+          let pointFeat=null;
+          if(pr && !pr.__err && pr.features && pr.features[0]){
+            const sel=pickSpecificParcel(pr.features); pointFeat=sel.feature; multi=sel.count;
+          } else if(pr && pr.__err){ err=pr.__err; }
+          // STREET CHECK: if the user searched a street and the point landed on a DIFFERENT street
+          //   (geocoder error — e.g. searched Coronado, got Del Prado), don't trust the point.
+          const pointOnRightStreet = pointFeat && (!searchCtx || !searchCtx.raw ||
+            sameStreet(searchCtx.raw, parcelAddrText(pointFeat.attributes||{})));
+          if(!al && pointFeat && pointOnRightStreet){ al={features:[pointFeat]}; }
+          // 2) Address query: use it to (a) correct an exact house-number match, OR (b) recover when the
+          //    point landed on the wrong street. The address query is street/number anchored + geo-bounded.
+          if(!al && searchCtx && searchCtx.hn){
+            const byAddr = await queryFeedByAddress(cu, searchCtx, lat, lng).catch(()=>null);
+            if(byAddr && byAddr.feature && byAddr.exact && !byAddr.approx){
+              al={features:[byAddr.feature]}; matchedAddr=byAddr.matchedAddr; exactUnit=byAddr.exact; multi=byAddr.count;
+            } else if(!al && byAddr && byAddr.feature){
+              // point missed (gap/road) or was wrong-street — use the address query's nearest-on-street
+              al={features:[byAddr.feature]}; matchedAddr=byAddr.matchedAddr; exactUnit=byAddr.exact; multi=byAddr.count;
+              al.__approx=true;
+              al.__note=byAddr.note || `Geocoder point didn't land on a parcel; showing the nearest ${searchCtx.raw?esc(streetCore(searchCtx.raw).join(' ')):''} parcel instead. Verify on the appraiser.`;
+            }
+          }
+          // 3) Last resort: if still nothing but the point gave a parcel (even wrong-street), don't show it
+          //    silently — only use it for map clicks (no searchCtx). For address searches, prefer nothing
+          //    over a wrong-street parcel so the statewide/honest path takes over.
+          if(!al && pointFeat && (!searchCtx || !searchCtx.hn)){ al={features:[pointFeat]}; }
+          if(al && al.features[0]){
+            al.__multi=multi; al.__matchedAddr=matchedAddr; al.__exactUnit=exactUnit;
+            res=al;
+            // Skip the extra metadata round-trip when NG911 already gave us an authoritative match.
+            const info = al.__ng911 ? null : await getLayerInfo(cu).catch(()=>null);
+            meta={ name:reg.label||(info&&info.name), lastEdit:(info&&info.lastEdit)||null, approx:al.__approx, note:al.__note, ng911:al.__ng911 }; err=null; break;
+          }
         }
         return {res, meta, err};
       })().catch(()=>({res:null,meta:null,err:'lookup failed'}))
@@ -1444,7 +1716,11 @@ async function runLookup(lat,lng){
   let liveRes=null, liveMeta=null, liveErr=null;
   if(liveSource.url){                                   // manual paste takes priority
     liveErr = (live && live.__err) ? live.__err : null;
-    if(live && live.features && live.features[0]){ liveRes=live; liveMeta=liveSource.info||{}; }
+    if(live && live.features && live.features[0]){
+      const sel=pickSpecificParcel(live.features);
+      live.features=[sel.feature]; live.__multi=sel.count;
+      liveRes=live; liveMeta=liveSource.info||{};
+    }
   } else {                                              // auto pre-wired county feed (pre-fired in parallel)
     const cl = await pCountyLive;
     if(myId!==runId) return;
@@ -1461,7 +1737,19 @@ async function runLookup(lat,lng){
     const le=liveMeta&&liveMeta.lastEdit;
     html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}</div>`;
     html += renderParcelGeneric(liveRes.features[0].attributes, det);
+    if(liveRes.__ngLat && marker){ try{ marker.setLatLng([liveRes.__ngLat, liveRes.__ngLng]); saveLoc(liveRes.__ngLat, liveRes.__ngLng); }catch(e){} }
     drawParcel(liveRes.features[0].geometry);
+    if(liveMeta && liveMeta.ng911){
+      html += `<div class="note"><span class="badge live" style="font-size:9px">● ADDRESS MATCH</span> Resolved via the county's official NG911 address layer${liveMeta.note?'. '+esc(liveMeta.note):' — the exact parcel for this address.'}</div>`;
+    } else if(liveMeta && liveMeta.approx && liveMeta.note){
+      html += `<div class="note warnbox"><span class="badge unk" style="font-size:9px">≈ APPROX</span> ${esc(liveMeta.note)}</div>`;
+    } else if(liveRes.__matchedAddr && searchCtx && searchCtx.unit && liveRes.__exactUnit){
+      html += `<div class="note"><span class="badge live" style="font-size:9px">● UNIT MATCH</span> matched to ${esc(liveRes.__matchedAddr)} for your search.</div>`;
+    } else if(searchCtx && searchCtx.unit && !liveRes.__exactUnit){
+      html += `<div class="note warnbox">You searched unit <b>${esc(searchCtx.unit)}</b>, but this layer doesn't carry a separate record/geometry for that unit — showing the building/parcel record instead. Verify the specific unit on the appraiser below.</div>`;
+    } else if(liveRes.__multi && liveRes.__multi>1){
+      html += `<div class="note">${liveRes.__multi} parcels share this location (condo/multi-unit building). ${liveRes.__matchedAddr?'Matched to <b>'+esc(liveRes.__matchedAddr)+'</b>. ':''}If it's not the unit you meant, verify on the appraiser below.</div>`;
+    }
     { const lpid = det.pid?pick(liveRes.features[0].attributes,det.pid):null;
       const vurl = appraiserParcelLink(countyName, lpid);
       if(vurl) html += `<a class="palink" href="${esc(vurl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Verify on ${esc(titleCase(countyName))} County Property Appraiser${lpid?' (parcel '+esc(String(lpid))+')':''}</a>`;
@@ -1476,6 +1764,9 @@ async function runLookup(lat,lng){
     const sdate = (STATEWIDE_INFO&&STATEWIDE_INFO.lastEdit) ? STATEWIDE_INFO.lastEdit.toLocaleDateString() : 'Aug 2025 roll';
     if(liveErr) html += `<div class="freshline snap"><span class="badge unk">roll</span> live feed unreachable (${esc(liveErr)}) — state roll · last refreshed ${esc(sdate)}</div>`;
     else        html += `<div class="freshline snap"><span class="badge unk">roll</span> state annual roll · last refreshed ${esc(sdate)}</div>`;
+    let _byAddr = (searchCtx&&searchCtx.hn) ? pickParcelByAddress(parcel.features, searchCtx) : null;
+    if(_byAddr && _byAddr.feature){ parcel.features=[_byAddr.feature]; parcel.__multi=_byAddr.count; parcel.__matchedAddr=_byAddr.matchedAddr; parcel.__exactUnit=_byAddr.exact; }
+    else { const _sel=pickSpecificParcel(parcel.features); parcel.features=[_sel.feature]; parcel.__multi=_sel.count; }
     const a=parcel.features[0].attributes;
     const owner=pick(a,'OWN_NAME');
     const own2 =pick(a,'OWN_NAME2','S_OWN_NAM2');
@@ -1509,6 +1800,7 @@ async function runLookup(lat,lng){
       if(vurl) html += `<a class="palink" href="${esc(vurl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Verify on ${esc(titleCase(countyName))} County Property Appraiser${pid?' (parcel '+esc(String(pid))+')':''}</a>`;
     }
     drawParcel(parcel.features[0].geometry);
+    if(parcel.__multi && parcel.__multi>1) html += `<div class="note">${parcel.__multi} parcels overlap this point (common with condos/multi-unit). Showing the most specific one — verify on the appraiser if it's not the unit you meant.</div>`;
   } else if(parcel && parcel.__err){
     html += `<div class="note">Parcel service did not respond (${esc(parcel.__err)}). Try again, or use the county appraiser link above.</div>`;
   } else {
@@ -1833,21 +2125,45 @@ async function runLookup(lat,lng){
 function titleCase(s){ return String(s||'').toLowerCase().replace(/\b([a-z])/g,m=>m.toUpperCase()).replace(/\bMc([a-z])/,(m,c)=>'Mc'+c.toUpperCase()); }
 
 /* ---------- Address search ---------- */
+/* Normalize a messy/verbose address (e.g. a suggestion label with stray commas and
+   "Lee County, Florida, 33904, United States") into a clean geocoder query:
+   "<house> <street>, <city> FL <zip>". This is what made the clean OSM query resolve
+   5127 Coronado correctly instead of landing on the wrong street. */
+function cleanAddress(s){
+  if(!s) return s;
+  let t=String(s).replace(/\bUnited States\b/ig,'').replace(/\bUSA\b/ig,'')
+    .replace(/\bLee County\b/ig,'').replace(/\bCollier County\b/ig,'').replace(/\bCharlotte County\b/ig,'')
+    .replace(/\bSarasota County\b/ig,'').replace(/\bManatee County\b/ig,'');
+  // collapse a comma right after the leading house number ("5127, Coronado" -> "5127 Coronado")
+  t=t.replace(/^(\s*\d+)\s*,\s*/,'$1 ');
+  t=t.replace(/\s{2,}/g,' ').replace(/\s*,\s*,/g,',').replace(/,\s*$/,'').trim();
+  return t;
+}
+/* Geocode and, when a street was searched, prefer the candidate ON THAT STREET (so a geocoder that
+   ranks a wrong-street match first — Coronado vs Del Prado — doesn't win). */
+async function geocodeBest(rawQuery){
+  const clean=cleanAddress(rawQuery);
+  const cands=await geocodeAll(clean);
+  if(!cands.length) return null;
+  const core=streetCore(clean);
+  if(core.length){
+    const onStreet=cands.find(c=>sameStreet(clean, c.label));
+    if(onStreet) return onStreet;
+  }
+  return cands[0];
+}
 async function doSearch(){
   const q=document.getElementById('addr').value.trim();
   if(!q) return;
   results.innerHTML=setStatus('busy','Geocoding address…');
-  const g=await geocode(q);
+  const g=await geocodeBest(q);
   if(!g){ results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
   addToHistory(g.label || q);
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
-  const snap=await snapToParcelByAddress(q, g.lat, g.lng);
-  const pt = snap ? snap : g;
-  map.setView([pt.lat,pt.lng], snap?19:18);
-  await runLookup(pt.lat,pt.lng);
-  const conf = snap
-    ? `<div class="note" style="padding:2px 2px 4px"><span class="badge live" style="font-size:9px">● SNAPPED</span> Matched to parcel: <b style="color:var(--ink)">${esc(snap.matched)}</b> — corrected onto the actual lot.</div>`
-    : `<div class="note" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — this is an interpolated street position; confirm the marker is on the right lot.</div>`;
+  const searchCtx = { raw:q, hn:houseNum(q), toks:new Set(streetTokens(q)), unit:searchUnit(q) };
+  map.setView([g.lat,g.lng], 18);
+  await runLookup(g.lat,g.lng, searchCtx);
+  const conf = `<div class="note" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 document.getElementById('go').onclick=doSearch;
@@ -1900,15 +2216,16 @@ async function chooseSuggestion(it){
   STORE.set('fl_addr',it.label);
   addToHistory(it.label);
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
-  // Anchor the match on the typed house number/street when present; use the suggestion only for location.
-  const matchStr = houseNum(typed) ? typed : it.label;
-  const snap=await snapToParcelByAddress(matchStr, it.lat, it.lng);
-  const pt = snap ? snap : it;
-  map.setView([pt.lat,pt.lng], snap?19:18);
-  await runLookup(pt.lat,pt.lng);
-  const conf = snap
-    ? `<div class="note" style="padding:2px 2px 4px"><span class="badge live" style="font-size:9px">● SNAPPED</span> Matched to parcel: <b style="color:var(--ink)">${esc(snap.matched)}</b> — corrected onto the actual lot.</div>`
-    : `<div class="note" style="padding:2px 2px 4px">Matched (${esc(it.src)}): <b style="color:var(--ink)">${esc(it.label)}</b> — interpolated street position; confirm the marker is on the right lot.</div>`;
+  // Anchor on what the user TYPED (house #, street, unit) — not the verbose suggestion label, which
+  // is comma-mangled and loses the unit. This drives the same address/unit matching as the search button.
+  const basis = houseNum(typed) ? typed : it.label;
+  const searchCtx = { raw:basis, hn:houseNum(basis), toks:new Set(streetTokens(basis)), unit:searchUnit(basis) };
+  // Use the suggestion's own coordinate directly. We no longer re-geocode (slow) or pre-snap (slow)
+  // here — runLookup resolves the exact parcel via the county NG911 address layer and recenters the
+  // marker authoritatively. This removes two network round-trips from the search.
+  map.setView([it.lat,it.lng], 18);
+  await runLookup(it.lat,it.lng, searchCtx);
+  const conf = `<div class="note" style="padding:2px 2px 4px">Matched: <b style="color:var(--ink)">${esc(it.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 
