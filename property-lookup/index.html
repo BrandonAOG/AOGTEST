@@ -678,7 +678,7 @@ async function queryCountyFlood(lat,lng,countyName){
   if(!reg) return null;
   const cands = reg.urls || (reg.url?[reg.url]:[]);
   for(const cu of cands){
-    const r = await arcQuery(cu, lat, lng, '*', false).catch(e=>({__err:e.message}));
+    const r = await arcQuery(cu, lat, lng, '*', false, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
     if(r && !r.__err && r.features && r.features[0]){
       const a = r.features[0].attributes || {};
       const det = detectFloodZoneField(Object.keys(a));
@@ -860,7 +860,7 @@ async function queryZoning(lat,lng, cityName, countyName){
   const multi = cands.length>1;                    // probing several layers → be stricter about what we trust
   const folio = v => v!=null && /^[0-9]{6,}$/.test(String(v).trim());   // parcel-folio numbers aren't districts
   for(const cu of cands){
-    const r = await arcQuery(cu, lat, lng, '*', false).catch(e=>({__err:e.message}));
+    const r = await arcQuery(cu, lat, lng, '*', false, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
     if(!(r && !r.__err && r.features && r.features[0])) continue;
     const a = r.features[0].attributes || {};
     const det = detectZoningFields(Object.keys(a));
@@ -900,7 +900,9 @@ async function getLayerInfo(queryUrl){
   if(layerInfoCache[queryUrl]) return layerInfoCache[queryUrl];
   const root=queryUrl.replace(/\/query$/i,'');
   try{
-    const m=await (await fetch(root+'?f=json')).json();
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
+    const m=await (await fetch(root+'?f=json',{signal:ctrl.signal})).json();
+    clearTimeout(t);
     const fields=(m.fields||[]).map(f=>f.name);
     const info={ name:m.name||null,
       lastEdit:(m.editingInfo&&m.editingInfo.lastEditDate)?new Date(m.editingInfo.lastEditDate):null,
@@ -1139,12 +1141,12 @@ function detectFields(fields){
   };
 }
 
-async function arcQuery(url, lat, lng, outFields, withGeom){
+async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
   const params =
     `geometry=${pointGeom(lat,lng)}&geometryType=esriGeometryPoint&inSR=4326`+
     `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent(outFields)}`+
     `&returnGeometry=${withGeom?'true':'false'}${withGeom?'&outSR=4326':''}&f=json`;
-  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),timeoutMs||15000);
   try{
     const r=await fetch(url+'?'+params,{signal:ctrl.signal});
     clearTimeout(t);
@@ -1154,6 +1156,7 @@ async function arcQuery(url, lat, lng, outFields, withGeom){
     return j;
   }catch(e){ clearTimeout(t); throw e; }
 }
+const ENRICH_TIMEOUT = 6000;   // shorter timeout for secondary/enrichment lookups so a dead server fails fast
 
 function fmtMoney(n){ if(n==null||n==='') return null; const v=Number(n); if(isNaN(v)||v<=0) return null; return '$'+v.toLocaleString('en-US'); }
 function fmtNum(n){ if(n==null||n==='') return null; const v=Number(n); if(isNaN(v)||v<=0) return null; return v.toLocaleString('en-US'); }
@@ -1390,6 +1393,26 @@ async function runLookup(lat,lng){
   window.__lastCounty = countyName || '';   // for the live-feed diagnostic
   const paUrl = countyName ? PA[norm(countyName)] : null;
 
+  // Kick off the slower enrichment lookups NOW, in parallel, so they overlap instead of
+  // stacking serially. Each is awaited later where it's rendered; all fail-fast (short timeout).
+  const pZoning      = queryZoning(lat, lng, cityName, countyName).catch(()=>null);
+  const pCountyFlood = (countyName && COUNTY_FLOOD_LIVE[norm(countyName)])
+                         ? queryCountyFlood(lat, lng, countyName).catch(()=>null) : Promise.resolve(null);
+  const pCountyLive  = (!liveSource.url && countyName && COUNTY_LIVE[norm(countyName)])
+    ? (async()=>{
+        const reg=COUNTY_LIVE[norm(countyName)]; const cands=reg.urls||(reg.url?[reg.url]:[]);
+        let res=null, meta=null, err=null;
+        for(const cu of cands){
+          const al = await arcQuery(cu, lat, lng, '*', true, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
+          if(al && !al.__err && al.features && al.features[0]){
+            res=al; const info=await getLayerInfo(cu).catch(()=>null);
+            meta={ name:reg.label||(info&&info.name), lastEdit:(info&&info.lastEdit)||null }; err=null; break;
+          } else if(al && al.__err){ err=al.__err; }
+        }
+        return {res, meta, err};
+      })().catch(()=>({res:null,meta:null,err:'lookup failed'}))
+    : Promise.resolve(null);
+
   html += `<div class="card"><div class="ch"><span class="icn">[ JUR ]</span><h2>Jurisdiction</h2>
     <div class="src">FDOT Admin<br>Boundaries</div></div><div class="cb">`;
   html += `<div class="freshline"><span class="badge live">● LIVE</span> queried in real time</div>`;
@@ -1404,22 +1427,10 @@ async function runLookup(lat,lng){
   if(liveSource.url){                                   // manual paste takes priority
     liveErr = (live && live.__err) ? live.__err : null;
     if(live && live.features && live.features[0]){ liveRes=live; liveMeta=liveSource.info||{}; }
-  } else if(countyName && COUNTY_LIVE[norm(countyName)]){ // auto pre-wired county feed (tries candidates)
-    const reg=COUNTY_LIVE[norm(countyName)];
-    const cands = reg.urls || (reg.url?[reg.url]:[]);
-    for(const cu of cands){
-      const al = await arcQuery(cu, lat, lng, '*', true).catch(e=>({__err:e.message}));
-      if(myId!==runId) return;
-      if(al && !al.__err && al.features && al.features[0]){
-        liveRes=al;
-        const info=await getLayerInfo(cu);
-        liveMeta={ name:reg.label||info.name, lastEdit:info.lastEdit };
-        liveErr=null;
-        break;                       // first candidate that returns a parcel wins
-      } else if(al && al.__err){
-        liveErr=al.__err;            // remember last error; keep trying remaining candidates
-      }
-    }
+  } else {                                              // auto pre-wired county feed (pre-fired in parallel)
+    const cl = await pCountyLive;
+    if(myId!==runId) return;
+    if(cl){ liveRes=cl.res; liveMeta=cl.meta; liveErr=cl.err; }
   }
   const liveHit = !!liveRes;
   const srcLabel = liveHit ? `live county feed` : `FL Dept. of Revenue<br>statewide roll`;
@@ -1520,7 +1531,7 @@ async function runLookup(lat,lng){
   // --- LIVE county DFIRM cross-check (e.g. Collier's adopted 2024 map) vs the effective NFHL above ---
   const cfReg = countyName ? COUNTY_FLOOD_LIVE[norm(countyName)] : null;
   if(cfReg){
-    const cf = await queryCountyFlood(lat, lng, countyName).catch(()=>null);
+    const cf = await pCountyFlood;
     if(myId!==runId) return;
     if(cf && cf.zone!=null && String(cf.zone).trim()!==''){
       const cz=String(cf.zone).trim();
@@ -1554,7 +1565,7 @@ async function runLookup(lat,lng){
     <div class="src">local code /<br>permitting portal</div></div><div class="cb">`;
 
   // --- LIVE zoning-district detection (point-in-polygon against a county/city zoning layer) ---
-  const zhit = await queryZoning(lat, lng, cityName, countyName).catch(()=>null);
+  const zhit = await pZoning;
   if(myId!==runId) return;
   if(zhit && ((zhit.code!=null&&String(zhit.code).trim()!=='') || (zhit.desc!=null&&String(zhit.desc).trim()!=='') || (zhit.extras&&zhit.extras.length))){
     html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> zoning polygon at this point${zhit.layerName?' · '+esc(zhit.layerName):''}</div>`;
