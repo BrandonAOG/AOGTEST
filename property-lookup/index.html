@@ -1087,6 +1087,12 @@ function municodeSearch(j){ return "https://www.google.com/search?q="+encodeURIC
    here if/when its parcels are queried. */
 const COLLIER_INCORP = new Set(['NAPLES','MARCOISLAND','EVERGLADESCITY']);
 
+/* Incorporated municipalities within Lee County that adopt their OWN Land Development Code and
+   therefore must NOT inherit unincorporated Lee County's setback rules (§ 34-695 et seq.). Cape
+   Coral, Bonita Springs and Estero have their own renderers above; Fort Myers, Sanibel and Fort
+   Myers Beach fall through to the generic "look it up in the adopted code" note. norm()-form. */
+const LEE_INCORP = new Set(['CAPECORAL','FORTMYERS','BONITASPRINGS','ESTERO','SANIBEL','FORTMYERSBEACH']);
+
 /* ---------- City of Naples setback QUICK-REFERENCE (Code of Ordinances, Ch. 58) ----------
    Hand-entered from Municode. These are a CONVENIENCE COPY — the live § deep-link beside each
    result is the source of truth (ordinances change; this table can go stale). Numbers are base
@@ -2914,6 +2920,328 @@ function renderEsteroSetbacks(districtCode){
 }
 
 
+/* ============================ UNINCORPORATED LEE COUNTY ============================
+   Lee County LDC Chapter 34 (Zoning), Article VI – District Regulations. Hand-entered from the
+   county's Municode export. Applies to UNINCORPORATED Lee only — the incorporated cities (Cape
+   Coral, Fort Myers, Bonita Springs, Estero, Sanibel, Fort Myers Beach) each have their own code
+   and are handled separately. Shared across most districts: street setback is "variable by road
+   class (§ 34-2192)"; water body 50 ft Gulf / 25 ft other; height 35 ft; special height limits in
+   Bonita Beach, Captiva, San Carlos Island, Gasparilla, Greater Pine Island & airport hazard zones
+   (§ 34-2175). Field shape matches the other tables. NOTE: one/two-family (§ 34-695) and commercial
+   (§ 34-845) entered from direct Municode pastes; the full Article VI district set is now represented. */
+const LEE_SETBACKS = {
+  // --- Agricultural (Table 34-654) ---
+  "AG-1": { name:"Agricultural (AG-1)", front:"≥50 ft (variable by road class, never less than 50 ft)", side:25, rear:25,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:"4.7 acres (interior) · 4.4 acres (corner)", secRef:"§ 34-654",
+            note:"Lot width/depth 300 ft. Max lot coverage 25% (40% for nonconforming lots). DR/GR land-use areas cap density at 1 DU/10 acres. Street setback varies by road class (§ 34-2192)." },
+  "AG-2": { name:"Agricultural (AG-2)", side:15, rear:25, waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"39,500 sq ft (interior) · 33,600 sq ft (corner)", secRef:"§ 34-654",
+            note:"Lot width 100 ft, depth 130 ft. Max lot coverage 25% (40% nonconforming). Street setback varies by road class (§ 34-2192)." },
+  "AG-3": { name:"Agricultural (AG-3)", side:15, rear:25, waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:20000, secRef:"§ 34-654",
+            note:"Lot width 100 ft, depth 130 ft. Max lot coverage 25%. Street setback varies by road class (§ 34-2192)." },
+  // --- One- &amp; Two-Family Residential (Table 34-695). Hand-entered from Municode § 34-695.
+  //     RSC/RSA/RS = single-family series; TFC/TF add duplex &amp; two-family-attached lot minimums.
+  //     Street (front) setback is a FIXED number only for RSC-1 (10 ft) &amp; RSC-2 (50 ft); every other
+  //     district varies by road class (§ 34-2192). Note (4): no side yard required from the common lot
+  //     line of a two-family attached. Special height limits in Bonita Beach / Captiva / San Carlos /
+  //     Gasparilla / Greater Pine Island &amp; airport zones (§ 34-2171 et seq.). ---
+  "RSC-1":{ name:"Residential Single-Family (RSC-1)", front:10, side:5, rear:10,
+            waterfront:"50 ft (Gulf) / 10 ft (other)", height:35, minLot:4000, secRef:"§ 34-695",
+            note:"Single-family. Lot width 40 ft, depth 75 ft. Max lot coverage 45%. Fixed 10 ft street (front) setback; side/rear measured per § 34-2191 et seq." },
+  "RSC-2":{ name:"Residential Single-Family (RSC-2)", front:50, side:10, rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:43560, secRef:"§ 34-695",
+            note:"Single-family. Lot width 100 ft, depth 200 ft (≈1-acre min). Max lot coverage 25%. Fixed 50 ft street (front) setback; side/rear per § 34-2191 et seq." },
+  "RSA":  { name:"Residential Single-Family (RSA)", side:6.5, rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:6500, secRef:"§ 34-695",
+            note:"Single-family. Lot width 65 ft, depth 75 ft. Max lot coverage 45%. Street (front) setback varies by road class (§ 34-2192)." },
+  "RS-1": { name:"Residential Single-Family (RS-1)", side:7.5, rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:7500, secRef:"§ 34-695",
+            note:"Single-family. Lot width 75 ft, depth 100 ft. Max lot coverage 40%. Street (front) setback varies by road class (§ 34-2192)." },
+  "RS-2": { name:"Residential Single-Family (RS-2)", side:10, rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:12500, secRef:"§ 34-695",
+            note:"Single-family. Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street (front) setback varies by road class (§ 34-2192)." },
+  "RS-3": { name:"Residential Single-Family (RS-3)", side:12, rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:20000, secRef:"§ 34-695",
+            note:"Single-family. Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street (front) setback varies by road class (§ 34-2192)." },
+  "RS-4": { name:"Residential Single-Family (RS-4)", side:15, rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:40000, secRef:"§ 34-695",
+            note:"Single-family. Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street (front) setback varies by road class (§ 34-2192)." },
+  "RS-5": { name:"Residential Single-Family (RS-5)", side:15, rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:"2 acres", secRef:"§ 34-695",
+            note:"Single-family. Lot width 130 ft, depth 130 ft. Max lot coverage 40%. Street (front) setback varies by road class (§ 34-2192)." },
+  "TFC-1":{ name:"Two-Family Residential (TFC-1)", side:"6 ft (single-family / duplex) · 10 ft (two-family attached)", rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"6,000 sq ft (single-family / duplex) · 12,000 (two-family attached)", secRef:"§ 34-695",
+            note:"One/two-family. Lot width 50 ft (SF/duplex) / 120 ft (two-family attached); depth 100 ft. Max lot coverage 45%. No side yard required from the common lot line of a two-family attached (Note 4). Street (front) setback varies by road class (§ 34-2192)." },
+  "TFC-2":{ name:"Two-Family Residential (TFC-2)", side:"7.5 ft (single-family / duplex) · 10 ft (two-family attached)", rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"7,500 sq ft (single-family / duplex) · 12,000 (two-family attached)", secRef:"§ 34-695",
+            note:"One/two-family. Lot width 75 ft (SF/duplex) / 120 ft (two-family attached); depth 100 ft. Max lot coverage 40%. No side yard required from the common lot line of a two-family attached (Note 4). Street (front) setback varies by road class (§ 34-2192)." },
+  "TF-1": { name:"Two-Family Residential (TF-1)", side:"7.5 ft (single-family / duplex) · 10 ft (two-family attached)", rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"7,500 sq ft (single-family) · 10,000 (duplex) · 12,000 (two-family attached)", secRef:"§ 34-695",
+            note:"One/two-family. Lot width 75 ft (SF/duplex) / 120 ft (two-family attached); depth 100 ft. Max lot coverage 45%. No side yard required from the common lot line of a two-family attached (Note 4). Street (front) setback varies by road class (§ 34-2192)." },
+  // --- Multiple-Family Residential (Table 34-715). Side splits by housing type; lot varies. ---
+  "RM-2": { name:"Multiple-Family Residential (RM-2)", side:"7 ft (single-family / duplex / two-family attached / townhouse) · 20 ft (multifamily &amp; all other)", rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"6,500 sq ft (SF detached) · 7,500 (duplex/townhouse) · 10,000 (multifamily/nonres)", secRef:"§ 34-715",
+            note:"Five RM districts (RM-2/3/6/8/10) plus a Mixed-Use Overlay (MUO) option. Max lot coverage 45%. § 34-713 allows an alternative small-lot duplex/townhouse layout at 2,400 sq ft/unit measured from the overall parcel boundary. Street setback varies by road class (§ 34-2192)." },
+  "RM-3": { name:"Multiple-Family Residential (RM-3)", side:"7 ft (SF/duplex/two-family/townhouse) · 20 ft (multifamily &amp; all other)", rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"14,500 sq ft (SF detached) · 29,000 (duplex/townhouse) · 43,500 (multifamily)", secRef:"§ 34-715",
+            note:"Max lot coverage 45%. Lot widths 75–100 ft. Street setback varies by road class (§ 34-2192). See § 34-713 small-lot alternative." },
+  "RM-6": { name:"Multiple-Family Residential (RM-6)", side:"7 ft (SF/duplex/two-family/townhouse) · 20 ft (multifamily &amp; all other)", rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"7,500 sq ft (SF detached) · 14,000 (duplex/townhouse) · 20,500 (multifamily)", secRef:"§ 34-715",
+            note:"Max lot coverage 45%. Street setback varies by road class (§ 34-2192). See § 34-713 small-lot alternative." },
+  "RM-8": { name:"Multiple-Family Residential (RM-8)", side:"7 ft (SF/duplex/two-family/townhouse) · 20 ft (multifamily &amp; all other)", rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"6,500 sq ft (SF detached) · 10,000 (duplex/townhouse) · 15,000 (multifamily)", secRef:"§ 34-715",
+            note:"Max lot coverage 45%. Street setback varies by road class (§ 34-2192). See § 34-713 small-lot alternative." },
+  "RM-10":{ name:"Multiple-Family Residential (RM-10)", side:"7 ft (SF/duplex/two-family/townhouse) · 20 ft (multifamily &amp; all other)", rear:20,
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"6,500 sq ft (SF detached) · 10,000 (duplex/townhouse) · 12,000 (multifamily)", secRef:"§ 34-715",
+            note:"Max lot coverage 45%. Street setback varies by road class (§ 34-2192). See § 34-713 small-lot alternative." },
+  // --- Mobile Home (Table 34-736). MHC-1/2 are park districts (perimeter-based); MH-1..4 conventional. ---
+  "MHC-1":{ name:"Mobile Home Conventional (MHC-1)", side:"5 ft (internal park lot) · 25 ft (park perimeter, 15 ft if adjacent to MH/RV/commercial/industrial)",
+            rear:"5 ft (internal) · 25 ft (perimeter)", waterfront:"50 ft (Gulf) / 5 ft (other)", height:25, minLot:2800, secRef:"§ 34-736",
+            note:"Mobile-home park district. Lot width 40 ft. Max lot coverage 65% (incl. parking unless provided elsewhere). Internal park street setback 5 ft; off-site street 30 ft. Street setback varies by road class (§ 34-2192)." },
+  "MHC-2":{ name:"Mobile Home Conventional (MHC-2)", side:"5 ft (internal park lot) · 25 ft (park perimeter, 15 ft if adjacent to MH/RV/commercial/industrial)",
+            rear:"10 ft (internal) · 25 ft (perimeter)", waterfront:"50 ft (Gulf) / 10 ft (other)", height:25, minLot:7500, secRef:"§ 34-736",
+            note:"Mobile-home park district. Lot width 40 ft (may reduce to 3,750 sq ft on central sewer). Max lot coverage 60%. Internal park street 10 ft; off-site street 15 ft. Street setback varies by road class (§ 34-2192)." },
+  "MH-1": { name:"Mobile Home Residential (MH-1)", side:"7.5 ft (residential, internal &amp; perimeter) · 15 ft (nonresidential)", rear:"20 ft (residential) · 20 ft (nonresidential)",
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:"7,500 sq ft (residential) · 10,000 sq ft (nonresidential)", secRef:"§ 34-736",
+            note:"Residential lot width 75 ft, depth 100 ft. Max lot coverage 40%. Post-1986 developments need emergency shelters (§ 34-734). Street setback varies by road class (§ 34-2192)." },
+  "MH-2": { name:"Mobile Home Residential (MH-2)", side:"7 ft (residential, internal &amp; perimeter) · 15 ft (nonresidential)", rear:"15 ft (residential) · 20 ft (nonresidential)",
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:"5,000 sq ft (residential) · 10,000 sq ft (nonresidential)", secRef:"§ 34-736",
+            note:"Residential lot width 50 ft, depth 100 ft. Max lot coverage 40%. 1978–1986 developments: see § 34-733; post-1986: emergency shelters (§ 34-734). Street setback varies by road class (§ 34-2192)." },
+  "MH-3": { name:"Mobile Home Residential (MH-3)", side:"10 ft (residential, internal &amp; perimeter) · 15 ft (nonresidential)", rear:"20 ft (residential) · 20 ft (nonresidential)",
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:"21,000 sq ft (residential) · 10,000 sq ft (nonresidential)", secRef:"§ 34-736",
+            note:"Residential lot width 80 ft, depth 150 ft. Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  "MH-4": { name:"Mobile Home Residential (MH-4)", side:"15 ft (residential, internal &amp; perimeter) · 15 ft (nonresidential)", rear:"20 ft (residential) · 20 ft (nonresidential)",
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:"40,000 sq ft (residential) · 10,000 sq ft (nonresidential)", secRef:"§ 34-736",
+            note:"Residential lot width 100 ft, depth 200 ft. Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  // --- Recreational Vehicle (Table 34-768). Separation-rule driven. ---
+  "RV-2": { name:"Recreational Vehicle Park (RV-2)", side:5, rear:10, waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:1200, secRef:"§ 34-768",
+            note:"Lot width 30 ft. Max lot coverage 50%. 10 ft min between RVs; 15 ft from park perimeter (or use side/rear/street if adjacent to another park). Internal park street 10 ft (measured from edge of 20 ft pavement). 10 ft min separation between units. Street setback varies by road class (§ 34-2192)." },
+  "RV-3": { name:"Recreational Vehicle Park (RV-3)", side:5, rear:"min separation rules — 25 ft from common-use accessory buildings; 10 ft from any RV/perimeter/building (§ 34-768 notes)",
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:2000, secRef:"§ 34-768",
+            note:"Lot width 30 ft, depth 55 ft. Max lot coverage 40%. 10 ft min between RVs; 40 ft open-space buffer around the park perimeter (vegetative screen ≥8 ft, no road within it). Street setback varies by road class (§ 34-2192)." },
+  // --- Community Facilities (Table 34-814). Single CF district. ---
+  "CF":   { name:"Community Facilities (CF)", side:15, rear:25, waterfront:"50 ft (Gulf) / 25 ft (other)", height:35,
+            minLot:"None fixed (must fit the use plus setbacks, parking, open space, drainage &amp; buffering)", secRef:"§ 34-814",
+            note:"Max lot coverage 35%. Place-of-worship / religious-facility lot minimums per § 34-2051 et seq. Street setback varies by road class (§ 34-2192)." },
+  // --- Commercial (Table 34-845). Hand-entered from Municode § 34-845. minLot shown is the
+  //     NONRESIDENTIAL minimum (corner/interior where they differ); residential-unit minimums and
+  //     § 34-842 duplex/two-family alternates are in the note. Street setback varies by road class
+  //     (§ 34-2192) for every district. Gulf waterbody per Ch. 6 Art. III or 50 ft MHW, whichever is
+  //     most restrictive. C-2A shares C-2's column; CG shares CC's column (duplicated as separate keys).
+  //     Special height limits in Bonita Beach/Captiva/San Carlos/Gasparilla/Pine Island & airport
+  //     zones (§ 34-2175). ---
+  "C-1A": { name:"Commercial (C-1A)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"7,500 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 75 ft, depth 100 ft. Max lot coverage 40%. Residential: 7,500 sq ft for the first two dwelling units in the same building; additional units not permitted. § 34-842 duplex/two-family-attached alternate applies in C-1A/C-1/C-2. Street setback varies by road class (§ 34-2192)." },
+  "C-1":  { name:"Commercial (C-1)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"7,500 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 75 ft, depth 100 ft. Max lot coverage 40%. Residential: 7,500 sq ft (first two units in the same building) + 3,000 sq ft each additional unit. § 34-842 duplex/two-family alternate applies. Street setback varies by road class (§ 34-2192)." },
+  "C-2":  { name:"Commercial (C-2)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"10,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 75 ft, depth 100 ft. Max lot coverage 40%. Residential: 7,500 sq ft (first two units) + 2,000 sq ft each additional. § 34-842 duplex/two-family alternate applies. Street setback varies by road class (§ 34-2192)." },
+  "C-2A": { name:"Commercial (C-2A)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"10,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Shares the C-2 column in Table 34-845. Lot width 75 ft, depth 100 ft. Max lot coverage 40%. Residential: 7,500 sq ft (first two units) + 2,000 sq ft each additional. § 34-842 alternate applies. Street setback varies by road class (§ 34-2192)." },
+  "CN-1": { name:"Commercial Neighborhood (CN-1)", side:15, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"10,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 75 ft, depth 100 ft. Max lot coverage 40%. No outdoor display or storage of merchandise permitted (Note 8). Street setback varies by road class (§ 34-2192)." },
+  "CN-2": { name:"Commercial Neighborhood (CN-2)", side:15, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"10,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 100 ft, depth 100 ft. Max lot coverage 40%. No outdoor display or storage of merchandise permitted (Note 8). Street setback varies by road class (§ 34-2192)." },
+  "CN-3": { name:"Commercial Neighborhood (CN-3)", side:10, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"10,000 sq ft (corner) · 7,500 (interior) — nonresidential", secRef:"§ 34-845",
+            note:"Lot width 75 ft, depth 100 ft. Max lot coverage 40%. Residential: 7,500 sq ft (first two units) + 2,000 sq ft each additional. No outdoor display or storage of merchandise permitted (Note 8). Street setback varies by road class (§ 34-2192)." },
+  "CC":   { name:"Commercial (CC)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"20,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  "CG":   { name:"Commercial General (CG)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"20,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Shares the CC column in Table 34-845. Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  "CS-1": { name:"Commercial (CS-1)", side:20, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"20,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  "CS-2": { name:"Commercial (CS-2)", side:10, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"5,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 50 ft, depth 100 ft. Max lot coverage 50%. Residential: 5,000 sq ft for the first two units in the same building. Street setback varies by road class (§ 34-2192)." },
+  "CH":   { name:"Commercial (CH)", side:15, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"10,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  "CT":   { name:"Commercial Tourist (CT)", side:20, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"20,000 sq ft (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Residential: 7,500 sq ft (first two units) + 2,000 sq ft each additional. Street setback varies by road class (§ 34-2192)." },
+  "CR":   { name:"Commercial (CR)", side:15, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"39,500 sq ft (corner) · 33,600 (interior) — nonresidential", secRef:"§ 34-845",
+            note:"Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  "CI":   { name:"Commercial Intensive (CI)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"2 acres (nonresidential, corner &amp; interior)", secRef:"§ 34-845",
+            note:"Lot width 150 ft, depth 150 ft. Max lot coverage 40%. Truck terminals must meet the industrial setbacks in Table 34-904 (Note 10). Street setback varies by road class (§ 34-2192)." },
+  "CP":   { name:"Commercial Parking (CP)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"None fixed", secRef:"§ 34-845",
+            note:"Parking district. STRUCTURE setbacks: 15 ft side, 25 ft rear (Note 6). PARKING-AREA setbacks: 10 ft from any residential land use, 5 ft from any other (Note 6). Where a CP parking lot abuts residential, an opaque fence is required (Note 7). Max lot coverage 40% (structures only, Note 9). Street setback varies by road class (§ 34-2192)." },
+  "MUO":  { name:"Mixed-Use Overlay (MUO)", overlay:true, waterfront:"50 ft (Gulf) / 25 ft (other)", height:"as required by § 34-2175", secRef:"§ 34-715 / § 34-845",
+            note:"FORM-BASED OVERLAY, not a base district — applied to parcels within the Mixed-Use Overlay (Lee Plan Map 1-C, Objective 11.2). The conventional yard table does NOT apply: there are no minimum lot-size, street, side or rear setbacks and no maximum lot coverage. Dimensional form is governed by the overlay's standards and § 34-2175 height limits; waterbody setbacks (50 ft Gulf / 25 ft other) still apply. Confirm the governing base district and overlay standards with Lee County DCD before siting." },
+  // --- Marine-Oriented (Table 34-874): CM, IM, PORT ---
+  "CM":   { name:"Commercial Marine (CM)", side:20, rear:20, waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:20000, secRef:"§ 34-874",
+            note:"Lot width/depth 100 ft. Max lot coverage 40%. Boat-service buildings/structures may be built up to the mean high-water line. Street setback varies by road class (§ 34-2193(b))." },
+  "IM":   { name:"Industrial Marine (IM)", side:20, rear:20, waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:20000, secRef:"§ 34-874",
+            note:"Lot width/depth 100 ft. Max lot coverage 40%. Boat-service buildings/structures may be built up to the mean high-water line. Street setback varies by road class (§ 34-2193(b))." },
+  "PORT": { name:"Port (PORT)", side:"10% of lot width, min 20 ft / max 40 ft", rear:25, abutRes:"100 ft from a residential property line",
+            waterfront:"50 ft (Gulf) / 25 ft (other)", height:35, minLot:20000, secRef:"§ 34-874",
+            note:"Lot width/depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 34-2193(b))." },
+  // --- Industrial (Table 34-904): IL, IG, IR ---
+  "IL":   { name:"Light Industrial (IL)", side:20, rear:15, abutRes:"25 ft from residential property (more if § 34-2443 requires)",
+            waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"20,000 sq ft (in an industrial subdivision) · 2 acres (freestanding)", secRef:"§ 34-904",
+            note:"Lot width 100 ft (subdivision) / 200 ft (freestanding). Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  "IG":   { name:"General Industrial (IG)", side:20, rear:25, abutRes:"25 ft from residential property (more if § 34-2443 requires)",
+            waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"20,000 sq ft (in an industrial subdivision) · 2 acres (freestanding)", secRef:"§ 34-904",
+            note:"Lot width 100 ft (subdivision) / 200 ft (freestanding). Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  "IR":   { name:"Research &amp; Technology / Industrial (IR)", side:15, rear:20, abutRes:"25 ft from residential property (more if § 34-2443 requires)",
+            waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", height:35,
+            minLot:"2 acres", secRef:"§ 34-904",
+            note:"Lot width/depth 200 ft. Max lot coverage 40%. Street setback varies by road class (§ 34-2192)." },
+  // --- Environmentally Critical (§ 34-984): conservation/wetland ---
+  "EC":   { name:"Environmentally Critical (EC)", side:15, rear:15,
+            waterfront:"50 ft Gulf from mean high water (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)", secRef:"§ 34-984",
+            note:"Wetland / environmentally sensitive land. Side/rear/parcel-boundary 15 ft. Residential density capped at 1 DU/20 acres (wetland protection, Ch. 14 Art. IV). No height/coverage fixed by the district. Street setback varies by road class (§ 34-2192)." },
+  // --- PLANNED DEVELOPMENTS (§ 34-935 et seq.). No fixed table — setbacks from the approved PD master
+  //     concept plan; LDC fixes only a perimeter-boundary floor (15 ft for RPD/MHPD/CFPD/CPD; higher
+  //     for industrial PD) and the water/height defaults. pud:true. ---
+  "RPD":  { name:"Residential Planned Development (RPD)", pud:true, secRef:"§ 34-935",
+            note:"Perimeter-boundary setback floor: the greater of the required buffer/landscape-strip width or 15 ft. Lot/coverage/side/rear set in the approved PD master concept plan & adopting resolution." },
+  "MHPD": { name:"Mobile Home Planned Development (MHPD)", pud:true, secRef:"§ 34-935",
+            note:"Perimeter-boundary setback floor: greater of buffer width or 15 ft. Standards set in the approved PD master concept plan & adopting resolution." },
+  "CFPD": { name:"Community Facilities Planned Development (CFPD)", pud:true, secRef:"§ 34-935",
+            note:"Perimeter-boundary setback floor: greater of buffer width or 15 ft. Standards set in the approved PD master concept plan & adopting resolution." },
+  "CPD":  { name:"Commercial Planned Development (CPD)", pud:true, secRef:"§ 34-935",
+            note:"Perimeter-boundary setback floor: greater of buffer width or 15 ft. Industrial uses abutting residential set back per § 34-2443 or more. Standards set in the approved PD master concept plan & adopting resolution." },
+  "IPD":  { name:"Industrial Planned Development (IPD)", pud:true, secRef:"§ 34-935",
+            note:"Industrial planned development — higher perimeter setbacks than residential/commercial PDs, and industrial uses abutting residential set back per § 34-2443. Standards set in the approved PD master concept plan & adopting resolution." },
+  "MPD":  { name:"Mixed-Use Planned Development (MPD)", pud:true, secRef:"§ 34-935",
+            note:"Perimeter-boundary setback floor: 15 ft (residential/commercial portions); higher for industrial portions. Standards set in the approved PD master concept plan & adopting resolution." },
+  "RVPD": { name:"Recreational Vehicle Planned Development (RVPD)", pud:true, secRef:"§ 34-939",
+            note:"New RVPD min area 20 acres. 40 ft perimeter open-space buffer; 10 ft min between RVs; not on barrier islands / coastal high-hazard (V) zones. Other standards set in the approved PD master concept plan & adopting resolution." },
+  "AOPD": { name:"Airport-Operations / other Planned Development", pud:true, secRef:"§ 34-935",
+            note:"Planned development — setbacks and standards come from the approved PD master concept plan & adopting resolution." }
+};
+
+/* Resolve a Lee County zoning code string to a setback entry. Exact-match first, then ordered
+   regex (PD codes before conventional codes; longer/more-specific codes first). */
+function leeSetbacks(districtCode){
+  if(!districtCode) return null;
+  const U=String(districtCode).toUpperCase();
+  const tag=(entry,label)=> entry ? Object.assign({__key:label, __shown:String(districtCode).trim()}, entry) : null;
+  const exact=U.trim();
+  if(LEE_SETBACKS[exact]) return tag(LEE_SETBACKS[exact], exact);
+  // PLANNED DEVELOPMENTS first — every PD code ends in PD and could be mis-caught by a conventional code.
+  if(/\bRVPD\b/.test(U)){ return tag(LEE_SETBACKS["RVPD"], "RVPD"); }
+  if(/\bMHPD\b/.test(U)){ return tag(LEE_SETBACKS["MHPD"], "MHPD"); }
+  if(/\bCFPD\b/.test(U)){ return tag(LEE_SETBACKS["CFPD"], "CFPD"); }
+  if(/\bRPD\b/.test(U)){ return tag(LEE_SETBACKS["RPD"], "RPD"); }
+  if(/\bCPD\b/.test(U)){ return tag(LEE_SETBACKS["CPD"], "CPD"); }
+  if(/\bIPD\b/.test(U)){ return tag(LEE_SETBACKS["IPD"], "IPD"); }
+  if(/\bMPD\b/.test(U)){ return tag(LEE_SETBACKS["MPD"], "MPD"); }
+  if(/\bAOPD\b/.test(U)){ return tag(LEE_SETBACKS["AOPD"], "AOPD"); }
+  // CONVENTIONAL — longer/more-specific codes first.
+  // One/two-family (§ 34-695): RSC & RSA before the generic RS series; TFC before TF.
+  let m=U.match(/\bRSC[\s-]*([12])\b/);
+  if(m){ const k="RSC-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  if(/\bRSA\b/.test(U)){ return tag(LEE_SETBACKS["RSA"], "RSA"); }
+  m=U.match(/\bRS[\s-]*([1-5])\b/);
+  if(m){ const k="RS-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  m=U.match(/\bTFC[\s-]*([12])\b/);
+  if(m){ const k="TFC-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  if(/\bTF[\s-]*1\b/.test(U)){ return tag(LEE_SETBACKS["TF-1"], "TF-1"); }
+  m=U.match(/\bMHC[\s-]*([12])\b/);
+  if(m){ const k="MHC-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  m=U.match(/\bMH[\s-]*([1-4])\b/);
+  if(m){ const k="MH-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  m=U.match(/\bRM[\s-]*(10|2|3|6|8)\b/);
+  if(m){ const k="RM-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  m=U.match(/\bRV[\s-]*([23])\b/);
+  if(m){ const k="RV-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  m=U.match(/\bAG[\s-]*([123])\b/);
+  if(m){ const k="AG-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  // Commercial (§ 34-845). C-1A/C-2A before C-1/C-2; CN & CS series; then single-letter codes.
+  if(/\bC[\s-]*1[\s-]*A\b/.test(U)){ return tag(LEE_SETBACKS["C-1A"], "C-1A"); }
+  if(/\bC[\s-]*2[\s-]*A\b/.test(U)){ return tag(LEE_SETBACKS["C-2A"], "C-2A"); }
+  if(/\bC[\s-]*1\b/.test(U)){ return tag(LEE_SETBACKS["C-1"], "C-1"); }
+  if(/\bC[\s-]*2\b/.test(U)){ return tag(LEE_SETBACKS["C-2"], "C-2"); }
+  m=U.match(/\bCN[\s-]*([123])\b/);
+  if(m){ const k="CN-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  m=U.match(/\bCS[\s-]*([12])\b/);
+  if(m){ const k="CS-"+m[1]; if(LEE_SETBACKS[k]) return tag(LEE_SETBACKS[k], k); }
+  if(/\bCC\b/.test(U)){ return tag(LEE_SETBACKS["CC"], "CC"); }
+  if(/\bCG\b/.test(U)){ return tag(LEE_SETBACKS["CG"], "CG"); }
+  if(/\bCH\b/.test(U)){ return tag(LEE_SETBACKS["CH"], "CH"); }
+  if(/\bCT\b/.test(U)){ return tag(LEE_SETBACKS["CT"], "CT"); }
+  if(/\bCR\b/.test(U)){ return tag(LEE_SETBACKS["CR"], "CR"); }
+  if(/\bCI\b/.test(U)){ return tag(LEE_SETBACKS["CI"], "CI"); }
+  if(/\bCP\b/.test(U)){ return tag(LEE_SETBACKS["CP"], "CP"); }
+  if(/\bPORT\b/.test(U)){ return tag(LEE_SETBACKS["PORT"], "PORT"); }
+  if(/\bCM\b/.test(U)){ return tag(LEE_SETBACKS["CM"], "CM"); }
+  if(/\bIM\b/.test(U)){ return tag(LEE_SETBACKS["IM"], "IM"); }
+  if(/\bIL\b/.test(U)){ return tag(LEE_SETBACKS["IL"], "IL"); }
+  if(/\bIG\b/.test(U)){ return tag(LEE_SETBACKS["IG"], "IG"); }
+  if(/\bIR\b/.test(U)){ return tag(LEE_SETBACKS["IR"], "IR"); }
+  if(/\bCF\b/.test(U)){ return tag(LEE_SETBACKS["CF"], "CF"); }
+  if(/\bEC\b/.test(U)){ return tag(LEE_SETBACKS["EC"], "EC"); }
+  // MUO is an optional overlay; only resolve it when nothing else (a base district) matched.
+  if(/\bMUO\b/.test(U)){ return tag(LEE_SETBACKS["MUO"], "MUO"); }
+  return null;
+}
+
+function renderLeeSetbacks(districtCode){
+  const s=leeSetbacks(districtCode);
+  if(!s) return '';
+  const setVal=v=>{
+    if(v==null) return null;
+    if(typeof v==='number') return v===0?'0 ft':v+' ft';
+    const t=String(v).trim(); if(!t) return null;
+    return /[a-zA-Z]/.test(t) ? t : t+' ft';
+  };
+  const shown = s.__shown || String(districtCode);
+  const secRef = s.secRef || '';
+  const codeLabel = secRef ? ('Lee County LDC '+secRef) : 'Lee County LDC';
+  if(s.pud){
+    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PD</span> ${esc(shown)} · setbacks set by the approved planned-development document (${esc(codeLabel)})</div>`;
+    p+=`<div class="note">This is a <b>planned development</b>. Its front, side, rear, height and lot standards are <b>not</b> from a standard district table — they are established in this property's <b>approved PD ordinance &amp; master concept plan</b>, which can depart from conventional zoning.</div>`;
+    if(s.note) p+=`<div class="note">${esc(s.note)}</div>`;
+    p+=`<div class="note warnbox">Look up this parcel's specific PD ordinance / master plan for its exact setbacks before siting a generator or LP tank. Confirm with Lee County DCD.</div>`;
+    return p;
+  }
+  if(s.overlay){
+    let o=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ OVERLAY</span> ${esc(shown)} · form-based — no conventional yard table (${esc(codeLabel)})</div>`;
+    if(s.waterfront!=null) o+=fieldRow('Waterfront', esc(setVal(s.waterfront)));
+    if(s.height!=null) o+=fieldRow('Max building height', esc(setVal(s.height)));
+    if(s.note) o+=`<div class="note">${esc(s.note)}</div>`;
+    o+=`<div class="note warnbox">Confirm the governing base district and the overlay's form-based standards with Lee County DCD before siting a generator or LP tank — there are no conventional minimum setbacks to rely on here.</div>`;
+    return o;
+  }
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)} (${esc(codeLabel)})</div>`;
+  if(s.minLot!=null){ const lv=(typeof s.minLot==='number')?(fmtNum(s.minLot)+' sq ft'):String(s.minLot); h+=fieldRow('Minimum lot area', esc(lv)); }
+  const frontV=setVal(s.front); if(frontV) h+=fieldRow('Front', esc(frontV), 'big');
+  const sideV=setVal(s.side); if(sideV) h+=fieldRow('Side', esc(sideV));
+  const rearV=setVal(s.rear); if(rearV) h+=fieldRow('Rear', esc(rearV));
+  if(s.abutRes!=null) h+=fieldRow('Abutting residential', esc(setVal(s.abutRes)));
+  if(s.waterfront!=null) h+=fieldRow('Waterfront', esc(setVal(s.waterfront)));
+  if(s.height!=null) h+=fieldRow('Max building height', esc(setVal(s.height)));
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  h+=`<div class="note warnbox">Unincorporated Lee County LDC${secRef?(' ('+esc(secRef)+')'):''} — Chapter 34. Incorporated cities have their own codes. <b>Waterfront/canal lots</b>, corner lots, PD/overlay terms and special height zones (Bonita Beach, Captiva, Pine Island, etc., § 34-2175) can differ — verify the exact figures in the live code below before siting.</div>`;
+  return h;
+}
+
+
 
 
 /* Query a county parcel feed BY ADDRESS, then pick the unit matching the search. If the exact house
@@ -3802,10 +4130,12 @@ async function runLookup(lat,lng,searchCtx){
     if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName)) && zhit.code){ html += renderCollierSetbacks(zhit.code); }
     if(norm(cityName)==='CAPECORAL' && zhit.code){ html += renderCapeCoralSetbacks(zhit.code); }
     if(norm(cityName)==='BONITASPRINGS' && zhit.code){ html += renderBonitaSetbacks(zhit.code); }
-    // Estero adopted its own LDC (Chapter 3 zoning) and OVERRIDES Lee County. Lee County itself has
-    // no setback renderer here, so this is purely additive — Estero parcels resolve to its own table
-    // (or, for the common PD/DRI parcels, the "from approved master plan" notice).
+    // Estero adopted its own LDC (Chapter 3 zoning) and OVERRIDES Lee County.
     if(norm(cityName)==='ESTERO' && zhit.code){ html += renderEsteroSetbacks(zhit.code); }
+    // Unincorporated Lee County (Chapter 34). Incorporated cities (Cape Coral, Fort Myers, Bonita
+    // Springs, Estero, Sanibel, Fort Myers Beach) adopt their own codes and are excluded via LEE_INCORP
+    // — Cape Coral/Bonita/Estero render above; the rest fall through to the adopted-code note below.
+    if(norm(countyName)==='LEE' && !LEE_INCORP.has(norm(cityName)) && zhit.code){ html += renderLeeSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
