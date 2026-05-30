@@ -458,18 +458,17 @@
     #printHead .ph-meta{ font-family:var(--mono); font-size:9.5px; color:#222; margin-top:7px; line-height:1.5; }
     #printHead .ph-meta b{ color:#111; }
 
-    /* Print layout — Safari-mobile reliable.
-       Two-up layout uses CSS multi-column (NOT grid): iOS Safari prints `columns` correctly,
-       whereas `display:grid` in its print snapshot can collapse to one column when the parent
-       width isn't settled. Cards stay atomic (break-inside:avoid) so none is split across the
-       gap. The fit-to-one-page shrink uses transform:scale() (set by JS as --print-scale),
-       because Safari's print path ignores the `zoom` property. We scale from the top-left and
-       widen the box by 1/scale so the shrunken content still fills the page width. */
+    /* Print layout.
+       Two-up layout uses CSS multi-column (NOT grid): Safari prints `columns` reliably, while a
+       print-snapshot grid can collapse to one column. Cards stay atomic (break-inside:avoid).
+       Fit-to-one-page uses `zoom` (set by JS as --print-fit): unlike transform:scale, `zoom`
+       changes the element's LAYOUT box, so the page repaginates around the scaled size instead
+       of the print engine adding its own shrink on top (which made it tiny). Supported in
+       Chrome/Edge/Safari; pre-126 Firefox ignores it and just prints at full size — acceptable. */
     #results{
-      column-count:2; column-gap:12px; column-fill:balance;
+      column-count:2; column-gap:12px;
       display:block !important; overflow:visible !important; padding:0 !important;
-      transform:scale(var(--print-scale,0.82)); transform-origin:top left;
-      width:calc(100% / var(--print-scale,0.82));
+      zoom:var(--print-fit,1);
     }
     .pcol{ display:block !important; min-width:0; }
     .card{ break-inside:avoid; page-break-inside:avoid; -webkit-column-break-inside:avoid;
@@ -1772,6 +1771,11 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
 }
 const ENRICH_TIMEOUT = 6000;   // shorter timeout for secondary/enrichment lookups so a dead server fails fast
 const COUNTY_FEED_TIMEOUT = 13000;  // primary county parcel feeds get a generous timeout (dense areas can be slow)
+// FEMA's NFHL server (hazards.fema.gov) is slow and strict (TLS 1.2 + cipher suites). On a phone
+// — typically a slower cell connection — the default 9s often isn't enough to complete the TLS
+// handshake + the geometry-bearing flood query, and Safari reports the aborted request as
+// "Load failed". Give mobile more headroom; desktop stays snappy.
+const FLOOD_TIMEOUT = (typeof L!=='undefined' && L.Browser && L.Browser.mobile) ? 14000 : 9000;
 
 /* Retry wrapper: ArcGIS Online services occasionally fail transiently (a 5xx/CORS blip comes back
    fast). One quick retry clears most of these. But a *timeout* means the server is just slow —
@@ -2800,7 +2804,7 @@ async function runLookup(lat,lng,searchCtx){
 
   // Fire all queries in parallel; each degrades independently.
   const pParcel  = arcQueryRetry(EP.parcel, lat, lng, '*', true).catch(e=>({__err:e.message}));
-  const pFlood   = arcQuery(EP.flood,   lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false).catch(e=>({__err:e.message}));
+  const pFlood   = arcQueryRetry(EP.flood, lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, FLOOD_TIMEOUT).catch(e=>({__err:e.message}));
   const pCity    = arcQuery(EP.city,    lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
   const pCounty  = arcQuery(EP.county,  lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
   const pLive    = liveSource.url ? arcQuery(liveSource.url, lat, lng, '*', true).catch(e=>({__err:e.message})) : Promise.resolve(null);
@@ -3806,30 +3810,56 @@ window.Sheet=Sheet;
     cards.forEach(c=>c.classList.remove('tall'));
     cards.filter(c=>c.offsetHeight>300).forEach(c=>c.classList.add('tall'));
 
-    // No DOM repack: the print CSS uses `column-count:2`, which iOS Safari prints reliably and
-    // which balances the cards into two columns by itself. (The old JS repack into .pcol divs
-    // plus `display:grid` was the part Safari mis-handled — it collapsed to one column.)
-    // We only need to compute the fit-to-one-page scale.
+    // No DOM repack: the print CSS uses `column-count:2`, which Safari prints reliably and
+    // balances into two columns itself. We only compute the fit-to-one-page factor.
 
-    // Auto-fit via transform:scale (Safari ignores `zoom` when printing). The cards flow into
-    // TWO columns, so the printed stack height is ~ the natural single-flow content height
-    // halved, times the print compaction (~0.62 of screen type/spacing). One letter page has
-    // ~900px usable height after margins + the print header. Solve for the scale that fits:
-    //   (screenContentHeight/2) * 0.62 * scale <= 900  →  scale <= 2903 / screenContentHeight
-    const fitScale=()=>{
-      const H = results.scrollHeight || results.offsetHeight || 0;   // natural single-flow height
-      const MAX=1.0, MIN=0.6, PRINT_RATIO=0.62, PAGE_PX=900;
-      let s = H>0 ? (PAGE_PX / (PRINT_RATIO * (H/2))) : MAX;
-      s = Math.max(MIN, Math.min(MAX, s));
-      document.documentElement.style.setProperty('--print-scale', String(Math.round(s*1000)/1000));
+    // Auto-fit via `zoom`. The earlier version guessed the printed height from the screen height
+    // with a fudge factor and consistently under-shrank — leaving the report in the top half of
+    // the page (tiny type, empty bottom). Instead we MEASURE the real two-column height: briefly
+    // apply the same column layout the print stylesheet uses, read the laid-out height, then pick
+    // the zoom that makes the content FILL the usable page height (scaling up to fill, down only
+    // if it would overflow). One letter page at 0.45in margins ≈ 9.5in usable; minus the ~0.5in
+    // print header ≈ 9.0in × 96px ≈ 865px for the columns. Target ~96% of that so it fills the
+    // sheet without risking a hairline spill to page 2.
+    const fitFactor=()=>{
+      // Usable column height on a letter page: 11in − 0.9in margins − ~0.5in print header
+      // ≈ 9.6in × 96px ≈ 920px. Target ~88% of it — a deliberate cushion so a report lands fully
+      // on one page (printing at "Actual size") without spilling a few lines to page 2.
+      const TARGET_PX = 920 * 0.88;
+      const MAX = 1.4, MIN = 0.62;    // allow scale-UP to fill short reports; floor for legibility
+
+      // Measure the natural SINGLE-column height at the printed content width. NOTE: a
+      // `column-count:2` element with auto height reports its full single-column scrollHeight
+      // (the browser has no height to balance against), so we must NOT set column-count here —
+      // we measure one column at full width, then halve it, since print splits it into two
+      // balanced columns each ~half the height. Measuring at the real page content width
+      // (~730px) makes the line-wrapping — and thus the height — match the printed page.
+      const prev = { w: results.style.width, zoom: results.style.zoom, cc: results.style.columnCount };
+      results.style.zoom = '1';
+      results.style.columnCount = '1';
+      results.style.width = '730px';
+      const oneColH_screenFont = results.scrollHeight || results.offsetHeight || 0;
+      results.style.width = prev.w; results.style.zoom = prev.zoom; results.style.columnCount = prev.cc;
+
+      // Two columns → roughly half that height. Then apply print-font compaction. Ratio calibrated
+      // from a real print: a report measuring 4242px (1-col @730px, screen fonts) printed its two
+      // columns ~899px tall, i.e. ~0.42 of the halved height. (Earlier 0.35 underestimated and
+      // scaled up too far, spilling a few lines to page 2.)
+      const twoColH_screenFont = oneColH_screenFont / 2;
+      const PRINT_FONT_RATIO = 0.42;
+      const colH = twoColH_screenFont * PRINT_FONT_RATIO;
+
+      let z = colH>0 ? (TARGET_PX / colH) : 1;
+      z = Math.max(MIN, Math.min(MAX, z));
+      document.documentElement.style.setProperty('--print-fit', String(Math.round(z*1000)/1000));
     };
-    fitScale();
+    fitFactor();
 
     // Restore the page (title) once printing is done. afterprint is primary; the timeout is a
     // backstop for the cases where iOS Safari never fires it.
     const cleanup=()=>{
       document.title=_origTitle;
-      document.documentElement.style.removeProperty('--print-scale');
+      document.documentElement.style.removeProperty('--print-fit');
       window.removeEventListener('afterprint',cleanup);
     };
     window.addEventListener('afterprint',cleanup);
