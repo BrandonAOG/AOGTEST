@@ -1389,8 +1389,21 @@ map.on('click', e => runLookup(e.latlng.lat, e.latlng.lng));
    communities are no longer outlined. Each city gets its own stable color derived from
    its name, so adjacent cities are easy to tell apart. Outside any outline = unincorporated. */
 const CITY_PALETTE = ['#ff8c1a','#3fd0ff','#7cff5c','#ff5ca8','#c08bff','#ffe14d','#5cffd4','#ff6b5c','#9cff2e','#5c9bff','#ff9ed6','#4dffa0'];
+/* Pinned colors for specific municipalities so they stand out from their immediate neighbors,
+   instead of relying on the name hash (which can collide — e.g. an "Estero"/"Fort Myers Beach"
+   clash on the same palette index). Keyed on the normalized name (letters only, uppercase), so
+   it matches whether FDOT returns "Estero", "Estero village", etc. */
+const CITY_COLOR_PIN = { 'ESTERO':'#ff2e9c' };   // hot magenta — distinct from neighboring greens/blues
+/* Municipalities to force into the city-limits layer by NAME, for cases where the CLASSFP/LSAD
+   incorporated-place filter drops them (some FDOT vintages leave Census-class fields blank for
+   newer incorporations like Estero). `like` is the SQL LIKE fragment; `norm` is the letters-only
+   uppercase form used to dedupe against features already returned. */
+const BOUNDS_FORCE_INCLUDE = [ { like:'ESTERO', norm:'ESTERO' } ];
 function cityColor(name){
-  let h=0; const s=String(name||'');
+  const s=String(name||'');
+  const norm=s.toUpperCase().replace(/[^A-Z]/g,'');
+  for(const key in CITY_COLOR_PIN){ if(norm.indexOf(key)!==-1) return CITY_COLOR_PIN[key]; }
+  let h=0;
   for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))>>>0; }
   return CITY_PALETTE[h % CITY_PALETTE.length];
 }
@@ -1433,6 +1446,21 @@ async function refreshBoundaries(){
         if(c) return c.startsWith('C');           // C* = incorporated
         return l==='25'||l==='43'||l==='47'||l==='21'||l==='53'||l==='62'; // city/town/village LSAD codes
       });
+      // Guaranteed inclusion for municipalities the CLASSFP/LSAD filter can miss (e.g. Estero,
+      // whose Census-class fields are blank in some FDOT vintages). Fetch by NAME, no class filter,
+      // and merge any that aren't already present. Only runs when the view actually covers them.
+      try{
+        const haveNames=gj.features.map(f=>String((f.properties&&(f.properties.NAME||f.properties.name))||'').toUpperCase().replace(/[^A-Z]/g,''));
+        for(const want of BOUNDS_FORCE_INCLUDE){
+          if(haveNames.some(n=>n.indexOf(want.norm)!==-1)) continue;   // substring: "ESTEROVILLAGE" already covers "ESTERO"
+          const wq=encodeURIComponent(`UPPER(NAME) LIKE '%${want.like}%'`);
+          const fu=EP.city+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+            `&spatialRel=esriSpatialRelIntersects&where=${wq}&outFields=NAME,CLASSFP,LSAD&returnGeometry=true&outSR=4326&f=geojson`;
+          const fr=await fetch(fu); if(!fr.ok) continue;
+          const fgj=await fr.json();
+          if(fgj && fgj.features && fgj.features.length){ gj.features = gj.features.concat(fgj.features); }
+        }
+      }catch(_){ /* fallback is best-effort; never break the main layer */ }
       boundsLayer.clearLayers(); boundsLayer.addData(gj); boundsKey=key;
     }
   }catch(e){ /* leave existing outlines on failure */ }
