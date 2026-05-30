@@ -467,6 +467,13 @@
        Chrome/Edge/Safari; pre-126 Firefox ignores it and just prints at full size — acceptable. */
     #results{
       column-count:2; column-gap:12px;
+      /* iOS Safari's print path can ignore a bare column-count and collapse to one column.
+         The -webkit-prefixed shorthand + an explicit column-width forces the split on mobile
+         Safari. On desktop these are redundant: column-count:2 already governs at letter width,
+         and the wide column-width (340px) never reduces the desktop count below 2. */
+      -webkit-column-count:2; -webkit-column-gap:12px;
+      column-width:340px; -webkit-column-width:340px;
+      column-fill:auto; -webkit-column-fill:auto;
       display:block !important; overflow:visible !important; padding:0 !important;
       zoom:var(--print-fit,1);
     }
