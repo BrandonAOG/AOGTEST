@@ -198,6 +198,23 @@
   .layerswitch{position:absolute;z-index:1000;bottom:18px;right:18px;display:flex;background:var(--search-bg);border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 6px 20px var(--shadow-soft)}
   .layerswitch button{background:transparent;border:none;color:var(--dim);font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.05em;padding:9px 14px;cursor:pointer;text-transform:uppercase}
   .layerswitch button.active{background:var(--signal);color:var(--signal-ink)}
+  /* Cone button when NHC has an active tropical system — pulsing warn highlight */
+  .layerswitch button.alert{color:var(--warn)}
+  .layerswitch button.alert::before{content:'●';margin-right:5px;font-size:9px;vertical-align:1px;animation:conepulse 1.4s ease-in-out infinite}
+  @keyframes conepulse{0%,100%{opacity:.35}50%{opacity:1}}
+  /* Transient on-map message (e.g. "no active storms") */
+  .maptoast{position:absolute;z-index:1100;top:14px;left:50%;transform:translateX(-50%) translateY(-8px);
+    background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    font-family:var(--body);font-size:12.5px;padding:9px 14px;box-shadow:0 8px 26px var(--shadow-strong);
+    opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:80vw;text-align:center}
+  .maptoast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* Radar frame-time readout (shown only while the loop is playing) */
+  .radarclock{position:absolute;z-index:1000;bottom:64px;right:18px;display:none;
+    font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--blueprint);
+    background:var(--search-bg);border:1px solid var(--line);padding:5px 11px;border-radius:7px;
+    box-shadow:0 4px 14px var(--shadow-soft);pointer-events:none}
+  .radarclock.show{display:block}
+  @media (max-width:640px){ .radarclock{bottom:auto;top:54px;right:12px} }
   .bnd-tip{background:var(--bnd-bg);color:var(--bnd-ink);border:none;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.04em;padding:2px 7px;box-shadow:0 2px 8px var(--shadow-soft)}
   .bnd-tip .leaflet-tooltip-tip{background:var(--bnd-bg)}
   /* Hover card shown over a looked-up parcel polygon (address / parcel / owner) */
@@ -406,11 +423,14 @@
 <body>
 <div id="map"></div>
 <div class="crosshair" id="coordReadout">click the map to query a point</div>
+<div class="radarclock" id="radarClock">◵ Radar</div>
 <button class="sheet-tab" id="sheetTab" aria-label="Show property panel">⌃ Property panel</button>
 <div class="layerswitch">
   <button id="btnSat" class="active">Satellite</button>
   <button id="btnStreet">Street</button>
   <button id="btnBounds" class="active" title="Toggle color-coded incorporated city-limit outlines">◰ City limits</button>
+  <button id="btnRadar" title="Toggle live NWS rain/storm radar (NEXRAD, refreshes every few minutes)">◵ Radar</button>
+  <button id="btnCone" title="Show the NHC forecast cone &amp; track for any active tropical system">⬢ Cone</button>
 </div>
 
 <div id="panel">
@@ -1306,6 +1326,165 @@ map.on('mousemove', e => {
     `lat ${e.latlng.lat.toFixed(5)}   lng ${e.latlng.lng.toFixed(5)}`;
 });
 
+/* ---------- Transient on-map toast ---------- */
+let _toastTimer=null;
+function mapToast(msg, ms){
+  let el=document.getElementById('mapToast');
+  if(!el){ el=document.createElement('div'); el.id='mapToast'; el.className='maptoast';
+    (document.getElementById('map')||document.body).appendChild(el); }
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'), ms||3200);
+}
+
+/* ---------- Animated rain/storm radar (IEM NEXRAD, time-aware WMS) ----------
+   Free, key-less NWS NEXRAD composite from the Iowa Environmental Mesonet.
+   We build a series of past 5-minute frames (the layer is time-aware: pass a
+   `time` param per frame), preload them all hidden, then cycle their opacity to
+   play a smooth loop with no per-frame tile reload. Sits above the basemap but
+   below parcels/markers (those live in the vector overlay pane). */
+const RADAR_URL='https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q-t.cgi';
+const RADAR_FRAMES=10;        // number of frames in the loop
+const RADAR_STEP_MIN=5;       // minutes between frames (IEM publishes every 5 min)
+const RADAR_OPACITY=0.55;
+const RADAR_PLAY_MS=550;      // per-frame delay
+const RADAR_PAUSE_MS=1400;    // extra hold on the newest (last) frame
+
+let radarOn=false, radarFrames=[], radarIdx=0, radarPlayTimer=null, radarRefreshTimer=null;
+
+function radarStamp(d){ // → "YYYY-MM-DDTHH:MM:00Z" (UTC, 5-min aligned, no millis)
+  const p=n=>String(n).padStart(2,'0');
+  return d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate())+'T'+
+         p(d.getUTCHours())+':'+p(d.getUTCMinutes())+':00Z';
+}
+function buildRadarTimes(){
+  const now=Date.now();
+  // newest frame: floor to 5 min, then back one step so the data is reliably published
+  let newest=Math.floor(now/(RADAR_STEP_MIN*60000))*(RADAR_STEP_MIN*60000) - RADAR_STEP_MIN*60000;
+  const times=[];
+  for(let i=RADAR_FRAMES-1;i>=0;i--){ times.push(new Date(newest - i*RADAR_STEP_MIN*60000)); }
+  return times;  // oldest → newest
+}
+function makeRadarFrame(date){
+  const lyr=L.tileLayer.wms(RADAR_URL,{
+    layers:'nexrad-n0q-wmst', format:'image/png', transparent:true, opacity:0,
+    time:radarStamp(date), attribution:'Radar: IEM / NWS NEXRAD'
+  });
+  lyr._radarDate=date; lyr.setZIndex(250);   // above basemap, below vector overlays
+  return lyr;
+}
+function clearRadarFrames(){
+  radarFrames.forEach(f=>{ try{ map.removeLayer(f); }catch(e){} });
+  radarFrames=[]; radarIdx=0;
+}
+function buildRadar(){
+  clearRadarFrames();
+  radarFrames=buildRadarTimes().map(makeRadarFrame);
+  radarFrames.forEach(f=>f.addTo(map));   // preload all frames (hidden at opacity 0)
+}
+function showRadarFrame(i){
+  radarFrames.forEach((f,j)=>f.setOpacity(j===i?RADAR_OPACITY:0));
+  radarIdx=i;
+  const f=radarFrames[i];
+  if(f && f._radarDate){
+    const t=f._radarDate.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+    const clk=document.getElementById('radarClock'); if(clk) clk.textContent='◵ Radar · '+t;
+  }
+}
+function radarTick(){
+  if(!radarFrames.length) return;
+  let next=radarIdx+1;
+  if(next>=radarFrames.length){ next=0; }
+  showRadarFrame(next);
+  // hold a beat on the newest frame before looping back to the start
+  const delay=(radarIdx===radarFrames.length-1)?RADAR_PAUSE_MS:RADAR_PLAY_MS;
+  radarPlayTimer=setTimeout(radarTick, delay);
+}
+function startRadar(){
+  buildRadar(); showRadarFrame(0);
+  clearTimeout(radarPlayTimer); radarPlayTimer=setTimeout(radarTick, RADAR_PLAY_MS);
+  // rebuild the frame set every 5 min so the loop keeps advancing with real time
+  clearInterval(radarRefreshTimer);
+  radarRefreshTimer=setInterval(()=>{ if(radarOn){ const keep=radarIdx; buildRadar(); showRadarFrame(Math.min(keep,radarFrames.length-1)); } }, RADAR_STEP_MIN*60000);
+  const clk=document.getElementById('radarClock'); if(clk) clk.classList.add('show');
+}
+function stopRadar(){
+  clearTimeout(radarPlayTimer); radarPlayTimer=null;
+  clearInterval(radarRefreshTimer); radarRefreshTimer=null;
+  clearRadarFrames();
+  const clk=document.getElementById('radarClock'); if(clk) clk.classList.remove('show');
+}
+const btnRadar=document.getElementById('btnRadar');
+if(btnRadar) btnRadar.onclick=function(){
+  radarOn=!radarOn; this.classList.toggle('active',radarOn);
+  if(radarOn){ startRadar(); mapToast('Animated NEXRAD radar · last hour, looping', 2600); }
+  else { stopRadar(); }
+};
+
+/* ---------- NHC hurricane forecast cone + track ----------
+   Pulled live from the National Hurricane Center tropical-weather summary service
+   (ArcGIS, GeoJSON). Layer 7 = Forecast Cone, 6 = Forecast Track, 5 = Forecast Points.
+   If no system is active, the service simply returns zero features and nothing draws. */
+const NHC_BASE='https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer';
+const NHC_Q='/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson';
+let coneLayer=null, coneOn=false, coneTimer=null, coneFetchedAt=0, coneCache=null;
+
+async function fetchCone(){
+  // light-cache for 12 min so toggling on/off doesn't re-hit the service
+  if(coneCache && (Date.now()-coneFetchedAt) < 12*60*1000) return coneCache;
+  const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
+  const [cone,track,pts]=await Promise.all([ get(NHC_BASE+'/7'+NHC_Q), get(NHC_BASE+'/6'+NHC_Q), get(NHC_BASE+'/5'+NHC_Q) ]);
+  coneCache={cone,track,pts}; coneFetchedAt=Date.now(); return coneCache;
+}
+function coneStormCount(data){ return (data && data.cone && data.cone.features) ? data.cone.features.length : 0; }
+function stormLabel(props){
+  props=props||{};
+  const name=props.STORMNAME||props.stormname||props.STORMNME||props.TCNAME||props.STORMTYPE||'Tropical system';
+  const adv =props.ADVISNUM||props.advisnum||props.ADVNUM;
+  return name + (adv?(' · adv '+adv):'');
+}
+function drawCone(data){
+  if(coneLayer){ map.removeLayer(coneLayer); coneLayer=null; }
+  coneLayer=L.featureGroup();
+  if(data.cone && data.cone.features && data.cone.features.length){
+    L.geoJSON(data.cone,{ style:{ color:'#ff8a3c', weight:2, dashArray:'5 4', fillColor:'#ff8a3c', fillOpacity:.12 },
+      onEachFeature:(f,l)=>l.bindTooltip(stormLabel(f.properties)+' — forecast cone',{sticky:true,direction:'top',className:'parcel-tip'})
+    }).addTo(coneLayer);
+  }
+  if(data.track && data.track.features && data.track.features.length){
+    L.geoJSON(data.track,{ style:{ color:'#ff5d5d', weight:2.5, opacity:.95 } }).addTo(coneLayer);
+  }
+  if(data.pts && data.pts.features && data.pts.features.length){
+    L.geoJSON(data.pts,{ pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:4,color:'#ff5d5d',weight:1.5,fillColor:'#fff',fillOpacity:.9}),
+      onEachFeature:(f,l)=>l.bindTooltip(stormLabel(f.properties),{direction:'top',className:'parcel-tip'})
+    }).addTo(coneLayer);
+  }
+  coneLayer.addTo(map);
+}
+const btnCone=document.getElementById('btnCone');
+if(btnCone) btnCone.onclick=async function(){
+  if(coneOn){  // turn off
+    coneOn=false; this.classList.remove('active');
+    if(coneLayer){ map.removeLayer(coneLayer); coneLayer=null; }
+    clearInterval(coneTimer); coneTimer=null; return;
+  }
+  this.classList.add('active'); mapToast('Checking NHC for active tropical systems…', 2000);
+  const data=await fetchCone();
+  if(coneStormCount(data)===0){
+    this.classList.remove('active');
+    mapToast('No active NHC tropical systems right now.', 3200);
+    return;
+  }
+  coneOn=true; drawCone(data);
+  const n=coneStormCount(data);
+  mapToast(n+' active tropical system'+(n>1?'s':'')+' — showing NHC cone'+(n>1?'s':'')+' & track', 3200);
+  try{ map.fitBounds(coneLayer.getBounds().pad(0.15),{maxZoom:8}); }catch(e){}
+  clearInterval(coneTimer); coneTimer=setInterval(async()=>{ if(coneOn){ coneFetchedAt=0; drawCone(await fetchCone()); } }, 15*60*1000);
+};
+/* Passive check on load: if a system is active, light up the Cone button so it's noticed. */
+(async()=>{ try{ const d=await fetchCone(); if(coneStormCount(d)>0 && btnCone){ btnCone.classList.add('alert');
+  btnCone.title='Active tropical system detected — tap to show the NHC forecast cone & track'; } }catch(e){} })();
+
+
 /* ---------- Helpers ---------- */
 const results = document.getElementById('results');
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1818,7 +1997,33 @@ const CAPE_CORAL_SETBACKS = {
   "RMM": { front:25, frontCul:18, side:6, rear:26, cornerSide:10, height:60 },
   "RE":  { front:50, frontCul:36, side:35, rear:35, cornerSide:25, height:38 },
   "A":   { front:50, frontCul:36, side:35, rear:35, cornerSide:25, height:38,
-           note:"Non-residential uses in the A district require a minimum of 4 acres." }
+           note:"Non-residential uses in the A district require a minimum of 4 acres." },
+
+  /* --- NON-RESIDENTIAL districts (these tables add Min Lot Area, FAR & Double-frontage) --- */
+  "C":   { minLot:"None", far:1,      front:6,  side:"0 ft or 6 ft", rear:10, doubleFront:6,  cornerSide:10, height:"None",
+           tableRef:"Article 4 (non-residential standards)" },
+  "P":   { minLot:"None", far:1,      front:6,  side:10,       rear:10, doubleFront:6,  cornerSide:10, height:"None",
+           tableRef:"Article 4 (non-residential standards)" },
+  "I":   { minLot:"None", far:1,      front:20, side:"0 ft or 6 ft", rear:10, doubleFront:20, cornerSide:10, height:"None",
+           tableRef:"Article 4 (non-residential standards)" },
+  "INST":{ minLot:"None", far:1,      front:25, side:15,       rear:25, doubleFront:25, cornerSide:10, height:60,
+           tableRef:"Article 4 (non-residential standards)" },
+  "PV":  { minLot:"None", far:"None", front:50, side:50,       rear:50, doubleFront:50, cornerSide:10, height:38,
+           tableRef:"Article 4 (non-residential standards)" },
+
+  /* --- MIXED-USE districts --- */
+  "NC":  { ref:"NC (Neighborhood Commercial): dimensional standards are set in Cape Coral LUDR Table 4.2.12 — see the code for this district.",
+           tableRef:"Article 4 (mixed-use standards)" },
+  "CC":  { minLot:"None", far:1.25,   front:15, side:"0 ft or 6 ft", rear:15, doubleFront:15, cornerSide:10, height:"None",
+           tableRef:"Article 4 (mixed-use standards)",
+           note:"Single-family attached and multi-family dwellings: minimum lot area 4 acres." },
+  "MXB": { minLot:"None", far:4,      front:"8-12", side:"0 ft or 5 ft", rear:"0 ft or 5 ft (alley) / 15 ft (waterfront)", doubleFront:"8-12", cornerSide:"8-12", height:"160 ft (or 12 stories)",
+           tableRef:"Article 4 (mixed-use standards)" },
+  "MX7": { minLot:"None", far:1,      front:15, side:"0 ft or 6 ft", rear:15, doubleFront:15, cornerSide:10, height:"115 ft (or 8 stories)",
+           tableRef:"Article 4 (mixed-use standards)" },
+  "SC":  { minLot:"None", far:4,      front:"See § 4.2.15.D.", height:"120 ft (or 10 stories)",
+           tableRef:"Article 4 (mixed-use standards)",
+           note:"SC (Suburban Center): front, side, rear, double-frontage and corner-side setbacks are established in Cape Coral LUDR Section 4.2.15.D." }
 };
 /* Normalize a detected Cape Coral district to a table key. Cape Coral's GIS layer returns the full
    district DESCRIPTION (e.g. "Single-Family Residential Districts (R-1A & R-1B)"), not a bare code,
@@ -1830,31 +2035,73 @@ function capeCoralSetbacks(districtCode){
   const tag=(entry,label)=> entry ? Object.assign({__key:label, __shown:String(districtCode).trim()}, entry) : null;
   const exact=U.trim();
   if(CAPE_CORAL_SETBACKS[exact]) return tag(CAPE_CORAL_SETBACKS[exact], exact);
+  // Planned Unit Development family (MXPUD, RPUD, CPUD, IPUD, PUD…): setbacks are NOT from a fixed
+  // district table — each PUD's dimensional standards are set in its own approved ordinance/master
+  // concept plan (LUDR § 4.2.16). Return a PUD marker so the renderer shows guidance, not numbers.
+  if(/PUD\b/.test(U) || /PLANNED\s*(UNIT|DEVELOPMENT|DEVELOP)/.test(U)){
+    return { __key:exact, __shown:String(districtCode).trim(), pud:true,
+             tableRef:"Section 4.2.16 (Planned Unit Development Districts)" };
+  }
   if(/\bR-?1[A-Z]?\b/.test(U)) return tag(CAPE_CORAL_SETBACKS["R-1"], "R-1");   // R-1, R-1A/B/C/D/W, R1B…
   if(/\bRML\b/.test(U))  return tag(CAPE_CORAL_SETBACKS["RML"], "RML");
   if(/\bRMM\b/.test(U))  return tag(CAPE_CORAL_SETBACKS["RMM"], "RMM");
   if(/\bRE\b/.test(U))   return tag(CAPE_CORAL_SETBACKS["RE"], "RE");
   if(/\bRESIDENTIAL ESTATE/.test(U)) return tag(CAPE_CORAL_SETBACKS["RE"], "RE");
   if(/\bAGRICULTUR/.test(U) || /^A\b/.test(exact) || /\(A\)/.test(U)) return tag(CAPE_CORAL_SETBACKS["A"], "A");
+  // --- Non-residential ---
+  if(/\bINST\b/.test(U) || /INSTITUTION/.test(U)) return tag(CAPE_CORAL_SETBACKS["INST"], "INST");
+  if(/\bPV\b/.test(U))    return tag(CAPE_CORAL_SETBACKS["PV"], "PV");
+  // --- Mixed-use ---
+  if(/\bMXB\b/.test(U))   return tag(CAPE_CORAL_SETBACKS["MXB"], "MXB");
+  if(/\bMX-?7\b/.test(U)) return tag(CAPE_CORAL_SETBACKS["MX7"], "MX7");
+  if(/\bNC\b/.test(U) || /NEIGHBORHOOD COMMERCIAL/.test(U)) return tag(CAPE_CORAL_SETBACKS["NC"], "NC");
+  if(/\bCC\b/.test(U))    return tag(CAPE_CORAL_SETBACKS["CC"], "CC");
+  if(/\bSC\b/.test(U))    return tag(CAPE_CORAL_SETBACKS["SC"], "SC");
+  // --- Single-letter codes: only an exact code or a parenthesized code, to avoid false hits ---
+  if(exact==='C' || /\(C\)/.test(U)) return tag(CAPE_CORAL_SETBACKS["C"], "C");
+  if(exact==='P' || /\(P\)/.test(U)) return tag(CAPE_CORAL_SETBACKS["P"], "P");
+  if(exact==='I' || /\(I\)/.test(U)) return tag(CAPE_CORAL_SETBACKS["I"], "I");
   return null;
 }
 function renderCapeCoralSetbacks(districtCode){
   const s=capeCoralSetbacks(districtCode);
   if(!s) return '';
-  const ft=v=>(v==null)?null:(v===0?'0 ft':v+' ft');
+  // Value formatter: numbers → "N ft"; plain numeric strings ("0 or 6","8-12") → "… ft";
+  // anything containing words (None, "See § …", "160 ft (or 12 stories)") is shown verbatim.
+  const setVal=v=>{
+    if(v==null) return null;
+    if(typeof v==='number') return v===0?'0 ft':v+' ft';
+    const t=String(v).trim(); if(!t) return null;
+    return /[a-zA-Z]/.test(t) ? t : t+' ft';
+  };
   // Show the exact detected code (e.g. R-1B). If it's an R-1 subcode, note the shared R-1 standards.
   const shown = s.__shown || String(districtCode);
+  // Planned Unit Development: no fixed table — setbacks come from the approved PUD ordinance.
+  if(s.pud){
+    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PUD</span> ${esc(shown)} · setbacks set by the approved PUD ordinance (Cape Coral LUDR ${esc(s.tableRef||'Section 4.2.16')})</div>`;
+    p+=`<div class="note">This is a <b>Planned Unit Development</b>. Its front, side, rear, height and other dimensional standards are <b>not</b> taken from a standard district table — they're established individually in this property's <b>approved PUD ordinance &amp; master concept plan</b> (the recorded development order). Look up that specific PUD ordinance for its setbacks.</div>`;
+    p+=`<div class="note warnbox">Cape Coral PUD / MXPUD districts (LUDR § 4.2.16) carry custom, project-specific setbacks adopted by City Council ordinance. The standard non-residential / mixed-use table values do <b>not</b> apply — verify the exact numbers in the recorded PUD development order.</div>`;
+    return p;
+  }
   const isSub = s.__key && norm(shown)!==norm(s.__key);
   const famNote = isSub ? ` <span class="muted">(${esc(s.__key)} standards)</span>` : '';
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)}${famNote} (Cape Coral LUDR Table 4.1.3.B)</div>`;
-  h+=fieldRow('Front', ft(s.front)+(s.frontCul?` (${ft(s.frontCul)} on a cul-de-sac)`:''), 'big');
-  h+=fieldRow('Side', ft(s.side));
-  if(s.cornerSide!=null) h+=fieldRow('Corner lot · street side', ft(s.cornerSide));
-  h+=fieldRow('Rear', ft(s.rear)+(s.rearCage?` (${ft(s.rearCage)} pool cage)`:''));
-  if(s.height!=null) h+=fieldRow('Max building height', ft(s.height));
+  const tref = s.tableRef || 'Table 4.1.3.B';
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)}${famNote} (Cape Coral LUDR ${esc(tref)})</div>`;
+  // Lot area / FAR (non-residential & mixed-use districts carry these; residential entries don't)
+  if(s.minLot!=null){ const lv=(typeof s.minLot==='number')?(fmtNum(s.minLot)+' sq ft'):(/^none$/i.test(String(s.minLot))?'None (no minimum)':String(s.minLot)); h+=fieldRow('Minimum lot area', esc(lv)); }
+  if(s.far!=null){ const fv=/^none$/i.test(String(s.far))?'None (no FAR limit)':String(s.far); h+=fieldRow('Floor-area ratio (FAR)', esc(fv)); }
+  // Yard setbacks (each rendered only if defined for this district)
+  const frontV=setVal(s.front);
+  if(frontV){ const cul=(s.frontCul!=null)?` (${esc(setVal(s.frontCul))} on a cul-de-sac)`:''; h+=fieldRow('Front', esc(frontV)+cul, 'big'); }
+  const sideV=setVal(s.side); if(sideV) h+=fieldRow('Side', esc(sideV));
+  if(s.cornerSide!=null) h+=fieldRow('Corner lot · street side', esc(setVal(s.cornerSide)));
+  const rearV=setVal(s.rear); if(rearV){ const cage=s.rearCage?` (${esc(setVal(s.rearCage))} pool cage)`:''; h+=fieldRow('Rear', esc(rearV)+cage); }
+  if(s.doubleFront!=null) h+=fieldRow('Double-frontage lot', esc(setVal(s.doubleFront)));
+  if(s.height!=null){ const hv=/^none$/i.test(String(s.height))?'None (no district maximum)':setVal(s.height); h+=fieldRow('Max building height', esc(hv)); }
+  if(s.ref) h+=`<div class="note">${esc(s.ref)}</div>`;
   if(s.rearNote) h+=`<div class="note"><b>Rear detail:</b> ${esc(s.rearNote)}</div>`;
   if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
-  h+=`<div class="note warnbox">Required minimums from Cape Coral's adopted LUDR (Article 4, Table 4.1.3.B), keyed to the detected district. R-1 subcodes (R-1A, R-1B, R-1D, R-1W…) share the R-1 setback standards. Verify corner-lot frontage, waterfront, and any overlay/PUD conditions in the code before relying on these.</div>`;
+  h+=`<div class="note warnbox">Required minimums from Cape Coral's adopted LUDR (Article 4), keyed to the detected district. R-1 subcodes (R-1A, R-1B, R-1D, R-1W…) share the R-1 setback standards. Verify corner-lot frontage, waterfront, double-frontage and any overlay/PUD conditions in the code before relying on these.</div>`;
   return h;
 }
 
@@ -2247,6 +2494,52 @@ function renderCollierGeneratorRules(){
 /* Cape Coral generator siting — LUDR Article 5 setback-encroachment table. Generators may project
    into required yards up to the listed distance from the building envelope; verified from the
    user-pasted encroachment table. Unlike Collier, Cape Coral allows a front-yard projection. */
+
+/* ---------- Wind design (Florida Building Code) ----------
+   FBC 8th Edition (2023) adopts ASCE 7-22. The site "design wind speed" is the ultimate design
+   wind speed Vult (3-sec gust), which varies BY LOCATION and Risk Category — there is no single
+   number for an address. We carry Risk-Category-II planning figures for the Southwest Florida
+   counties (values drop north & inland from Lee), plus the code references, the ASCE 7-22
+   calculation, and a link to the official ASCE Hazard Tool for the authoritative per-address
+   value (confirmed by the engineer of record). */
+const SWFL_VULT = {  // Risk Category II ultimate design wind speed (ASCE 7-22 / FBC 2023), by county
+  LEE:      { v:170, range:"170–180 mph", note:"All of Lee County is within the wind-borne debris region." },
+  COLLIER:  { v:170, range:"160–172 mph", note:"Higher toward the coast & Marco Island; coastal Collier can trigger HVHZ-style product-approval requirements." },
+  CHARLOTTE:{ v:150, range:"150–160 mph", note:"Port Charlotte ≈150 mph (Risk Cat II); Punta Gorda & the open coast trend higher." },
+  SARASOTA: { v:150, range:"150–160 mph", note:"Higher toward the barrier-island coast." },
+  DESOTO:   { v:145, range:"140–150 mph", note:"Inland — generally lower than the coastal SWFL counties." },
+  HENDRY:   { v:150, range:"145–155 mph", note:"Inland Southwest Florida." },
+  GLADES:   { v:150, range:"145–155 mph", note:"Inland Southwest Florida." }
+};
+function renderWindDesign(lat, lng, cityName, countyName){
+  let key = norm(countyName);
+  if(!SWFL_VULT[key] && norm(cityName)==='CAPECORAL') key='LEE';   // Cape Coral → Lee
+  const c = SWFL_VULT[key] || null;
+  const vult = c ? c.v : null;
+  const vasd = (vult!=null) ? Math.round(vult*Math.sqrt(0.6)) : null;  // Vasd = Vult·√0.6
+  const cName = c ? titleCase(key) : '';
+  let h=`<div class="card"><div class="ch"><span class="icn">[ WND ]</span><h2>Wind Design (FBC)</h2>
+    <div class="src">FBC 8th Ed. (2023)<br>ASCE 7-22</div></div><div class="cb">`;
+  h+=`<div class="freshline snap"><span class="badge unk">▣ CODE</span> Florida Building Code, 8th Edition (2023) → ASCE 7-22 · design wind speed is set by location &amp; Risk Category</div>`;
+  if(c){
+    h+=fieldRow('Ultimate design wind speed (V<sub>ult</sub>)', `≈ ${vult} mph <span class="muted">(${esc(cName)} Co. · Risk Category II · 3-sec gust)</span>`, 'big');
+    h+=fieldRow('Nominal design speed (V<sub>asd</sub>)', `≈ ${vasd} mph <span class="muted">(= V<sub>ult</sub> × √0.6)</span>`);
+    h+=fieldRow('Exposure category', `typically C <span class="muted">(open / coastal terrain — confirm per site)</span>`);
+    h+=fieldRow('Wind-borne debris region', `Yes <span class="muted">(V<sub>ult</sub> ≥ 140 mph across SW Florida → impact-protection / opening requirements apply)</span>`);
+    h+=`<div class="note"><b>${esc(cName)} County</b> Risk Cat II range: <b>${esc(c.range)}</b>. ${esc(c.note)} The value shown is a <b>planning figure</b> — wind speed varies within a county (higher toward the coast); the exact site value depends on the precise address and Risk Category and is set by the engineer of record.</div>`;
+  } else {
+    h+=`<div class="note">Design wind speed is set <b>by location</b>. Use the ASCE 7 Hazard Tool below (or the county's V<sub>ult</sub> map) to get the site's ultimate design wind speed for the relevant Risk Category. <span class="muted">(Built-in SW Florida figures cover Lee, Collier, Charlotte, Sarasota, DeSoto, Hendry &amp; Glades.)</span></div>`;
+  }
+  h+=`<div class="note"><b>Calculation (ASCE 7-22 velocity pressure):</b><br>
+    <span style="font-family:var(--mono);font-size:12px">q<sub>z</sub> = 0.00256 · K<sub>z</sub> · K<sub>zt</sub> · K<sub>d</sub> · K<sub>e</sub> · V²</span> &nbsp;<span class="muted">(lb/ft², V = V<sub>ult</sub> in mph)</span><br>
+    K<sub>z</sub> = velocity-pressure exposure coefficient (height &amp; exposure), K<sub>zt</sub> = topographic factor, K<sub>d</sub> = wind directionality, K<sub>e</sub> = ground-elevation factor. Design pressures then p = q·G·C<sub>p</sub> (main system) or q·(GC<sub>p</sub>) (components &amp; cladding). ASD conversion: V<sub>asd</sub> = V<sub>ult</sub> · √0.6.</div>`;
+  h+=`<div class="note"><b>Code references:</b> V<sub>ult</sub> per FBC-B § 1609.3, Figures 1609.3(1) [Risk Cat II], 1609.3(2) [III], 1609.3(3) [IV], 1609.3(4) [I]. V<sub>asd</sub> conversion § 1609.3.1 / Table 1609.3.1 (Eq. 16-33). Wind-borne debris region § 1609.2. Load procedure &amp; velocity pressure: ASCE 7-22 Ch. 26–30.</div>`;
+  h+=`<a class="palink" href="https://ascehazardtool.org/" target="_blank" rel="noopener" style="margin-top:8px">↗ ASCE 7 Hazard Tool — official site wind speed (enter ${lat.toFixed(5)}, ${lng.toFixed(5)})</a>`;
+  h+=`<div class="note warnbox">For generator &amp; LP-tank installs: the unit's wind rating, its slab/anchorage, and the tank anchoring must be designed to the <b>site V<sub>ult</sub></b>. The figures here are a planning aid — the permit's engineer of record sets the official design value.</div>`;
+  h+=`</div></div>`;
+  return h;
+}
+
 function renderCapeCoralGeneratorRules(){
   let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · LUDR Art. 5</span> generator siting (Cape Coral)</div>`;
   g+=`<div class="note"><b>Yard encroachment:</b> a generator may project up to <b>5 ft into the front, side, or rear yard</b> from the building envelope. (Cape Coral permits a front-yard projection — unlike some jurisdictions.)</div>`;
@@ -2612,6 +2905,9 @@ async function runLookup(lat,lng,searchCtx){
     html += `<div class="note">The above is the effective FEMA NFHL (the legal flood zone). ${esc(titleCase(cityName))} also maintains a resident flood portal that frequently has more detailed, locally-curated flood-zone and elevation info for an address — worth cross-checking.</div>`;
   }
   html += `</div></div>`;
+
+  /* ---- Wind Design (FBC 8th Ed. / ASCE 7-22): site design wind speed + calculation ---- */
+  html += renderWindDesign(lat, lng, cityName, countyName);
 
   /* ---- Zoning & setbacks: from the local CODE + permitting portal, NOT the appraiser ---- */
   const zr = resolveZoning(cityName, countyName);
