@@ -200,6 +200,14 @@
   .layerswitch button.active{background:var(--signal);color:var(--signal-ink)}
   .bnd-tip{background:var(--bnd-bg);color:var(--bnd-ink);border:none;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.04em;padding:2px 7px;box-shadow:0 2px 8px var(--shadow-soft)}
   .bnd-tip .leaflet-tooltip-tip{background:var(--bnd-bg)}
+  /* Hover card shown over a looked-up parcel polygon (address / parcel / owner) */
+  .parcel-tip{background:var(--panel);color:var(--ink);border:1px solid var(--blueprint);border-radius:7px;
+    font-family:var(--body);font-size:11.5px;line-height:1.5;padding:8px 10px;max-width:240px;white-space:normal;
+    box-shadow:0 6px 22px var(--shadow-strong)}
+  .parcel-tip .leaflet-tooltip-tip{background:var(--panel);border-right:1px solid var(--blueprint);border-bottom:1px solid var(--blueprint)}
+  .parcel-tip .pt-lbl{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--blueprint);display:block;margin-bottom:1px}
+  .parcel-tip .pt-val{font-weight:600;color:var(--ink)}
+  .parcel-tip .pt-row+.pt-row{margin-top:6px}
   .crosshair{position:absolute;z-index:999;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10.5px;color:var(--dim);background:var(--crosshair-bg);border:1px solid var(--line);padding:5px 12px;border-radius:20px;pointer-events:none}
 
   .empty{text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;padding:26px 10px;line-height:1.6}
@@ -1127,6 +1135,13 @@ const ZONING_LIVE_CITY = {
   NAPLES: { label:"City of Naples Zoning", codeField:"Layer", descField:"Descript", urls:[
     // ✅ verified: City of Naples public GIS (backs the official city zoning map viewer)
     "https://g.naplesgov.com/arcgis/rest/services/Planning/Zoning/FeatureServer/0/query"
+  ]},
+  // City of Cape Coral's OWN DCD zoning layer carries the EXACT per-parcel code (R-1A vs R-1B,
+  // etc.) in LMLUZN — finer than the Lee County layer, which groups them. Prefer it; if it's
+  // CORS-blocked or down, fall back to the Lee layer (grouped label) so detection still works.
+  CAPECORAL: { label:"City of Cape Coral Zoning", codeField:"LMLUZN", descField:"Zoning_Desc", urls:[
+    "https://capeims.capecoral.gov/arcgis/rest/services/OpenData/DCD/MapServer/3/query",
+    "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/1/query"
   ]}
 };
 
@@ -1811,7 +1826,8 @@ const CAPE_CORAL_SETBACKS = {
 function capeCoralSetbacks(districtCode){
   if(!districtCode) return null;
   const U=String(districtCode).toUpperCase();
-  const tag=(entry,label)=> entry ? Object.assign({__key:label}, entry) : null;
+  // __key = the family standard used for the numbers; __shown = the exact detected code (for display)
+  const tag=(entry,label)=> entry ? Object.assign({__key:label, __shown:String(districtCode).trim()}, entry) : null;
   const exact=U.trim();
   if(CAPE_CORAL_SETBACKS[exact]) return tag(CAPE_CORAL_SETBACKS[exact], exact);
   if(/\bR-?1[A-Z]?\b/.test(U)) return tag(CAPE_CORAL_SETBACKS["R-1"], "R-1");   // R-1, R-1A/B/C/D/W, R1B…
@@ -1826,7 +1842,11 @@ function renderCapeCoralSetbacks(districtCode){
   const s=capeCoralSetbacks(districtCode);
   if(!s) return '';
   const ft=v=>(v==null)?null:(v===0?'0 ft':v+' ft');
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(s.__key||String(districtCode))} (Cape Coral LUDR Table 4.1.3.B)</div>`;
+  // Show the exact detected code (e.g. R-1B). If it's an R-1 subcode, note the shared R-1 standards.
+  const shown = s.__shown || String(districtCode);
+  const isSub = s.__key && norm(shown)!==norm(s.__key);
+  const famNote = isSub ? ` <span class="muted">(${esc(s.__key)} standards)</span>` : '';
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)}${famNote} (Cape Coral LUDR Table 4.1.3.B)</div>`;
   h+=fieldRow('Front', ft(s.front)+(s.frontCul?` (${ft(s.frontCul)} on a cul-de-sac)`:''), 'big');
   h+=fieldRow('Side', ft(s.side));
   if(s.cornerSide!=null) h+=fieldRow('Corner lot · street side', ft(s.cornerSide));
@@ -1834,7 +1854,7 @@ function renderCapeCoralSetbacks(districtCode){
   if(s.height!=null) h+=fieldRow('Max building height', ft(s.height));
   if(s.rearNote) h+=`<div class="note"><b>Rear detail:</b> ${esc(s.rearNote)}</div>`;
   if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
-  h+=`<div class="note warnbox">Required minimums from Cape Coral's adopted LUDR (Article 4, Table 4.1.3.B), keyed to the detected district. R-1 subcodes (R-1B, R-1D, R-1W…) share the R-1 standards. Verify corner-lot frontage, waterfront, and any overlay/PUD conditions in the code before relying on these.</div>`;
+  h+=`<div class="note warnbox">Required minimums from Cape Coral's adopted LUDR (Article 4, Table 4.1.3.B), keyed to the detected district. R-1 subcodes (R-1A, R-1B, R-1D, R-1W…) share the R-1 setback standards. Verify corner-lot frontage, waterfront, and any overlay/PUD conditions in the code before relying on these.</div>`;
   return h;
 }
 
@@ -2239,14 +2259,34 @@ function renderCapeCoralGeneratorRules(){
   return g;
 }
 
-function drawParcel(g){
+function drawParcel(g, info){
   try{
     if(g&&g.rings){
       const latlngs=g.rings.map(r=>r.map(p=>[p[1],p[0]]));
       parcelLayer=L.polygon(latlngs,{color:'#39d3ff',weight:2,fillColor:'#39d3ff',fillOpacity:.12}).addTo(map);
+      // Hover popup: address / parcel ID / owner. Follows the cursor (sticky) while over the lot.
+      const tip=parcelTooltipHTML(info);
+      if(tip){
+        parcelLayer.bindTooltip(tip,{sticky:true,direction:'top',className:'parcel-tip',opacity:1});
+        // brighten the fill on hover so it's clear which lot the card describes
+        parcelLayer.on('mouseover',()=>parcelLayer.setStyle({fillOpacity:.28,weight:3}));
+        parcelLayer.on('mouseout', ()=>parcelLayer.setStyle({fillOpacity:.12,weight:2}));
+      }
       map.fitBounds(parcelLayer.getBounds(),{maxZoom:19,padding:[60,60]});
     }
   }catch(e){}
+}
+
+/* Build the hover-tooltip markup for a parcel from {site, pid, owner} (any may be missing). */
+function parcelTooltipHTML(info){
+  if(!info) return '';
+  const rows=[];
+  const add=(lbl,val)=>{ if(val&&String(val).trim()) rows.push(
+    '<div class="pt-row"><span class="pt-lbl">'+lbl+'</span><span class="pt-val">'+esc(String(val))+'</span></div>'); };
+  add('Address', info.site);
+  add('Parcel', info.pid);
+  add('Owner', info.owner);
+  return rows.length ? rows.join('') : '';
 }
 
 /* Render a parcel from any county layer using auto-detected field names */
@@ -2431,7 +2471,13 @@ async function runLookup(lat,lng,searchCtx){
     html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}</div>`;
     html += renderParcelGeneric(liveRes.features[0].attributes, det);
     if(liveRes.__ngLat && marker){ try{ marker.setLatLng([liveRes.__ngLat, liveRes.__ngLng]); saveLoc(liveRes.__ngLat, liveRes.__ngLng); }catch(e){} }
-    drawParcel(liveRes.features[0].geometry);
+    { const _a=liveRes.features[0].attributes;
+      drawParcel(liveRes.features[0].geometry, {
+        owner: det.owner?pick(_a,det.owner):null,
+        pid:   det.pid?pick(_a,det.pid):null,
+        site:  det.site?[pick(_a,det.site), (det.city?pick(_a,det.city):null)].filter(Boolean).join(', '):null
+      });
+    }
     { const _a=liveRes.features[0].attributes; const _ra=pick(_a,'TOTALACRES')||pick(_a,'ACREAGE')||pick(_a,'GIS_ACRES')||null;
       html += renderLotDimensions(liveRes.features[0].geometry, _ra); }
     if(liveMeta && liveMeta.ng911){
@@ -2497,7 +2543,11 @@ async function runLookup(lat,lng,searchCtx){
     { const vurl = appraiserParcelLink(countyName, pid);
       if(vurl) html += `<a class="palink" href="${esc(vurl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Verify on ${esc(titleCase(countyName))} County Property Appraiser${pid?' (parcel '+esc(String(pid))+')':''}</a>`;
     }
-    drawParcel(parcel.features[0].geometry);
+    drawParcel(parcel.features[0].geometry, {
+      owner: owner||null,
+      pid:   pid||null,
+      site:  [site, siteCity].filter(Boolean).join(', ')||null
+    });
     html += renderLotDimensions(parcel.features[0].geometry, pick(a,'TOTALACRES'));
     if(parcel.__multi && parcel.__multi>1) html += `<div class="note">${parcel.__multi} parcels overlap this point (common with condos/multi-unit). Showing the most specific one — verify on the appraiser if it's not the unit you meant.</div>`;
   } else if(parcel && parcel.__err){
