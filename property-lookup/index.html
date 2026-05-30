@@ -450,18 +450,6 @@
         <br>Lee County GIS: <a href="https://maps.leegov.com/datasets/lee-county-parcels/about" target="_blank" rel="noopener">maps.leegov.com</a> · directory: <a href="https://leegis.leegov.com/arcgis/rest/services" target="_blank" rel="noopener">leegis.leegov.com</a>
       </div>
     </details>
-
-    <details class="adv" id="advZon">
-      <summary>Zoning district layer (live detection)</summary>
-      <div class="arow">
-        <input id="zonUrl" type="text" placeholder="Paste a zoning polygon layer URL…" autocomplete="off">
-        <button id="zonTest">Test</button>
-      </div>
-      <div class="lstat" id="zonStatus"></div>
-      <div class="lhint">
-        Lee County — Cape Coral, Fort Myers, Bonita Springs, Estero, Fort Myers Beach &amp; unincorporated — detects the zoning district automatically. For <b>any other SWFL jurisdiction</b> (Charlotte, Sarasota, Manatee, a specific city…), paste its zoning <b>polygon layer</b> URL (ending in <code>/0</code>, etc.) and the district field auto-detects. Unset = the code/permitting links below.
-      </div>
-    </details>
   </div>
 
   <div class="body" id="results">
@@ -1348,27 +1336,6 @@ async function testLiveSource(){
   }
 }
 
-/* ---------- Zoning-layer override: validate + persist a pasted zoning polygon layer ---------- */
-async function testZoningSource(){
-  const raw=document.getElementById('zonUrl').value||'';
-  const out=document.getElementById('zonStatus');
-  if(!raw.trim()){ zoningSource={url:null}; out.innerHTML=''; STORE.del('fl_zoning_url'); return; }
-  const q=normalizeLayerUrl(raw);
-  out.innerHTML='<span style="color:var(--signal)">testing connection…</span>';
-  const info=await getLayerInfo(q);
-  if(info && !info.err){
-    zoningSource={url:q};
-    STORE.set('fl_zoning_url', q);
-    const det=detectZoningFields(info.fields||[]);
-    out.innerHTML='<span style="color:var(--good)">✓ connected'+(info.name?' · '+esc(info.name):'')+
-      (info.lastEdit?' · updated '+info.lastEdit.toLocaleDateString():'')+'</span>'+
-      '<br><span style="color:var(--faint)">district field → '+esc(det.code||'(none obvious — will still try)')+'</span>';
-  }else{
-    zoningSource={url:null};
-    out.innerHTML='<span style="color:var(--warn)">✗ '+esc((info&&info.err)||'could not read layer')+'</span>'+
-      '<br><span style="color:var(--faint)">tip: point to a layer index (e.g. /0) that allows public access &amp; cross-origin (CORS) requests.</span>';
-  }
-}
 
 /* ---------- Live-feed diagnostic ----------
    "Failed to fetch" is opaque — the browser won't say if it's CORS, a bad URL, or a dead host.
@@ -1822,6 +1789,55 @@ function renderCollierSetbacks(districtCode){
   return h;
 }
 
+/* ---------- Cape Coral required setbacks — LUDR Article 4, Table 4.1.3.B ----------
+   Cape Coral's table uses more yard types than Collier: Front, Front (cul-de-sac), Side,
+   Corner-lot street side, Rear (primary), and Rear for pool cage. Verified against user-pasted
+   Table 4.1.3.B (residential districts). Cape Coral's GIS layer often returns map codes like
+   R-1B/R-1D/R-1W — all map to the single "R-1" standards in the code table (handled in aliasing). */
+const CAPE_CORAL_SETBACKS = {
+  "R-1": { front:25, frontCul:18, side:7.5, rear:20, rearCage:10, cornerSide:10, height:38,
+           rearNote:"Rear 20 ft primary structure / 10 ft pool cage." },
+  "RML": { front:25, frontCul:18, side:7.5, rear:20, rearCage:10, cornerSide:10, height:50,
+           rearNote:"Rear 20 ft primary / 10 ft pool cage.",
+           note:"Duplexes: front 36/30 ft (per § 5.10.3), side 7.5, rear 20/10, corner side 10, height 38." },
+  "RMM": { front:25, frontCul:18, side:6, rear:26, cornerSide:10, height:60 },
+  "RE":  { front:50, frontCul:36, side:35, rear:35, cornerSide:25, height:38 },
+  "A":   { front:50, frontCul:36, side:35, rear:35, cornerSide:25, height:38,
+           note:"Non-residential uses in the A district require a minimum of 4 acres." }
+};
+/* Normalize a detected Cape Coral district to a table key. Cape Coral's GIS layer returns the full
+   district DESCRIPTION (e.g. "Single-Family Residential Districts (R-1A & R-1B)"), not a bare code,
+   so we scan for a district token ANYWHERE in the string. R-1 family (R-1A/B/C/D/W) → "R-1". */
+function capeCoralSetbacks(districtCode){
+  if(!districtCode) return null;
+  const U=String(districtCode).toUpperCase();
+  const tag=(entry,label)=> entry ? Object.assign({__key:label}, entry) : null;
+  const exact=U.trim();
+  if(CAPE_CORAL_SETBACKS[exact]) return tag(CAPE_CORAL_SETBACKS[exact], exact);
+  if(/\bR-?1[A-Z]?\b/.test(U)) return tag(CAPE_CORAL_SETBACKS["R-1"], "R-1");   // R-1, R-1A/B/C/D/W, R1B…
+  if(/\bRML\b/.test(U))  return tag(CAPE_CORAL_SETBACKS["RML"], "RML");
+  if(/\bRMM\b/.test(U))  return tag(CAPE_CORAL_SETBACKS["RMM"], "RMM");
+  if(/\bRE\b/.test(U))   return tag(CAPE_CORAL_SETBACKS["RE"], "RE");
+  if(/\bRESIDENTIAL ESTATE/.test(U)) return tag(CAPE_CORAL_SETBACKS["RE"], "RE");
+  if(/\bAGRICULTUR/.test(U) || /^A\b/.test(exact) || /\(A\)/.test(U)) return tag(CAPE_CORAL_SETBACKS["A"], "A");
+  return null;
+}
+function renderCapeCoralSetbacks(districtCode){
+  const s=capeCoralSetbacks(districtCode);
+  if(!s) return '';
+  const ft=v=>(v==null)?null:(v===0?'0 ft':v+' ft');
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(s.__key||String(districtCode))} (Cape Coral LUDR Table 4.1.3.B)</div>`;
+  h+=fieldRow('Front', ft(s.front)+(s.frontCul?` (${ft(s.frontCul)} on a cul-de-sac)`:''), 'big');
+  h+=fieldRow('Side', ft(s.side));
+  if(s.cornerSide!=null) h+=fieldRow('Corner lot · street side', ft(s.cornerSide));
+  h+=fieldRow('Rear', ft(s.rear)+(s.rearCage?` (${ft(s.rearCage)} pool cage)`:''));
+  if(s.height!=null) h+=fieldRow('Max building height', ft(s.height));
+  if(s.rearNote) h+=`<div class="note"><b>Rear detail:</b> ${esc(s.rearNote)}</div>`;
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  h+=`<div class="note warnbox">Required minimums from Cape Coral's adopted LUDR (Article 4, Table 4.1.3.B), keyed to the detected district. R-1 subcodes (R-1B, R-1D, R-1W…) share the R-1 standards. Verify corner-lot frontage, waterfront, and any overlay/PUD conditions in the code before relying on these.</div>`;
+  return h;
+}
+
 
 
 
@@ -2208,6 +2224,21 @@ function renderCollierGeneratorRules(){
   return g;
 }
 
+/* Cape Coral generator siting — LUDR Article 5 setback-encroachment table. Generators may project
+   into required yards up to the listed distance from the building envelope; verified from the
+   user-pasted encroachment table. Unlike Collier, Cape Coral allows a front-yard projection. */
+function renderCapeCoralGeneratorRules(){
+  let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · LUDR Art. 5</span> generator siting (Cape Coral)</div>`;
+  g+=`<div class="note"><b>Yard encroachment:</b> a generator may project up to <b>5 ft into the front, side, or rear yard</b> from the building envelope. (Cape Coral permits a front-yard projection — unlike some jurisdictions.)</div>`;
+  g+=fieldRow('Front yard', 'up to 5 ft');
+  g+=fieldRow('Side yard', 'up to 5 ft');
+  g+=fieldRow('Rear yard', 'up to 5 ft');
+  g+=`<div class="note">Other mechanical equipment (AC, pool equipment) may encroach 5 ft into <b>side and rear</b> yards but <b>not the front</b>. These are projections from the building envelope, measured on top of the district's required setback.</div>`;
+  g+=`<div class="note warnbox">From Cape Coral's LUDR setback-encroachment table (Article 5). The encroachment is measured from the building envelope (i.e., into the required yard shown above), not from the lot line. Confirm waterfront, PUE (public utility easement), and corner-lot conditions with Cape Coral before siting.</div>`;
+  g+=`<a class="palink" href="https://online.encodeplus.com/regs/capecoral-fl" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify in Cape Coral LUDR (Article 5)</a>`;
+  return g;
+}
+
 function drawParcel(g){
   try{
     if(g&&g.rings){
@@ -2553,6 +2584,7 @@ async function runLookup(lat,lng,searchCtx){
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
     if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code, parcelYearBuilt); }
     if(norm(countyName)==='COLLIER' && norm(cityName)!=='NAPLES' && zhit.code){ html += renderCollierSetbacks(zhit.code); }
+    if(norm(cityName)==='CAPECORAL' && zhit.code){ html += renderCapeCoralSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
@@ -2566,6 +2598,7 @@ async function runLookup(lat,lng,searchCtx){
   // Collier County generator siting (LDC 5.03.07) — for Collier parcels NOT in the City of Naples
   // (Naples city has its own § 56-41, rendered above via renderNaplesSetbacks).
   if(norm(countyName)==='COLLIER' && norm(cityName)!=='NAPLES'){ html += renderCollierGeneratorRules(); }
+  if(norm(cityName)==='CAPECORAL'){ html += renderCapeCoralGeneratorRules(); }
   // (building-to-line estimate feature removed)
   if(z){
     if(z.permit) html += `<a class="palink" href="${esc(z.permit)}" target="_blank" rel="noopener">↗ ${esc(jurName)} permitting / planning portal</a>`;
@@ -3069,8 +3102,6 @@ addrEl.addEventListener('focus', () => {
 });
 addrEl.addEventListener('blur', () => setTimeout(hideHistory, 150));
 document.getElementById('liveTest').onclick=testLiveSource;
-document.getElementById('zonTest').onclick=testZoningSource;
-document.getElementById('zonUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();testZoningSource();}});
 document.getElementById('diagBtn').onclick=diagnoseLiveFeeds;
 document.getElementById('liveUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();testLiveSource();}});
 
@@ -3239,7 +3270,7 @@ window.Sheet=Sheet;
   const lu=STORE.get('fl_live');
   if(lu){ document.getElementById('liveUrl').value=lu; document.getElementById('adv').open=true; try{ await testLiveSource(); }catch(e){} }
   const zu=STORE.get('fl_zoning_url');
-  if(zu){ document.getElementById('zonUrl').value=zu; zoningSource={url:zu}; document.getElementById('advZon').open=true; }
+  if(zu){ zoningSource={url:zu}; }   // override panel removed; a previously-saved URL still applies if present
   const loc=STORE.get('fl_loc');
   if(loc){ try{ const o=JSON.parse(loc); if(o&&typeof o.lat==='number'){ map.setView([o.lat,o.lng], o.z||18); await runLookup(o.lat,o.lng); } }catch(e){} }
 })();
