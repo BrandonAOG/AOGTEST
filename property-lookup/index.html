@@ -1058,7 +1058,7 @@ const ZONING_COUNTY = {
   MANATEE:{code:"https://library.municode.com/fl/manatee_county/codes/code_of_ordinances", permit:"https://www.mymanatee.org/departments/building___development_services"}
 };
 const ZONING_CITY = {
-  MARCOISLAND:{code:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances", permit:"https://www.cityofmarcoisland.com/o/comi/page/permitting-portal-information"},
+  MARCOISLAND:{code:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances?nodeId=PTIICOOR_CH30LADECO", permit:"https://www.cityofmarcoisland.com/o/comi/page/permitting-portal-information"},
   NAPLES:{code:"https://library.municode.com/fl/naples/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/naples/codes/code_of_ordinances?nodeId=PTIICOOR_CH58ZO", permit:"https://cityview2.iharriscomputer.com/CityofNaplesFlorida/Permit/Locator"},
   CAPECORAL:{code:"https://library.municode.com/fl/cape_coral/codes/code_of_ordinances", permit:"https://energovweb.capecoral.gov/EnerGovProd/selfservice#/home"},
   FORTMYERS:{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", permit:"https://www.cityftmyers.com/166/Community-Development"},
@@ -1080,6 +1080,12 @@ function resolveZoning(cityName, countyName){
   return { cfg:null, inCity:false };
 }
 function municodeSearch(j){ return "https://www.google.com/search?q="+encodeURIComponent(j+" Florida land development code zoning setbacks municode"); }
+
+/* Incorporated municipalities within Collier County that adopt their OWN Land Development Code
+   and therefore must NOT inherit Collier County's setback / generator-siting rules. Keys are
+   norm()-form (letters only, uppercase). Everingham/Everglades City is also incorporated; add it
+   here if/when its parcels are queried. */
+const COLLIER_INCORP = new Set(['NAPLES','MARCOISLAND','EVERGLADESCITY']);
 
 /* ---------- City of Naples setback QUICK-REFERENCE (Code of Ordinances, Ch. 58) ----------
    Hand-entered from Municode. These are a CONVENIENCE COPY — the live § deep-link beside each
@@ -1253,6 +1259,14 @@ const ZONING_LIVE_CITY = {
   NAPLES: { label:"City of Naples Zoning", codeField:"Layer", descField:"Descript", urls:[
     // ✅ verified: City of Naples public GIS (backs the official city zoning map viewer)
     "https://g.naplesgov.com/arcgis/rest/services/Planning/Zoning/FeatureServer/0/query"
+  ]},
+  // City of Marco Island runs its OWN GIS (gis.cityofmarcoisland.com). Marco Island is incorporated
+  // and has its own LDC (Ch. 30), so its zoning must come from the city's layer — NOT the Collier
+  // County layer (which would otherwise be the fallback and return county-style codes). Zoning is
+  // layer 3 of the DataHub MapServer. Field names aren't pinned, so detectZoningFields() resolves
+  // the code/description columns automatically (same as the Lee layers).
+  MARCOISLAND: { label:"City of Marco Island Zoning", urls:[
+    "https://gis.cityofmarcoisland.com/arcgis/rest/services/General/DataHub/MapServer/3/query"
   ]},
   // City of Cape Coral's OWN DCD zoning layer carries the EXACT per-parcel code (R-1A vs R-1B,
   // etc.) in LMLUZN — finer than the Lee County layer, which groups them. Prefer it; if it's
@@ -2240,6 +2254,185 @@ function renderCapeCoralSetbacks(districtCode){
 }
 
 
+/* ---------- Marco Island setback QUICK-REFERENCE (Land Development Code, Ch. 30) ----------
+   Hand-entered from Municode Ch. 30. Marco Island is its OWN municipality — these are NOT Collier
+   County numbers. Source: Sec. 30-85(a) dimensional standards. The live § deep-link beside the card
+   is the source of truth; verify waterfront, corner-lot and overlay conditions there.
+   NOTE: in the RSF districts the SIDE yard depends on lot width (7½ ft for lots <100 ft wide,
+   8 ft for lots ≥100 ft), so it's expressed as text. Waterfront single-family side/front setbacks
+   are governed separately by § 30-85(a) — confirm at the portal for canal/waterfront lots. */
+const MARCO_SETBACKS = {
+  "RSF-2": { name:"Residential Single-Family (RSF-2)", front:25, rear:25,
+             side:"7½ ft (lots <100 ft wide) / 8 ft (lots ≥100 ft)", minLot:20000, secRef:"§ 30-85(a)",
+             note:"Min lot width 120 ft. Min living area 1,500 sq ft. Max density 2 units/ac." },
+  "RSF-3": { name:"Residential Single-Family (RSF-3)", front:25, rear:25,
+             side:"7½ ft (lots <100 ft wide) / 8 ft (lots ≥100 ft)", minLot:10000, secRef:"§ 30-85(a)",
+             note:"Min lot width 95 ft (corner) / 80 ft (interior). Min living area 1,500 sq ft. Max density 3 units/ac." },
+  "RSF-4": { name:"Residential Single-Family (RSF-4)", front:25, rear:25,
+             side:"7½ ft (lots <100 ft wide) / 8 ft (lots ≥100 ft)", minLot:7500, secRef:"§ 30-85(a)",
+             note:"Min lot width 75 ft (corner) / 70 ft (interior). Min living area 1,500 sq ft. Max density 4 units/ac." },
+  "RMF-6": { name:"Residential Multiple-Family (RMF-6)", front:25, side:10, rear:25,
+             height:"35 ft principal (FEMA BFE to roof mid-point) / 15 ft accessory",
+             minLot:"7,260 sq ft per unit (single/duplex/two-family) · 1 acre (multifamily/townhouse)",
+             secRef:"§ 30-105",
+             note:"Min lot width 100 ft. Min floor area 750 sq ft. Max density 6 units/ac. Distance between two principal structures on a parcel: 15 ft, or half the sum of their heights, whichever is greater. Nonconforming lots of record: min 6,000–6,500 sq ft per unit — see § 30-105(7)." },
+  "RMF-12": { name:"Residential Multiple-Family (RMF-12)", front:30, side:"½ building height, min 15 ft", rear:30,
+             height:"50 ft", minLot:"1 acre", secRef:"§ 30-125",
+             note:"Mid-rise district. Min lot width 150 ft. Max density 12 units/ac. Max lot coverage 76%. Min floor area: efficiency 450 sq ft / 1-bed 600 sq ft / 2+ bed 750 sq ft. Distance between two principal structures on a parcel: 15 ft, or half the sum of their heights, whichever is greater." },
+  "RMF-16": { name:"Residential Multiple-Family (RMF-16)", front:"½ building height, min 30 ft", side:"½ building height, min 15 ft", rear:"½ building height, min 30 ft",
+             height:"75 ft", minLot:"1 acre", secRef:"§ 30-145",
+             note:"Medium-to-high-density district. All yards are height-based (½ the building height, with the minimums shown). Min lot width 150 ft. Max density 16 units/ac. Max lot coverage 76%. Min floor area: efficiency 450 sq ft / 1-bed 600 sq ft / 2+ bed 750 sq ft. Distance between two principal structures on a parcel: 15 ft, or half the sum of their heights, whichever is greater." },
+  "RT": { name:"Residential Tourist (RT)", front:"½ building height, min 30 ft", side:"½ building height, min 15 ft", rear:"½ building height, min 30 ft",
+             height:"10 stories / 100 ft (to roof mid-point)", minLot:"1 acre", secRef:"§ 30-165",
+             note:"Resort/tourist district (hotels, motels, timeshare, multifamily). All yards are height-based (½ the building height, with the minimums shown). Min lot width 150 ft. Max density 26 units/ac (hotels/motels) or 16 units/ac (timeshare/multifamily). Max lot coverage 76%. EXCEPTION — east side of Collier Blvd (§ 30-167): max height 50 ft, front ½ height min 50 ft, side ½ height min 15 ft, rear 25 ft. Distance between two principal structures: 15 ft, or half the sum of their heights, whichever is greater." },
+  "C-1": { name:"Commercial Professional (C-1)", front:25, side:15, rear:15, abutRes:25,
+             height:"35 ft (up to 50 ft by conditional use)", minLot:20000, secRef:"§ 30-185",
+             note:"Commercial professional district. Min lot width 100 ft. Min floor area 1,000 sq ft per ground-floor building. Max lot coverage 76%." },
+  "C-1/T": { name:"Commercial Professional / Transitional (C-1/T)", front:25, side:15, rear:15, abutRes:25,
+             height:"35 ft (up to 50 ft by conditional use)", minLot:20000, secRef:"§ 30-185",
+             note:"Commercial professional/transitional district (buffers higher- and lower-intensity areas). Same dimensional standards as C-1. Min lot width 100 ft. Min floor area 1,000 sq ft per ground-floor building. Max lot coverage 76%." },
+  "C-2": { name:"Commercial Convenience (C-2)", front:25, side:15, rear:25, abutRes:25,
+             height:"35 ft", minLot:15000, secRef:"§ 30-205",
+             note:"Commercial convenience district (small-scale neighborhood shopping/services). Min lot width 150 ft. Min floor area 1,000 sq ft per ground-floor building. Max lot coverage 76%. No outside storage or display of merchandise." },
+  "C-3": { name:"Commercial Intermediate (C-3)", front:25, side:15, rear:15, abutRes:25, waterfront:"25 ft (none for marinas)",
+             height:"50 ft", minLot:10000, secRef:"§ 30-225",
+             note:"Commercial intermediate district (wider range of goods/services, higher-traffic areas). Min lot width 75 ft. Min floor area 700 sq ft per ground-floor building. Max lot coverage 76%. Permits C-1 and C-2 uses as of right." },
+  "C-4": { name:"General Commercial (C-4)", front:"25 ft (+1 ft per ft of building height over 50 ft)",
+             side:"0 or min 15 ft (15 ft min separation between structures; Marco Lake subdistrict: 0 or min 5 ft, 10 ft separation)",
+             rear:"10 ft (25 ft from an alley where parking/access takes from it)", abutRes:25, waterfront:"25 ft (none for marinas)",
+             height:"75 ft (40 ft in the Marco Lake and Village Commercial / Old Marco subdistricts)",
+             minLot:10000, secRef:"§ 30-245",
+             note:"General commercial district (concentrated at arterial intersections). Min lot width 100 ft. Min floor area 700 sq ft per ground-floor building. Max lot coverage 76%. Max density 26 units/ac for hotels/motels/timeshare (16 units/ac in the Marco Lake / Old Marco subdistricts). Permits C-3 uses as of right. Carwashes abutting residential have stricter yards (front 50 / side 40 / rear 40 ft) under § 30-242." },
+  "C-5": { name:"Heavy Commercial (C-5)", front:25,
+             side:"0 or min 10 ft (10 ft min separation between structures)",
+             rear:"5 ft (25 ft from an alley where parking takes direct access)", abutRes:25, waterfront:"25 ft (none for marinas)",
+             height:"35 ft (up to 50 ft, or 60 ft for certain uses, by conditional use)",
+             minLot:10000, secRef:"§ 30-265",
+             note:"Heavy commercial district (intensive services: full automotive repair, construction/trade contractors, outdoor storage yards). Min lot width 100 ft. Min floor area 700 sq ft per ground-floor building. Max lot coverage 76%. Max density 26 units/ac for hotels/motels/timeshare. Permits C-4 uses as of right. Outdoor storage yards must be ≥20 ft from any public street and fully enclosed/screened. Elkcam Circle Overlay adds landscape-buffer requirements (§ 30-266)." },
+  "PORT MARCO": { name:"Port Marco Subdivision", front:null, side:null, rear:null,
+             height:"25 ft", secRef:"§ 30-247",
+             note:"Special mobile-home subdivision (16 sites). Setbacks between mobile homes, the access road and accessory uses follow the city FIRE CODE minimum separation — not the standard district yard table. Max height 25 ft. Exempt from the LDC architectural standards. Confirm exact separations with the Community Development Director / fire code." },
+  "CON": { name:"Conservation (CON)", front:50, side:50, rear:50,
+             height:"35 ft", minLot:"5 acres", secRef:"§ 30-285",
+             note:"Conservation district (natural-resource lands; parks, preserves, single-family). Min lot width 150 ft. Max density 1 unit per 5 acres." },
+  "P": { name:"Public Use (P)", front:null, side:null, rear:null, height:null, secRef:"§ 30-305",
+             note:"Public-use district (government facilities). Yards and height are NOT fixed — within 100 ft of an adjoining district, the YARD and HEIGHT of the MOST RESTRICTIVE adjoining district apply. No minimum lot area/width. Max lot coverage 76%. Confirm the controlling adjoining district before siting." },
+  "CF": { name:"Community Facility (CF)", front:25, side:15, rear:15, abutRes:25,
+             height:"30 ft (40 ft for antennas/towers)", minLot:10000, secRef:"§ 30-325",
+             note:"Community-facility district (churches, schools, civic/recreation, ALF/nursing). Min lot width 80 ft. Min floor area 1,000 sq ft per ground-floor building. Min distance between structures 25 ft, or half the sum of their heights, whichever is greater. Max lot coverage 76%. ALF/nursing uses may reach 50 ft by conditional use (§ 30-324(10))." },
+  "GC": { name:"Golf Course (GC)", front:null, side:null, rear:null,
+             height:"35 ft", secRef:"§ 30-344",
+             note:"Golf-course district. No standard front/side/rear yards: a 50 ft yard + Type B buffer is required adjacent to any contiguous residential district (around the clubhouse and maintenance buildings). Max height 35 ft. Lot area, width and density N/A (up to 2 employee dwelling units allowed)." },
+  "A": { name:"Agricultural (A)", front:50, side:30, rear:50,
+             height:"30 ft", minLot:"5 acres", secRef:"§ 30-365",
+             note:"Rural agricultural district. Min lot width 165 ft. Min floor area 1,200 sq ft (single-family). Max density 1 unit per 5 acres. Nonconforming lots of record: front 40 ft, side 10% of lot width (max 20 ft each), rear 30 ft." },
+  "PUD": { name:"Planned Unit Development (PUD)", pud:true, secRef:"§ 30-381–388" }
+};
+/* Map a detected Marco Island district to a table key. The city's GIS may return "RSF-3", "RMF-6",
+   "RMF6", or a description; scan for the district token + number. */
+function marcoSetbacks(districtCode){
+  if(!districtCode) return null;
+  const U=String(districtCode).toUpperCase();
+  const tag=(entry,label)=> entry ? Object.assign({__key:label, __shown:String(districtCode).trim()}, entry) : null;
+  const exact=U.trim();
+  if(MARCO_SETBACKS[exact]) return tag(MARCO_SETBACKS[exact], exact);
+  // RSF family: pull the density digit (RSF-2/3/4, "RSF2", "Residential Single-Family 3")
+  let m=U.match(/RSF[\s-]*([234])/) || U.match(/SINGLE[\s-]*FAMILY[^0-9]*([234])/);
+  if(m){ const key="RSF-"+m[1]; if(MARCO_SETBACKS[key]) return tag(MARCO_SETBACKS[key], key); }
+  // RMF family (currently only RMF-6 entered): "RMF-6", "RMF6", "Residential Multiple-Family 6"
+  m=U.match(/RMF[\s-]*([0-9]+)/) || U.match(/MULTIPLE[\s-]*FAMILY[^0-9]*([0-9]+)/) || U.match(/MULTI[\s-]*FAMILY[^0-9]*([0-9]+)/);
+  if(m){ const key="RMF-"+m[1]; if(MARCO_SETBACKS[key]) return tag(MARCO_SETBACKS[key], key); }
+  // RT (Residential Tourist): exact "RT" is caught above; here match the description, or "RT"
+  // as a standalone token (word-boundary guarded so it never fires inside another code).
+  if(/\bRT\b/.test(U) || /RESIDENTIAL[\s-]*TOURIST/.test(U) || /\bTOURIST\b/.test(U)){
+    if(MARCO_SETBACKS["RT"]) return tag(MARCO_SETBACKS["RT"], "RT");
+  }
+  // Commercial Professional. Check C-1/T BEFORE C-1 (the transitional code contains "C-1").
+  if(/\bC[\s-]*1[\s-]*\/?[\s-]*T\b/.test(U) || /PROFESSIONAL[\s\S]*TRANSITION/.test(U)){
+    if(MARCO_SETBACKS["C-1/T"]) return tag(MARCO_SETBACKS["C-1/T"], "C-1/T");
+  }
+  if(/\bC[\s-]*1\b/.test(U) || /COMMERCIAL[\s-]*PROFESSIONAL/.test(U)){
+    if(MARCO_SETBACKS["C-1"]) return tag(MARCO_SETBACKS["C-1"], "C-1");
+  }
+  if(/\bC[\s-]*2\b/.test(U) || /COMMERCIAL[\s-]*CONVENIENCE/.test(U)){
+    if(MARCO_SETBACKS["C-2"]) return tag(MARCO_SETBACKS["C-2"], "C-2");
+  }
+  if(/\bC[\s-]*3\b/.test(U) || /COMMERCIAL[\s-]*INTERMEDIATE/.test(U)){
+    if(MARCO_SETBACKS["C-3"]) return tag(MARCO_SETBACKS["C-3"], "C-3");
+  }
+  if(/\bC[\s-]*4\b/.test(U) || /GENERAL[\s-]*COMMERCIAL/.test(U)){
+    if(MARCO_SETBACKS["C-4"]) return tag(MARCO_SETBACKS["C-4"], "C-4");
+  }
+  if(/\bC[\s-]*5\b/.test(U) || /HEAVY[\s-]*COMMERCIAL/.test(U)){
+    if(MARCO_SETBACKS["C-5"]) return tag(MARCO_SETBACKS["C-5"], "C-5");
+  }
+  if(/PORT[\s-]*MARCO/.test(U)){
+    if(MARCO_SETBACKS["PORT MARCO"]) return tag(MARCO_SETBACKS["PORT MARCO"], "PORT MARCO");
+  }
+  // Conservation / Public Use / Community Facility / Golf Course / Agricultural.
+  // Bare codes (CON, P, CF, GC, A) are caught by the exact-match check above; here we add the
+  // description forms and word-boundary'd codes. "P" and "A" are single letters — match them only
+  // as a standalone token, never inside another word.
+  if(/\bCON\b/.test(U) || /CONSERVATION/.test(U)){
+    if(MARCO_SETBACKS["CON"]) return tag(MARCO_SETBACKS["CON"], "CON");
+  }
+  if(/\bCF\b/.test(U) || /COMMUNITY[\s-]*FACILITY/.test(U)){
+    if(MARCO_SETBACKS["CF"]) return tag(MARCO_SETBACKS["CF"], "CF");
+  }
+  if(/\bGC\b/.test(U) || /GOLF[\s-]*COURSE/.test(U)){
+    if(MARCO_SETBACKS["GC"]) return tag(MARCO_SETBACKS["GC"], "GC");
+  }
+  // PUD before the single-letter P branch. PUDs have NO fixed table — covers "PUD", any
+  // "*-PUD"/"PUD-*" variant, and the description.
+  if(/PUD\b/.test(U) || /PLANNED[\s-]*UNIT[\s-]*DEVELOPMENT/.test(U)){
+    if(MARCO_SETBACKS["PUD"]) return tag(MARCO_SETBACKS["PUD"], "PUD");
+  }
+  if(/\bP\b/.test(U) || /PUBLIC[\s-]*USE/.test(U)){
+    if(MARCO_SETBACKS["P"]) return tag(MARCO_SETBACKS["P"], "P");
+  }
+  if(/\bA\b/.test(U) || /AGRICULTUR/.test(U)){
+    if(MARCO_SETBACKS["A"]) return tag(MARCO_SETBACKS["A"], "A");
+  }
+  return null;
+}
+function renderMarcoSetbacks(districtCode){
+  const s=marcoSetbacks(districtCode);
+  if(!s) return '';
+  const setVal=v=>{
+    if(v==null) return null;
+    if(typeof v==='number') return v===0?'0 ft':v+' ft';
+    const t=String(v).trim(); if(!t) return null;
+    return /[a-zA-Z]/.test(t) ? t : t+' ft';
+  };
+  const shown = s.__shown || String(districtCode);
+  const secRef = s.secRef || '§ 30-85(a)';
+  // Planned Unit Development: NO fixed setback table. Each PUD's front/side/rear/height come from
+  // its own approved PUD document & master plan (§ 30-382), which may depart from standard district
+  // standards. Show guidance, not numbers.
+  if(s.pud){
+    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PUD</span> ${esc(shown)} · setbacks set by the approved PUD document &amp; master plan (Marco Island LDC ${esc(secRef)})</div>`;
+    p+=`<div class="note">This is a <b>Planned Unit Development</b>. Its front, side, rear, height, and lot standards are <b>not</b> from a standard district table — they are established in this property's <b>approved PUD ordinance &amp; master plan</b>, which can depart from conventional zoning. Where the PUD document is silent, § 30-386 applies the standards of the conventional district it most closely resembles (more restrictive if uncertain).</div>`;
+    p+=`<div class="note warnbox">Look up this parcel's specific PUD ordinance / master plan for its exact setbacks before siting a generator or LP tank — the numbers vary by PUD and are not point-queryable. Confirm with Marco Island Community Development.</div>`;
+    return p;
+  }
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)} (Marco Island LDC ${esc(secRef)})</div>`;
+  if(s.minLot!=null){ const lv=(typeof s.minLot==='number')?(fmtNum(s.minLot)+' sq ft'):String(s.minLot); h+=fieldRow('Minimum lot area', esc(lv)); }
+  const frontV=setVal(s.front); if(frontV) h+=fieldRow('Front', esc(frontV), 'big');
+  const sideV=setVal(s.side); if(sideV) h+=fieldRow('Side', esc(sideV));
+  const rearV=setVal(s.rear); if(rearV) h+=fieldRow('Rear', esc(rearV));
+  if(s.abutRes!=null) h+=fieldRow('Abutting residential', esc(setVal(s.abutRes)));
+  if(s.waterfront!=null) h+=fieldRow('Waterfront', esc(setVal(s.waterfront)));
+  if(s.height!=null) h+=fieldRow('Max building height', esc(setVal(s.height)));
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  // RSF side yards vary with lot width and waterfront single-family has separate § 30-85(a) rules;
+  // that caveat is RSF-specific, so only show it for the RSF family.
+  const isRSF = /^RSF/.test(s.__key||'');
+  const sideCaveat = isRSF ? ' Side yard varies with lot width as shown. <b>Waterfront/canal lots</b> have separate side- and front-yard standards under § 30-85(a).' : '';
+  h+=`<div class="note warnbox">Marco Island's own LDC (Ch. 30, ${esc(secRef)}) — <b>not</b> Collier County rules.${sideCaveat} Corner-lot and overlay conditions can also differ — verify the exact figures in the live code below before siting.</div>`;
+  return h;
+}
+
+
 
 
 /* Query a county parcel feed BY ADDRESS, then pick the unit matching the search. If the exact house
@@ -3120,7 +3313,12 @@ async function runLookup(lat,lng,searchCtx){
     if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
     if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code, parcelYearBuilt); }
-    if(norm(countyName)==='COLLIER' && norm(cityName)!=='NAPLES' && zhit.code){ html += renderCollierSetbacks(zhit.code); }
+    if(norm(cityName)==='MARCOISLAND' && zhit.code){ html += renderMarcoSetbacks(zhit.code); }
+    // Collier COUNTY setbacks apply only to UNINCORPORATED Collier. The incorporated cities —
+    // Naples and Marco Island — each adopt their own Land Development Code, so they must NOT
+    // inherit county rules. (Naples and Marco Island are handled above; if a Marco Island district
+    // isn't in the quick-ref table, it falls through to the "look it up in the adopted code" note.)
+    if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName)) && zhit.code){ html += renderCollierSetbacks(zhit.code); }
     if(norm(cityName)==='CAPECORAL' && zhit.code){ html += renderCapeCoralSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
@@ -3132,9 +3330,9 @@ async function runLookup(lat,lng,searchCtx){
   } else {
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
   }
-  // Collier County generator siting (LDC 5.03.07) — for Collier parcels NOT in the City of Naples
-  // (Naples city has its own § 56-41, rendered above via renderNaplesSetbacks).
-  if(norm(countyName)==='COLLIER' && norm(cityName)!=='NAPLES'){ html += renderCollierGeneratorRules(); }
+  // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
+  // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
+  if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName))){ html += renderCollierGeneratorRules(); }
   if(norm(cityName)==='CAPECORAL'){ html += renderCapeCoralGeneratorRules(); }
   // (building-to-line estimate feature removed)
   if(z){
