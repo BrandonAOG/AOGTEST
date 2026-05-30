@@ -110,8 +110,8 @@
 
   /* ---- Panel ---- */
   #panel{
-    position:absolute;z-index:1000;top:14px;left:14px;width:380px;max-width:calc(100vw - 28px);
-    max-height:calc(100vh - 28px);display:flex;flex-direction:column;
+    position:absolute;z-index:1000;top:calc(var(--abh,48px) + 14px);left:14px;width:380px;max-width:calc(100vw - 28px);
+    max-height:calc(100vh - var(--abh,48px) - 28px);display:flex;flex-direction:column;
     background:linear-gradient(180deg,var(--panel-grad1),var(--panel-grad2));
     border:1px solid var(--line);border-radius:10px;
     box-shadow:0 18px 50px var(--shadow-strong);overflow:hidden;
@@ -222,7 +222,7 @@
   .layerswitch button.alert::before{content:'●';margin-right:5px;font-size:9px;vertical-align:1px;animation:conepulse 1.4s ease-in-out infinite}
   @keyframes conepulse{0%,100%{opacity:.35}50%{opacity:1}}
   /* Transient on-map message (e.g. "no active storms") */
-  .maptoast{position:absolute;z-index:1100;top:14px;left:50%;transform:translateX(-50%) translateY(-8px);
+  .maptoast{position:absolute;z-index:1100;top:calc(var(--abh,48px) + 10px);left:50%;transform:translateX(-50%) translateY(-8px);
     background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;
     font-family:var(--body);font-size:12.5px;padding:9px 14px;box-shadow:0 8px 26px var(--shadow-strong);
     opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:80vw;text-align:center}
@@ -319,7 +319,7 @@
     #map{inset:0 0 0 0}
     #panel{
       top:auto;left:0;right:0;bottom:0;width:100%;max-width:100%;
-      height:var(--sheet-h, 50vh);max-height:92vh;
+      height:var(--sheet-h, 50vh);max-height:calc(100vh - var(--abh,48px) - 8px);
       border-radius:18px 18px 0 0;border-left:none;border-right:none;border-bottom:none;
       box-shadow:0 -10px 40px var(--shadow-strong);
       transition:height .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1);
@@ -356,13 +356,70 @@
     .field{flex-direction:column;gap:2px}
     .field .k{width:auto}
     .field .v{text-align:left}
-    .layerswitch{bottom:auto;top:12px;right:12px}
+    .layerswitch{bottom:auto;top:calc(var(--abh,48px) + 8px);right:12px}
     .crosshair{display:none}
     footer{display:none}             /* hide sources/hub footer on phones */
     .suggest .sg{padding:13px 12px;font-size:13px}  /* bigger tap targets */
   }
   /* the grip & pull-up tab only exist on mobile; hide on desktop */
   .sheet-grip,.sheet-tab{display:none}
+
+  /* ---------- Top action bar (fixed; pulled out of the header) ----------
+     Matches the Installation-Estimate action bar: slanted ab-btns + theme toggle,
+     pinned to the top, with safe-area padding so it never hides behind the iOS
+     Safari address bar / notch. JS measures its height into --abh; the panel and
+     the map's top controls are pushed down by that amount so nothing sits under it. */
+  .action-bar{
+    position:fixed; top:0; left:0; right:0; z-index:5000; width:100%;
+    background:var(--panel);
+    padding:4px 8px;
+    padding-top:max(4px, env(safe-area-inset-top, 4px));
+    display:flex; gap:4px; flex-wrap:nowrap; align-items:center;
+    box-shadow:0 4px 18px var(--shadow-soft);
+    border-bottom:1px solid var(--line);
+    box-sizing:border-box;
+  }
+  .action-bar .ab-btn{
+    flex:1; min-width:0; padding:6px 8px; font-size:10px; font-weight:700; letter-spacing:.5px;
+    color:var(--signal); text-transform:uppercase; text-decoration:none; white-space:nowrap;
+    text-align:center; font-family:var(--disp),Arial,sans-serif;
+    border:1px solid var(--line); background:var(--input-bg);
+    display:inline-flex; align-items:center; justify-content:center;
+    clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+    overflow:hidden; text-overflow:ellipsis; cursor:pointer;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  /* amber accent border/fill (low-alpha) layered over the fallbacks above */
+  @supports (color: color-mix(in srgb, red, blue)){
+    .action-bar .ab-btn{
+      border-color:color-mix(in srgb, var(--signal) 42%, transparent);
+      background:color-mix(in srgb, var(--signal) 7%, transparent);
+    }
+  }
+  .action-bar .ab-btn:hover{ border-color:var(--signal); box-shadow:0 0 8px rgba(255,176,0,.30); }
+  .action-bar .theme-toggle-btn{
+    flex-shrink:0; width:36px; height:36px; padding:6px; border-radius:4px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--signal); font-family:var(--mono); font-size:15px; line-height:1;
+    border:1px solid var(--line); background:var(--input-bg);
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    transition:border-color .2s ease, color .2s ease, background .2s ease;
+  }
+  @supports (color: color-mix(in srgb, red, blue)){
+    .action-bar .theme-toggle-btn{
+      border-color:color-mix(in srgb, var(--signal) 42%, transparent);
+      background:color-mix(in srgb, var(--signal) 7%, transparent);
+    }
+  }
+  .action-bar .theme-toggle-btn:hover{ border-color:var(--signal); }
+  @media (max-width:480px){
+    .action-bar{ padding:4px 4px; gap:3px; padding-top:max(4px, env(safe-area-inset-top, 4px)); }
+    .action-bar .ab-btn{ padding:6px 4px; font-size:9px; }
+  }
+  @media (max-width:360px){
+    .action-bar .ab-btn{ font-size:8px; padding:6px 3px; letter-spacing:0; }
+  }
 
   /* ---------- Print-only header (hidden on screen) ---------- */
   #printHead{display:none}
@@ -371,18 +428,25 @@
   @media print{
     @page{ size:letter; margin:0.45in; }
     /* force light ink-on-white regardless of the screen theme */
-    html,body{ background:#fff !important; color:#111 !important; height:auto !important; overflow:visible !important; }
+    html,body{ background:#fff !important; color:#111 !important;
+      height:auto !important; min-height:0 !important; max-height:none !important;
+      overflow:visible !important; position:static !important; }
     /* hide the map, search, advanced panels, footer, toolbar buttons, overlays */
     #map,.search,header .kick,header h1,header p,header .brandbar,
     .layerswitch,.crosshair,.sheet-grip,.sheet-tab,footer,.status,
     #themeToggle,#printBtn,.brand-back,.suggest,.history,.empty,
+    .action-bar,.scoutcard,.aerial-wrap,.noprint,.pcol-stash,
     .leaflet-control-container{ display:none !important; }
 
     /* lift the panel out of its fixed/absolute box into normal flow */
     #panel{ position:static !important; inset:auto !important; width:100% !important; max-width:100% !important;
-      height:auto !important; max-height:none !important; transform:none !important;
+      height:auto !important; max-height:none !important; min-height:0 !important; transform:none !important;
       background:#fff !important; border:none !important; border-radius:0 !important; box-shadow:none !important;
       display:block !important; overflow:visible !important; }
+    /* the results region is a momentum-scroll container on iPhone — neutralise it so
+       iOS Safari prints the WHOLE report, not just the on-screen slice */
+    #results,.body{ height:auto !important; max-height:none !important; overflow:visible !important;
+      -webkit-overflow-scrolling:auto !important; }
     header{ padding:0 !important; border:none !important; background:#fff !important; }
 
     /* print header */
@@ -394,12 +458,17 @@
     #printHead .ph-meta{ font-family:var(--mono); font-size:9.5px; color:#222; margin-top:7px; line-height:1.5; }
     #printHead .ph-meta b{ color:#111; }
 
-    /* results: flow cards into two balanced columns so the whole report fits one page */
-    #results{ display:block !important; overflow:visible !important; padding:0 !important;
-      column-count:2; column-gap:14px; }
+    /* Print layout: at print time the JS repacks the cards into two balanced column
+       stacks (.pcol). Each column is a continuous vertical flow, so there are NO ragged
+       gaps the way a row-based grid leaves them, and it stays iOS-Safari reliable.
+       A gentle zoom gives headroom so the report lands on one page. */
+    #results{ display:grid !important; grid-template-columns:1fr 1fr; gap:0 12px;
+      align-items:start !important; overflow:visible !important; padding:0 !important;
+      zoom:var(--print-zoom,0.9); }
+    .pcol{ display:block !important; min-width:0; }
     .card{ break-inside:avoid; page-break-inside:avoid; -webkit-column-break-inside:avoid;
       background:#fff !important; border:1px solid #bbb !important; border-radius:6px !important;
-      margin:0 0 8px !important; overflow:visible !important; }
+      margin:0 0 6px !important; overflow:visible !important; }
     /* Notes-heavy cards (zoning/setbacks/generator) may be tall; let THEM split internally
        as a last resort rather than forcing the whole report to a 2nd page. Keep rows atomic. */
     .card.tall{ break-inside:auto; page-break-inside:auto; -webkit-column-break-inside:auto; }
@@ -440,6 +509,12 @@
 </style>
 </head>
 <body>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <a class="ab-btn" id="printBtn" role="button" tabindex="0" title="Print this report (1 page)" aria-label="Print report" style="cursor:pointer;">📄 PDF</a>
+  <a class="ab-btn" id="excelBtn" role="button" tabindex="0" title="Export to Excel for the Estimate sheet" aria-label="Export to Excel" style="cursor:pointer;">📊 EXCEL</a>
+  <button class="theme-toggle-btn" id="themeToggle" type="button" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
+</div>
 <div id="map"></div>
 <div class="crosshair" id="coordReadout">click the map to query a point</div>
 <div class="radarclock" id="radarClock">◵ Radar</div>
@@ -458,9 +533,6 @@
     <div class="brandbar">
       <img src="../logo.png" alt="Always On Generators" class="brand-logo" onerror="this.style.display='none'">
       <div class="brand-name">ALWAYS ON GENERATORS</div>
-      <button class="theme-toggle" id="themeToggle" type="button" title="Toggle light / dark" aria-label="Toggle light or dark theme" style="margin-left:auto">◐</button>
-      <button class="theme-toggle" id="printBtn" type="button" title="Print this report (1 page)" aria-label="Print report">⎙</button>
-      <a class="brand-back" href="../">‹ Hub</a>
     </div>
     <div class="kick">Florida Parcel &amp; Flood Instrument</div>
     <h1>Property Lookup</h1>
@@ -499,11 +571,8 @@
     </details>
   </div>
 
-  <div class="body" id="results">
-    <div class="empty">— awaiting a location —<br><br>Search an address or tap the map.</div>
-  </div>
-
-  <!-- Print-only report header; populated by JS just before window.print() -->
+  <!-- Print-only report header (hidden on screen); populated by JS just before window.print().
+       Placed BEFORE results so it prints at the TOP of the sheet. -->
   <div id="printHead" aria-hidden="true">
     <div class="ph-row">
       <img src="../logo.png" alt="" class="ph-logo" onerror="this.style.display='none'">
@@ -513,6 +582,10 @@
       </div>
     </div>
     <div class="ph-meta" id="printMeta"></div>
+  </div>
+
+  <div class="body" id="results">
+    <div class="empty">— awaiting a location —<br><br>Search an address or tap the map.</div>
   </div>
 
   <footer id="foot" class="collapsed">
@@ -528,6 +601,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ============================================================
    VERIFIED OFFICIAL ENDPOINTS (checked against live REST dirs)
@@ -1264,13 +1338,22 @@ async function getLayerInfo(queryUrl){
 let STATEWIDE_INFO=null; // filled on load
 
 /* ---------- Map ---------- */
-const map = L.map('map',{zoomControl:true,attributionControl:true}).setView([27.9,-83.4],7);
+const map = L.map('map',{
+  zoomControl:true, attributionControl:true,
+  preferCanvas:true,            // render vectors (parcels, city outlines, markers) on <canvas>,
+                                // not individual SVG DOM nodes — far smoother panning on phones
+  tap:false,                    // Leaflet's legacy tap handler causes 300ms delay / double-fire on modern mobile
+  zoomSnap:0.5,                 // smoother pinch-zoom steps
+  wheelPxPerZoomLevel:120,
+  zoomAnimationThreshold:4
+}).setView([27.9,-83.4],7);
+const canvasRenderer = L.canvas({ padding:0.5 });   // shared canvas for all vector layers
 const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  {maxZoom:19,attribution:"Imagery &copy; Esri"});
+  {maxZoom:19,attribution:"Imagery &copy; Esri",updateWhenIdle:L.Browser.mobile,keepBuffer:2});
 const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-  {maxZoom:19,opacity:.9});
+  {maxZoom:19,opacity:.9,updateWhenIdle:L.Browser.mobile,keepBuffer:2});
 const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  {maxZoom:19,attribution:"&copy; OpenStreetMap contributors"});
+  {maxZoom:19,attribution:"&copy; OpenStreetMap contributors",updateWhenIdle:L.Browser.mobile,keepBuffer:2});
 const satGroup = L.layerGroup([sat,labels]).addTo(map);
 
 const btnSat=document.getElementById('btnSat'), btnStreet=document.getElementById('btnStreet');
@@ -1293,8 +1376,10 @@ function cityColor(name){
   return CITY_PALETTE[h % CITY_PALETTE.length];
 }
 let boundsLayer = L.geoJSON(null, {
+  renderer: canvasRenderer,
   style:(f)=>{ const nm=f.properties&&(f.properties.NAME||f.properties.name); return { color:cityColor(nm), weight:2.5, opacity:.95, fill:false }; },
-  onEachFeature:(f,lyr)=>{ const nm=f.properties&&(f.properties.NAME||f.properties.name); if(nm){ lyr.bindTooltip(String(nm),{sticky:true,direction:'top',className:'bnd-tip'}); lyr.on('tooltipopen',ev=>{ const el=ev.tooltip&&ev.tooltip.getElement(); if(el){ const col=cityColor(nm); el.style.background=col; el.style.color='#10151b'; const arrow=el.querySelector('.leaflet-tooltip-tip'); if(arrow) arrow.style.background=col; } }); } }
+  onEachFeature:(f,lyr)=>{ if(L.Browser.mobile) return;   // sticky hover tooltips are wasted on touch and add per-move work
+    const nm=f.properties&&(f.properties.NAME||f.properties.name); if(nm){ lyr.bindTooltip(String(nm),{sticky:true,direction:'top',className:'bnd-tip'}); lyr.on('tooltipopen',ev=>{ const el=ev.tooltip&&ev.tooltip.getElement(); if(el){ const col=cityColor(nm); el.style.background=col; el.style.color='#10151b'; const arrow=el.querySelector('.leaflet-tooltip-tip'); if(arrow) arrow.style.background=col; } }); } }
 }).addTo(map);
 let boundsOn=true, boundsBusy=false, boundsKey='';
 async function refreshBoundaries(){
@@ -1335,15 +1420,26 @@ async function refreshBoundaries(){
   finally{ boundsBusy=false; }
 }
 let boundsTimer=null;
-map.on('moveend zoomend', ()=>{ clearTimeout(boundsTimer); boundsTimer=setTimeout(refreshBoundaries,350); });
+const BOUNDS_DEBOUNCE = L.Browser.mobile ? 700 : 350;   // wait longer on phones so a pan settles before refetching
+map.on('moveend zoomend', ()=>{ clearTimeout(boundsTimer); boundsTimer=setTimeout(refreshBoundaries,BOUNDS_DEBOUNCE); });
 document.getElementById('btnBounds').onclick=function(){
   boundsOn=!boundsOn; this.classList.toggle('active',boundsOn);
   if(boundsOn){ boundsKey=''; refreshBoundaries(); } else { boundsLayer.clearLayers(); }
 };
-map.on('mousemove', e => {
-  document.getElementById('coordReadout').textContent =
-    `lat ${e.latlng.lat.toFixed(5)}   lng ${e.latlng.lng.toFixed(5)}`;
-});
+// Live coordinate readout follows the cursor — desktop only. On touch there's no hover, so
+// this handler would only fire mid-drag and fight the pan; skip it entirely on mobile. Throttle
+// to one DOM write per animation frame so fast mouse movement can't flood the main thread.
+if(!L.Browser.mobile){
+  let _coordRaf=0, _coordLL=null;
+  const _coordEl=document.getElementById('coordReadout');
+  map.on('mousemove', e => {
+    _coordLL=e.latlng;
+    if(_coordRaf) return;
+    _coordRaf=requestAnimationFrame(()=>{ _coordRaf=0;
+      if(_coordEl&&_coordLL) _coordEl.textContent=`lat ${_coordLL.lat.toFixed(5)}   lng ${_coordLL.lng.toFixed(5)}`;
+    });
+  });
+}
 
 /* ---------- Transient on-map toast ---------- */
 let _toastTimer=null;
@@ -1465,15 +1561,15 @@ function drawCone(data){
   if(coneLayer){ map.removeLayer(coneLayer); coneLayer=null; }
   coneLayer=L.featureGroup();
   if(data.cone && data.cone.features && data.cone.features.length){
-    L.geoJSON(data.cone,{ style:{ color:'#ff8a3c', weight:2, dashArray:'5 4', fillColor:'#ff8a3c', fillOpacity:.12 },
+    L.geoJSON(data.cone,{ renderer:canvasRenderer, style:{ color:'#ff8a3c', weight:2, dashArray:'5 4', fillColor:'#ff8a3c', fillOpacity:.12 },
       onEachFeature:(f,l)=>l.bindTooltip(stormLabel(f.properties)+' — forecast cone',{sticky:true,direction:'top',className:'parcel-tip'})
     }).addTo(coneLayer);
   }
   if(data.track && data.track.features && data.track.features.length){
-    L.geoJSON(data.track,{ style:{ color:'#ff5d5d', weight:2.5, opacity:.95 } }).addTo(coneLayer);
+    L.geoJSON(data.track,{ renderer:canvasRenderer, style:{ color:'#ff5d5d', weight:2.5, opacity:.95 } }).addTo(coneLayer);
   }
   if(data.pts && data.pts.features && data.pts.features.length){
-    L.geoJSON(data.pts,{ pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:4,color:'#ff5d5d',weight:1.5,fillColor:'#fff',fillOpacity:.9}),
+    L.geoJSON(data.pts,{ renderer:canvasRenderer, pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:4,color:'#ff5d5d',weight:1.5,fillColor:'#fff',fillOpacity:.9}),
       onEachFeature:(f,l)=>l.bindTooltip(stormLabel(f.properties),{direction:'top',className:'parcel-tip'})
     }).addTo(coneLayer);
   }
@@ -1658,7 +1754,7 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
     `geometry=${pointGeom(lat,lng)}&geometryType=esriGeometryPoint&inSR=4326`+
     `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent(outFields)}`+
     `&returnGeometry=${withGeom?'true':'false'}${withGeom?'&outSR=4326':''}&f=json`;
-  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),timeoutMs||15000);
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),timeoutMs||9000);
   try{
     const r=await fetch(url+'?'+params,{signal:ctrl.signal});
     clearTimeout(t);
@@ -1671,15 +1767,19 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
 const ENRICH_TIMEOUT = 6000;   // shorter timeout for secondary/enrichment lookups so a dead server fails fast
 const COUNTY_FEED_TIMEOUT = 13000;  // primary county parcel feeds get a generous timeout (dense areas can be slow)
 
-/* Retry wrapper: ArcGIS Online services occasionally fail transiently (a timeout/5xx comes back
-   without CORS headers, so the browser reports a "CORS error"). One quick retry clears most of
-   these. Used for the primary statewide/county parcel lookups. */
+/* Retry wrapper: ArcGIS Online services occasionally fail transiently (a 5xx/CORS blip comes back
+   fast). One quick retry clears most of these. But a *timeout* means the server is just slow —
+   retrying only makes the user wait the full timeout twice, so we bail out immediately on abort. */
 async function arcQueryRetry(url, lat, lng, outFields, withGeom, timeoutMs, tries){
   let lastErr=null;
   const n=tries||2;
   for(let i=0;i<n;i++){
     try{ return await arcQuery(url, lat, lng, outFields, withGeom, timeoutMs); }
-    catch(e){ lastErr=e; if(i<n-1) await new Promise(r=>setTimeout(r,400)); }
+    catch(e){
+      lastErr=e;
+      if(e && (e.name==='AbortError' || /abort/i.test(e.message||''))) break;   // timed out — don't wait again
+      if(i<n-1) await new Promise(r=>setTimeout(r,250));
+    }
   }
   throw lastErr;
 }
@@ -1745,24 +1845,28 @@ async function geocode(q){
   const all=await geocodeAll(q);
   return all.length?all[0]:null;
 }
-/* Return MULTIPLE geocode candidates (Census first, then OSM), each {lat,lng,label,src}. */
+/* Return MULTIPLE geocode candidates (Census + OSM), each {lat,lng,label,src}.
+   Both services are queried in PARALLEL (they used to run one after the other, doubling the
+   wait); Census results are still listed first since they're best for US street addresses. */
 async function geocodeAll(q){
   let qq = /\b(fl|florida)\b/i.test(q) ? q : q+', Florida';
+  const censusU=`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(qq)}&benchmark=Public_AR_Current&format=json`;
+  const osmU=`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(qq)}`;
+  const [cRes,oRes]=await Promise.allSettled([
+    fetch(censusU).then(r=>r.json()),
+    fetch(osmU).then(r=>r.json())
+  ]);
   const out=[];
-  try{
-    const u=`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(qq)}&benchmark=Public_AR_Current&format=json`;
-    const j=await (await fetch(u)).json();
-    const ms=(j&&j.result&&j.result.addressMatches)||[];
+  if(cRes.status==='fulfilled'){
+    const ms=(cRes.value&&cRes.value.result&&cRes.value.result.addressMatches)||[];
     for(const m of ms.slice(0,5)) out.push({lat:m.coordinates.y,lng:m.coordinates.x,label:m.matchedAddress,src:'US Census'});
-  }catch(e){}
-  try{
-    const u=`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(qq)}`;
-    const j=await (await fetch(u)).json();
-    for(const m of (j||[])){
+  }
+  if(oRes.status==='fulfilled'){
+    for(const m of (oRes.value||[])){
       if(out.some(o=>o.label===m.display_name)) continue;
       out.push({lat:+m.lat,lng:+m.lon,label:m.display_name,src:'OpenStreetMap'});
     }
-  }catch(e){}
+  }
   return out;
 }
 
@@ -2530,7 +2634,7 @@ function renderAerialScout(lat, lng){
   const sat  =`https://www.google.com/maps/@?api=1&map_action=map&center=${la}%2C${ln}&zoom=19&basemap=satellite`;
   const earth=`https://earth.google.com/web/@${la},${ln},0a,400d,35y,0h,45t,0r`;
   const dir  =`https://www.google.com/maps/dir/?api=1&destination=${la}%2C${ln}`;
-  let h=`<div class="card"><div class="ch"><span class="icn">[ EYE ]</span><h2>Aerial &amp; Street View</h2>
+  let h=`<div class="card scoutcard"><div class="ch"><span class="icn">[ EYE ]</span><h2>Aerial &amp; Street View</h2>
     <div class="src">scout the site<br>before you roll</div></div><div class="cb">`;
   h+=`<a class="aerial-wrap" href="${sat}" target="_blank" rel="noopener" title="Open aerial in Google Maps">`+
      `<img src="${aerial}" alt="Aerial view of the parcel" loading="lazy" onerror="var w=this.closest('.aerial-wrap'); if(w) w.style.display='none';">`+
@@ -2567,6 +2671,7 @@ function renderWindDesign(lat, lng, cityName, countyName){
   if(!SWFL_VULT[key] && norm(cityName)==='CAPECORAL') key='LEE';   // Cape Coral → Lee
   const c = SWFL_VULT[key] || null;
   const vult = c ? c.v : null;
+  if(window.__exportData && vult!=null) window.__exportData.windVult=vult;
   const vasd = (vult!=null) ? Math.round(vult*Math.sqrt(0.6)) : null;  // Vasd = Vult·√0.6
   const cName = c ? titleCase(key) : '';
   let h=`<div class="card"><div class="ch"><span class="icn">[ WND ]</span><h2>Wind Design (FBC)</h2>
@@ -2607,14 +2712,15 @@ function drawParcel(g, info){
   try{
     if(g&&g.rings){
       const latlngs=g.rings.map(r=>r.map(p=>[p[1],p[0]]));
-      parcelLayer=L.polygon(latlngs,{color:'#39d3ff',weight:2,fillColor:'#39d3ff',fillOpacity:.12}).addTo(map);
+      parcelLayer=L.polygon(latlngs,{renderer:canvasRenderer,color:'#39d3ff',weight:2,fillColor:'#39d3ff',fillOpacity:.12}).addTo(map);
       // Hover popup: address / parcel ID / owner. Follows the cursor (sticky) while over the lot.
       const tip=parcelTooltipHTML(info);
       if(tip){
         parcelLayer.bindTooltip(tip,{sticky:true,direction:'top',className:'parcel-tip',opacity:1});
-        // brighten the fill on hover so it's clear which lot the card describes
-        parcelLayer.on('mouseover',()=>parcelLayer.setStyle({fillOpacity:.28,weight:3}));
-        parcelLayer.on('mouseout', ()=>parcelLayer.setStyle({fillOpacity:.12,weight:2}));
+        if(!L.Browser.mobile){   // hover brighten is desktop-only; saves sticky-tracking work on touch
+          parcelLayer.on('mouseover',()=>parcelLayer.setStyle({fillOpacity:.28,weight:3}));
+          parcelLayer.on('mouseout', ()=>parcelLayer.setStyle({fillOpacity:.12,weight:2}));
+        }
       }
       map.fitBounds(parcelLayer.getBounds(),{maxZoom:19,padding:[60,60]});
     }
@@ -2651,6 +2757,10 @@ function renderParcelGeneric(a, d){
   const mail  = d.mail?pick(a,d.mail):null;
   const mailCity = d.mailCity?pick(a,d.mailCity):null;
   const use   = d.use?useLabel(pick(a,d.use)):null;
+  try{ window.__parcelMeta = { owner: owner||'', site: [site, city].filter(Boolean).join(', ') }; }catch(e){}
+  try{ if(window.__exportData){ const ed=window.__exportData;
+    if(owner) ed.owner=owner; if(site) ed.address=site; if(city) ed.city=city;
+    if(liv) ed.sqft=String(liv).replace(/[^0-9.]/g,''); if(pid) ed.parcelId=String(pid); } }catch(e){}
   h += fieldRow('Owner', owner?esc(owner):'<span class="muted">field not detected</span>','big');
   if(own2) h += fieldRow('Owner 2', esc(own2));
   h += fieldRow('Parcel ID', pid?esc(pid):'<span class="muted">—</span>','big');
@@ -2669,9 +2779,12 @@ function renderParcelGeneric(a, d){
 let runId=0;
 async function runLookup(lat,lng,searchCtx){
   const myId=++runId;
+  window.__parcelMeta=null;   // cleared each lookup; set when a parcel renders
+  // Collected for the "Export to Excel" feature (imports into the Estimate sheet).
+  window.__exportData={ lat:lat, lng:lng, today:new Date().toLocaleDateString('en-US') };
   // marker
   if(marker) map.removeLayer(marker);
-  marker=L.circleMarker([lat,lng],{radius:6,color:'#ffb000',weight:2,fillColor:'#ffb000',fillOpacity:.9}).addTo(map);
+  marker=L.circleMarker([lat,lng],{renderer:canvasRenderer,radius:6,color:'#ffb000',weight:2,fillColor:'#ffb000',fillOpacity:.9}).addTo(map);
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
   saveLoc(lat,lng);
   document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
@@ -2700,6 +2813,7 @@ async function runLookup(lat,lng,searchCtx){
   let countyName = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
   let cityName   = (!city.__err   && city.features   && city.features[0])   ? city.features[0].attributes.NAME   : null;
   window.__lastCounty = countyName || '';   // for the live-feed diagnostic
+  if(window.__exportData){ window.__exportData.county=countyName?titleCase(countyName):''; window.__exportData.municipality=cityName?titleCase(cityName):''; }
   const paUrl = countyName ? PA[norm(countyName)] : null;
 
   // Kick off the slower enrichment lookups NOW, in parallel, so they overlap instead of
@@ -2874,6 +2988,10 @@ async function runLookup(lat,lng,searchCtx){
     const ay=pick(a,'ASMNT_YR');
     const sp=fmtMoney(pick(a,'SALE_PRC1')), sy=pick(a,'SALE_YR1');
     const useTxt=useLabel(pick(a,'DOR_UC','PA_UC','LAND_USE'));
+    try{ window.__parcelMeta = { owner: owner||'', site: [site, siteCity].filter(Boolean).join(', ') }; }catch(e){}
+    try{ if(window.__exportData){ const ed=window.__exportData;
+      if(owner) ed.owner=owner; if(site) ed.address=site; if(siteCity) ed.city=siteCity;
+      if(liv2) ed.sqft=String(liv2).replace(/[^0-9.]/g,''); if(pid) ed.parcelId=String(pid); } }catch(e){}
 
     html += fieldRow('Owner', owner?esc(owner):'<span class="muted">not listed</span>','big');
     if(own2) html += fieldRow('Owner 2', esc(own2));
@@ -2918,10 +3036,17 @@ async function runLookup(lat,lng,searchCtx){
     const z=zones[0];
     const zone=z.FLD_ZONE||'—';
     nfhlZone=zone;
+    if(window.__exportData && zone) window.__exportData.floodZone=String(zone);
     const sub=z.ZONE_SUBTY&&z.ZONE_SUBTY.trim()?z.ZONE_SUBTY:null;
     const sfha=(z.SFHA_TF==='T');
     const bfe=(z.STATIC_BFE!=null && Number(z.STATIC_BFE)>-9999) ? Number(z.STATIC_BFE) : null;
     const depth=(z.DEPTH!=null && Number(z.DEPTH)>-9999 && Number(z.DEPTH)!==0)?Number(z.DEPTH):null;
+    // Carry the Base Flood Elevation (or, failing that, the base flood depth) into the
+    // export so the Estimate sheet's "Flood Zone / Footage" field gets e.g. "AE 9 ft".
+    if(window.__exportData){
+      if(bfe!=null) window.__exportData.bfe=bfe;
+      else if(depth!=null) window.__exportData.floodDepth=depth;
+    }
     const badge = sfha?`<span class="badge sfha">HIGH-RISK · SFHA</span>`
                  : /^X\b/.test(String(zone).trim().toUpperCase())?`<span class="badge safe">Reduced risk</span>`
                  : `<span class="badge unk">${esc(zone)}</span>`;
@@ -2981,7 +3106,7 @@ async function runLookup(lat,lng,searchCtx){
   if(myId!==runId) return;
   if(zhit && ((zhit.code!=null&&String(zhit.code).trim()!=='') || (zhit.desc!=null&&String(zhit.desc).trim()!=='') || (zhit.extras&&zhit.extras.length))){
     html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> zoning polygon at this point${zhit.layerName?' · '+esc(zhit.layerName):''}</div>`;
-    if(zhit.code!=null && String(zhit.code).trim()!=='') html += fieldRow('Zoning district', esc(String(zhit.code)), 'big');
+    if(zhit.code!=null && String(zhit.code).trim()!==''){ html += fieldRow('Zoning district', esc(String(zhit.code)), 'big'); if(window.__exportData) window.__exportData.zoning=String(zhit.code).trim(); }
     if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
     if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code, parcelYearBuilt); }
@@ -3041,7 +3166,7 @@ async function runLookup(lat,lng,searchCtx){
     }
   }catch(e){}
 
-  html += `<div class="card"><div class="ch"><span class="icn">[ DOC ]</span><h2>Permits &amp; Documents</h2>
+  html += `<div class="card noprint"><div class="ch"><span class="icn">[ DOC ]</span><h2>Permits &amp; Documents</h2>
     <div class="src">${esc(docJur)}<br>floodplain / permits</div></div><div class="cb">`;
 
   // --- City resident portal (Forerunner): shown when not already represented by a city DOCS entry ---
@@ -3102,7 +3227,7 @@ async function runLookup(lat,lng,searchCtx){
   const hitSource  = localProps ? 'local' : (restHit ? 'rest' : null);
   const usingOverride = !!STORE.get('fl_util_url');
 
-  html += `<div class="card"><div class="ch"><span class="icn">[ PWR ]</span><h2>Electric Utility</h2>
+  html += `<div class="card noprint"><div class="ch"><span class="icn">[ PWR ]</span><h2>Electric Utility</h2>
     <div class="src">${hitSource==='local'?'local territory<br>file · ORNL/EIA':'service territory<br>polygon'}</div></div><div class="cb">`;
 
   if(utilHit){
@@ -3186,7 +3311,7 @@ async function runLookup(lat,lng,searchCtx){
      Based on the gas LDC service-territory polygon. Inside → gas may be available (confirm a
      main with the utility); outside all territories → propane required. No data → loader. */
   const gasHit = findGasAt(lat,lng);
-  html += `<div class="card"><div class="ch"><span class="icn">[ FUEL ]</span><h2>Natural Gas / Propane</h2>
+  html += `<div class="card noprint"><div class="ch"><span class="icn">[ FUEL ]</span><h2>Natural Gas / Propane</h2>
     <div class="src">gas LDC service<br>territory</div></div><div class="cb">`;
   if(gasHit){
     const gName = ciPick(gasHit,'NAME','COMPANY','UTILITY_NAME','OPERATOR','LDC_NAME') || 'a natural gas utility';
@@ -3651,15 +3776,187 @@ window.Sheet=Sheet;
     }
     const hasResults = document.querySelector('#results .card');
     if(!hasResults){ alert('Look up a property first — there\u2019s nothing to print yet.'); return; }
+
+    // Name the saved/printed file after the homeowner + property address.
+    // The browser uses document.title as the default PDF/print filename, so we set it
+    // here and restore the original title once the print/save dialog has been handled.
+    const pm = window.__parcelMeta||{};
+    const fileBits = [ (pm.owner||'').trim(), (pm.site||m.addr||'').trim() ]
+      .filter(Boolean)
+      .map(s=>s.replace(/[\\\/:*?"<>|\u0000-\u001f]+/g,' ').replace(/\s+/g,' ').trim());
+    let fileName = fileBits.join(' - ');
+    if(!fileName){
+      fileName = (typeof m.lat==='number')
+        ? ('Property '+m.lat.toFixed(5)+', '+m.lng.toFixed(5))
+        : 'Property Lookup';
+    }
+    fileName = fileName.slice(0,120);
+    const _origTitle = document.title;
+    document.title = fileName;
+
     // Tag the tallest card(s) so they may split internally if the report would otherwise spill
     // onto a second page; shorter cards stay atomic. (Threshold ~ a third of a letter page.)
     const cards=[...document.querySelectorAll('#results .card')];
     cards.forEach(c=>c.classList.remove('tall'));
     cards.filter(c=>c.offsetHeight>300).forEach(c=>c.classList.add('tall'));
-    window.print();
+
+    // Repack the printable cards into TWO balanced column stacks. The previous row-based
+    // grid left big gaps on the left whenever a short card sat beside a tall one; stacking
+    // each column as a continuous flow removes those gaps. Greedy fill: each card goes to
+    // whichever column is currently shorter, so the two columns end up about even.
+    const _origKids = [...results.childNodes];
+    const printCards = [...results.children].filter(el=>
+      el.classList && el.classList.contains('card') &&
+      !el.classList.contains('scoutcard') && !el.classList.contains('noprint'));
+    let _repacked=false;
+    if(printCards.length>=2){
+      const colA=document.createElement('div'); colA.className='pcol';
+      const colB=document.createElement('div'); colB.className='pcol';
+      let ha=0,hb=0;
+      printCards.forEach(c=>{ const h=c.offsetHeight||1;
+        if(ha<=hb){ colA.appendChild(c); ha+=h; } else { colB.appendChild(c); hb+=h; } });
+      const stash=document.createElement('div'); stash.className='pcol-stash';
+      [...results.children].forEach(el=>{ if(el!==colA && el!==colB && !printCards.includes(el)) stash.appendChild(el); });
+      results.replaceChildren(colA,colB,stash);
+      _repacked=true;
+    }
+
+    // Auto-fit zoom: one static zoom can't know how much loaded, so a heavy lookup spills
+    // to page 2. We can't measure the printed height from the screen (print CSS shrinks fonts
+    // and compacts every row), so we model it: the print rules render at roughly 0.62× the
+    // screen type/spacing, the two columns are balanced, and one letter page has ~900px of
+    // usable height after margins + the print header. So a screen column of height H prints at
+    // about H × 0.62 × zoom; solving H × 0.62 × zoom ≤ 900 gives zoom ≤ 1452 / H. We clamp to
+    // a readable range; tall cards can also split internally (the .tall rule) as a backstop.
+    const fitZoom=()=>{
+      const cols=[...results.querySelectorAll('.pcol')];
+      const H = cols.length
+        ? Math.max(...cols.map(c=>c.scrollHeight||c.offsetHeight||0))
+        : (results.scrollHeight||results.offsetHeight||0);
+      const MAX=0.95, MIN=0.62, PRINT_RATIO=0.62, PAGE_PX=900;
+      let z = H>0 ? (PAGE_PX/(PRINT_RATIO*H)) : MAX;
+      z = Math.max(MIN, Math.min(MAX, z));
+      document.documentElement.style.setProperty('--print-zoom', String(Math.round(z*1000)/1000));
+    };
+    fitZoom();
+
+    // Restore the page (title + original card order) once printing is done. afterprint is
+    // primary; the timeout is a backstop for the cases where iOS Safari never fires it.
+    const cleanup=()=>{
+      document.title=_origTitle;
+      document.documentElement.style.removeProperty('--print-zoom');
+      if(_repacked){ results.replaceChildren(..._origKids); _repacked=false; }
+      window.removeEventListener('afterprint',cleanup);
+    };
+    window.addEventListener('afterprint',cleanup);
+    setTimeout(cleanup, 8000);
+
+    // iOS Safari builds the print snapshot synchronously and will capture the page
+    // BEFORE the header text + repacked columns above have repainted — yielding a blank or
+    // half-built sheet. Wait two frames (layout + paint) and a beat, then print.
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      setTimeout(()=>{ try{ window.print(); }catch(e){ /* no-op */ } }, 80);
+    }));
   });
 })();
 
+
+/* ---------- Export to Excel (imports straight into the Estimate sheet) ----------
+   The Estimate sheet's "LOAD" reads an .xlsx where column A = field_id, column C = value,
+   row 1 = header, and matches field_id to its input ids. We emit that exact shape so the
+   customer + property info auto-populate the estimate. Fields with no data are omitted so
+   they never overwrite anything the estimator already typed. */
+(function(){
+  const btn=document.getElementById('excelBtn'); if(!btn) return;
+
+  function splitCityStateZip(raw){
+    const s=String(raw||'').trim(); if(!s) return '';
+    // NOTE: the Estimate importer splits any comma-containing value into a checkbox list,
+    // so we keep this (and the notes below) comma-free — it still reads cleanly.
+    const m=s.match(/^(.*?)[\s,]+(\d{5})(?:-\d{4})?$/);   // "CAPE CORAL 33914" / "CAPE CORAL, 33914"
+    if(m) return `${titleCase(m[1].replace(/,$/,'').trim())} FL ${m[2]}`;
+    return /\bFL\b/i.test(s) ? titleCase(s.replace(/,/g,' ')) : `${titleCase(s.replace(/,/g,' '))} FL`;
+  }
+
+  // The Estimate sheet's "Today's Date" is an <input type="date">, which ONLY accepts
+  // YYYY-MM-DD. A locale string like "5/30/2026" is silently rejected and the field stays
+  // blank, so emit ISO. Build it from local parts (no UTC shift).
+  function isoToday(){
+    const d=new Date();
+    const p=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  }
+  // The importer splits any comma-containing value into a checkbox list, so strip commas
+  // from free-text values that land in plain text inputs.
+  const noComma=v=>String(v==null?'':v).replace(/,/g,' ').replace(/\s{2,}/g,' ').trim();
+
+  function run(){
+    if(typeof XLSX==='undefined'){ alert('Excel library is still loading — check your connection and try again in a moment.'); return; }
+    const ed=window.__exportData||{};
+    if(!ed.owner && !ed.address){ alert('Look up a property first — there\u2019s nothing to export yet.'); return; }
+
+    // Notes are intentionally NOT exported — the estimator fills "Ready / Notes" themselves.
+
+    // [field_id, Friendly Label, Value] — only rows that have a value. field_ids and value
+    // formats match the Estimate sheet's inputs exactly so every row imports cleanly.
+    const LABELS={ name:'Customer Name', address:'Street Address', address2:'City / State / ZIP',
+                   sqft:'Sq Footage', today:'Today\u2019s Date',
+                   flood_zone:'Flood Zone / Footage', parcel:'Parcel / Municipality' };
+    // "Flood Zone / Footage" wants zone + elevation together, e.g. "AE 9 ft".
+    const floodParts=[];
+    if(ed.floodZone) floodParts.push(noComma(ed.floodZone));
+    if(ed.bfe!=null) floodParts.push(ed.bfe+' ft');
+    else if(ed.floodDepth!=null) floodParts.push(ed.floodDepth+' ft deep');
+    const floodVal=floodParts.join(' ');
+
+    const fields={
+      name:        ed.owner ? noComma(titleCase(ed.owner)) : '',
+      address:     noComma(ed.address || ''),
+      address2:    ed.city ? splitCityStateZip(ed.city) : '',
+      sqft:        ed.sqft ? String(ed.sqft).replace(/[^0-9.]/g,'') : '',
+      today:       isoToday(),
+      flood_zone:  floodVal,
+      parcel:      noComma(ed.parcelId || '')
+    };
+    const rows=[['field_id','Field','Value']];
+    Object.keys(fields).forEach(k=>{ const v=fields[k]; if(v!==undefined && v!=='') rows.push([k, LABELS[k]||k, String(v)]); });
+
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:20},{wch:28},{wch:48}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Estimate');   // first sheet = what the Estimate import reads
+
+    const parts=[];
+    if(fields.name) parts.push(fields.name);
+    if(fields.address) parts.push(fields.address);
+    parts.push('Property');
+    const slug=parts.join(' - ').replace(/[\\\/:*?"<>|]/g,'').replace(/\s{2,}/g,' ').trim();
+    try{ XLSX.writeFile(wb, slug+'.xlsx'); }
+    catch(e){ alert('Could not save the Excel file. Try the PDF instead, or reload and retry.'); }
+  }
+
+  btn.addEventListener('click', run);
+  btn.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); run(); } });
+})();
+
+
+/* ---------- Keep everything clear of the fixed action bar ----------
+   The bar's height changes with the safe-area inset (notch / iOS address bar), so we
+   measure it and expose it as --abh; the panel offset, sheet cap, and map controls
+   above all read from it. */
+(function(){
+  const bar=document.getElementById('action-bar'); if(!bar) return;
+  function sync(){
+    const h=bar.offsetHeight||48;
+    document.documentElement.style.setProperty('--abh', h+'px');
+  }
+  sync();
+  window.addEventListener('load', sync);
+  window.addEventListener('resize', sync);
+  window.addEventListener('orientationchange', ()=>setTimeout(sync,200));
+  if(window.visualViewport) window.visualViewport.addEventListener('resize', sync);
+  setTimeout(sync,100); setTimeout(sync,600);
+})();
 
 (async function restore(){
   const a=STORE.get('fl_addr'); if(a){ document.getElementById('addr').value=a; updateClearBtn(); }
