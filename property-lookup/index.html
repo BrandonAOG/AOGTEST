@@ -186,6 +186,25 @@
     font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.03em;padding:8px 12px;border-radius:7px;text-decoration:none}
   .palink:hover{background:var(--palink-hover)}
 
+  /* ---- Aerial & Street View scouting card ---- */
+  .aerial-wrap{position:relative;margin-top:4px;border-radius:9px;overflow:hidden;border:1px solid var(--line);
+    background:var(--input-bg);aspect-ratio:600/300;display:block;text-decoration:none}
+  .aerial-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
+  .aerial-wrap:hover img{transform:scale(1.05)}
+  .aerial-wrap .aerial-tag{position:absolute;left:9px;bottom:8px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+    text-transform:uppercase;color:#fff;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:5px;backdrop-filter:blur(2px)}
+  .aerial-wrap .aerial-open{position:absolute;right:9px;top:8px;font-family:var(--disp);font-weight:700;font-size:10px;letter-spacing:.04em;
+    color:var(--signal-ink);background:var(--signal);padding:4px 9px;border-radius:6px;opacity:0;transition:opacity .25s}
+  .aerial-wrap:hover .aerial-open{opacity:1}
+  .geogrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+  .geobtn{display:flex;align-items:center;gap:9px;background:var(--palink-bg);border:1px solid var(--palink-line);
+    color:var(--ink);text-decoration:none;padding:10px 11px;border-radius:8px;transition:background .15s,border-color .15s,transform .12s}
+  .geobtn:hover{background:var(--palink-hover);border-color:var(--blueprint);transform:translateY(-1px)}
+  .geobtn .gi{font-size:17px;line-height:1;flex:none;width:20px;text-align:center;color:var(--blueprint)}
+  .geobtn .gt{display:flex;flex-direction:column;gap:1px}
+  .geobtn .gt b{font-family:var(--disp);font-weight:700;font-size:12.5px;letter-spacing:.02em}
+  .geobtn .gt span{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.02em}
+
   footer{border-top:1px solid var(--line);font-size:9.5px;color:var(--faint);line-height:1.5;font-family:var(--mono);background:var(--foot-bg);padding:0}
   #footToggle{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:none;border:none;cursor:pointer;
     color:var(--dim);font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:8px 16px;}
@@ -2495,6 +2514,37 @@ function renderCollierGeneratorRules(){
    into required yards up to the listed distance from the building envelope; verified from the
    user-pasted encroachment table. Unlike Collier, Cape Coral allows a front-yard projection. */
 
+/* ---------- Aerial & Street View scouting ----------
+   Keyless: the hero image is a static Esri World Imagery export (same source as the map's
+   satellite layer); the buttons are Google Maps URL deep-links (api=1) — Street View panorama,
+   Google Earth 3D/oblique, satellite map, and driving directions. No API key required. */
+function renderAerialScout(lat, lng){
+  const la=lat.toFixed(6), ln=lng.toFixed(6);
+  const cos=Math.max(0.2, Math.cos(lat*Math.PI/180));
+  const H=0.0008, Wd=H*2/cos;                              // ~180 m tall, 600×300 aspect
+  const bbox=[(lng-Wd).toFixed(6),(lat-H).toFixed(6),(lng+Wd).toFixed(6),(lat+H).toFixed(6)].join('%2C');
+  const aerial='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export'+
+    `?bbox=${bbox}&bboxSR=4326&imageSR=3857&size=600%2C300&format=jpg&f=image`;
+  const pano =`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${la}%2C${ln}`;
+  const sat  =`https://www.google.com/maps/@?api=1&map_action=map&center=${la}%2C${ln}&zoom=19&basemap=satellite`;
+  const earth=`https://earth.google.com/web/@${la},${ln},0a,400d,35y,0h,45t,0r`;
+  const dir  =`https://www.google.com/maps/dir/?api=1&destination=${la}%2C${ln}`;
+  let h=`<div class="card"><div class="ch"><span class="icn">[ EYE ]</span><h2>Aerial &amp; Street View</h2>
+    <div class="src">scout the site<br>before you roll</div></div><div class="cb">`;
+  h+=`<a class="aerial-wrap" href="${sat}" target="_blank" rel="noopener" title="Open aerial in Google Maps">`+
+     `<img src="${aerial}" alt="Aerial view of the parcel" loading="lazy" onerror="var w=this.closest('.aerial-wrap'); if(w) w.style.display='none';">`+
+     `<span class="aerial-tag">Aerial · parcel center</span><span class="aerial-open">↗ Open</span></a>`;
+  h+=`<div class="geogrid">`;
+  h+=`<a class="geobtn" href="${pano}"  target="_blank" rel="noopener"><span class="gi">◉</span><span class="gt"><b>Street View</b><span>ground-level 360°</span></span></a>`;
+  h+=`<a class="geobtn" href="${earth}" target="_blank" rel="noopener"><span class="gi">◍</span><span class="gt"><b>3D / Earth</b><span>tilted aerial view</span></span></a>`;
+  h+=`<a class="geobtn" href="${sat}"   target="_blank" rel="noopener"><span class="gi">◎</span><span class="gt"><b>Satellite map</b><span>top-down, zoomable</span></span></a>`;
+  h+=`<a class="geobtn" href="${dir}"   target="_blank" rel="noopener"><span class="gi">➤</span><span class="gt"><b>Directions</b><span>route to the lot</span></span></a>`;
+  h+=`</div>`;
+  h+=`<div class="note">Imagery dates vary by provider. Street View snaps to the nearest photographed road, so it may view the lot from across the street; some rural lots have no Street View.</div>`;
+  h+=`</div></div>`;
+  return h;
+}
+
 /* ---------- Wind design (Florida Building Code) ----------
    FBC 8th Edition (2023) adopts ASCE 7-22. The site "design wind speed" is the ultimate design
    wind speed Vult (3-sec gust), which varies BY LOCATION and Risk Category — there is no single
@@ -2727,6 +2777,9 @@ async function runLookup(lat,lng,searchCtx){
         return {res, meta, err};
       })().catch(()=>({res:null,meta:null,err:'lookup failed'}))
     : Promise.resolve(null);
+
+  /* ---- Aerial & Street View: scout the property first (keyless deep-links + Esri aerial) ---- */
+  html += renderAerialScout(lat, lng);
 
   html += `<div class="card"><div class="ch"><span class="icn">[ JUR ]</span><h2>Jurisdiction</h2>
     <div class="src">FDOT Admin<br>Boundaries</div></div><div class="cb">`;
