@@ -1624,12 +1624,13 @@ function detectFields(fields){
     jv:    find([/^JV$/,/^JUST_?VAL/,/^JUSTVALUE$/,/^MKT_?VAL/,/^MARKET/,/^TOTAL_?VAL/,/^JUST$/,/^TOTVAL/]),
     land:  find([/^LND_?VAL/,/^LAND_?VAL/,/^LAND$/]),
     yr:    find([/^ACT_?YR_?BLT$/,/^YR_?BLT$/,/^YEAR_?BUILT$/,/YRBLT/,/YEARBUILT/,/ACTYRBLT/,/^EFF_?YR/,/^MAXBUILTY$/,/^NEWBUILT$/]),
-    liv:   find([/^TOT_?LVG_?AR/,/LIV.*AREA/,/^HEATED/,/TOTLIVING/,/LIVINGAREA/,/^GRSAR/]),
+    liv:   find([/^TOT_?LVG_?AR/,/LIV.*AREA/,/AREA.*LIV/,/^HEATED/,/HEAT.*AREA/,/AREA.*HEAT/,/TOTLIVING/,/LIVINGAREA/,/^GRSAR/,/^BLDG_?SQFT$/,/^BLDGSQFT$/,/^SQFT_?BLDG$/,/^FLOOR_?AREA$/,/^FLOORAREA$/,/^UNDER_?AIR$/,/^UNDERAIR$/,/^CONDITIONED/,/^BLDG_?AREA$/,/^BUILDINGAREA$/,/^CALC_?AREA$/,/^BLDGSF$/,/^BLDG_?SF$/]),
     saleP: find([/^SALE_?PRC1$/,/^SALE_?PRICE$/,/^SALEAMT$/,/^LASTSALE/,/SALEPRICE/,/SALE.*AMT/,/^SALE_?PR/,/^S_1AMOUNT$/]),
     saleY: find([/^SALE_?YR1$/,/^SALE_?YEAR$/,/SALEYR/,/SALE.*YEAR/,/SALEDATE1/,/^S_1DATE$/]),
     mail:  find([/^OWN_?ADDR1$/,/^OWNER_?ADDR/,/^MAIL_?ADDR/,/^MAILING/,/^OWN_?ADDR$/,/MAILADDR/]),
     mailCity: find([/^OWN_?CITY$/,/^MAIL_?CITY$/,/OWNER_?CITY/]),
-    use:   find([/^USE_?CODE$/,/^DOR_?UC$/,/^PA_?UC$/,/^LAND_?USE$/,/^USETYPE$/,/^USE_?DESC/,/^PROP_?USE/,/^DOR_?DESC/])
+    use:   find([/^USE_?CODE$/,/^DOR_?UC$/,/^PA_?UC$/,/^LAND_?USE$/,/^USETYPE$/,/^USE_?DESC/,/^PROP_?USE/,/^DOR_?DESC/]),
+    lotSqft: find([/^LND_?SQFOOT$/,/^LOT_?SQ/,/^LOTSQFT$/,/^LAND_?SQFT$/,/^SQFT_?LND$/,/^LOTSF$/,/^LOT_?SIZE$/,/LOTSQUARE/,/^LAND_?SQ/])
   };
 }
 /* Map common FL DOR use codes to readable labels (for "existing use"). Codes are strings like "01". */
@@ -2644,6 +2645,7 @@ function renderParcelGeneric(a, d){
   const land  = d.land?fmtMoney(pick(a,d.land)):null;
   const yr    = d.yr?pick(a,d.yr):null;
   const liv   = d.liv?fmtNum(pick(a,d.liv)):null;
+  const lotSf = d.lotSqft?fmtNum(pick(a,d.lotSqft)):null;
   const sp    = d.saleP?fmtMoney(pick(a,d.saleP)):null;
   const sy    = d.saleY?pick(a,d.saleY):null;
   const mail  = d.mail?pick(a,d.mail):null;
@@ -2652,13 +2654,14 @@ function renderParcelGeneric(a, d){
   h += fieldRow('Owner', owner?esc(owner):'<span class="muted">field not detected</span>','big');
   if(own2) h += fieldRow('Owner 2', esc(own2));
   h += fieldRow('Parcel ID', pid?esc(pid):'<span class="muted">—</span>','big');
+  if(liv)   h += fieldRow('Living area', liv+' sq ft','big');
+  if(lotSf) h += fieldRow('Lot area', lotSf+' sq ft');
   if(site) h += fieldRow('Site address', esc(site)+(city?'<br>'+esc(city):''));
   if(mail) h += fieldRow('Owner mailing', esc(mail)+(mailCity?'<br>'+esc(mailCity):''));
   if(use)  h += fieldRow('Existing use', esc(use));
   if(jv)   h += fieldRow('Just (market) value', jv);
   if(land) h += fieldRow('Land value', land);
   if(yr)   h += fieldRow('Year built', esc(yr));
-  if(liv)  h += fieldRow('Living area', liv+' sq ft');
   if(sp)   h += fieldRow('Last sale', sp+(sy?' ('+esc(sy)+')':''));
   return h;
 }
@@ -2866,7 +2869,7 @@ async function runLookup(lat,lng,searchCtx){
     const sec=pick(a,'SEC'),twn=pick(a,'TWN'),rng=pick(a,'RNG');
     const yr=pick(a,'ACT_YR_BLT'), bld=pick(a,'NO_BULDNG');
     if(yr) parcelYearBuilt=yr;
-    const liv2=fmtNum(pick(a,'TOT_LVG_AR')), lsf=fmtNum(pick(a,'LND_SQFOOT'));
+    const liv2=fmtNum(pick(a,'TOT_LVG_AR','HEATEDAREA','HEATED_AREA','LIVING_AREA','LIVINGAREA','BLDG_SQFT','BLDGSQFT','FLOORAREA','FLOOR_AREA','UNDER_AIR','UNDERAIR','BLDG_AREA','BLDG_SF','BLDGSF','CALC_AREA','GRSAR')), lsf=fmtNum(pick(a,'LND_SQFOOT','LOT_SQFT','LAND_SQFT','LOTSQFT','SQFT_LND','LOTSF'));
     const jv=fmtMoney(pick(a,'JV')), lnd=fmtMoney(pick(a,'LND_VAL'));
     const ay=pick(a,'ASMNT_YR');
     const sp=fmtMoney(pick(a,'SALE_PRC1')), sy=pick(a,'SALE_YR1');
@@ -2875,15 +2878,15 @@ async function runLookup(lat,lng,searchCtx){
     html += fieldRow('Owner', owner?esc(owner):'<span class="muted">not listed</span>','big');
     if(own2) html += fieldRow('Owner 2', esc(own2));
     html += fieldRow('Parcel ID', pid?esc(pid):'<span class="muted">—</span>','big');
+    if(liv2) html += fieldRow('Living area', liv2+' sq ft','big');
+    if(lsf) html += fieldRow('Lot area', lsf+' sq ft');
     if(site)     html += fieldRow('Site address', esc(site)+(siteCity?'<br>'+esc(siteCity):''));
     if(mail)     html += fieldRow('Owner mailing', esc(mail)+(mailCity?'<br>'+esc(mailCity):''));
     if(sec||twn||rng) html += fieldRow('Sec-Twn-Rng', esc([sec,twn,rng].filter(Boolean).join(' - ')));
     if(jv)  html += fieldRow('Just (market) value'+(ay?' '+esc(ay):''), jv);
     if(lnd) html += fieldRow('Land value', lnd);
     if(yr)  html += fieldRow('Year built', esc(yr)+(bld&&Number(bld)>1?` (${esc(bld)} bldgs)`:''));
-    if(liv2) html += fieldRow('Living area', liv2+' sq ft');
     if(useTxt) html += fieldRow('Existing use', esc(useTxt));
-    if(lsf) html += fieldRow('Land area', lsf+' sq ft');
     if(sp&&sy) html += fieldRow('Last sale', sp+' ('+esc(sy)+')');
     if(legal) html += fieldRow('Legal', '<span style="font-size:11px">'+esc(legal)+'</span>');
     { const vurl = appraiserParcelLink(countyName, pid);
