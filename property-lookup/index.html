@@ -1064,7 +1064,7 @@ const ZONING_CITY = {
   FORTMYERS:{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", permit:"https://www.cityftmyers.com/166/Community-Development"},
   BONITASPRINGS:{code:"https://library.municode.com/fl/bonita_springs/codes/code_of_ordinances", permit:"https://cityofbonitaspringscd.org/"},
   SANIBEL:{code:"https://library.municode.com/fl/sanibel/codes/code_of_ordinances", permit:"https://www.mysanibel.com/departments/planning-code-enforcement"},
-  ESTERO:{code:"https://library.municode.com/fl/estero/codes/code_of_ordinances", permit:"https://estero-fl.gov/building-permit-application/"},
+  ESTERO:{code:"https://library.municode.com/fl/estero/codes/land_development_code", zoningCh:"https://library.municode.com/fl/estero/codes/land_development_code?nodeId=CH3ZODI", permit:"https://estero-fl.gov/building-permit-application/"},
   FORTMYERSBEACH:{code:"https://library.municode.com/fl/fort_myers_beach/codes/code_of_ordinances", permit:"https://www.fmbgov.com/government/community-development"},
   PUNTAGORDA:{code:"https://library.municode.com/fl/punta_gorda/codes/code_of_ordinances", permit:"https://www.pgorda.us/151/Urban-Design"},
   SARASOTA:{code:"https://library.municode.com/fl/sarasota/codes/code_of_ordinances", permit:"https://www.sarasotafl.gov/government/development-services"},  // City of Sarasota (was wrongly keyed SARASOTACITY)
@@ -2747,6 +2747,173 @@ function renderBonitaSetbacks(districtCode){
 }
 
 
+/* ============================ VILLAGE OF ESTERO ============================
+   Estero incorporated 12/31/2014 and adopted its OWN Land Development Code (Municode book
+   "land_development_code", zoning in Chapter 3). It OVERRIDES Lee County's code, so Estero
+   parcels must NOT inherit Lee County rules. NOTE: most of Estero was built out as master-planned
+   communities (DRIs / planned developments) under Lee County BEFORE incorporation, so a large share
+   of parcels are PD/MPD/RPD where the binding setbacks come from the approved master concept plan,
+   not a conventional district table. The conventional Chapter 3 districts below cover the rest.
+   Field shape matches the Bonita/Marco tables: name, front/side/rear (number→"N ft" or text),
+   abutRes, waterfront, height, minLot, secRef (per-district § cite), note, pud:true (PD notice). */
+const ESTERO_SETBACKS = {
+  // Shared across all conventional districts: street setback 20 ft (local/private) or 25 ft
+  // (collector/arterial), measured from the right-of-way/easement line; waterbody 25 ft from the
+  // edge. Accessory-use setbacks (street 20/25, side/rear smaller) are noted where they matter.
+  // --- Agriculture (§ 3-203) ---
+  "AG":   { name:"Agriculture (AG)", front:"20 ft (local/private) · 25 ft (collector/arterial)", side:25, rear:25,
+            waterfront:"25 ft from the edge of the waterbody", height:35, minLot:"39,500 sq ft (1 acre for a corner lot)",
+            secRef:"§ 3-203",
+            note:"Lot width 100 ft, depth 130 ft. Max lot coverage 25%. Max density 1 DU/acre (mobile homes 1 per 5 acres). Accessory structures: street 20/25 ft, side 10 ft, rear 5 ft (or set back as far as the principal structure, or 100 ft, whichever is less)." },
+  // --- Residential Single Family (§ 3-303) ---
+  "RSF":  { name:"Residential Single Family (RSF)", front:"20 ft (local/private) · 25 ft (collector/arterial)", side:7.5, rear:20,
+            waterfront:"25 ft from the edge of the waterbody", height:35, minLot:7500,
+            secRef:"§ 3-303",
+            note:"Lot width 75 ft, depth 100 ft. Max lot coverage 40%. Density per the comprehensive plan. Accessory structures: street 20/25 ft, side 7.5 ft, rear 5 ft." },
+  // --- Residential Multiple Family (§ 3-304); side/lot vary by housing type ---
+  "RM-2": { name:"Residential Multiple Family (RM-2)", front:"20 ft (local/private) · 25 ft (collector/arterial)",
+            side:"7 ft (single-family attached / two-family / townhouse) · 20 ft (multifamily &amp; nonresidential)", rear:20,
+            waterfront:"25 ft from the edge of the waterbody", height:35,
+            minLot:"6,500 sq ft (SF attached) · 7,500 (two-family/townhouse) · 10,000 (multifamily or nonresidential)",
+            secRef:"§ 3-304",
+            note:"Lot area per unit: 3,750 sq ft (two-family/townhouse), 3,000 sq ft (multifamily). Max lot coverage 45%. Existing-designation district — not applied to new land. Accessory side 7 ft (res) / 10 ft (multifamily &amp; nonres), rear 5 ft. Density per the comprehensive plan." },
+  // --- Mobile Home (§ 3-305) ---
+  "MH":   { name:"Mobile Home (MH)", front:"20 ft (local/private) · 25 ft (collector/arterial)",
+            side:"7 ft (residential, internal &amp; perimeter) · 15 ft (nonresidential)",
+            rear:"15 ft (residential) · 20 ft (nonresidential)",
+            waterfront:"25 ft from the edge of the waterbody", height:35,
+            minLot:"7,500 sq ft (residential) · 10,000 sq ft (nonresidential)",
+            secRef:"§ 3-305",
+            note:"Lot width 50 ft (res) / 100 ft (nonres), depth 100 ft. Max lot coverage 40%. Carried over from Lee County — not applied to new land. Mobile-home developments need emergency shelters (§ 4-218.F). Parks approved under Lee County Ord. 86-36 follow the approved site plan. Accessory side 7/10 ft, rear 5 ft." },
+  // --- Recreational Vehicle (§ 3-306); separation-rule driven like Bonita/Marco RV ---
+  "RV":   { name:"Recreational Vehicle (RV)", front:"20 ft (local/private) · 25 ft (collector/arterial)",
+            side:5, rear:"min separation rules — 25 ft from common-use accessory buildings; 10 ft from any RV/perimeter/park building (§ 3-306 notes)",
+            waterfront:"25 ft from the edge of the waterbody", height:35, minLot:2000,
+            secRef:"§ 3-306",
+            note:"Lot width 30 ft, depth 55 ft. Max lot coverage 40%. 10 ft min between RVs; 40 ft open-space buffer around the park perimeter (no road within 40 ft of it). Carried over from Lee County — not applied to new land; RVs are not permanent residences. Accessory side 5 ft, rear 5 ft." },
+  // --- Commercial Special Office (§ 3-403) ---
+  "CS":   { name:"Commercial Special Office (CS)", front:"20 ft (local/private) · 25 ft (collector/arterial)",
+            side:"10 ft (30 ft when adjacent to a residential use or Residential district)",
+            rear:"20 ft (30 ft when adjacent to a residential use or Residential district)",
+            waterfront:"25 ft from the edge of the waterbody", height:35, minLot:7500,
+            secRef:"§ 3-403",
+            note:"Office-focused buffer district. Lot width 50 ft, depth 100 ft. Max lot coverage 50%. Accessory side/rear the greater of 10 ft or the required buffer width." },
+  // --- Urban Commercial Redevelopment (§ 3-404); note height 45 ---
+  "UCR":  { name:"Urban Commercial Redevelopment (UCR)", front:"20 ft (local/private) · 25 ft (collector/arterial)",
+            side:15, rear:25,
+            waterfront:"25 ft from the edge of the waterbody", height:45, minLot:"20,000 sq ft (nonresidential/mixed-use) · 7,500 sq ft (first two dwelling units, +3,000 sq ft each additional)",
+            secRef:"§ 3-404",
+            note:"Walkable mixed-use district; vertical mixing encouraged. Lot width 100 ft, depth 100 ft. Max lot coverage 45%. Building height up to 45 ft. Setbacks for two-family/townhouse measured from the overall parcel boundary. Accessory side/rear the greater of 10 ft or the required buffer." },
+  // --- Community Commercial (§ 3-405) ---
+  "CC":   { name:"Community Commercial (CC)", front:"20 ft (local/private) · 25 ft (collector/arterial)",
+            side:15, rear:25,
+            waterfront:"25 ft from the edge of the waterbody", height:35, minLot:20000,
+            secRef:"§ 3-405",
+            note:"Medium-scale community-serving commercial (shopping centers). Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Accessory side/rear the greater of 10 ft or the required buffer." },
+  // --- Parks and Community Facilities (§ 3-504); no lot/coverage/height in the table ---
+  "P":    { name:"Parks and Community Facilities (P)", front:"20 ft (local/private) · 25 ft (collector/arterial)",
+            side:15, rear:25,
+            waterfront:"25 ft from the edge of the waterbody",
+            secRef:"§ 3-504",
+            note:"Public/civic lands — parks, libraries, schools, government. The § 3-504 table sets only side (15 ft), rear (25 ft), street (20/25 ft) and waterbody (25 ft); lot size, coverage and height are not fixed by the district — confirm in the adopted code / any PD or use-specific standard." },
+  // --- Environmentally Critical (§ 3-503); passive/conservation, no dimensional table ---
+  "EC":   { name:"Environmentally Critical (EC)", pud:false,
+            waterfront:"25 ft from the edge of the waterbody (50 ft Estero River north bank / 75–100 ft per EPD river buffer where applicable)",
+            secRef:"§ 3-503",
+            note:"Wetland / environmentally sensitive lands; passive uses only (boating, fishing, hiking, nature study, minor utilities). The § 3-503 district has NO conventional dimensional/setback table — siting is governed by wetland protection, the comprehensive plan, and Chapter 7 (Natural Resources). Treat any structure placement as case-by-case and confirm with the Village." },
+  // --- PLANNED DEVELOPMENTS (§ 3-7). No fixed dimensional table — lot size, coverage, width, depth
+  //     and side/rear setbacks are ALL set in the approved PD Master Concept Plan / adopting ordinance.
+  //     The LDC fixes only: waterbody 25 ft, a height cap per district, and a perimeter-boundary floor
+  //     (greater of the required buffer width or 15 ft). pud:true triggers the PD notice. ---
+  "RPD":  { name:"Residential Planned Development (RPD)", pud:true, secRef:"§ 3-703",
+            note:"Lot size, coverage, width/depth and side/rear setbacks are all set in the approved PD Master Concept Plan / adopting ordinance. Fixed by the LDC: waterbody 25 ft; max height 35 ft; perimeter-boundary setback = the greater of the required buffer/landscape-strip width or 15 ft. Limited interior-oriented commercial only (capped by dwelling-unit count, § 3-703.D.1)." },
+  "CFPD": { name:"Community Facilities Planned Development (CFPD)", pud:true, secRef:"§ 3-704",
+            note:"Dimensional standards set in the approved PD Master Concept Plan / adopting ordinance. Fixed by the LDC: waterbody 25 ft; max height 35 ft; perimeter-boundary setback = the greater of the required buffer width or 15 ft. Governmental/religious/community-service uses." },
+  "CPD":  { name:"Commercial Planned Development (CPD)", pud:true, secRef:"§ 3-705",
+            note:"Dimensional standards set in the approved PD Master Concept Plan / adopting ordinance. Fixed by the LDC: waterbody 25 ft; max height 45 ft; perimeter-boundary setback = the greater of the required buffer width or 15 ft. Light-industrial uses must be fully enclosed, no perceptible dust/smoke/odor/noise off-site, no hazardous materials. Outdoor goods display set back ≥25 ft from rights-of-way." },
+  "MPD":  { name:"Mixed-Use Planned Development (MPD)", pud:true, secRef:"§ 3-706",
+            note:"Dimensional standards set in the approved PD Master Concept Plan / adopting ordinance. Fixed by the LDC: waterbody 25 ft; max height 45 ft. Buildings encouraged into a 15–40 ft build-to zone off the street setback line. Requires a real use mix (≥50 dwelling units and a ≥2-acre / 30,000 sq ft commercial component). Transitional-Mixed-Use lands may earn bonus density." },
+  "EPD":  { name:"Estero Planned Development (EPD)", pud:true, secRef:"§ 3-707",
+            note:"Village Center Area form-based district with tiered standards (Tiers 1–4). No conventional setback table — form, density and height are set per tier in the approved Tiered Development Plan. Max height by tier: 45 ft (T1), 50–60 ft (T2), 60–70 ft (T3), 70–80 ft (T4). Estero River buffer 75 ft (north bank) / 100 ft (south bank); other natural waterbodies 50 ft; general waterbody 25 ft. Confirm the specific tier and approved plan." },
+  "CCPD": { name:"Compact Community Planned Development (CCPD)", pud:true, secRef:"§ 3-708",
+            note:"Compact-community district for the Village Center Area; standards incorporated by reference from Chapter 32 of the Transitional LDC and the approved plan. No conventional setback table — confirm the approved plan with the Village." },
+  // --- LEGACY districts (§ 3-6): specific pre-incorporation Lee County PUDs/RPD-CPDs. Development
+  //     follows each development's original Lee County resolution. Treated as PD (from approved plan). ---
+  "PUD":  { name:"Planned Unit Development (PUD) — Legacy", pud:true, secRef:"§ 3-603",
+            note:"Legacy Lee County PUD carried forward at incorporation (Breckenridge/Laguna Woods, The Lakes of Estero/Corkscrew Hammocks, The Vines, Wildcat Run). Setbacks and all standards come from the development's ORIGINAL Lee County zoning resolution(s) — look those up before siting. Confirm with Village of Estero Community Development." },
+  "RPD-CPD": { name:"RPD-CPD — Legacy (Pelican Landing)", pud:true, secRef:"§ 3-604",
+            note:"Legacy Lee County RPD/CPD (Pelican Landing, Z-94-014) carried forward at incorporation. Setbacks and all standards come from the original Lee County resolution — look it up before siting. Confirm with Village of Estero Community Development." }
+};
+
+/* Resolve an Estero zoning code string to a setback entry. Exact-match first, then ordered
+   regex (longer/more-specific codes before shorter). Mirrors bonitaSetbacks(). PD codes should be
+   matched BEFORE any conventional code they could be confused with (added when the list is known). */
+function esteroSetbacks(districtCode){
+  if(!districtCode) return null;
+  const U=String(districtCode).toUpperCase();
+  const tag=(entry,label)=> entry ? Object.assign({__key:label, __shown:String(districtCode).trim()}, entry) : null;
+  const exact=U.trim();
+  if(ESTERO_SETBACKS[exact]) return tag(ESTERO_SETBACKS[exact], exact);
+  // LEGACY + PLANNED DEVELOPMENTS first — every PD/legacy code could otherwise be mis-caught by a
+  // conventional matcher. Check most-specific first: RPD-CPD before RPD/CPD; CCPD before CC/CPD;
+  // CFPD before CC; then the remaining PD codes; then PUD.
+  if(/\bRPD[\s-]*CPD\b/.test(U) || /\bRPD\/CPD\b/.test(U)){ return tag(ESTERO_SETBACKS["RPD-CPD"], "RPD-CPD"); }
+  if(/\bCCPD\b/.test(U)){ return tag(ESTERO_SETBACKS["CCPD"], "CCPD"); }
+  if(/\bCFPD\b/.test(U)){ return tag(ESTERO_SETBACKS["CFPD"], "CFPD"); }
+  if(/\bRPD\b/.test(U)){ return tag(ESTERO_SETBACKS["RPD"], "RPD"); }
+  if(/\bCPD\b/.test(U)){ return tag(ESTERO_SETBACKS["CPD"], "CPD"); }
+  if(/\bMPD\b/.test(U)){ return tag(ESTERO_SETBACKS["MPD"], "MPD"); }
+  if(/\bEPD\b/.test(U)){ return tag(ESTERO_SETBACKS["EPD"], "EPD"); }
+  if(/\bPUD\b/.test(U)){ return tag(ESTERO_SETBACKS["PUD"], "PUD"); }
+  // CONVENTIONAL districts. Longer/more-specific codes first (RM-2, RSF before bare letters;
+  // CS/CC before single letters; P last as it's a single letter).
+  if(/\bRM[\s-]*2\b/.test(U)){ return tag(ESTERO_SETBACKS["RM-2"], "RM-2"); }
+  if(/\bRSF\b/.test(U)){ return tag(ESTERO_SETBACKS["RSF"], "RSF"); }
+  if(/\bUCR\b/.test(U)){ return tag(ESTERO_SETBACKS["UCR"], "UCR"); }
+  if(/\bMH\b/.test(U)){ return tag(ESTERO_SETBACKS["MH"], "MH"); }
+  if(/\bRV\b/.test(U)){ return tag(ESTERO_SETBACKS["RV"], "RV"); }
+  if(/\bAG\b/.test(U)){ return tag(ESTERO_SETBACKS["AG"], "AG"); }
+  if(/\bCS\b/.test(U)){ return tag(ESTERO_SETBACKS["CS"], "CS"); }
+  if(/\bCC\b/.test(U)){ return tag(ESTERO_SETBACKS["CC"], "CC"); }
+  if(/\bEC\b/.test(U)){ return tag(ESTERO_SETBACKS["EC"], "EC"); }
+  if(/\bP\b/.test(U)){ return tag(ESTERO_SETBACKS["P"], "P"); }
+  return null;
+}
+
+function renderEsteroSetbacks(districtCode){
+  const s=esteroSetbacks(districtCode);
+  if(!s) return '';
+  const setVal=v=>{
+    if(v==null) return null;
+    if(typeof v==='number') return v===0?'0 ft':v+' ft';
+    const t=String(v).trim(); if(!t) return null;
+    return /[a-zA-Z]/.test(t) ? t : t+' ft';
+  };
+  const shown = s.__shown || String(districtCode);
+  const secRef = s.secRef || '';
+  const codeLabel = secRef ? ('Estero LDC '+secRef) : 'Estero LDC';
+  // Planned developments: no fixed table — setbacks come from the approved PD/MPD master concept plan.
+  if(s.pud){
+    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PD</span> ${esc(shown)} · setbacks set by the approved planned-development document (${esc(codeLabel)})</div>`;
+    p+=`<div class="note">This is a <b>planned development</b>. Its front, side, rear, height and lot standards are <b>not</b> from a standard district table — they are established in this property's <b>approved PD/DRI ordinance &amp; master concept plan</b>, which can depart from conventional zoning. Most of Estero was built out this way under Lee County before incorporation.</div>`;
+    if(s.note) p+=`<div class="note">${esc(s.note)}</div>`;
+    p+=`<div class="note warnbox">Look up this parcel's specific PD/DRI ordinance / master plan for its exact setbacks before siting a generator or LP tank. Confirm with Village of Estero Community Development.</div>`;
+    return p;
+  }
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)} (${esc(codeLabel)})</div>`;
+  if(s.minLot!=null){ const lv=(typeof s.minLot==='number')?(fmtNum(s.minLot)+' sq ft'):String(s.minLot); h+=fieldRow('Minimum lot area', esc(lv)); }
+  const frontV=setVal(s.front); if(frontV) h+=fieldRow('Front', esc(frontV), 'big');
+  const sideV=setVal(s.side); if(sideV) h+=fieldRow('Side', esc(sideV));
+  const rearV=setVal(s.rear); if(rearV) h+=fieldRow('Rear', esc(rearV));
+  if(s.abutRes!=null) h+=fieldRow('Abutting residential', esc(setVal(s.abutRes)));
+  if(s.waterfront!=null) h+=fieldRow('Waterfront', esc(setVal(s.waterfront)));
+  if(s.height!=null) h+=fieldRow('Max building height', esc(setVal(s.height)));
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  h+=`<div class="note warnbox">Village of Estero's own Land Development Code${secRef?(' ('+esc(secRef)+')'):''} — <b>not</b> Lee County rules. Estero is heavily planned-development; if this parcel is in a PD/DRI, the approved master plan governs. <b>Waterfront/canal lots</b>, corner lots and overlay conditions can differ — verify the exact figures in the live code below before siting.</div>`;
+  return h;
+}
+
+
 
 
 /* Query a county parcel feed BY ADDRESS, then pick the unit matching the search. If the exact house
@@ -3635,6 +3802,10 @@ async function runLookup(lat,lng,searchCtx){
     if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName)) && zhit.code){ html += renderCollierSetbacks(zhit.code); }
     if(norm(cityName)==='CAPECORAL' && zhit.code){ html += renderCapeCoralSetbacks(zhit.code); }
     if(norm(cityName)==='BONITASPRINGS' && zhit.code){ html += renderBonitaSetbacks(zhit.code); }
+    // Estero adopted its own LDC (Chapter 3 zoning) and OVERRIDES Lee County. Lee County itself has
+    // no setback renderer here, so this is purely additive — Estero parcels resolve to its own table
+    // (or, for the common PD/DRI parcels, the "from approved master plan" notice).
+    if(norm(cityName)==='ESTERO' && zhit.code){ html += renderEsteroSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
