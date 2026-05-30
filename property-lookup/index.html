@@ -458,17 +458,23 @@
     #printHead .ph-meta{ font-family:var(--mono); font-size:9.5px; color:#222; margin-top:7px; line-height:1.5; }
     #printHead .ph-meta b{ color:#111; }
 
-    /* Print layout: at print time the JS repacks the cards into two balanced column
-       stacks (.pcol). Each column is a continuous vertical flow, so there are NO ragged
-       gaps the way a row-based grid leaves them, and it stays iOS-Safari reliable.
-       A gentle zoom gives headroom so the report lands on one page. */
-    #results{ display:grid !important; grid-template-columns:1fr 1fr; gap:0 12px;
-      align-items:start !important; overflow:visible !important; padding:0 !important;
-      zoom:var(--print-zoom,0.9); }
+    /* Print layout — Safari-mobile reliable.
+       Two-up layout uses CSS multi-column (NOT grid): iOS Safari prints `columns` correctly,
+       whereas `display:grid` in its print snapshot can collapse to one column when the parent
+       width isn't settled. Cards stay atomic (break-inside:avoid) so none is split across the
+       gap. The fit-to-one-page shrink uses transform:scale() (set by JS as --print-scale),
+       because Safari's print path ignores the `zoom` property. We scale from the top-left and
+       widen the box by 1/scale so the shrunken content still fills the page width. */
+    #results{
+      column-count:2; column-gap:12px; column-fill:balance;
+      display:block !important; overflow:visible !important; padding:0 !important;
+      transform:scale(var(--print-scale,0.82)); transform-origin:top left;
+      width:calc(100% / var(--print-scale,0.82));
+    }
     .pcol{ display:block !important; min-width:0; }
     .card{ break-inside:avoid; page-break-inside:avoid; -webkit-column-break-inside:avoid;
       background:#fff !important; border:1px solid #bbb !important; border-radius:6px !important;
-      margin:0 0 6px !important; overflow:visible !important; }
+      margin:0 0 6px !important; overflow:visible !important; display:block; width:100%; }
     /* Notes-heavy cards (zoning/setbacks/generator) may be tall; let THEM split internally
        as a last resort rather than forcing the whole report to a 2nd page. Keep rows atomic. */
     .card.tall{ break-inside:auto; page-break-inside:auto; -webkit-column-break-inside:auto; }
@@ -3800,59 +3806,37 @@ window.Sheet=Sheet;
     cards.forEach(c=>c.classList.remove('tall'));
     cards.filter(c=>c.offsetHeight>300).forEach(c=>c.classList.add('tall'));
 
-    // Repack the printable cards into TWO balanced column stacks. The previous row-based
-    // grid left big gaps on the left whenever a short card sat beside a tall one; stacking
-    // each column as a continuous flow removes those gaps. Greedy fill: each card goes to
-    // whichever column is currently shorter, so the two columns end up about even.
-    const _origKids = [...results.childNodes];
-    const printCards = [...results.children].filter(el=>
-      el.classList && el.classList.contains('card') &&
-      !el.classList.contains('scoutcard') && !el.classList.contains('noprint'));
-    let _repacked=false;
-    if(printCards.length>=2){
-      const colA=document.createElement('div'); colA.className='pcol';
-      const colB=document.createElement('div'); colB.className='pcol';
-      let ha=0,hb=0;
-      printCards.forEach(c=>{ const h=c.offsetHeight||1;
-        if(ha<=hb){ colA.appendChild(c); ha+=h; } else { colB.appendChild(c); hb+=h; } });
-      const stash=document.createElement('div'); stash.className='pcol-stash';
-      [...results.children].forEach(el=>{ if(el!==colA && el!==colB && !printCards.includes(el)) stash.appendChild(el); });
-      results.replaceChildren(colA,colB,stash);
-      _repacked=true;
-    }
+    // No DOM repack: the print CSS uses `column-count:2`, which iOS Safari prints reliably and
+    // which balances the cards into two columns by itself. (The old JS repack into .pcol divs
+    // plus `display:grid` was the part Safari mis-handled — it collapsed to one column.)
+    // We only need to compute the fit-to-one-page scale.
 
-    // Auto-fit zoom: one static zoom can't know how much loaded, so a heavy lookup spills
-    // to page 2. We can't measure the printed height from the screen (print CSS shrinks fonts
-    // and compacts every row), so we model it: the print rules render at roughly 0.62× the
-    // screen type/spacing, the two columns are balanced, and one letter page has ~900px of
-    // usable height after margins + the print header. So a screen column of height H prints at
-    // about H × 0.62 × zoom; solving H × 0.62 × zoom ≤ 900 gives zoom ≤ 1452 / H. We clamp to
-    // a readable range; tall cards can also split internally (the .tall rule) as a backstop.
-    const fitZoom=()=>{
-      const cols=[...results.querySelectorAll('.pcol')];
-      const H = cols.length
-        ? Math.max(...cols.map(c=>c.scrollHeight||c.offsetHeight||0))
-        : (results.scrollHeight||results.offsetHeight||0);
-      const MAX=0.95, MIN=0.62, PRINT_RATIO=0.62, PAGE_PX=900;
-      let z = H>0 ? (PAGE_PX/(PRINT_RATIO*H)) : MAX;
-      z = Math.max(MIN, Math.min(MAX, z));
-      document.documentElement.style.setProperty('--print-zoom', String(Math.round(z*1000)/1000));
+    // Auto-fit via transform:scale (Safari ignores `zoom` when printing). The cards flow into
+    // TWO columns, so the printed stack height is ~ the natural single-flow content height
+    // halved, times the print compaction (~0.62 of screen type/spacing). One letter page has
+    // ~900px usable height after margins + the print header. Solve for the scale that fits:
+    //   (screenContentHeight/2) * 0.62 * scale <= 900  →  scale <= 2903 / screenContentHeight
+    const fitScale=()=>{
+      const H = results.scrollHeight || results.offsetHeight || 0;   // natural single-flow height
+      const MAX=1.0, MIN=0.6, PRINT_RATIO=0.62, PAGE_PX=900;
+      let s = H>0 ? (PAGE_PX / (PRINT_RATIO * (H/2))) : MAX;
+      s = Math.max(MIN, Math.min(MAX, s));
+      document.documentElement.style.setProperty('--print-scale', String(Math.round(s*1000)/1000));
     };
-    fitZoom();
+    fitScale();
 
-    // Restore the page (title + original card order) once printing is done. afterprint is
-    // primary; the timeout is a backstop for the cases where iOS Safari never fires it.
+    // Restore the page (title) once printing is done. afterprint is primary; the timeout is a
+    // backstop for the cases where iOS Safari never fires it.
     const cleanup=()=>{
       document.title=_origTitle;
-      document.documentElement.style.removeProperty('--print-zoom');
-      if(_repacked){ results.replaceChildren(..._origKids); _repacked=false; }
+      document.documentElement.style.removeProperty('--print-scale');
       window.removeEventListener('afterprint',cleanup);
     };
     window.addEventListener('afterprint',cleanup);
     setTimeout(cleanup, 8000);
 
     // iOS Safari builds the print snapshot synchronously and will capture the page
-    // BEFORE the header text + repacked columns above have repainted — yielding a blank or
+    // BEFORE the header text + scale above have repainted — yielding a blank or
     // half-built sheet. Wait two frames (layout + paint) and a beat, then print.
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       setTimeout(()=>{ try{ window.print(); }catch(e){ /* no-op */ } }, 80);
