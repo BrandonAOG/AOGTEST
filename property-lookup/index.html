@@ -467,13 +467,6 @@
        Chrome/Edge/Safari; pre-126 Firefox ignores it and just prints at full size — acceptable. */
     #results{
       column-count:2; column-gap:12px;
-      /* iOS Safari's print path can ignore a bare column-count and collapse to one column.
-         The -webkit-prefixed shorthand + an explicit column-width forces the split on mobile
-         Safari. On desktop these are redundant: column-count:2 already governs at letter width,
-         and the wide column-width (340px) never reduces the desktop count below 2. */
-      -webkit-column-count:2; -webkit-column-gap:12px;
-      column-width:340px; -webkit-column-width:340px;
-      column-fill:auto; -webkit-column-fill:auto;
       display:block !important; overflow:visible !important; padding:0 !important;
       zoom:var(--print-fit,1);
     }
@@ -2440,6 +2433,292 @@ function renderMarcoSetbacks(districtCode){
 }
 
 
+/* ---------- City of Bonita Springs setback QUICK-REFERENCE (Land Development Code) ----------
+   Hand-entered from Bonita Springs' Municode LDC. Bonita Springs is an incorporated Lee County
+   city with its OWN Land Development Code — these are NOT Lee County numbers. The live § deep-link
+   beside the card is the source of truth; verify waterfront/riparian, corner-lot and overlay
+   conditions there. Districts are added one at a time as their dimensional-standards sections are
+   provided. Supported fields per entry: name, front, side, rear, abutRes, waterfront, height,
+   minLot, secRef, note, and pud:true (for planned developments with no fixed table).
+   Numeric values render as "N ft"; string values render verbatim (use for formulas/conditions). */
+const BONITA_SETBACKS = {
+  // --- One- & two-family residential (Table 4-489). Common: rear 20, water body 50 ft (Gulf) /
+  //     25 ft (other), height 35 ft, street setback variable by road class (§ 4-1893). ---
+  "RSA":  { name:"Residential Single-Family (RSA)", side:6.5, rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:6500, secRef:"§ 4-489",
+            note:"Lot width 65 ft, depth 75 ft. Max lot coverage 45%. Street setback varies by road classification (§ 4-1893)." },
+  "RS-1": { name:"Residential Single-Family (RS-1)", side:7.5, rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:7500, secRef:"§ 4-489",
+            note:"Lot width 75 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road classification (§ 4-1893)." },
+  "RS-2": { name:"Residential Single-Family (RS-2)", side:10, rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:12500, secRef:"§ 4-489",
+            note:"Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road classification (§ 4-1893)." },
+  "RS-3": { name:"Residential Single-Family (RS-3)", side:12, rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:20000, secRef:"§ 4-489",
+            note:"Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road classification (§ 4-1893)." },
+  "RS-4": { name:"Residential Single-Family (RS-4)", side:15, rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:40000, secRef:"§ 4-489",
+            note:"Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road classification (§ 4-1893)." },
+  "RS-5": { name:"Residential Single-Family (RS-5)", side:15, rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:"2 acres", secRef:"§ 4-489",
+            note:"Lot width 130 ft, depth 130 ft. Max lot coverage 40%. Street setback varies by road classification (§ 4-1893)." },
+  "TFC-1":{ name:"Two-Family / Cluster (TFC-1)", side:6, rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:6000, secRef:"§ 4-489",
+            note:"Single-family/duplex side yard 6 ft. Lot width 50 ft, depth 100 ft. Max lot coverage 45%. Street setback varies by road classification (§ 4-1893)." },
+  "TFC-2":{ name:"Two-Family / Cluster (TFC-2)", side:"7.5 ft (single-family/duplex) · 0 ft common / 7.5 ft outer (two-family attached)", rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:7500, secRef:"§ 4-489",
+            note:"Lot width 75 ft, depth 100 ft (two-family attached: 37.5 ft/unit). Max lot coverage 40%. No side yard required from the common lot line of a two-family attached. Street setback varies by road classification (§ 4-1893)." },
+  "TF-1": { name:"Two-Family (TF-1)", side:"7.5 ft (single-family/duplex) · 10 ft (two-family attached)", rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:7500, secRef:"§ 4-489",
+            note:"Lot width 75 ft, depth 100 ft. Duplex min lot 10,000 sf; two-family attached 12,000 sf (120 ft/unit). Max lot coverage 45%. Street setback varies by road classification (§ 4-1893)." },
+  // --- Multiple-family residential (Table 4-521). Common: rear 20, water body 50/25, height 35,
+  //     coverage 45%, street variable (§ 4-1893). ---
+  "RM-2": { name:"Multiple-Family Residential (RM-2)", side:"7 ft (single-family / duplex / two-family attached / townhouse) · 20 ft (multifamily &amp; all other uses)", rear:20,
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35, minLot:"6,500 sq ft (single-family) · 7,500 sq ft (duplex/townhouse) · 10,000 sq ft (multifamily)",
+            secRef:"§ 4-521",
+            note:"Two RM districts: RM-2 and RM-6. Multifamily lot area 3,000 sq ft/unit. Max lot coverage 45%. § 4-519 allows an alternative small-lot duplex/townhouse layout (2,400 sq ft/unit) measured from the overall parcel boundary. Street setback varies by road classification (§ 4-1893)." },
+  "RM-6": { name:"Multiple-Family Residential (RM-6)", side:"7 ft (single-family / duplex / two-family attached / townhouse) · 20 ft (multifamily &amp; all other uses)", rear:20,
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35, minLot:"7,500 sq ft (single-family) · 14,000 sq ft (duplex/townhouse) · 20,500 sq ft (multifamily)",
+            secRef:"§ 4-521",
+            note:"Multifamily lot area 6,500 sq ft/unit (14,000 sq ft for first two units + 6,500 per additional). Max lot coverage 45%. § 4-519 allows an alternative small-lot duplex/townhouse layout (2,400 sq ft/unit). Street setback varies by road classification (§ 4-1893)." },
+  // --- Mobile home residential (Table 4-556). Water body 50/25, height 35, coverage 40%,
+  //     street variable (§ 4-1893). Side/rear differ by district and internal/perimeter. ---
+  "MH-1": { name:"Mobile Home Residential (MH-1)", side:"7.5 ft (residential, internal &amp; perimeter) · 15 ft (nonresidential)", rear:"20 ft (residential) · 20 ft (nonresidential)",
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35, minLot:"7,500 sq ft (residential) · 10,000 sq ft (nonresidential)",
+            secRef:"§ 4-556",
+            note:"Residential lot width 75 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road classification (§ 4-1893)." },
+  "MH-2": { name:"Mobile Home Residential (MH-2)", side:"7 ft (residential, internal &amp; perimeter) · 15 ft (nonresidential)", rear:"15 ft (residential) · 20 ft (nonresidential)",
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35, minLot:"5,000 sq ft (residential) · 10,000 sq ft (nonresidential)",
+            secRef:"§ 4-556",
+            note:"Residential lot width 50 ft, depth 100 ft. Max lot coverage 40%. Older developments (1978–1986) have extra open-space rules (§ 4-553); post-1986 need emergency shelters (§ 4-554). Street setback varies by road classification (§ 4-1893)." },
+  // --- Agricultural districts (Table 4-437). Water body 50/25, height 35, coverage 25%,
+  //     street variable (§ 4-1892). AG-1 has a 50 ft street-setback floor. ---
+  "AG-1": { name:"Agricultural (AG-1)", front:"≥50 ft (variable by road class, never less than 50 ft)", side:25, rear:25,
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35, minLot:"4.7 acres (interior) · 4.4 acres (corner)",
+            secRef:"§ 4-437",
+            note:"Lot width/depth 300 ft. Max lot coverage 25% (40% for nonconforming lots). San Carlos Estates Water Control District has special street setbacks (≥40 ft front, ≥25 ft side street) — see § 4-437 note (6). Density-reduction / groundwater-resource areas cap density at 1 unit/10 acres." },
+  "AG-2": { name:"Agricultural (AG-2)", side:15, rear:25,
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35, minLot:"39,500 sq ft (interior) · 33,600 sq ft (corner)",
+            secRef:"§ 4-437",
+            note:"Lot width 100 ft, depth 130 ft. Max lot coverage 25% (40% for nonconforming lots). Street setback varies by road classification (§ 4-1892)." },
+  "AG-3": { name:"Agricultural (AG-3)", side:15, rear:25,
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35, minLot:20000,
+            secRef:"§ 4-437",
+            note:"Lot width 100 ft, depth 130 ft. Max lot coverage 25% (40% for nonconforming lots). Street setback varies by road classification (§ 4-1892)." },
+  // --- Recreational vehicle park districts (Table 4-614). These are EXISTING parks only; new/expanded
+  //     RV parks must use an RV planned development. Setbacks are largely RV-to-RV separation and
+  //     park-perimeter buffers rather than conventional yard lines. Water body 50/25, height 35. ---
+  "RV-1": { name:"Recreational Vehicle Park (RV-1, pre-1962)",
+            side:"10 ft min separation between RVs / from park buildings / from perimeter (see § 4-614 notes)",
+            rear:"10 ft min separation (see § 4-614 notes)",
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35, minLot:1200,
+            secRef:"§ 4-614",
+            note:"Existing parks only — new or expanded RV parks require RV planned-development (RVPD) zoning. Lot width 30 ft. Max lot coverage 50%. No RV or appurtenance closer than 10 ft to a perimeter boundary, park building, or another RV under separate ownership. Off-site street setback varies by road class (§ 4-1893). Not allowed on barrier islands or coastal high-hazard (V) zones." },
+  "RV-3": { name:"Recreational Vehicle Park (RV-3, 1978–7/31/86)",
+            side:5, rear:"min separation rules — see § 4-614 notes (25 ft from common-use accessory buildings)",
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35, minLot:2000,
+            secRef:"§ 4-614",
+            note:"Existing parks only — new or expanded RV parks require RVPD zoning. Lot width 30 ft, depth 55 ft. 10 ft min separation between RVs; 40 ft open-space buffer around the park perimeter (no roads in it). Max lot coverage 40%. Off-site street setback varies by road class (§ 4-1893). Not allowed on barrier islands or coastal high-hazard (V) zones." },
+  // --- Community Facilities districts (Table 4-635). All four (CF-1 cultural, CF-2 social/health,
+  //     CF-3 government, CF-4 holding) share the same dimensional standards: side 15, rear 25,
+  //     water body 50/25, height 35, coverage 35%, no fixed min lot, street variable (§ 4-2192). ---
+  "CF-1": { name:"Community Facilities (CF-1, cultural)", side:15, rear:25,
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35,
+            minLot:"None fixed (must fit the use plus setbacks, parking, open space, drainage &amp; buffering)",
+            secRef:"§ 4-635",
+            note:"Primarily cultural facilities. Max lot coverage 35%. Street setback varies by road classification (§ 4-2192). Place-of-worship / religious-facility lot minimums per § 4-1762 et seq." },
+  "CF-2": { name:"Community Facilities (CF-2, social/health)", side:15, rear:25,
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35,
+            minLot:"None fixed (must fit the use plus setbacks, parking, open space, drainage &amp; buffering)",
+            secRef:"§ 4-635",
+            note:"Primarily social and limited health-related services. Max lot coverage 35%. Street setback varies by road classification (§ 4-2192)." },
+  "CF-3": { name:"Community Facilities (CF-3, government)", side:15, rear:25,
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35,
+            minLot:"None fixed (must fit the use plus setbacks, parking, open space, drainage &amp; buffering)",
+            secRef:"§ 4-635",
+            note:"Primarily government service facilities (fire, police, EMS, post office, etc.). Max lot coverage 35%. Street setback varies by road classification (§ 4-2192)." },
+  "CF-4": { name:"Community Facilities (CF-4, holding)", side:15, rear:25,
+            waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)", height:35,
+            minLot:"None fixed (must fit the use plus setbacks, parking, open space, drainage &amp; buffering)",
+            secRef:"§ 4-635",
+            note:"Holding district, temporarily retained pending rezonings. Same dimensional standards as CF-1–CF-3. Max lot coverage 35%. Street setback varies by road classification (§ 4-2192)." },
+  // --- Conventional commercial districts (Table 4-662). All: water body 50 ft (Gulf, or per Ch. 6
+  //     Art. III, whichever most restrictive) / 25 ft (other); height 35; street variable (§ 4-1893).
+  //     C-1A, C-1, C-2 are legacy (no new rezonings into them). ---
+  "C-1A": { name:"Commercial (C-1A, legacy)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:7500, secRef:"§ 4-662",
+            note:"Legacy district — no new rezonings into C-1A. Lot width 75 ft, depth 100 ft. Max lot coverage 40%. No side yard required from a common lot line for two-family attached/townhouse. Street setback varies by road class (§ 4-1893)." },
+  "C-1":  { name:"Commercial (C-1, legacy)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:7500, secRef:"§ 4-662",
+            note:"Legacy district — no new rezonings into C-1. Lot width 75 ft, depth 100 ft. Residential: 7,500 sq ft first two units + 3,000 sq ft each additional. Max lot coverage 40%. Street setback varies by road class (§ 4-1893)." },
+  "C-2":  { name:"Commercial (C-2, legacy)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:"7,500 sq ft (interior) · 10,000 sq ft (corner)", secRef:"§ 4-662",
+            note:"Legacy district — no new rezonings into C-2; permits the broadest commercial/light-industrial use list. Lot width 75 ft, depth 100 ft. Residential: 7,500 sq ft first two units + 2,000 sq ft each additional. Max lot coverage 40%. Street setback varies by road class (§ 4-1893)." },
+  "C-2A": { name:"Commercial (C-2A, council-applied)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:"7,500 sq ft (interior) · 10,000 sq ft (corner)", secRef:"§ 4-662",
+            note:"Continues C-2 commercial/residential uses but PROHIBITS the industrial/manufacturing uses C-2 allows. Applied only by city council initiative, not by landowner request. Dimensional standards follow the C-2 column. Street setback varies by road class (§ 4-1893)." },
+  "CN-1": { name:"Neighborhood Commercial (CN-1)", side:15, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:10000, secRef:"§ 4-662",
+            note:"Small-scale commercial near/within residential neighborhoods. Lot width 75 ft, depth 100 ft. Max lot coverage 40%. No outdoor display or storage of merchandise permitted. Street setback varies by road class (§ 4-1893)." },
+  "CN-2": { name:"Neighborhood Commercial (CN-2)", side:15, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:10000, secRef:"§ 4-662",
+            note:"Moderate-scale neighborhood shopping centers. Lot width 100 ft, depth 100 ft. Max lot coverage 40%. No outdoor display or storage of merchandise permitted. Street setback varies by road class (§ 4-1893)." },
+  "CC":   { name:"Community Commercial (CC)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:"10,000 sq ft (interior) · 20,000 sq ft (corner)", secRef:"§ 4-662",
+            note:"Medium-to-large community/regional shopping centers. Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 4-1893)." },
+  "CG":   { name:"General Commercial (CG)", side:15, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:"10,000 sq ft (interior) · 20,000 sq ft (corner)", secRef:"§ 4-662",
+            note:"General commercial — single-building sales/service/repair, often with outdoor storage or display; arterial-oriented. Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 4-1893)." },
+  "CS-1": { name:"Special Commercial Office (CS-1)", side:20, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:20000, secRef:"§ 4-662",
+            note:"Office space + minimal retail; used to buffer residential from higher-intensity commercial/light-industrial. Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 4-1893)." },
+  "CS-2": { name:"Special Commercial Office (CS-2)", side:10, rear:20, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:5000, secRef:"§ 4-662",
+            note:"Office space + low-impact special-exception uses; buffer district. Lot width 50 ft, depth 100 ft. Max lot coverage 50%. Street setback varies by road class (§ 4-1893)." },
+  "CT":   { name:"Tourist Commercial (CT)", side:20, rear:25, waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:20000, secRef:"§ 4-662",
+            note:"Tourist accommodations/services near beaches, parks, attractions. Lot width 100 ft, depth 100 ft. Residential: 7,500 sq ft first two units + 2,000 sq ft each additional. Max lot coverage 40%. Street setback varies by road class (§ 4-1893)." },
+  // --- Marine-oriented district (Table 4-686). Single district. ---
+  "CM":   { name:"Marine Commercial (CM)", side:20, rear:20, waterfront:"50 ft (Gulf of Mexico) / 25 ft (other water bodies)",
+            height:35, minLot:20000, secRef:"§ 4-686",
+            note:"Waterfront-dependent commercial marina uses. Lot width 100 ft, depth 100 ft. Max lot coverage 40%. Street setback varies by road class (§ 4-2193(b)). NOTE: boat-service buildings/structures may be built up to the mean high-water line (the 25 ft other-water setback does not bind them)." },
+  // --- Industrial districts (Table 4-719). Water body 50 ft Gulf (or per Ch. 6 Art. III, whichever
+  //     most restrictive) / 25 ft other; height 35; coverage 40%; street variable (§ 4-1893).
+  //     25 ft setback from abutting residential (more if § 4-2014 requires). ---
+  "IL":   { name:"Light Industrial (IL)", side:20, rear:15, abutRes:"25 ft (more if § 4-2014 requires)",
+            waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:"20,000 sq ft (in an industrial subdivision) · 2 acres (freestanding)", secRef:"§ 4-719",
+            note:"Light industrial / quasi-industrial; outdoor activity must be within an opaque-walled/fenced yard. Lot width 100 ft (subdivision) / 200 ft (freestanding). Max lot coverage 40%. Street setback varies by road class (§ 4-1893). Heavier manufacturing uses require IPD planned-development zoning." },
+  "IG":   { name:"General Industrial (IG)", side:20, rear:25, abutRes:"25 ft (more if § 4-2014 requires)",
+            waterfront:"50 ft Gulf (or per Ch. 6 Art. III, whichever most restrictive) / 25 ft (other)",
+            height:35, minLot:"20,000 sq ft (in an industrial subdivision) · 2 acres (freestanding)", secRef:"§ 4-719",
+            note:"Heavy industrial — uses with noise, odor or fire-hazard potential. Lot width 100 ft (subdivision) / 200 ft (freestanding). Max lot coverage 40%. Street setback varies by road class (§ 4-1893). The most intensive uses (chemicals, landfills, salvage/wrecking yards, energy resource-recovery) require IPD planned-development zoning." },
+  // --- Planned developments (§ 4-741). No fixed dimensional table — setbacks come from the approved
+  //     master concept plan. pud:true triggers the PD notice, but each note carries the § 4-741(b)(1)
+  //     perimeter-boundary FLOOR for that PD type, which is a real minimum. ---
+  "RPD":  { name:"Residential Planned Development (RPD)", pud:true, secRef:"§ 4-741",
+            note:"Perimeter-boundary setback floor: the greater of the required buffer width, 15 ft, or ½ the building height. Internal lot/yard standards follow the approved master concept plan (conventional-subdivision lots default to the § 4-489 RS/TF standards). Height per the Future Land Use Map / § 4-1874." },
+  "MHPD": { name:"Mobile Home Planned Development (MHPD)", pud:true, secRef:"§ 4-741",
+            note:"Perimeter-boundary setback floor: greater of buffer width, 15 ft, or ½ building height. Max height 35 ft (mobile homes 1 story). Internal standards per the approved master concept plan (subdivision lots default to § 4-556 MH standards)." },
+  "RVPD": { name:"Recreational Vehicle Planned Development (RVPD)", pud:true, secRef:"§ 4-741 / § 4-745",
+            note:"Perimeter-boundary setback floor: 40 ft (unless abutting RV/RVPD land), with a required 40 ft perimeter buffer. 10 ft min separation between RVs; common buildings ≥25 ft from any RV site or unbuffered boundary. Not allowed on barrier islands or coastal high-hazard (V) zones. All new/expanded RV parks must be RVPD." },
+  "CFPD": { name:"Community Facilities Planned Development (CFPD)", pud:true, secRef:"§ 4-741",
+            note:"Perimeter-boundary setback floor: greater of buffer width, 15 ft, or ½ building height. Max height 35 ft (taller allowed by council if setbacks from differently-owned property ≥ building height). ≥30% common open space." },
+  "CPD":  { name:"Commercial Planned Development (CPD)", pud:true, secRef:"§ 4-741",
+            note:"Perimeter-boundary setback floor: greater of buffer width, 15 ft, or ½ building height. Industrial uses (where allowed) abutting residential must set back per § 4-2012 or 100 ft, whichever is greater. Setbacks otherwise from the approved master concept plan." },
+  "IPD":  { name:"Industrial Planned Development (IPD)", pud:true, secRef:"§ 4-741",
+            note:"Perimeter-boundary setback floor: 25 ft. Buildings, parking, shipping/receiving and open-storage areas abutting residential must set back per § 4-2012 or 100 ft, whichever is greater. Required for the most intensive industrial uses (chemicals, landfills, salvage/wrecking, energy recovery). Setbacks otherwise from the approved master concept plan." },
+  "MPD":  { name:"Mixed-Use Planned Development (MPD)", pud:true, secRef:"§ 4-741",
+            note:"Perimeter-boundary setback floor: 15 ft (residential/commercial portions) or 25 ft (industrial portions); ≥½ building height also applies. Industrial uses abutting residential must set back per § 4-2012 or 100 ft, whichever is greater. Setbacks otherwise from the approved master concept plan." },
+  // --- Special-purpose: EC environmentally critical (Table-less, § 4-809). Wetland/conservation. ---
+  "EC":   { name:"Environmentally Critical (EC)", side:15, rear:15,
+            waterfront:"50 ft Gulf from mean high water (or Coastal Construction Code, whichever most restrictive) / 25 ft (other water bodies)",
+            secRef:"§ 4-809",
+            note:"Wetland / environmentally sensitive lands. Side/rear/parcel-boundary 15 ft. Largely passive uses (single-family + recreation/conservation). Density governed by the land-use category and wetland-protection rules, not a fixed table. Street setback varies by road class (§ 4-1893)." },
+  // --- Legacy PUD (§ 4-836): pre-9/30/1985 planned unit developments, retained to allow completion.
+  //     No fixed front/side/rear table, but a real 20 ft perimeter floor (or ½ building height). ---
+  "PUD":  { name:"Planned Unit Development (PUD, legacy pre-1985)", pud:true, secRef:"§ 4-836",
+            note:"Legacy PUD (preliminary approval before 9/30/1985) — no new PUDs; current planned developments use the PD districts (§ 4-737 et seq.). Setback from the PUD boundary: ½ the building height, but never less than 20 ft. Distance between buildings: ½ the sum of their heights, min 20 ft. Max lot coverage 40%; ≥35% usable open space. No minimum lot area/width (density per the Bonita Plan). Exact standards are in the approved final PUD development plan." }
+};
+/* Map a detected Bonita Springs district code to a table key: exact match first, then add
+   district-family regex branches here as districts are entered (mirrors marcoSetbacks). */
+function bonitaSetbacks(districtCode){
+  if(!districtCode) return null;
+  const U=String(districtCode).toUpperCase();
+  const tag=(entry,label)=> entry ? Object.assign({__key:label, __shown:String(districtCode).trim()}, entry) : null;
+  const exact=U.trim();
+  if(BONITA_SETBACKS[exact]) return tag(BONITA_SETBACKS[exact], exact);
+  // PLANNED DEVELOPMENTS first — every PD code ends in "PD" and could otherwise be mis-caught by a
+  // conventional matcher (RVPD→RV, MHPD→MH, CFPD→CF, CPD→C-?, IPD→I?, RPD→RS/RV). Check most-specific
+  // first. These all map to pud:true entries (setbacks from the approved master concept plan).
+  if(/\bRVPD\b/.test(U)){ if(BONITA_SETBACKS["RVPD"]) return tag(BONITA_SETBACKS["RVPD"], "RVPD"); }
+  if(/\bMHPD\b/.test(U)){ if(BONITA_SETBACKS["MHPD"]) return tag(BONITA_SETBACKS["MHPD"], "MHPD"); }
+  if(/\bCFPD\b/.test(U)){ if(BONITA_SETBACKS["CFPD"]) return tag(BONITA_SETBACKS["CFPD"], "CFPD"); }
+  if(/\bRPD\b/.test(U)){ if(BONITA_SETBACKS["RPD"]) return tag(BONITA_SETBACKS["RPD"], "RPD"); }
+  if(/\bCPD\b/.test(U)){ if(BONITA_SETBACKS["CPD"]) return tag(BONITA_SETBACKS["CPD"], "CPD"); }
+  if(/\bIPD\b/.test(U)){ if(BONITA_SETBACKS["IPD"]) return tag(BONITA_SETBACKS["IPD"], "IPD"); }
+  if(/\bMPD\b/.test(U)){ if(BONITA_SETBACKS["MPD"]) return tag(BONITA_SETBACKS["MPD"], "MPD"); }
+  if(/\bPUD\b/.test(U)){ if(BONITA_SETBACKS["PUD"]) return tag(BONITA_SETBACKS["PUD"], "PUD"); }
+  // RSA (single-family agricultural-size) — check before the RS-n family.
+  if(/\bRSA\b/.test(U)){ if(BONITA_SETBACKS["RSA"]) return tag(BONITA_SETBACKS["RSA"], "RSA"); }
+  // RS-1 … RS-5 (one-family). Pull the digit.
+  let m=U.match(/\bRS[\s-]*([1-5])\b/);
+  if(m){ const key="RS-"+m[1]; if(BONITA_SETBACKS[key]) return tag(BONITA_SETBACKS[key], key); }
+  // TFC-1 / TFC-2 BEFORE TF-1 (the cluster code contains "TF").
+  m=U.match(/\bTFC[\s-]*([12])\b/);
+  if(m){ const key="TFC-"+m[1]; if(BONITA_SETBACKS[key]) return tag(BONITA_SETBACKS[key], key); }
+  if(/\bTF[\s-]*1\b/.test(U)){ if(BONITA_SETBACKS["TF-1"]) return tag(BONITA_SETBACKS["TF-1"], "TF-1"); }
+  // RM-2 / RM-6 (multiple-family).
+  m=U.match(/\bRM[\s-]*([26])\b/);
+  if(m){ const key="RM-"+m[1]; if(BONITA_SETBACKS[key]) return tag(BONITA_SETBACKS[key], key); }
+  // MH-1 / MH-2 (mobile home).
+  m=U.match(/\bMH[\s-]*([12])\b/);
+  if(m){ const key="MH-"+m[1]; if(BONITA_SETBACKS[key]) return tag(BONITA_SETBACKS[key], key); }
+  // AG-1 / AG-2 / AG-3 (agricultural).
+  m=U.match(/\bAG[\s-]*([123])\b/);
+  if(m){ const key="AG-"+m[1]; if(BONITA_SETBACKS[key]) return tag(BONITA_SETBACKS[key], key); }
+  // RV-1 / RV-3 (recreational vehicle park). Only these two exist (no RV-2).
+  m=U.match(/\bRV[\s-]*([13])\b/);
+  if(m){ const key="RV-"+m[1]; if(BONITA_SETBACKS[key]) return tag(BONITA_SETBACKS[key], key); }
+  // CF-1 … CF-4 (community facilities).
+  m=U.match(/\bCF[\s-]*([1-4])\b/);
+  if(m){ const key="CF-"+m[1]; if(BONITA_SETBACKS[key]) return tag(BONITA_SETBACKS[key], key); }
+  // Commercial districts (Table 4-662). ORDER MATTERS — check longer/more-specific codes first:
+  // C-1A before C-1, C-2A before C-2, the CN/CC/CG/CS/CT codes before the bare C-1/C-2.
+  if(/\bC[\s-]*1[\s-]*A\b/.test(U)){ if(BONITA_SETBACKS["C-1A"]) return tag(BONITA_SETBACKS["C-1A"], "C-1A"); }
+  if(/\bC[\s-]*2[\s-]*A\b/.test(U)){ if(BONITA_SETBACKS["C-2A"]) return tag(BONITA_SETBACKS["C-2A"], "C-2A"); }
+  m=U.match(/\bCN[\s-]*([12])\b/);
+  if(m){ const key="CN-"+m[1]; if(BONITA_SETBACKS[key]) return tag(BONITA_SETBACKS[key], key); }
+  m=U.match(/\bCS[\s-]*([12])\b/);
+  if(m){ const key="CS-"+m[1]; if(BONITA_SETBACKS[key]) return tag(BONITA_SETBACKS[key], key); }
+  if(/\bCC\b/.test(U)){ if(BONITA_SETBACKS["CC"]) return tag(BONITA_SETBACKS["CC"], "CC"); }
+  if(/\bCG\b/.test(U)){ if(BONITA_SETBACKS["CG"]) return tag(BONITA_SETBACKS["CG"], "CG"); }
+  if(/\bCM\b/.test(U)){ if(BONITA_SETBACKS["CM"]) return tag(BONITA_SETBACKS["CM"], "CM"); }
+  if(/\bCT\b/.test(U)){ if(BONITA_SETBACKS["CT"]) return tag(BONITA_SETBACKS["CT"], "CT"); }
+  if(/\bC[\s-]*1\b/.test(U)){ if(BONITA_SETBACKS["C-1"]) return tag(BONITA_SETBACKS["C-1"], "C-1"); }
+  if(/\bC[\s-]*2\b/.test(U)){ if(BONITA_SETBACKS["C-2"]) return tag(BONITA_SETBACKS["C-2"], "C-2"); }
+  // Industrial: IL (light) and IG (general). Word-boundary'd so they don't catch other codes.
+  if(/\bIL\b/.test(U)){ if(BONITA_SETBACKS["IL"]) return tag(BONITA_SETBACKS["IL"], "IL"); }
+  if(/\bIG\b/.test(U)){ if(BONITA_SETBACKS["IG"]) return tag(BONITA_SETBACKS["IG"], "IG"); }
+  // EC environmentally critical.
+  if(/\bEC\b/.test(U)){ if(BONITA_SETBACKS["EC"]) return tag(BONITA_SETBACKS["EC"], "EC"); }
+  // --- district matchers added here as sections are provided ---
+  return null;
+}
+function renderBonitaSetbacks(districtCode){
+  const s=bonitaSetbacks(districtCode);
+  if(!s) return '';
+  const setVal=v=>{
+    if(v==null) return null;
+    if(typeof v==='number') return v===0?'0 ft':v+' ft';
+    const t=String(v).trim(); if(!t) return null;
+    return /[a-zA-Z]/.test(t) ? t : t+' ft';
+  };
+  const shown = s.__shown || String(districtCode);
+  const secRef = s.secRef || '';
+  const codeLabel = secRef ? ('Bonita Springs LDC '+secRef) : 'Bonita Springs LDC';
+  // Planned developments: no fixed table — setbacks come from the approved PD/MPD document.
+  if(s.pud){
+    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PD</span> ${esc(shown)} · setbacks set by the approved planned-development document (${esc(codeLabel)})</div>`;
+    p+=`<div class="note">This is a <b>planned development</b>. Its front, side, rear, height and lot standards are <b>not</b> from a standard district table — they are established in this property's <b>approved PD/MPD ordinance &amp; master concept plan</b>, which can depart from conventional zoning.</div>`;
+    if(s.note) p+=`<div class="note">${esc(s.note)}</div>`;
+    p+=`<div class="note warnbox">Look up this parcel's specific PD ordinance / master plan for its exact setbacks before siting a generator or LP tank. Confirm with Bonita Springs Community Development.</div>`;
+    return p;
+  }
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)} (${esc(codeLabel)})</div>`;
+  if(s.minLot!=null){ const lv=(typeof s.minLot==='number')?(fmtNum(s.minLot)+' sq ft'):String(s.minLot); h+=fieldRow('Minimum lot area', esc(lv)); }
+  const frontV=setVal(s.front); if(frontV) h+=fieldRow('Front', esc(frontV), 'big');
+  const sideV=setVal(s.side); if(sideV) h+=fieldRow('Side', esc(sideV));
+  const rearV=setVal(s.rear); if(rearV) h+=fieldRow('Rear', esc(rearV));
+  if(s.abutRes!=null) h+=fieldRow('Abutting residential', esc(setVal(s.abutRes)));
+  if(s.waterfront!=null) h+=fieldRow('Waterfront', esc(setVal(s.waterfront)));
+  if(s.height!=null) h+=fieldRow('Max building height', esc(setVal(s.height)));
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  h+=`<div class="note warnbox">Bonita Springs' own Land Development Code${secRef?(' ('+esc(secRef)+')'):''} — <b>not</b> Lee County rules. <b>Waterfront/canal/riparian lots</b>, corner lots and overlay conditions can differ — verify the exact figures in the live code below before siting.</div>`;
+  return h;
+}
+
+
 
 
 /* Query a county parcel feed BY ADDRESS, then pick the unit matching the search. If the exact house
@@ -3327,6 +3606,7 @@ async function runLookup(lat,lng,searchCtx){
     // isn't in the quick-ref table, it falls through to the "look it up in the adopted code" note.)
     if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName)) && zhit.code){ html += renderCollierSetbacks(zhit.code); }
     if(norm(cityName)==='CAPECORAL' && zhit.code){ html += renderCapeCoralSetbacks(zhit.code); }
+    if(norm(cityName)==='BONITASPRINGS' && zhit.code){ html += renderBonitaSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
