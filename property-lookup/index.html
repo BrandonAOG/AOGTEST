@@ -1061,7 +1061,7 @@ const ZONING_CITY = {
   MARCOISLAND:{code:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances?nodeId=PTIICOOR_CH30LADECO", permit:"https://www.cityofmarcoisland.com/o/comi/page/permitting-portal-information"},
   NAPLES:{code:"https://library.municode.com/fl/naples/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/naples/codes/code_of_ordinances?nodeId=PTIICOOR_CH58ZO", permit:"https://cityview2.iharriscomputer.com/CityofNaplesFlorida/Permit/Locator"},
   CAPECORAL:{code:"https://library.municode.com/fl/cape_coral/codes/code_of_ordinances", permit:"https://energovweb.capecoral.gov/EnerGovProd/selfservice#/home"},
-  FORTMYERS:{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", permit:"https://www.cityftmyers.com/166/Community-Development"},
+  FORTMYERS:{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances?nodeId=SPBLADECO_CH118LAUSRE", permit:"https://www.cityftmyers.com/166/Community-Development"},
   BONITASPRINGS:{code:"https://library.municode.com/fl/bonita_springs/codes/code_of_ordinances", permit:"https://cityofbonitaspringscd.org/"},
   SANIBEL:{code:"https://library.municode.com/fl/sanibel/codes/code_of_ordinances", permit:"https://www.mysanibel.com/departments/planning-code-enforcement"},
   ESTERO:{code:"https://library.municode.com/fl/estero/codes/land_development_code", zoningCh:"https://library.municode.com/fl/estero/codes/land_development_code?nodeId=CH3ZODI", permit:"https://estero-fl.gov/building-permit-application/"},
@@ -3305,7 +3305,17 @@ function fmbSetbacks(districtCode){
 
 function renderFmbSetbacks(districtCode){
   const s=fmbSetbacks(districtCode);
-  if(!s) return '';
+  if(!s){
+    // Reached only for a Fort Myers Beach parcel (the dispatch gates on cityName) whose code is NOT
+    // one of the 11 conventional Table 34-3 districts — i.e. a redevelopment or PD district, which
+    // use build-to lines / regulating plans / an approved master plan rather than a setback table.
+    const code = districtCode ? String(districtCode).trim() : '';
+    if(!code) return '';
+    let f=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ FORM-BASED / PD</span> ${esc(code)} · not a conventional Table 34-3 district</div>`;
+    f+=`<div class="note">This Fort Myers Beach district isn't one of the conventional zoning districts in Table 34-3. It is most likely a <b>redevelopment district</b> (Downtown, Old San Carlos, Santini, etc.), which sets building placement with <b>build-to lines and a regulating plan</b> (§ 34-662 and the district's own section in Division 5), or a <b>planned development</b> (RPD § 34-943 / CPD § 34-953), where standards come from the <b>approved master concept plan</b>. Either way, there is no conventional front/side/rear setback to read here.</div>`;
+    f+=`<div class="note warnbox">Look up this district's build-to lines / regulating plan or its approved master plan before siting a generator or LP tank. Confirm with Fort Myers Beach Community Development.</div>`;
+    return f;
+  }
   const setVal=v=>{
     if(v==null) return null;
     if(typeof v==='number') return v===0?'0 ft':v+' ft';
@@ -3330,6 +3340,120 @@ function renderFmbSetbacks(districtCode){
   if(s.heightFt!=null) h+=fieldRow('Max building height', esc(s.heightFt+' ft'+(s.stories?(' / '+s.stories+' stories'):'')));
   if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
   h+=`<div class="note warnbox"><b>Town of Fort Myers Beach LDC — Table 34-3 (conventional districts).</b> FMB is its own jurisdiction (not unincorporated Lee). Redevelopment districts (Downtown, Old San Carlos, etc.) use build-to lines, and PDs follow an approved master plan — those are not in this table. FMB has been revising its codes post-Hurricane Ian, so verify the current figures in § 34-637/§ 34-638 before siting.</div>`;
+  return h;
+}
+
+/* ============================ CITY OF FORT MYERS ============================
+   Fort Myers keeps its land development code in Chapter 118 (not Ch. 34). Hand-entered from the
+   § 118.2.1 dimensional tables. IMPORTANT: residential standards vary by HOUSING TYPE (detached,
+   zero-lot-line, attached, two-family, townhouse, multifamily) — the entries below show the
+   SINGLE-FAMILY-DETACHED standards (Table 118.2.1.A) as the common case, and call out the
+   multifamily/townhouse differences in the note. Side (street) setbacks are by § 118.1.6.F.4.
+   genWarn flags the districts (RS-7/RS-D/RM-12/RM-16) where the administrative 5-ft side-yard
+   reduction BANS generators in the side yard between dwellings (§ 118.2.1 note C.2.b). */
+const FORTMYERS_SETBACKS = {
+  "RS-E": { name:"Residential Single-Family Estate (RS-E)", minLotArea:32000, minLotWidth:85, front:20, sideInterior:10, rear:10, waterfront:25, height:35, coverage:"35%",
+            note:"Estate district — largest lots in the city. Front-facing garage door setback 25 ft. Side (street) setback per § 118.1.6.F.4. Minimum living area 1,400 sq ft/dwelling." },
+  "RS-5": { name:"Residential Single-Family (RS-5)", minLotArea:8000, minLotWidth:80, front:20, sideInterior:10, rear:10, waterfront:25, height:35, coverage:"35%",
+            note:"Single-family detached standards. Front-facing garage door 25 ft. Side (street) per § 118.1.6.F.4. Min living area 1,400 sq ft." },
+  "RS-6": { name:"Residential Single-Family (RS-6)", minLotArea:7000, minLotWidth:70, front:20, sideInterior:10, rear:10, waterfront:25, height:35, coverage:"40%",
+            note:"Single-family detached standards. Front-facing garage door 25 ft. Side (street) per § 118.1.6.F.4. Min living area 1,200 sq ft. Attached/townhouse/multifamily building types have their own tables (118.2.1.C–F)." },
+  "RS-7": { name:"Residential Single-Family (RS-7)", minLotArea:5000, minLotWidth:50, front:20, sideInterior:"10 ft (7 ft permitted on lots &lt;60 ft wide)", rear:10, waterfront:25, height:35, coverage:"40%", genWarn:true,
+            note:"Single-family detached standards. Front-facing garage door 25 ft. Side (street) per § 118.1.6.F.4. Attached/townhouse/two-family types have their own tables (118.2.1.C–E)." },
+  "RS-D": { name:"Residential Single-Family Duplex-capable (RS-D)", minLotArea:5000, minLotWidth:50, front:20, sideInterior:"10 ft (7 ft permitted on lots &lt;60 ft wide)", rear:10, waterfront:25, height:35, coverage:"40%", genWarn:true,
+            note:"Single-family detached standards shown. RS-D also allows two-family/duplex (Table 118.2.1.D: 5,000 sq ft lot, 7 ft side, 10 ft rear). Front-facing garage door 25 ft. Side (street) per § 118.1.6.F.4." },
+  "RM-12":{ name:"Residential Multifamily (RM-12)", minLotArea:5000, minLotWidth:50, front:20, sideInterior:"10 ft (7 ft on lots &lt;60 ft wide) — single-family", rear:10, waterfront:25, height:35, coverage:"45%", genWarn:true,
+            note:"Single-family-detached values shown. MULTIFAMILY in RM-12 differs: 15 ft front, 7 ft side, 10 ft rear, 35% common open space, up to 12 units/acre, height 45 ft. Townhouse &amp; two-family also allowed (Tables 118.2.1.C–F). Front-facing garage door 25 ft." },
+  "RM-16":{ name:"Residential Multifamily (RM-16)", minLotArea:5000, minLotWidth:50, front:20, sideInterior:"10 ft (7 ft on lots &lt;60 ft wide) — single-family", rear:10, waterfront:25, height:35, coverage:"45%", genWarn:true,
+            note:"Single-family-detached values shown. MULTIFAMILY in RM-16 differs: 15 ft front, 7 ft side, 10 ft rear, up to 16 units/acre, height 70 ft or 5 stories. Townhouse &amp; two-family also allowed (Tables 118.2.1.C–F). Front-facing garage door 25 ft." },
+  "RM-25":{ name:"Residential Multifamily (RM-25)", minLotArea:null, minLotWidth:50, front:15, sideInterior:7, rear:10, waterfront:25, height:"70 ft or 5 stories", coverage:"45%",
+            note:"High-density district — no single-family-detached column. Multifamily: 15 ft front, 7 ft side, 10 ft rear, site min 50 ft wide × 100 ft deep, up to 25 units/acre, 35% common open space. Height 70 ft / 5 stories is subject to the underlying setbacks and cannot exceed twice the least proposed yard setback. Townhouse standards in Table 118.2.1.E." },
+  "NC":   { name:"Neighborhood Commercial (NC)", minLotArea:10000, minLotWidth:100, front:25, sideInterior:10, sideStreet:20, rear:10, waterfront:25, height:45, coverage:"45%",
+            note:"Nonresidential standards (Table 118.2.1.H). Side (street) 20 ft. Residential (townhouse/multifamily) follows RM-16 standards; residential density up to 16 units/acre." },
+  "CG":   { name:"Commercial General (CG)", minLotArea:10000, minLotWidth:100, front:25, sideInterior:10, sideStreet:20, rear:10, waterfront:25, height:"70 ft or 5 stories", coverage:"45%",
+            note:"Nonresidential standards. Side (street) 20 ft. Residential (townhouse/multifamily) follows RM-16 standards; residential density up to 25 units/acre." },
+  "CI":   { name:"Commercial Intensive (CI)", minLotArea:10000, minLotWidth:100, front:25, sideInterior:10, sideStreet:20, rear:10, waterfront:25, height:"70 ft or 5 stories", coverage:"45%",
+            note:"Nonresidential standards. Side (street) 20 ft. Height 70 ft/5 stories is subject to the underlying setbacks and cannot exceed twice the least proposed yard setback. Residential follows RM-16; density up to 40 units/acre." },
+  "CI-NR":{ name:"Commercial Intensive — Non-Residential (CI-NR)", minLotArea:10000, minLotWidth:100, front:25, sideInterior:10, sideStreet:20, rear:10, waterfront:25, height:"70 ft or 5 stories", coverage:"45%",
+            note:"Non-residential variant of CI — no residential permitted. Side (street) 20 ft. Height 70 ft/5 stories subject to underlying setbacks (cannot exceed twice the least yard setback)." },
+  "IL":   { name:"Industrial Light (IL)", minLotArea:10000, minLotWidth:100, front:"30 ft (arterial or non-arterial)", sideInterior:10, sideStreet:20, rear:10, waterfront:25, height:70, coverage:"45%",
+            note:"Nonresidential industrial standards (Table 118.2.1.J). Front 30 ft. Side (street) 20 ft." },
+  "IH":   { name:"Industrial Heavy (IH)", minLotArea:10000, minLotWidth:100, front:"50 ft (arterial) / 30 ft (non-arterial)", sideInterior:10, sideStreet:20, rear:10, waterfront:25, height:70, coverage:"45%",
+            note:"Nonresidential industrial standards. Front 50 ft on an arterial, 30 ft otherwise. Side (street) 20 ft." },
+  "REC":  { name:"Recreation (REC)", minLotArea:10000, front:"30 ft or ½ the street ROW width (whichever is greater)", sideInterior:25, rear:25, height:32, coverage:"30%",
+            note:"Parks / open space / active &amp; passive recreation. Buildings must be ≥25 ft from all property lines, and ≥30 ft (or ½ the street right-of-way width, whichever is greater) from streets. Max height 32 ft, max coverage 30%." },
+  "EFC":  { name:"Edison Ford Cultural (EFC)", minLotArea:4900, minLotWidth:50, front:20, sideInterior:"10 ft (50 ft for structured parking adjacent to Edison Park Historic District)", rear:"10 ft (50 ft for structured parking adjacent to Edison Park Historic District)", waterfront:25, height:"50 ft / 3 stories max (2 stories adjacent to Edison Park Historic District)", coverage:"45%",
+            note:"Historic Edison &amp; Ford estates district. Structured parking limited to 2 levels." },
+  "CON":  { name:"Conservation Lands (CON)", special:true,
+            note:"Conservation district — regionally significant wetlands/uplands held for long-term conservation (water management, open space, passive recreation). No conventional dimensional table: density may transfer to adjacent commonly-owned uplands, and district boundaries follow the regulating agency's permit. Single-family detached is only a conditional use. Confirm any siting with City of Fort Myers Community Development." }
+};
+
+/* Resolve a City of Fort Myers zoning code to a setback entry. Exact match first, then ordered
+   word-boundary fallbacks (CI-NR before CI; RS-letter/digit and RM-number families handled). */
+function fortMyersSetbacks(districtCode){
+  if(!districtCode) return null;
+  const U=String(districtCode).toUpperCase().trim();
+  const tag=(entry,label)=> entry ? Object.assign({__key:label, __shown:String(districtCode).trim()}, entry) : null;
+  if(FORTMYERS_SETBACKS[U]) return tag(FORTMYERS_SETBACKS[U], U);
+  if(/\bRS[\s-]*E\b/.test(U)) return tag(FORTMYERS_SETBACKS["RS-E"], "RS-E");
+  if(/\bRS[\s-]*D\b/.test(U)) return tag(FORTMYERS_SETBACKS["RS-D"], "RS-D");
+  let m=U.match(/\bRS[\s-]*([567])\b/);
+  if(m){ const k="RS-"+m[1]; if(FORTMYERS_SETBACKS[k]) return tag(FORTMYERS_SETBACKS[k], k); }
+  m=U.match(/\bRM[\s-]*(12|16|25)\b/);
+  if(m){ const k="RM-"+m[1]; if(FORTMYERS_SETBACKS[k]) return tag(FORTMYERS_SETBACKS[k], k); }
+  if(/\bCI[\s-]*NR\b/.test(U)) return tag(FORTMYERS_SETBACKS["CI-NR"], "CI-NR");
+  if(/\bNC\b/.test(U)) return tag(FORTMYERS_SETBACKS["NC"], "NC");
+  if(/\bCG\b/.test(U)) return tag(FORTMYERS_SETBACKS["CG"], "CG");
+  if(/\bCI\b/.test(U)) return tag(FORTMYERS_SETBACKS["CI"], "CI");
+  if(/\bIL\b/.test(U)) return tag(FORTMYERS_SETBACKS["IL"], "IL");
+  if(/\bIH\b/.test(U)) return tag(FORTMYERS_SETBACKS["IH"], "IH");
+  if(/\bREC\b/.test(U)) return tag(FORTMYERS_SETBACKS["REC"], "REC");
+  if(/\bEFC\b/.test(U)) return tag(FORTMYERS_SETBACKS["EFC"], "EFC");
+  if(/\bCON\b/.test(U)) return tag(FORTMYERS_SETBACKS["CON"], "CON");
+  return null;
+}
+
+function renderFortMyersSetbacks(districtCode){
+  const s=fortMyersSetbacks(districtCode);
+  const setVal=v=>{
+    if(v==null) return null;
+    if(typeof v==='number') return v===0?'0 ft':v+' ft';
+    const t=String(v).trim(); if(!t) return null;
+    return /[a-zA-Z]/.test(t) ? t : t+' ft';
+  };
+  if(!s){
+    // Reached only for a City of Fort Myers parcel whose code isn't a § 118.2.1 conventional district
+    // — most likely a PUD or a downtown/midtown form-based district (Urban Core/Center/General).
+    const code = districtCode ? String(districtCode).trim() : '';
+    if(!code) return '';
+    let f=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PD / FORM-BASED</span> ${esc(code)} · not a § 118.2.1 conventional district</div>`;
+    f+=`<div class="note">This City of Fort Myers district isn't one of the conventional Chapter 118 districts. It is most likely a <b>planned unit development (PUD)</b> — standards from the approved PUD ordinance &amp; master concept plan — or a <b>downtown/midtown form-based district</b> (Urban Core, Urban Center, Urban General), which use build-to lines rather than a conventional setback table.</div>`;
+    f+=`<div class="note warnbox">Look up the parcel's PUD ordinance or form-based district standards before siting a generator or LP tank. Confirm with City of Fort Myers Community Development.</div>`;
+    return f;
+  }
+  const shown = s.__shown || String(districtCode);
+  if(s.special){
+    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ CONSERVATION</span> ${esc(shown)} · no conventional dimensional table (Fort Myers LDC Ch. 118)</div>`;
+    if(s.note) p+=`<div class="note">${esc(s.note)}</div>`;
+    p+=`<div class="note warnbox">Confirm standards and permitted uses with City of Fort Myers Community Development before any siting.</div>`;
+    return p;
+  }
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)} (Fort Myers LDC Ch. 118)</div>`;
+  if(s.minLotArea!=null){ h+=fieldRow('Minimum lot', esc(fmtNum(s.minLotArea)+' sq ft'+(s.minLotWidth?(' · '+s.minLotWidth+' ft wide'):''))); }
+  else if(s.minLotWidth!=null){ h+=fieldRow('Minimum lot width', esc(s.minLotWidth+' ft')); }
+  const frontV=setVal(s.front); if(frontV) h+=fieldRow('Front', esc(frontV), 'big');
+  const sideV=setVal(s.sideInterior); if(sideV) h+=fieldRow('Side (interior)', esc(sideV));
+  if(s.sideStreet!=null) h+=fieldRow('Side (street)', esc(setVal(s.sideStreet)));
+  else h+=fieldRow('Side (street)', 'per § 118.1.6.F.4');
+  const rearV=setVal(s.rear); if(rearV) h+=fieldRow('Rear', esc(rearV));
+  if(s.waterfront!=null) h+=fieldRow('Waterfront', esc(setVal(s.waterfront)));
+  if(s.height!=null) h+=fieldRow('Max building height', esc(setVal(s.height)));
+  if(s.coverage) h+=fieldRow('Max lot coverage', esc(s.coverage));
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  if(s.genWarn){
+    h+=`<div class="note warnbox"><b>⚠ Generator siting:</b> in HOA-controlled developments that use the administrative <b>5-ft side-yard reduction</b> (allowed in RS-7, RS-D, RM-12 &amp; RM-16), <b>no service equipment may be placed in the side yard between dwellings — generators are named explicitly</b>, along with AC units, water softeners, pumps and pool equipment (§ 118.2.1 note C.2.b). On those lots, plan for rear-yard or other siting.</div>`;
+  }
+  h+=`<div class="note warnbox"><b>City of Fort Myers LDC — Chapter 118 (§ 118.2.1).</b> Fort Myers is its own jurisdiction (not unincorporated Lee). Residential standards vary by building type (detached / attached / townhouse / two-family / multifamily) — values shown are single-family-detached unless noted. Side (street) setbacks follow § 118.1.6.F.4. Verify corner-lot, waterfront and any PUD/overlay conditions in the adopted code before siting.</div>`;
   return h;
 }
 
@@ -4227,6 +4351,9 @@ async function runLookup(lat,lng,searchCtx){
     // Fort Myers Beach adopted its OWN LDC (its Chapter 34) after incorporating — conventional
     // districts come from its Table 34-3; redevelopment/PD districts fall through to the code note.
     if(norm(cityName)==='FORTMYERSBEACH' && zhit.code){ html += renderFmbSetbacks(zhit.code); }
+    // City of Fort Myers keeps its LDC in Chapter 118 (§ 118.2.1 dimensional tables); PUD and
+    // downtown form-based districts fall through to the PD/form-based note.
+    if(norm(cityName)==='FORTMYERS' && zhit.code){ html += renderFortMyersSetbacks(zhit.code); }
     // Unincorporated Lee County (Chapter 34). Incorporated cities (Cape Coral, Fort Myers, Bonita
     // Springs, Estero, Sanibel, Fort Myers Beach) adopt their own codes and are excluded via LEE_INCORP
     // — Cape Coral/Bonita/Estero render above; the rest fall through to the adopted-code note below.
