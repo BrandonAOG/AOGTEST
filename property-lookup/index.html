@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+  /* Apply saved theme ASAP (before paint) to avoid a flash. No saved value => auto-follow OS. */
+  try{ var _t=localStorage.getItem('aog_theme'); if(_t==='light'||_t==='dark') document.documentElement.setAttribute('data-theme',_t); }catch(e){}
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Property Lookup · Always On Generators</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -15,49 +19,137 @@
     --signal:#ffb000; --signal2:#ff8a3c;
     --blueprint:#39d3ff; --good:#37d399; --warn:#ff5d5d;
     --mono:'IBM Plex Mono',monospace; --disp:'Saira',sans-serif; --body:'Spline Sans',sans-serif;
+    /* surfaces & accents (were hard-coded; now themeable) */
+    --map-bg:#0d1117;
+    --panel-grad1:#11161d; --panel-grad2:#0f141b;
+    --header-bg:#0f141b; --search-bg:#11161d; --input-bg:#0a0e13;
+    --card-head-bg:#13191f; --foot-bg:#0d1219;
+    --dash:#1c242e; --dash2:#232d39; --scrollthumb:#222c38;
+    --signal-ink:#191100;            /* text on signal-colored buttons */
+    --signal-hover:#ffc23d;
+    --warnbox-bg:#1c1408; --warnbox-line:#4a3408; --warnbox-ink:#f0d9a8;
+    --palink-bg:#0a2733; --palink-line:#14485b; --palink-hover:#0d3140;
+    --sfha-bg:#1f1212; --sfha-line:#5a2222;
+    --safe-bg:#0f1c16; --safe-line:#1f4d3a;
+    --unk-bg:#141a21; --unk-line:#2a323c;
+    --live-ink:#0a1a12;              /* text on the green LIVE badge */
+    --drop-bg:#0a0e13; --drop-line:#161d26; --drop-hover:#11161d;
+    --grip:#4a5868;
+    --bnd-bg:#ff8c1a; --bnd-ink:#10151b;
+    --crosshair-bg:rgba(13,17,23,.82);
+    --shadow-strong:rgba(0,0,0,.55); --shadow-soft:rgba(0,0,0,.5);
+    --logo-glow:rgba(255,176,0,.45);
+    --brand-hi:#ffffff;              /* bright stop in the brand-name gradient */
   }
+  /* Light mode — soft paper-white.
+     Applied when the user explicitly picks light (html[data-theme="light"])
+     OR, absent any explicit choice, when the OS prefers light. The toggle writes
+     data-theme to override; html[data-theme="dark"] forces dark even on a light OS. */
+  @media (prefers-color-scheme: light){
+    html:not([data-theme]){
+      --bg:#eceef1; --panel:#ffffff; --panel2:#ffffff; --line:#d4d9e0;
+      --ink:#1b2530; --dim:#5a6675; --faint:#717d8c;
+      --signal:#b87200; --signal2:#d4691f;
+      --blueprint:#0a7ea4; --good:#15935f; --warn:#cc2f2f;
+      --map-bg:#dfe3e8;
+      --panel-grad1:#ffffff; --panel-grad2:#f6f8fa;
+      --header-bg:#f6f8fa; --search-bg:#f1f3f6; --input-bg:#ffffff;
+      --card-head-bg:#f1f4f7; --foot-bg:#f1f3f6;
+      --dash:#e2e6eb; --dash2:#dde2e8; --scrollthumb:#c4ccd5;
+      --signal-ink:#ffffff;
+      --signal-hover:#9c6000;
+      --warnbox-bg:#fdf4e0; --warnbox-line:#e8c98a; --warnbox-ink:#7a5a12;
+      --palink-bg:#e4f3f9; --palink-line:#a9d8e8; --palink-hover:#d3ecf4;
+      --sfha-bg:#fbe9e9; --sfha-line:#e3b0b0;
+      --safe-bg:#e6f5ee; --safe-line:#aedcc6;
+      --unk-bg:#eef1f4; --unk-line:#d0d7df;
+      --live-ink:#ffffff;
+      --drop-bg:#ffffff; --drop-line:#e2e6eb; --drop-hover:#f1f4f7;
+      --grip:#b8c0ca;
+      --bnd-bg:#d4691f; --bnd-ink:#ffffff;
+      --crosshair-bg:rgba(255,255,255,.88);
+      --shadow-strong:rgba(40,55,75,.18); --shadow-soft:rgba(40,55,75,.15);
+      --logo-glow:rgba(199,127,0,.30);
+      --brand-hi:#1b2530;
+    }
+  }
+  /* Explicit user choice via the toggle — overrides the OS setting on any system. */
+  html[data-theme="light"]{
+    --bg:#eceef1; --panel:#ffffff; --panel2:#ffffff; --line:#d4d9e0;
+    --ink:#1b2530; --dim:#5a6675; --faint:#717d8c;
+    --signal:#b87200; --signal2:#d4691f;
+    --blueprint:#0a7ea4; --good:#15935f; --warn:#cc2f2f;
+    --map-bg:#dfe3e8;
+    --panel-grad1:#ffffff; --panel-grad2:#f6f8fa;
+    --header-bg:#f6f8fa; --search-bg:#f1f3f6; --input-bg:#ffffff;
+    --card-head-bg:#f1f4f7; --foot-bg:#f1f3f6;
+    --dash:#e2e6eb; --dash2:#dde2e8; --scrollthumb:#c4ccd5;
+    --signal-ink:#ffffff;
+    --signal-hover:#9c6000;
+    --warnbox-bg:#fdf4e0; --warnbox-line:#e8c98a; --warnbox-ink:#7a5a12;
+    --palink-bg:#e4f3f9; --palink-line:#a9d8e8; --palink-hover:#d3ecf4;
+    --sfha-bg:#fbe9e9; --sfha-line:#e3b0b0;
+    --safe-bg:#e6f5ee; --safe-line:#aedcc6;
+    --unk-bg:#eef1f4; --unk-line:#d0d7df;
+    --live-ink:#ffffff;
+    --drop-bg:#ffffff; --drop-line:#e2e6eb; --drop-hover:#f1f4f7;
+    --grip:#b8c0ca;
+    --bnd-bg:#d4691f; --bnd-ink:#ffffff;
+    --crosshair-bg:rgba(255,255,255,.88);
+    --shadow-strong:rgba(40,55,75,.18); --shadow-soft:rgba(40,55,75,.15);
+    --logo-glow:rgba(199,127,0,.30);
+    --brand-hi:#1b2530;
+  }
+  /* html[data-theme="dark"] needs no overrides — :root defaults are already dark,
+     and because data-theme is set, the prefers-light media query above won't apply. */
   *{box-sizing:border-box}
+  html{color-scheme:light dark}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--body)}
-  #map{position:absolute;inset:0;z-index:1;background:#0d1117}
-  .leaflet-container{background:#0d1117}
+  #map{position:absolute;inset:0;z-index:1;background:var(--map-bg)}
+  .leaflet-container{background:var(--map-bg)}
 
   /* ---- Panel ---- */
   #panel{
     position:absolute;z-index:1000;top:14px;left:14px;width:380px;max-width:calc(100vw - 28px);
     max-height:calc(100vh - 28px);display:flex;flex-direction:column;
-    background:linear-gradient(180deg,#11161d,#0f141b);
+    background:linear-gradient(180deg,var(--panel-grad1),var(--panel-grad2));
     border:1px solid var(--line);border-radius:10px;
-    box-shadow:0 18px 50px rgba(0,0,0,.55);overflow:hidden;
+    box-shadow:0 18px 50px var(--shadow-strong);overflow:hidden;
   }
-  header{padding:14px 16px 12px;border-bottom:1px solid var(--line);background:#0f141b}
+  header{padding:14px 16px 12px;border-bottom:1px solid var(--line);background:var(--header-bg)}
   header .kick{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--signal);text-transform:uppercase}
   header h1{font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.01em;margin:3px 0 2px;line-height:1.05}
   header p{margin:4px 0 0;font-size:11.5px;color:var(--dim);line-height:1.45}
 
   .brandbar{display:flex;align-items:center;gap:11px;margin-bottom:12px;padding-bottom:11px;border-bottom:1px solid var(--line)}
-  .brand-logo{width:40px;height:40px;object-fit:contain;flex:none;filter:drop-shadow(0 0 8px rgba(255,176,0,.45))}
+  .brand-logo{width:40px;height:40px;object-fit:contain;flex:none;filter:drop-shadow(0 0 8px var(--logo-glow))}
   .brand-name{font-family:var(--disp);font-weight:700;font-size:15px;line-height:1.02;letter-spacing:.06em;
-    background:linear-gradient(135deg,#fff 0%,var(--signal) 45%,var(--signal2) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;flex:1}
-  .brand-back{margin-left:auto;flex:none;text-decoration:none;color:var(--dim);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);padding:5px 9px;border-radius:6px}
+    background:linear-gradient(135deg,var(--brand-hi) 0%,var(--signal) 45%,var(--signal2) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;flex:1}
+  .brand-back{flex:none;text-decoration:none;color:var(--dim);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);padding:5px 9px;border-radius:6px}
   .brand-back:hover{color:var(--signal);border-color:var(--signal)}
+  .theme-toggle{flex:none;background:none;cursor:pointer;color:var(--dim);
+    font-family:var(--mono);font-size:13px;line-height:1;border:1px solid var(--line);
+    padding:5px 8px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;
+    width:30px;height:26px;transition:color .15s,border-color .15s}
+  .theme-toggle:hover{color:var(--signal);border-color:var(--signal)}
 
-  .search{padding:12px 16px;border-bottom:1px solid var(--line);background:#11161d}
+  .search{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--search-bg)}
   .searchrow{display:flex;gap:7px}
   .search input{
-    flex:1;min-width:0;background:#0a0e13;border:1px solid var(--line);color:var(--ink);
+    flex:1;min-width:0;background:var(--input-bg);border:1px solid var(--line);color:var(--ink);
     font-family:var(--mono);font-size:13px;padding:9px 11px;border-radius:7px;outline:none;
   }
   .search input:focus{border-color:var(--signal)}
   .search #go{
-    background:var(--signal);color:#191100;border:none;font-family:var(--disp);font-weight:700;
+    background:var(--signal);color:var(--signal-ink);border:none;font-family:var(--disp);font-weight:700;
     font-size:13px;letter-spacing:.04em;padding:0 15px;border-radius:7px;cursor:pointer;text-transform:uppercase;
   }
-  .search #go:hover{background:#ffc23d}
+  .search #go:hover{background:var(--signal-hover)}
   .hint{margin-top:8px;font-size:10.5px;color:var(--faint);font-family:var(--mono);line-height:1.5}
   .hint b{color:var(--dim)}
 
   .body{overflow-y:auto;padding:6px 16px 16px}
-  .body::-webkit-scrollbar{width:8px}.body::-webkit-scrollbar-thumb{background:#222c38;border-radius:8px}
+  .body::-webkit-scrollbar{width:8px}.body::-webkit-scrollbar-thumb{background:var(--scrollthumb);border-radius:8px}
 
   .status{font-family:var(--mono);font-size:11px;color:var(--dim);padding:11px 2px 5px;display:flex;align-items:center;gap:8px}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
@@ -66,13 +158,13 @@
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 
   .card{background:var(--panel2);border:1px solid var(--line);border-radius:9px;margin-top:11px;overflow:hidden}
-  .card .ch{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);background:#13191f}
+  .card .ch{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--card-head-bg)}
   .card .ch .icn{font-family:var(--mono);font-size:11px;color:var(--signal);font-weight:600}
   .card .ch h2{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:0;flex:1}
   .card .src{font-family:var(--mono);font-size:9px;color:var(--faint);text-align:right;line-height:1.25}
   .card .cb{padding:6px 12px 11px}
 
-  .field{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed #1c242e}
+  .field{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--dash)}
   .field:last-child{border-bottom:none}
   .field .k{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;flex:none;padding-top:1px;width:118px}
   .field .v{font-family:var(--mono);font-size:12.5px;color:var(--ink);text-align:right;word-break:break-word;flex:1}
@@ -81,20 +173,20 @@
   .v.muted{color:var(--faint)}
 
   .badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;border:1px solid}
-  .badge.sfha{color:var(--warn);border-color:#5a2222;background:#1f1212}
-  .badge.safe{color:var(--good);border-color:#1f4d3a;background:#0f1c16}
-  .badge.unk{color:var(--dim);border-color:#2a323c;background:#141a21}
+  .badge.sfha{color:var(--warn);border-color:var(--sfha-line);background:var(--sfha-bg)}
+  .badge.safe{color:var(--good);border-color:var(--safe-line);background:var(--safe-bg)}
+  .badge.unk{color:var(--dim);border-color:var(--unk-line);background:var(--unk-bg)}
 
   .note{font-size:11px;color:var(--dim);line-height:1.5;padding:8px 0 2px}
-  .note.warnbox{background:#1c1408;border:1px solid #4a3408;border-radius:8px;padding:10px 11px;color:#f0d9a8}
+  .note.warnbox{background:var(--warnbox-bg);border:1px solid var(--warnbox-line);border-radius:8px;padding:10px 11px;color:var(--warnbox-ink)}
   .note.warnbox b{color:var(--signal)}
   a.link{color:var(--blueprint);text-decoration:none;font-family:var(--mono);font-size:11.5px;word-break:break-all}
   a.link:hover{text-decoration:underline}
-  .palink{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:#0a2733;border:1px solid #14485b;color:var(--blueprint);
+  .palink{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:var(--palink-bg);border:1px solid var(--palink-line);color:var(--blueprint);
     font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.03em;padding:8px 12px;border-radius:7px;text-decoration:none}
-  .palink:hover{background:#0d3140}
+  .palink:hover{background:var(--palink-hover)}
 
-  footer{border-top:1px solid var(--line);font-size:9.5px;color:var(--faint);line-height:1.5;font-family:var(--mono);background:#0d1219;padding:0}
+  footer{border-top:1px solid var(--line);font-size:9.5px;color:var(--faint);line-height:1.5;font-family:var(--mono);background:var(--foot-bg);padding:0}
   #footToggle{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:none;border:none;cursor:pointer;
     color:var(--dim);font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:8px 16px;}
   #footToggle:hover{color:var(--signal)}
@@ -103,29 +195,29 @@
   footer:not(.collapsed) #footBody{max-height:360px;padding:2px 16px 12px}
   footer:not(.collapsed) #footToggle .fchev{transform:rotate(180deg)}
 
-  .layerswitch{position:absolute;z-index:1000;bottom:18px;right:18px;display:flex;background:#11161d;border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+  .layerswitch{position:absolute;z-index:1000;bottom:18px;right:18px;display:flex;background:var(--search-bg);border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 6px 20px var(--shadow-soft)}
   .layerswitch button{background:transparent;border:none;color:var(--dim);font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.05em;padding:9px 14px;cursor:pointer;text-transform:uppercase}
-  .layerswitch button.active{background:var(--signal);color:#191100}
-  .bnd-tip{background:#ff8c1a;color:#10151b;border:none;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.04em;padding:2px 7px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
-  .bnd-tip .leaflet-tooltip-tip{background:#ff8c1a}
-  .crosshair{position:absolute;z-index:999;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10.5px;color:var(--dim);background:rgba(13,17,23,.82);border:1px solid var(--line);padding:5px 12px;border-radius:20px;pointer-events:none}
+  .layerswitch button.active{background:var(--signal);color:var(--signal-ink)}
+  .bnd-tip{background:var(--bnd-bg);color:var(--bnd-ink);border:none;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.04em;padding:2px 7px;box-shadow:0 2px 8px var(--shadow-soft)}
+  .bnd-tip .leaflet-tooltip-tip{background:var(--bnd-bg)}
+  .crosshair{position:absolute;z-index:999;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10.5px;color:var(--dim);background:var(--crosshair-bg);border:1px solid var(--line);padding:5px 12px;border-radius:20px;pointer-events:none}
 
   .empty{text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;padding:26px 10px;line-height:1.6}
 
-  .adv{margin-top:9px;border-top:1px dashed #232d39;padding-top:9px}
+  .adv{margin-top:9px;border-top:1px dashed var(--dash2);padding-top:9px}
   .adv summary{cursor:pointer;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--blueprint);text-transform:uppercase;list-style:none;user-select:none}
   .adv summary::-webkit-details-marker{display:none}
   .adv summary::before{content:'▸ ';color:var(--faint)}
   .adv[open] summary::before{content:'▾ '}
   .adv .arow{display:flex;gap:6px;margin-top:8px}
-  .adv input{flex:1;min-width:0;background:#0a0e13;border:1px solid var(--line);color:var(--ink);font-family:var(--mono);font-size:11px;padding:7px 9px;border-radius:6px;outline:none}
+  .adv input{flex:1;min-width:0;background:var(--input-bg);border:1px solid var(--line);color:var(--ink);font-family:var(--mono);font-size:11px;padding:7px 9px;border-radius:6px;outline:none}
   .adv input:focus{border-color:var(--blueprint)}
-  .adv button{background:#0a2733;border:1px solid #14485b;color:var(--blueprint);font-family:var(--disp);font-weight:600;font-size:11px;padding:0 11px;border-radius:6px;cursor:pointer}
-  .adv button:hover{background:#0d3140}
+  .adv button{background:var(--palink-bg);border:1px solid var(--palink-line);color:var(--blueprint);font-family:var(--disp);font-weight:600;font-size:11px;padding:0 11px;border-radius:6px;cursor:pointer}
+  .adv button:hover{background:var(--palink-hover)}
   .adv .lstat{margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--dim)}
   .adv .lhint{margin-top:6px;font-size:10px;color:var(--faint);line-height:1.5}
   .adv .lhint a{color:var(--blueprint);text-decoration:none}
-  .badge.live{color:#0a1a12;background:var(--good);border-color:var(--good)}
+  .badge.live{color:var(--live-ink);background:var(--good);border-color:var(--good)}
   .freshline{font-family:var(--mono);font-size:9.5px;color:var(--good);padding:2px 0 4px;display:flex;align-items:center;gap:6px}
   .freshline.snap{color:var(--signal)}
   /* ---- Clear button inside search input ---- */
@@ -144,33 +236,33 @@
   /* ---- Address autocomplete suggestions ---- */
   .searchwrap{position:relative}
   .suggest{position:absolute;z-index:1200;left:0;right:0;top:calc(100% + 4px);
-    background:#0a0e13;border:1px solid var(--line);border-radius:8px;overflow:hidden;
-    box-shadow:0 12px 30px rgba(0,0,0,.55);display:none}
+    background:var(--input-bg);border:1px solid var(--line);border-radius:8px;overflow:hidden;
+    box-shadow:0 12px 30px var(--shadow-strong);display:none}
   .suggest.show{display:block}
   .suggest .sg{padding:10px 12px;font-family:var(--mono);font-size:12px;color:var(--ink);
-    cursor:pointer;border-bottom:1px solid #161d26;line-height:1.4;display:flex;gap:8px;align-items:flex-start}
+    cursor:pointer;border-bottom:1px solid var(--drop-line);line-height:1.4;display:flex;gap:8px;align-items:flex-start}
   .suggest .sg:last-child{border-bottom:none}
-  .suggest .sg:hover,.suggest .sg.active{background:#11161d;color:var(--signal)}
+  .suggest .sg:hover,.suggest .sg.active{background:var(--search-bg);color:var(--signal)}
   .suggest .sg .pin{color:var(--faint);flex:none}
   .suggest .sg .sgsrc{margin-left:auto;color:var(--faint);font-size:9.5px;flex:none;padding-top:1px}
   .suggest .sgmsg{padding:10px 12px;font-family:var(--mono);font-size:11px;color:var(--faint)}
 
   /* ---- Search history dropdown ---- */
   .history{position:absolute;z-index:1200;left:0;right:0;top:calc(100% + 4px);
-    background:#0a0e13;border:1px solid var(--line);border-radius:8px;overflow:hidden;
-    box-shadow:0 12px 30px rgba(0,0,0,.55);display:none}
+    background:var(--input-bg);border:1px solid var(--line);border-radius:8px;overflow:hidden;
+    box-shadow:0 12px 30px var(--shadow-strong);display:none}
   .history.show{display:block}
   .history-header{display:flex;align-items:center;justify-content:space-between;
-    padding:7px 12px 6px;border-bottom:1px solid #161d26}
+    padding:7px 12px 6px;border-bottom:1px solid var(--drop-line)}
   .history-header span{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
     text-transform:uppercase;color:var(--faint)}
   .history-header button{background:none;border:none;padding:0;cursor:pointer;
     font-family:var(--mono);font-size:9.5px;color:var(--faint);letter-spacing:.05em;text-transform:uppercase}
   .history-header button:hover{color:var(--warn)}
   .history .hi{padding:9px 12px;font-family:var(--mono);font-size:12px;color:var(--dim);
-    cursor:pointer;border-bottom:1px solid #161d26;display:flex;align-items:center;gap:8px;line-height:1.3}
+    cursor:pointer;border-bottom:1px solid var(--drop-line);display:flex;align-items:center;gap:8px;line-height:1.3}
   .history .hi:last-child{border-bottom:none}
-  .history .hi:hover,.history .hi.active{background:#11161d;color:var(--ink)}
+  .history .hi:hover,.history .hi.active{background:var(--search-bg);color:var(--ink)}
   .history .hi .hpin{color:var(--faint);font-size:10px;flex:none}
   .history .hi .hdel{margin-left:auto;flex:none;color:var(--faint);font-size:11px;padding:2px 4px}
   .history .hi .hdel:hover{color:var(--warn)}
@@ -185,7 +277,7 @@
       top:auto;left:0;right:0;bottom:0;width:100%;max-width:100%;
       height:var(--sheet-h, 50vh);max-height:92vh;
       border-radius:18px 18px 0 0;border-left:none;border-right:none;border-bottom:none;
-      box-shadow:0 -10px 40px rgba(0,0,0,.6);
+      box-shadow:0 -10px 40px var(--shadow-strong);
       transition:height .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1);
     }
     #panel.dragging{transition:none}          /* follow the finger 1:1 while dragging */
@@ -194,14 +286,14 @@
     /* grab handle (tap target + drag origin) — clearly a slide bar */
     .sheet-grip{display:block;position:relative;height:30px;flex:none;cursor:grab;touch-action:none}
     .sheet-grip::before{content:"";position:absolute;top:11px;left:50%;transform:translateX(-50%);
-      width:54px;height:6px;border-radius:4px;background:#4a5868;transition:background .15s,width .15s}
+      width:54px;height:6px;border-radius:4px;background:var(--grip);transition:background .15s,width .15s}
     .sheet-grip:active::before{background:var(--signal);width:64px}
 
     /* floating pull-up tab — only visible when the sheet is hidden */
     .sheet-tab{display:none;position:absolute;z-index:1100;bottom:14px;left:50%;transform:translateX(-50%);
-      background:var(--signal);color:#191100;border:none;border-radius:22px;
+      background:var(--signal);color:var(--signal-ink);border:none;border-radius:22px;
       font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:.04em;
-      padding:11px 20px;box-shadow:0 6px 22px rgba(0,0,0,.5);cursor:pointer}
+      padding:11px 20px;box-shadow:0 6px 22px var(--shadow-soft);cursor:pointer}
     .sheet-tab.show{display:inline-flex;align-items:center;gap:7px}
 
     header{padding-top:4px}
@@ -227,6 +319,80 @@
   }
   /* the grip & pull-up tab only exist on mobile; hide on desktop */
   .sheet-grip,.sheet-tab{display:none}
+
+  /* ---------- Print-only header (hidden on screen) ---------- */
+  #printHead{display:none}
+
+  /* ---------- PRINT: one 8.5×11 sheet, ink on white, everything that loaded ---------- */
+  @media print{
+    @page{ size:letter; margin:0.45in; }
+    /* force light ink-on-white regardless of the screen theme */
+    html,body{ background:#fff !important; color:#111 !important; height:auto !important; overflow:visible !important; }
+    /* hide the map, search, advanced panels, footer, toolbar buttons, overlays */
+    #map,.search,header .kick,header h1,header p,header .brandbar,
+    .layerswitch,.crosshair,.sheet-grip,.sheet-tab,footer,.status,
+    #themeToggle,#printBtn,.brand-back,.suggest,.history,.empty,
+    .leaflet-control-container{ display:none !important; }
+
+    /* lift the panel out of its fixed/absolute box into normal flow */
+    #panel{ position:static !important; inset:auto !important; width:100% !important; max-width:100% !important;
+      height:auto !important; max-height:none !important; transform:none !important;
+      background:#fff !important; border:none !important; border-radius:0 !important; box-shadow:none !important;
+      display:block !important; overflow:visible !important; }
+    header{ padding:0 !important; border:none !important; background:#fff !important; }
+
+    /* print header */
+    #printHead{ display:block !important; border-bottom:2px solid #111; padding-bottom:8px; margin-bottom:10px; }
+    #printHead .ph-row{ display:flex; align-items:center; gap:10px; }
+    #printHead .ph-logo{ width:34px; height:34px; object-fit:contain; }
+    #printHead .ph-name{ font-family:var(--disp); font-weight:700; font-size:15px; letter-spacing:.06em; color:#111; }
+    #printHead .ph-sub{ font-family:var(--mono); font-size:8.5px; letter-spacing:.04em; color:#444; margin-top:1px; }
+    #printHead .ph-meta{ font-family:var(--mono); font-size:9.5px; color:#222; margin-top:7px; line-height:1.5; }
+    #printHead .ph-meta b{ color:#111; }
+
+    /* results: flow cards into two balanced columns so the whole report fits one page */
+    #results{ display:block !important; overflow:visible !important; padding:0 !important;
+      column-count:2; column-gap:14px; }
+    .card{ break-inside:avoid; page-break-inside:avoid; -webkit-column-break-inside:avoid;
+      background:#fff !important; border:1px solid #bbb !important; border-radius:6px !important;
+      margin:0 0 8px !important; overflow:visible !important; }
+    /* Notes-heavy cards (zoning/setbacks/generator) may be tall; let THEM split internally
+       as a last resort rather than forcing the whole report to a 2nd page. Keep rows atomic. */
+    .card.tall{ break-inside:auto; page-break-inside:auto; -webkit-column-break-inside:auto; }
+    .field,.freshline,.badge{ break-inside:avoid; page-break-inside:avoid; }
+    .card .ch{ background:#f0f0f0 !important; border-bottom:1px solid #bbb !important; padding:4px 8px !important; }
+    .card .ch h2{ font-size:10.5px !important; color:#111 !important; }
+    .card .ch .icn{ color:#444 !important; font-size:9px !important; }
+    .card .src{ display:none !important; }       /* drop the right-aligned source tag to save width */
+    .card .cb{ padding:4px 8px 6px !important; }
+
+    /* compact fields */
+    .field{ padding:2.5px 0 !important; border-bottom:1px dashed #ddd !important; gap:8px !important; }
+    .field .k{ font-size:8px !important; color:#555 !important; width:auto !important; min-width:74px; }
+    .field .v{ font-size:9px !important; color:#111 !important; }
+    .field .v.big{ font-size:10px !important; color:#111 !important; }
+    .freshline{ font-size:8px !important; color:#333 !important; padding:2px 0 !important; }
+
+    /* badges: outline only, no fills (toner-friendly, still legible) */
+    .badge{ font-size:8px !important; padding:1px 5px !important; color:#111 !important;
+      background:#fff !important; border:1px solid #999 !important; }
+    .badge.sfha{ font-weight:700 !important; border:1.5px solid #111 !important; }
+
+    /* notes / warnboxes: keep, but quiet — keep warnboxes visually distinct with a left rule */
+    .note{ font-size:8px !important; color:#222 !important; line-height:1.4 !important; padding:3px 0 1px !important; }
+    .note.warnbox{ background:#fafafa !important; border:1px solid #ccc !important; border-left:3px solid #888 !important;
+      color:#222 !important; padding:4px 6px !important; }
+    .note.warnbox b{ color:#111 !important; }
+
+    /* links: show as plain bold text (no button chrome, no giant URLs) */
+    .palink{ background:#fff !important; border:none !important; color:#111 !important; font-size:8px !important;
+      padding:2px 0 !important; margin:2px 0 0 !important; text-decoration:none !important; font-weight:600 !important; }
+    a.link{ color:#111 !important; font-size:8px !important; }
+    a[href]:after{ content:"" !important; }     /* suppress UA "(url)" appending */
+
+    /* slightly tighten type globally for the page */
+    *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
 </style>
 </head>
 <body>
@@ -245,6 +411,8 @@
     <div class="brandbar">
       <img src="../logo.png" alt="Always On Generators" class="brand-logo" onerror="this.style.display='none'">
       <div class="brand-name">ALWAYS ON GENERATORS</div>
+      <button class="theme-toggle" id="themeToggle" type="button" title="Toggle light / dark" aria-label="Toggle light or dark theme" style="margin-left:auto">◐</button>
+      <button class="theme-toggle" id="printBtn" type="button" title="Print this report (1 page)" aria-label="Print report">⎙</button>
       <a class="brand-back" href="../">‹ Hub</a>
     </div>
     <div class="kick">Florida Parcel &amp; Flood Instrument</div>
@@ -298,6 +466,18 @@
 
   <div class="body" id="results">
     <div class="empty">— awaiting a location —<br><br>Search an address or tap the map.</div>
+  </div>
+
+  <!-- Print-only report header; populated by JS just before window.print() -->
+  <div id="printHead" aria-hidden="true">
+    <div class="ph-row">
+      <img src="../logo.png" alt="" class="ph-logo" onerror="this.style.display='none'">
+      <div class="ph-brand">
+        <div class="ph-name">ALWAYS ON GENERATORS</div>
+        <div class="ph-sub">Property Lookup · Parcel, Flood, Zoning &amp; Generator Siting</div>
+      </div>
+    </div>
+    <div class="ph-meta" id="printMeta"></div>
   </div>
 
   <footer id="foot" class="collapsed">
@@ -1266,8 +1446,30 @@ function detectFields(fields){
     yr:    find([/^ACT_?YR_?BLT$/,/^YR_?BLT$/,/^YEAR_?BUILT$/,/YRBLT/,/YEARBUILT/,/ACTYRBLT/,/^EFF_?YR/,/^MAXBUILTY$/,/^NEWBUILT$/]),
     liv:   find([/^TOT_?LVG_?AR/,/LIV.*AREA/,/^HEATED/,/TOTLIVING/,/LIVINGAREA/,/^GRSAR/]),
     saleP: find([/^SALE_?PRC1$/,/^SALE_?PRICE$/,/^SALEAMT$/,/^LASTSALE/,/SALEPRICE/,/SALE.*AMT/,/^SALE_?PR/,/^S_1AMOUNT$/]),
-    saleY: find([/^SALE_?YR1$/,/^SALE_?YEAR$/,/SALEYR/,/SALE.*YEAR/,/SALEDATE1/,/^S_1DATE$/])
+    saleY: find([/^SALE_?YR1$/,/^SALE_?YEAR$/,/SALEYR/,/SALE.*YEAR/,/SALEDATE1/,/^S_1DATE$/]),
+    mail:  find([/^OWN_?ADDR1$/,/^OWNER_?ADDR/,/^MAIL_?ADDR/,/^MAILING/,/^OWN_?ADDR$/,/MAILADDR/]),
+    mailCity: find([/^OWN_?CITY$/,/^MAIL_?CITY$/,/OWNER_?CITY/]),
+    use:   find([/^USE_?CODE$/,/^DOR_?UC$/,/^PA_?UC$/,/^LAND_?USE$/,/^USETYPE$/,/^USE_?DESC/,/^PROP_?USE/,/^DOR_?DESC/])
   };
+}
+/* Map common FL DOR use codes to readable labels (for "existing use"). Codes are strings like "01". */
+const DOR_USE = {
+  '00':'Vacant residential','01':'Single family residence','02':'Mobile home','03':'Multi-family (10+ units)',
+  '04':'Condominium','05':'Cooperative','06':'Retirement / life-care','07':'Misc residential','08':'Multi-family (<10 units)',
+  '10':'Vacant commercial','11':'Stores, 1-story','12':'Mixed use (store + office/residential)','16':'Community shopping center',
+  '17':'Office, 1-story','18':'Office, multi-story','19':'Professional office','20':'Airport/marina/terminal',
+  '21':'Restaurant / cafeteria','22':'Drive-in restaurant','23':'Financial institution','27':'Auto sales/repair',
+  '39':'Hotel / motel','40':'Vacant industrial','41':'Light manufacturing','48':'Warehousing/distribution',
+  '70':'Vacant institutional','71':'Church','72':'Private school','83':'Public school','86':'County',
+  '90':'Government leasehold','99':'Acreage not zoned agricultural'
+};
+function useLabel(v){
+  if(v==null||v==='') return null;
+  const s=String(v).trim();
+  // if it's already descriptive text (not just a code), show it as-is
+  if(/[a-z]/i.test(s) && s.length>3) return s.replace(/\b\w/g,c=>c.toUpperCase());
+  const code=s.replace(/[^0-9]/g,'').padStart(2,'0').slice(0,2);
+  return DOR_USE[code] || (s?('Use code '+esc(s)):null);
 }
 
 async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
@@ -1469,6 +1671,160 @@ function pickSpecificParcel(features){
   return {feature:best,count:features.length};
 }
 
+/* ---------- Lot dimensions from parcel geometry (WGS84 rings) ----------
+   Returns { areaSqft, acres, widthFt, depthFt, sides:[lenFt,...], note } or null.
+   - area: shoelace on the largest ring, converted deg²→ft² at the parcel's latitude
+   - width/depth: bounding-box extent (E–W width, N–S depth) — the intuitive "≈80×125 ft"
+   - sides: length of each boundary segment of the largest ring (clean for rectangular lots,
+     noisy for irregular ones — labeled as segments, not assigned to front/side/rear)
+   All distances in US feet. Pure geometry; no network. */
+const _FT_PER_DEG_LAT = 364000;   // ~ feet per degree latitude (good to <0.2% over FL)
+function _largestRing(rings){
+  let best=null, ba=-1;
+  for(const r of rings){ const a=Math.abs(ringPolyArea([r])); if(a>ba){ ba=a; best=r; } }
+  return best;
+}
+function parcelDimensions(geometry){
+  const rings = geometry && geometry.rings;
+  if(!rings || !rings.length) return null;
+  const ring = _largestRing(rings);
+  if(!ring || ring.length<4) return null;     // need at least a closed triangle
+  // latitude scale for this parcel
+  let sumLat=0,nLat=0; for(const p of ring){ sumLat+=p[1]; nLat++; }
+  const lat0=sumLat/nLat;
+  const ftPerLng=_FT_PER_DEG_LAT*Math.cos(lat0*Math.PI/180);
+  const ftPerLat=_FT_PER_DEG_LAT;
+  // bounding extent
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for(const p of ring){ if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0]; if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1]; }
+  const widthFt=(maxX-minX)*ftPerLng;
+  const depthFt=(maxY-minY)*ftPerLat;
+  // segment lengths (skip the implicit closing duplicate vertex)
+  const sides=[];
+  for(let i=0;i<ring.length-1;i++){
+    const dx=(ring[i+1][0]-ring[i][0])*ftPerLng;
+    const dy=(ring[i+1][1]-ring[i][1])*ftPerLat;
+    const len=Math.sqrt(dx*dx+dy*dy);
+    if(len>=3) sides.push(len);             // drop sub-3ft micro-segments (vertex noise)
+  }
+  // area via shoelace in feet
+  let a=0; for(let i=0,n=ring.length,j=n-1;i<n;j=i++){
+    a += (ring[j][0]*ftPerLng)*(ring[i][1]*ftPerLat) - (ring[i][0]*ftPerLng)*(ring[j][1]*ftPerLat);
+  }
+  const areaSqft=Math.abs(a)/2;
+  const acres=areaSqft/43560;
+  return { areaSqft, acres, widthFt, depthFt, sides,
+           irregular: sides.length>5 };       // many segments ⇒ not a simple rectangle
+}
+function fmtFt(n){ return n>=0?Math.round(n).toLocaleString('en-US')+' ft':null; }
+
+/* Build the lot-dimension fields from a parcel geometry. rollAcres (optional) is the assessor's
+   acreage from the roll, shown alongside the geometry-derived figure for cross-check. */
+function renderLotDimensions(geometry, rollAcres){
+  const d = parcelDimensions(geometry);
+  if(!d && rollAcres==null) return '';
+  let h = `<div class="freshline snap" style="margin-top:8px"><span class="badge unk">▭ LOT</span> dimensions &amp; size</div>`;
+  if(d){
+    const sqft = Math.round(d.areaSqft).toLocaleString('en-US');
+    const ac = d.acres>=0.01 ? d.acres.toFixed(d.acres<1?3:2) : '<0.01';
+    h += fieldRow('Lot size', `${sqft} sq ft · ${ac} ac`, 'big');
+    h += fieldRow('Lot extent', `${fmtFt(d.widthFt)} (E–W) × ${fmtFt(d.depthFt)} (N–S)`);
+    if(!d.irregular && d.sides.length){
+      const segs = d.sides.map(s=>fmtFt(s)).join(' · ');
+      h += fieldRow('Boundary segments', segs);
+    } else if(d.irregular){
+      h += `<div class="note">Irregular lot (${d.sides.length} boundary segments) — see extent above; measure individual lines on the appraiser's survey.</div>`;
+    }
+  }
+  if(rollAcres!=null){
+    const ra=Number(rollAcres);
+    if(isFinite(ra)&&ra>0) h += fieldRow('Acreage (roll)', ra.toLocaleString('en-US')+' ac');
+  }
+  h += `<div class="note">Dimensions computed from the parcel polygon — good for planning/clearance estimates, not a substitute for a survey. The E–W/N–S extent is the lot's bounding size; segment lengths are each boundary edge.</div>`;
+  return h;
+}
+
+/* ---------- Collier County required setbacks — LDC § 4.02.01 Table 2.1 ----------
+   "Table of Minimum Yard Requirements (Setbacks) for Base Zoning Districts." Required (code)
+   setbacks by district — the governing numbers, looked up from the district the tool detects live
+   (same data ProZone/Gridics shows, from the public LDC, no paid API). Numbers verified against the
+   user-pasted Table 2.1. Footnoted districts (a–f) carry their formula rules as notes; height- or
+   lot-width-based yards render as "height-based — see note" rather than a fixed number.
+   Waterfront side-yard splits are carried as sideNote. */
+const COLLIER_SETBACKS = {
+  "A":     { front:50, side:30, rear:50 },
+  "E":     { front:75, side:30, rear:75, note:"Estates: see also LDC § 2.03.01 for Estates-specific yard rules (½-depth front yard min 15 ft)." },
+  "RSF-1": { front:50, side:30, rear:50 },
+  "RSF-2": { front:40, side:20, rear:30 },
+  "RSF-3": { front:30, side:7.5, rear:25, sideNote:"Side yard 10 ft waterfront / 7.5 ft non-waterfront." },
+  "RSF-4": { front:25, side:7.5, rear:25, sideNote:"Side yard 10 ft waterfront / 7.5 ft non-waterfront." },
+  "RSF-5": { front:25, side:7.5, rear:20, sideNote:"Side yard 10 ft waterfront / 7.5 ft non-waterfront." },
+  "RSF-6": { front:25, side:7.5, rear:20, sideNote:"Side yard 10 ft waterfront / 7.5 ft non-waterfront." },
+  "RMF-6": { front:25, side:7.5, rear:20, sideNote:"Single-family: side 10 ft waterfront / 7.5 ft non-waterfront, rear 20 ft. Duplex: front 25, side 10, rear 20. 3+ units: front 30, side 15, rear 20." },
+  "RMF-12":{ front:30, side:null, rear:30, sideFormula:true, sideNote:"Side yard (ftn a) = 50% of building height, but not less than 15 ft." },
+  "RMF-16":{ front:null, side:null, rear:null, allFormula:true, note:"Front & rear (ftn b) = 50% of building height, min 30 ft. Side (ftn a) = 50% of building height, min 15 ft." },
+  "RT":    { front:null, side:null, rear:null, allFormula:true, note:"Front & rear (ftn b) = 50% of building height, min 30 ft. Side (ftn a) = 50% of building height, min 15 ft." },
+  "VR":    { front:20, side:5, rear:20, sideNote:"SF/MH: front 20, side 10 waterfront / 5 non-waterfront, rear 20. Duplex: 35/15/30. Multifamily: 35/15/30." },
+  "MH":    { front:25, side:7.5, rear:10, sideNote:"Side yard 10 ft waterfront / 7.5 ft non-waterfront. Side from a public road external to the park = 50 ft; min 15 ft from the park's exterior boundary." },
+  "TTRVC": { front:10, side:5, rear:8, sideNote:"Side 10 ft waterfront / 5 ft non-waterfront. Rear 10 ft waterfront / 8 ft non-waterfront. Park perimeter: 50 ft from exterior boundary & external street, 25 ft from internal street, 10 ft from any other building/structure." },
+  "C-1":   { front:25, side:15, rear:15, sideNote:"Side & rear: 25 ft where abutting residential, 15 ft non-residential." },
+  "C-2":   { front:25, side:15, rear:15, sideNote:"Side & rear: 25 ft abutting residential, 15 ft non-residential." },
+  "C-3":   { front:null, side:null, rear:null, allFormula:true, note:"Front (ftn c) = 50% of building height, min 25 ft. Side/rear: 25 ft abutting residential, else (ftn a) = 50% of building height, min 15 ft. Waterfront side = 25 ft (marinas none)." },
+  "C-4":   { front:null, side:null, rear:null, allFormula:true, note:"Front (ftn d) = 50% of building height, min 25 ft (structures ≥50 ft tall: 25 ft + 1 ft per ft over 50). Side/rear: 25 ft abutting residential, else (ftn a) = 50% of building height, min 15 ft. Waterfront side = 25 ft; none for marinas or adjacent to a railroad ROW." },
+  "C-5":   { front:25, side:15, rear:15, sideNote:"Side & rear: 25 ft abutting residential, 15 ft non-residential. Waterfront side = 25 ft; none for marinas or adjacent to a railroad ROW." },
+  "I":     { front:25, side:null, rear:null, sideFormula:true, sideNote:"Side (ftn e): all side yards total 20% of lot width (max 50 ft), no single side < 10 ft. Rear: 50 ft abutting residential, 15 ft otherwise. Waterfront side = 25 ft; none for marinas or adjacent to a railroad ROW.", note:"Rear: 50 ft where abutting residential, 15 ft otherwise." },
+  "BP":    { front:50, side:10, rear:25, sideNote:"Side 50 ft where abutting residential, 10 ft otherwise; rear 50 ft abutting residential, 25 ft otherwise." },
+  "CON":   { front:50, side:50, rear:50, note:"Non-conforming platted lot of record existing before Nov 13, 1991: front 40 ft, side = 10% of lot width (max 20 ft each side), rear 30 ft." },
+  "P":     { front:null, side:null, rear:null, allFormula:true, note:"Public use (ftn f): yard requirements equal the most restrictive adjoining district. Principal structures: 50 ft from all property lines; accessory: 25 ft from all lines." },
+  "CF":    { front:25, side:15, rear:15, sideNote:"Side & rear: 25 ft abutting residential, 15 ft non-residential." }
+};
+/* Look up a district's required setbacks. Normalizes the detected district code (e.g. "RSF-4",
+   "RSF 4", "rsf4") to the table key. Returns the entry or null. */
+const COLLIER_DISTRICT_ALIASES = {
+  "ESTATES":"E", "AGRICULTURAL":"A", "RURALAGRICULTURAL":"A",
+  "CONSERVATION":"CON", "PUBLICUSE":"P", "COMMUNITYFACILITY":"CF",
+  "GOLFCOURSE":"GC", "MOBILEHOME":"MH", "VILLAGERESIDENTIAL":"VR",
+  "BUSINESSPARK":"BP", "INDUSTRIAL":"I", "RESIDENTIALTOURIST":"RT"
+};
+function collierSetbacks(districtCode){
+  if(!districtCode) return null;
+  const raw=String(districtCode).toUpperCase().trim();
+  // direct hit
+  if(COLLIER_SETBACKS[raw]) return COLLIER_SETBACKS[raw];
+  // full-word alias (e.g. layer returns "ESTATES" instead of "E")
+  const alphaOnly=raw.replace(/[^A-Z]/g,'');
+  if(COLLIER_DISTRICT_ALIASES[alphaOnly]) return COLLIER_SETBACKS[COLLIER_DISTRICT_ALIASES[alphaOnly]];
+  // normalize: collapse spaces, ensure hyphen between letters and number (RSF4 -> RSF-4)
+  let k=raw.replace(/\s+/g,'').replace(/^([A-Z]+)(\d)/,'$1-$2');
+  if(COLLIER_SETBACKS[k]) return COLLIER_SETBACKS[k];
+  // try base before any slash/parenthesis/space (e.g. "RSF-4 (something)", "E - Estates")
+  const base=raw.split(/[\s(/-]/)[0].replace(/^([A-Z]+)(\d)/,'$1-$2');
+  if(COLLIER_SETBACKS[base]) return COLLIER_SETBACKS[base];
+  if(COLLIER_DISTRICT_ALIASES[base]) return COLLIER_SETBACKS[COLLIER_DISTRICT_ALIASES[base]];
+  return null;
+}
+/* Render required setbacks for a Collier district (the governing code numbers). */
+function renderCollierSetbacks(districtCode){
+  const s=collierSetbacks(districtCode);
+  if(!s) return '';
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(String(districtCode))} (Collier LDC Table 2.1)</div>`;
+  // a null value means the yard is formula-driven (height/lot-width based) — show that, not a number
+  const formula = s.allFormula;
+  const ft=(v,isFormula)=> (v!=null)?(v===0?'0 ft':v+' ft')
+                         : ((isFormula||formula)?'<span class="muted">height-based — see note</span>'
+                         : '<span class="muted">see code</span>');
+  h+=fieldRow('Front', ft(s.front), 'big');
+  h+=fieldRow('Side', ft(s.side, s.sideFormula));
+  h+=fieldRow('Rear', ft(s.rear));
+  if(s.sideNote) h+=`<div class="note"><b>Side detail:</b> ${esc(s.sideNote)}</div>`;
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  h+=`<div class="note warnbox">Required minimums from the adopted Land Development Code (§ 4.02.01 Table 2.1), keyed to the detected district. "Height-based" yards depend on building height or lot width — see the note. Verify overlays, PUD terms, and corner-lot rules (front yard on each frontage) in the code before relying on these.</div>`;
+  return h;
+}
+
+
+
+
 /* Query a county parcel feed BY ADDRESS, then pick the unit matching the search. If the exact house
    number isn't found (common: searched address doesn't exist as a parcel — e.g. "5127" when the condo
    complex is all addressed "5126 + unit"), fall back to the nearest same-street parcel and flag it as
@@ -1484,35 +1840,113 @@ const NG911 = {
     url:"https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/NG911_Address_Points/FeatureServer/0/query",
     numField:"Add_Number", stField:"St_Name", unitField:"Unit", strapField:"STRAP",
     lonField:"Longitude", latField:"Latitude", addrField:"Full_Address"
+  },
+  // Collier (City of Naples authoritative address points; covers all of Collier incl. Naples).
+  // No STRAP/parcel-id field, so this is POINT-ONLY: it returns the authoritative address point,
+  // and the normal point-in-polygon parcel query runs from that exact spot. Geometry is requested
+  // in WGS84 via outSR=4326 (no lat/lon fields). FULLNAME holds "108th AVE N" etc., so strict
+  // client-side street matching is required to avoid 8th≈98th≈108th collisions.
+  COLLIER: {
+    url:"https://g.naplesgov.com/arcgis/rest/services/BaseMaps/NaplesBaseMap/MapServer/0/query",
+    numField:"ADDRNUM", stField:"FULLNAME", unitField:"UNITID", strapField:null,
+    addrField:"FULLADDR", pointOnly:true, strictStreet:true
   }
 };
-/* Look up an address in the county NG911 layer. Returns {lat,lng,strap,unit,addr,matches:[...]} or null. */
-async function resolveAddressNG911(countyName, ctx){
+/* Strict street agreement for NG911 candidate filtering. Unlike sameStreet() (lenient, any-token
+   overlap), this requires the distinctive street tokens — INCLUDING ordinals/numbers like 8TH —
+   to match as a SET, and any direction (N/S/E/W) present on both sides to agree. This is what
+   stops "8TH" from matching "98TH"/"108TH" and "8th Ave N" from matching "8th Ave S". */
+const _DIRSET=new Set(['N','S','E','W','NE','NW','SE','SW']);
+function ng911StreetMatches(searchRaw, candStreet){
+  const want=streetTokens(searchRaw), got=streetTokens(candStreet);
+  if(!want.length || !got.length) return false;
+  const wantDir=want.filter(t=>_DIRSET.has(t)), gotDir=got.filter(t=>_DIRSET.has(t));
+  // distinctive name tokens (ordinals kept, suffix/dir/city dropped)
+  const wantCore=want.filter(t=>!_DIRSET.has(t) && !STREET_STOP.has(t));
+  const gotCore =got.filter(t=>!_DIRSET.has(t) && !STREET_STOP.has(t));
+  if(!wantCore.length) return false;
+  // every distinctive token the user typed must appear EXACTLY in the candidate
+  for(const t of wantCore){ if(!gotCore.includes(t)) return false; }
+  // if the user specified a direction AND the candidate has one, they must agree
+  if(wantDir.length && gotDir.length){ if(!wantDir.some(d=>gotDir.includes(d))) return false; }
+  return true;
+}
+/* Look up an address in the county NG911 layer. Returns {lat,lng,strap,unit,addr,matches} or null.
+   refLat/refLng (the clicked/geocoded point) break ties: among exact number+street matches, pick
+   the one nearest that point. */
+async function resolveAddressNG911(countyName, ctx, refLat, refLng){
   const cfg = countyName ? NG911[norm(countyName)] : null;
   if(!cfg || !ctx || !ctx.hn) return null;
   const core = ctx.raw ? streetCore(ctx.raw) : [];
   if(!core.length) return null;
   const tok = core[0].replace(/'/g,"''");
-  const where = `${cfg.numField}=${ctx.hn} AND UPPER(${cfg.stField}) LIKE '%${tok}%'`;
+  const where = `${cfg.numField}='${ctx.hn}' AND UPPER(${cfg.stField}) LIKE '%${tok}%'`;
   const params = `where=${encodeURIComponent(where)}&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=50&f=json`;
   try{
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
     const r=await fetch(cfg.url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
     if(!r.ok) return null; const j=await r.json(); if(j.error||!j.features||!j.features.length) return null;
-    const rows=j.features.map(f=>f.attributes);
-    // If a unit was searched, prefer the row matching that unit.
-    let chosen=rows[0];
+    // pair each row with its WGS84 point (explicit lat/lon fields if present, else geometry x/y)
+    let cands=j.features.map(f=>{
+      const a=f.attributes||{};
+      const lng = (cfg.lonField!=null ? a[cfg.lonField] : undefined) ?? (f.geometry&&f.geometry.x);
+      const lat = (cfg.latField!=null ? a[cfg.latField] : undefined) ?? (f.geometry&&f.geometry.y);
+      return { a, lat:+lat, lng:+lng };
+    }).filter(c=>isFinite(c.lat)&&isFinite(c.lng));
+    if(!cands.length) return null;
+    // STRICT street filter (drops 98th/108th when "8th" was searched, enforces N/S/E/W)
+    if(cfg.strictStreet && ctx.raw){
+      const strict = cands.filter(c=>ng911StreetMatches(ctx.raw, String(c.a[cfg.stField]||'')));
+      if(strict.length) cands=strict;          // if strict removes everything, keep loose set (don't lose a valid hit)
+    }
+    // If a unit was searched, prefer rows matching that unit.
     if(ctx.unit){
       const u=ctx.unit;
-      const hit=rows.find(a=>String(a[cfg.unitField]||'').toUpperCase().replace(/[^A-Z0-9]/g,'')===u);
-      if(hit) chosen=hit;
+      const unitHits=cands.filter(c=>String(c.a[cfg.unitField]||'').toUpperCase().replace(/[^A-Z0-9]/g,'')===u);
+      if(unitHits.length) cands=unitHits;
     }
-    const lng = chosen[cfg.lonField] ?? (j.features[0].geometry&&j.features[0].geometry.x);
-    const lat = chosen[cfg.latField] ?? (j.features[0].geometry&&j.features[0].geometry.y);
-    const straps=[...new Set(rows.map(a=>a[cfg.strapField]).filter(Boolean))];
-    return { lat:+lat, lng:+lng, strap:chosen[cfg.strapField]||null, allStraps:straps,
-             unit:chosen[cfg.unitField]||null, addr:chosen[cfg.addrField]||null, matches:rows.length };
+    // Tie-break: nearest to the clicked/geocoded reference point (exact-number + closest-to-point).
+    let chosen=cands[0];
+    if(cands.length>1 && isFinite(refLat) && isFinite(refLng)){
+      let best=Infinity;
+      for(const c of cands){
+        const d=(c.lat-refLat)*(c.lat-refLat)+(c.lng-refLng)*(c.lng-refLng);
+        if(d<best){ best=d; chosen=c; }
+      }
+    }
+    // Unambiguous = the surviving candidates all describe ONE street identity (same distinctive
+    // street text + same direction). Used by the geocoder-skipping path, which has no reference
+    // point to disambiguate with — if "8th Ave" matches both N and S, we must NOT silently pick one.
+    const idOf=c=>{
+      const toks=streetTokens(String(c.a[cfg.stField]||''));
+      const dir=toks.filter(t=>_DIRSET.has(t)).join('');
+      const coreT=toks.filter(t=>!_DIRSET.has(t)&&!STREET_STOP.has(t)).join(' ');
+      return coreT+'|'+dir;
+    };
+    const unambiguous = cands.length>0 && new Set(cands.map(idOf)).size===1;
+    const straps = cfg.strapField ? [...new Set(cands.map(c=>c.a[cfg.strapField]).filter(Boolean))] : [];
+    return { lat:chosen.lat, lng:chosen.lng,
+             strap: cfg.strapField ? (chosen.a[cfg.strapField]||null) : null, allStraps:straps,
+             unit:chosen.a[cfg.unitField]||null, addr:chosen.a[cfg.addrField]||null,
+             matches:cands.length, pointOnly:!!cfg.pointOnly, unambiguous };
   }catch(e){ return null; }
+}
+/* Geocoder-skip path: try EVERY configured NG911 county directly from the typed address (no
+   reference point yet — that's the point). Returns the first confident, UNAMBIGUOUS hit, tagged
+   with which county matched, or null so the caller falls back to the normal geocoder. Conservative
+   by design: a hit that resolves to multiple street identities (e.g. "8th Ave" → N and S) is
+   rejected here and left to the geocoder + downstream point logic. */
+async function resolveAddressNG911Any(ctx){
+  if(!ctx || !ctx.hn || !ctx.raw) return null;
+  const counties=Object.keys(NG911);
+  const results=await Promise.all(counties.map(c=>resolveAddressNG911(c, ctx).catch(()=>null)));
+  for(let i=0;i<results.length;i++){
+    const ng=results[i];
+    if(ng && isFinite(ng.lat) && isFinite(ng.lng) && ng.unambiguous){
+      return Object.assign({county:counties[i]}, ng);
+    }
+  }
+  return null;
 }
 /* Fetch a parcel directly by its STRAP from a county feed (used after NG911 gives us the STRAP). */
 async function queryFeedByStrap(feedUrl, strap){
@@ -1745,6 +2179,35 @@ function renderNaplesGeneratorRules(yearBuilt){
   return g;
 }
 
+/* ---------- Collier County generator siting — LDC 5.03.07 Table 1 ----------
+   Shown as a reference table (not auto-computed): the required generator-to-lot-line distance for a
+   SIDE yard depends on the PRINCIPAL structure's side setback, so the installer reads the row that
+   matches the real (surveyed) setback. Plus rear, road, and separation rules. Collier parcels only. */
+function renderCollierGeneratorRules(){
+  let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · LDC 5.03.07</span> generator siting (Collier County)</div>`;
+  // General placement rules (from § 4.02.01)
+  g+=`<div class="note"><b>Where a generator may sit:</b> in the <b>rear yard</b> (10 ft setback), or encroaching up to <b>36 inches into a side yard</b>. <b>Not</b> permitted to encroach into a required front yard. In districts with a front setback of 35 ft or more, a generator may sit in the front yard no more than 6 ft from the dwelling, with a vegetative screen. Above-ground fuel tanks follow the same setbacks; underground tanks have none.</div>`;
+  // Table 1 — side-yard generator distance to lot line, by principal-structure side setback
+  g+=`<div class="note" style="padding-top:6px"><b>Generator distance to lot line — SIDE yard</b> (by the principal structure's side setback):</div>`;
+  g+=fieldRow('Structure side ≤ 5 ft', '1 ft');
+  g+=fieldRow('> 5 and ≤ 7.5 ft', '2 ft');
+  g+=fieldRow('> 7.5 and ≤ 20 ft', '4 ft');
+  g+=fieldRow('> 20 ft', '10 ft');
+  g+=fieldRow('Rear yard', '10 ft (waterfront) · 5 ft (non-waterfront)');
+  // Separation requirements
+  g+=`<div class="note" style="padding-top:6px"><b>Required separations:</b></div>`;
+  g+=fieldRow('Public/private road ROW', '10 ft');
+  g+=fieldRow('Air intake / another generator', '10 ft');
+  g+=fieldRow('Windows, soffit vents, eaves, shrubs, trees', '5 ft');
+  g+=fieldRow('Gas/elec meters, pool pumps, water systems, AC, plantings', '3 ft');
+  // Operating / equipment rules from § 4.02.01 A.13
+  g+=`<div class="note" style="padding-top:6px"><b>Operating &amp; equipment rules:</b> routine exercising is limited to <b>30 minutes, once every 7 days, 9:00 a.m.–5:00 p.m.</b>, and must not exceed the Noise Ordinance's Manufacturing/Industrial sound limits. All permanent generators must have <b>sound-attenuating housing</b>. Above-ground fuel tanks follow the same setbacks; underground tanks have none.</div>`;
+  g+=`<div class="note"><b>Encroachment exceptions:</b> at existing facilities with fuel pumps, and at existing assisted-living/nursing facilities, generators &amp; fuel storage may encroach into required side/rear yards (and buffers, for ALF/nursing) provided no hazard to pedestrian or vehicular traffic.</div>`;
+  g+=`<div class="note warnbox"><b>Reference from Collier LDC 5.03.07 Table 1 — verify the principal structure's actual side setback (from a survey) to read the correct side-yard row.</b> The structure-distance estimate elsewhere on this card is approximate and should not be used to pick the row. Confirm with Collier County Growth Management before siting.</div>`;
+  g+=`<a class="palink" href="https://library.municode.com/fl/collier_county/codes/land_development_code" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify LDC 5.03.07 (Permanent Emergency Generators) — Municode</a>`;
+  return g;
+}
+
 function drawParcel(g){
   try{
     if(g&&g.rings){
@@ -1769,10 +2232,15 @@ function renderParcelGeneric(a, d){
   const liv   = d.liv?fmtNum(pick(a,d.liv)):null;
   const sp    = d.saleP?fmtMoney(pick(a,d.saleP)):null;
   const sy    = d.saleY?pick(a,d.saleY):null;
+  const mail  = d.mail?pick(a,d.mail):null;
+  const mailCity = d.mailCity?pick(a,d.mailCity):null;
+  const use   = d.use?useLabel(pick(a,d.use)):null;
   h += fieldRow('Owner', owner?esc(owner):'<span class="muted">field not detected</span>','big');
   if(own2) h += fieldRow('Owner 2', esc(own2));
   h += fieldRow('Parcel ID', pid?esc(pid):'<span class="muted">—</span>','big');
   if(site) h += fieldRow('Site address', esc(site)+(city?'<br>'+esc(city):''));
+  if(mail) h += fieldRow('Owner mailing', esc(mail)+(mailCity?'<br>'+esc(mailCity):''));
+  if(use)  h += fieldRow('Existing use', esc(use));
   if(jv)   h += fieldRow('Just (market) value', jv);
   if(land) h += fieldRow('Land value', land);
   if(yr)   h += fieldRow('Year built', esc(yr));
@@ -1826,27 +2294,34 @@ async function runLookup(lat,lng,searchCtx){
     ? (async()=>{
         const reg=COUNTY_LIVE[norm(countyName)]; const cands=reg.urls||(reg.url?[reg.url]:[]);
         let res=null, meta=null, err=null;
+        // Resolve the authoritative NG911 point ONCE for this address (county-level, not per-candidate).
+        let ngHit=null;
+        if(searchCtx && searchCtx.hn){
+          ngHit = await resolveAddressNG911(countyName, searchCtx, lat, lng).catch(()=>null);
+        }
+        // For a point-only NG911 county (e.g. Collier — authoritative point, no STRAP), run the
+        // parcel point-in-polygon from the NG911 point instead of the geocoded point.
+        const qLat = (ngHit && ngHit.pointOnly && isFinite(ngHit.lat)) ? ngHit.lat : lat;
+        const qLng = (ngHit && ngHit.pointOnly && isFinite(ngHit.lng)) ? ngHit.lng : lng;
         for(const cu of cands){
           let al=null, matchedAddr=null, exactUnit=true, multi=0;
-          // 0) AUTHORITATIVE: resolve the typed address via the county NG911 address layer, which maps
-          //    a mailing address (incl. condo units that aren't their own parcel) to the exact parcel
-          //    STRAP. Deterministic — this is what LeePA's own search does. Fetch that parcel by STRAP.
-          if(searchCtx && searchCtx.hn){
-            const ng = await resolveAddressNG911(countyName, searchCtx).catch(()=>null);
-            if(ng && ng.strap){
-              const pf = await queryFeedByStrap(cu, ng.strap).catch(()=>null);
-              if(pf){
-                al={features:[pf]}; matchedAddr=ng.addr||null; multi=1;
-                exactUnit = ng.unit ? (!searchCtx.unit || String(ng.unit).toUpperCase().replace(/[^A-Z0-9]/g,'')===searchCtx.unit) : true;
-                al.__ng911=true;
-                al.__ngLat=ng.lat; al.__ngLng=ng.lng;
-                if(ng.matches>1 && !searchCtx.unit) al.__note=`This address has ${ng.matches} units, all on parcel ${ng.strap}. Showing that parcel${ng.addr?' ('+esc(ng.addr)+')':''}; pick a unit on the appraiser for unit-level detail.`;
-              }
+          // 0) AUTHORITATIVE (STRAP path): NG911 maps the address to a parcel STRAP; fetch by STRAP.
+          //    Deterministic — this is what LeePA's own search does. (Counties whose NG911 layer
+          //    carries a STRAP field, e.g. Lee.)
+          if(ngHit && ngHit.strap){
+            const pf = await queryFeedByStrap(cu, ngHit.strap).catch(()=>null);
+            if(pf){
+              al={features:[pf]}; matchedAddr=ngHit.addr||null; multi=1;
+              exactUnit = ngHit.unit ? (!searchCtx.unit || String(ngHit.unit).toUpperCase().replace(/[^A-Z0-9]/g,'')===searchCtx.unit) : true;
+              al.__ng911=true;
+              al.__ngLat=ngHit.lat; al.__ngLng=ngHit.lng;
+              if(ngHit.matches>1 && !searchCtx.unit) al.__note=`This address has ${ngHit.matches} units, all on parcel ${ngHit.strap}. Showing that parcel${ngHit.addr?' ('+esc(ngHit.addr)+')':''}; pick a unit on the appraiser for unit-level detail.`;
             }
           }
-          // 1) POINT-IN-POLYGON. The geocoded point usually falls inside the correct parcel —
+          // 1) POINT-IN-POLYGON. The query point is the NG911 authoritative point when available
+          //    (point-only counties), else the geocoded point. Falls inside the correct parcel —
           //    including range-addressed condo/multifamily parcels (e.g. 5127 → the 5201-5217 parcel).
-          const pr = (al) ? null : await arcQueryRetry(cu, lat, lng, '*', true, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
+          const pr = (al) ? null : await arcQueryRetry(cu, qLat, qLng, '*', true, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
           let pointFeat=null;
           if(pr && !pr.__err && pr.features && pr.features[0]){
             const sel=pickSpecificParcel(pr.features); pointFeat=sel.feature; multi=sel.count;
@@ -1855,7 +2330,11 @@ async function runLookup(lat,lng,searchCtx){
           //   (geocoder error — e.g. searched Coronado, got Del Prado), don't trust the point.
           const pointOnRightStreet = pointFeat && (!searchCtx || !searchCtx.raw ||
             sameStreet(searchCtx.raw, parcelAddrText(pointFeat.attributes||{})));
-          if(!al && pointFeat && pointOnRightStreet){ al={features:[pointFeat]}; }
+          if(!al && pointFeat && pointOnRightStreet){
+            al={features:[pointFeat]};
+            // Tag NG911-point-driven matches so the UI can show the authoritative-address badge.
+            if(ngHit && ngHit.pointOnly){ al.__ng911=true; al.__ngLat=ngHit.lat; al.__ngLng=ngHit.lng; matchedAddr=ngHit.addr||null; }
+          }
           // 2) Address query: use it to (a) correct an exact house-number match, OR (b) recover when the
           //    point landed on the wrong street. The address query is street/number anchored + geo-bounded.
           if(!al && searchCtx && searchCtx.hn){
@@ -1922,6 +2401,8 @@ async function runLookup(lat,lng,searchCtx){
     html += renderParcelGeneric(liveRes.features[0].attributes, det);
     if(liveRes.__ngLat && marker){ try{ marker.setLatLng([liveRes.__ngLat, liveRes.__ngLng]); saveLoc(liveRes.__ngLat, liveRes.__ngLng); }catch(e){} }
     drawParcel(liveRes.features[0].geometry);
+    { const _a=liveRes.features[0].attributes; const _ra=pick(_a,'TOTALACRES')||pick(_a,'ACREAGE')||pick(_a,'GIS_ACRES')||null;
+      html += renderLotDimensions(liveRes.features[0].geometry, _ra); }
     if(liveMeta && liveMeta.ng911){
       html += `<div class="note"><span class="badge live" style="font-size:9px">● ADDRESS MATCH</span> Resolved via the county's official NG911 address layer${liveMeta.note?'. '+esc(liveMeta.note):' — the exact parcel for this address.'}</div>`;
     } else if(liveMeta && liveMeta.approx && liveMeta.note){
@@ -1966,6 +2447,7 @@ async function runLookup(lat,lng,searchCtx){
     const jv=fmtMoney(pick(a,'JV')), lnd=fmtMoney(pick(a,'LND_VAL'));
     const ay=pick(a,'ASMNT_YR');
     const sp=fmtMoney(pick(a,'SALE_PRC1')), sy=pick(a,'SALE_YR1');
+    const useTxt=useLabel(pick(a,'DOR_UC','PA_UC','LAND_USE'));
 
     html += fieldRow('Owner', owner?esc(owner):'<span class="muted">not listed</span>','big');
     if(own2) html += fieldRow('Owner 2', esc(own2));
@@ -1977,6 +2459,7 @@ async function runLookup(lat,lng,searchCtx){
     if(lnd) html += fieldRow('Land value', lnd);
     if(yr)  html += fieldRow('Year built', esc(yr)+(bld&&Number(bld)>1?` (${esc(bld)} bldgs)`:''));
     if(liv2) html += fieldRow('Living area', liv2+' sq ft');
+    if(useTxt) html += fieldRow('Existing use', esc(useTxt));
     if(lsf) html += fieldRow('Land area', lsf+' sq ft');
     if(sp&&sy) html += fieldRow('Last sale', sp+' ('+esc(sy)+')');
     if(legal) html += fieldRow('Legal', '<span style="font-size:11px">'+esc(legal)+'</span>');
@@ -1984,6 +2467,7 @@ async function runLookup(lat,lng,searchCtx){
       if(vurl) html += `<a class="palink" href="${esc(vurl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Verify on ${esc(titleCase(countyName))} County Property Appraiser${pid?' (parcel '+esc(String(pid))+')':''}</a>`;
     }
     drawParcel(parcel.features[0].geometry);
+    html += renderLotDimensions(parcel.features[0].geometry, pick(a,'TOTALACRES'));
     if(parcel.__multi && parcel.__multi>1) html += `<div class="note">${parcel.__multi} parcels overlap this point (common with condos/multi-unit). Showing the most specific one — verify on the appraiser if it's not the unit you meant.</div>`;
   } else if(parcel && parcel.__err){
     html += `<div class="note">Parcel service did not respond (${esc(parcel.__err)}). Try again, or use the county appraiser link above.</div>`;
@@ -2058,6 +2542,7 @@ async function runLookup(lat,lng,searchCtx){
   html += `<div class="card"><div class="ch"><span class="icn">[ ZON ]</span><h2>Zoning &amp; Setbacks</h2>
     <div class="src">local code /<br>permitting portal</div></div><div class="cb">`;
 
+
   // --- LIVE zoning-district detection (point-in-polygon against a county/city zoning layer) ---
   const zhit = await pZoning;
   if(myId!==runId) return;
@@ -2067,6 +2552,7 @@ async function runLookup(lat,lng,searchCtx){
     if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
     if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code, parcelYearBuilt); }
+    if(norm(countyName)==='COLLIER' && norm(cityName)!=='NAPLES' && zhit.code){ html += renderCollierSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
@@ -2077,6 +2563,10 @@ async function runLookup(lat,lng,searchCtx){
   } else {
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
   }
+  // Collier County generator siting (LDC 5.03.07) — for Collier parcels NOT in the City of Naples
+  // (Naples city has its own § 56-41, rendered above via renderNaplesSetbacks).
+  if(norm(countyName)==='COLLIER' && norm(cityName)!=='NAPLES'){ html += renderCollierGeneratorRules(); }
+  // (building-to-line estimate feature removed)
   if(z){
     if(z.permit) html += `<a class="palink" href="${esc(z.permit)}" target="_blank" rel="noopener">↗ ${esc(jurName)} permitting / planning portal</a>`;
     if(z.zoningCh){
@@ -2328,6 +2818,15 @@ async function runLookup(lat,lng,searchCtx){
     }
   },0);
 
+  // Capture a label + coords for the print header (best available address, else coords)
+  try{
+    const _typed=(document.getElementById('addr')&&document.getElementById('addr').value||'').trim();
+    const _addr=(searchCtx&&searchCtx.raw)?searchCtx.raw:(_typed||null);
+    window.__printMeta={ addr:_addr, lat:lat, lng:lng,
+      where:[cityName?titleCase(cityName):null, countyName?titleCase(countyName)+' County':null].filter(Boolean).join(', '),
+      when:new Date() };
+  }catch(e){ window.__printMeta={ lat:lat, lng:lng, when:new Date() }; }
+
   results.innerHTML = setStatus('ok','Done — '+(new Date()).toLocaleTimeString()) + html;
 }
 
@@ -2364,12 +2863,32 @@ async function geocodeBest(rawQuery){
 async function doSearch(){
   const q=document.getElementById('addr').value.trim();
   if(!q) return;
+  const searchCtx = { raw:q, hn:houseNum(q), toks:new Set(streetTokens(q)), unit:searchUnit(q) };
+
+  // NG911-FIRST (Lee, Collier): if the typed address resolves cleanly in a configured NG911 layer,
+  // use that authoritative point and SKIP the external geocoder entirely. Falls through to the
+  // geocoder for everywhere else, or if NG911 is ambiguous/misses/unreachable.
+  if(searchCtx.hn){
+    results.innerHTML=setStatus('busy','Locating address (county records)…');
+    const ng = await resolveAddressNG911Any(searchCtx).catch(()=>null);
+    if(ng && isFinite(ng.lat) && isFinite(ng.lng)){
+      addToHistory(ng.addr || q);
+      results.innerHTML=setStatus('busy','Pinpointing the parcel…');
+      map.setView([ng.lat,ng.lng], 18);
+      await runLookup(ng.lat, ng.lng, searchCtx);
+      const label = ng.addr ? esc(ng.addr) : esc(q);
+      const conf = `<div class="note" style="padding:2px 2px 4px">Matched (${esc(titleCase(ng.county))} County NG911): <b style="color:var(--ink)">${label}</b> — authoritative address point; confirm the marker is on the right lot.</div>`;
+      results.insertAdjacentHTML('afterbegin',conf);
+      return;
+    }
+  }
+
+  // FALLBACK: external geocoder (universal — all counties, partial addresses, place names, ZIPs).
   results.innerHTML=setStatus('busy','Geocoding address…');
   const g=await geocodeBest(q);
   if(!g){ results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
   addToHistory(g.label || q);
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
-  const searchCtx = { raw:q, hn:houseNum(q), toks:new Set(streetTokens(q)), unit:searchUnit(q) };
   map.setView([g.lat,g.lng], 18);
   await runLookup(g.lat,g.lng, searchCtx);
   const conf = `<div class="note" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
@@ -2640,6 +3159,74 @@ const Sheet=(function(){
   return { setState, hide, show };
 })();
 window.Sheet=Sheet;
+
+/* ---------- Theme toggle (light / dark / auto) ----------
+   Cycles: Auto → Light → Dark → Auto. "Auto" follows the OS (no data-theme attr).
+   The pre-paint script in <head> already applied any saved explicit choice. */
+(function(){
+  const btn=document.getElementById('themeToggle'); if(!btn) return;
+  const root=document.documentElement;
+  const meta=document.querySelector('meta[name="theme-color"]');
+  const ICON={light:'☀',dark:'☾',auto:'◐'};
+  const LABEL={light:'Theme: light (tap for dark)',dark:'Theme: dark (tap for auto)',auto:'Theme: auto (tap for light)'};
+  function current(){ const a=root.getAttribute('data-theme'); return (a==='light'||a==='dark')?a:'auto'; }
+  function effectiveDark(){
+    const c=current();
+    if(c==='dark') return true;
+    if(c==='light') return false;
+    return !window.matchMedia || !window.matchMedia('(prefers-color-scheme: light)').matches;
+  }
+  function paint(){
+    const c=current();
+    btn.textContent=ICON[c];
+    btn.title=LABEL[c];
+    if(meta) meta.setAttribute('content', effectiveDark()?'#0d1117':'#eceef1');
+  }
+  function apply(mode){
+    if(mode==='auto'){ root.removeAttribute('data-theme'); STORE.del('aog_theme'); }
+    else { root.setAttribute('data-theme',mode); STORE.set('aog_theme',mode); }
+    paint();
+  }
+  btn.addEventListener('click',()=>{
+    const next={auto:'light',light:'dark',dark:'auto'}[current()];
+    apply(next);
+  });
+  // keep the meta color correct if the OS flips while we're in auto mode
+  if(window.matchMedia){
+    try{ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{ if(current()==='auto') paint(); }); }catch(e){}
+  }
+  paint();
+})();
+
+/* ---------- Print: fill the report header, then print one sheet ---------- */
+(function(){
+  const btn=document.getElementById('printBtn'); if(!btn) return;
+  btn.addEventListener('click',()=>{
+    const m=window.__printMeta||{};
+    const el=document.getElementById('printMeta');
+    if(el){
+      const fmtLoc = (typeof m.lat==='number' && typeof m.lng==='number') ? (m.lat.toFixed(5)+', '+m.lng.toFixed(5)) : '';
+      const when = (m.when instanceof Date && !isNaN(m.when)) ? m.when : new Date();
+      const stamp = when.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})+' '+
+                    when.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+      let rows='';
+      if(m.addr)  rows+='<div><b>Location:</b> '+esc(m.addr)+'</div>';
+      if(m.where) rows+='<div><b>Jurisdiction:</b> '+esc(m.where)+'</div>';
+      if(fmtLoc)  rows+='<div><b>Coordinates:</b> '+esc(fmtLoc)+'</div>';
+      rows+='<div><b>Generated:</b> '+esc(stamp)+' · Verify all figures with the county appraiser &amp; municipal code before relying on them.</div>';
+      el.innerHTML=rows;
+    }
+    const hasResults = document.querySelector('#results .card');
+    if(!hasResults){ alert('Look up a property first — there\u2019s nothing to print yet.'); return; }
+    // Tag the tallest card(s) so they may split internally if the report would otherwise spill
+    // onto a second page; shorter cards stay atomic. (Threshold ~ a third of a letter page.)
+    const cards=[...document.querySelectorAll('#results .card')];
+    cards.forEach(c=>c.classList.remove('tall'));
+    cards.filter(c=>c.offsetHeight>300).forEach(c=>c.classList.add('tall'));
+    window.print();
+  });
+})();
+
 
 (async function restore(){
   const a=STORE.get('fl_addr'); if(a){ document.getElementById('addr').value=a; updateClearBtn(); }
