@@ -3894,23 +3894,112 @@ const SWFL_VULT = {  // Risk Category II ultimate design wind speed (ASCE 7-22 /
   HENDRY:   { v:150, range:"145–155 mph", note:"Inland Southwest Florida." },
   GLADES:   { v:150, range:"145–155 mph", note:"Inland Southwest Florida." }
 };
-function renderWindDesign(lat, lng, cityName, countyName){
+/* ---------- Live ASCE 7-22 Risk Category II wind-speed lookup (optional enrichment) ----------
+   The free FGDL / UF GeoPlan "wind zones" polygons — the same Risk-Cat-II wind-speed lines the ASCE
+   Hazard Tool interpolates from — are published as queryable ArcGIS layers. We point-query Risk Cat
+   II, read the zone's mapped wind-speed value, and show it as a LIVE per-location figure. On ANY
+   failure (CORS, dead host, timeout, no polygon hit) we fall back to the per-county planning number
+   in SWFL_VULT, so worst case == prior behavior. URLs are tried in order — add confirmed candidates
+   here. ⚠ Browser CORS is not guaranteed on every host; an offline/blocked host simply falls back. */
+const WIND_LIVE = {
+  label:"ASCE 7-22 Risk Cat II wind-speed contours (FGDL / UF GeoPlan)",
+  // Risk Cat II contour-LINE layer (esriGeometryPolyline) hosted on Osceola County GIS (CORS-open).
+  url:"https://gis.osceola.org/hosting/rest/services/Hosted/Ultimate_Design_Wind_Speeds_Risk_Category_2/FeatureServer/26/query",
+  radii:[3000, 6000, 12000, 25000]   // metres; expand the search until contour lines are found
+};
+/* Pull a plausible V_ult (mph) out of an ArcGIS feature's attributes. Field names vary by host
+   (CONTOUR / WINDSPEED / DESCRIPT…), so scan preferred names first, then any wind-speed integer. */
+function detectWindSpeed(attrs){
+  if(!attrs) return null;
+  const keys=Object.keys(attrs);
+  const pick=k=>{ const v=attrs[k]; if(v==null) return null; const m=String(v).match(/\d{3}(?:\.\d+)?/); if(!m) return null; const n=Math.round(parseFloat(m[0])); return (n>=100 && n<=220)?n:null; };
+  const pref=keys.filter(k=>/contour|wind|speed|vult|mph|descript|value|^v$/i.test(k));
+  for(const k of pref){ const n=pick(k); if(n!=null) return n; }
+  for(const k of keys){ const n=pick(k); if(n!=null) return n; }
+  return null;
+}
+/* Point→polyline distance in metres, using a local planar approximation (fine at neighbourhood
+   scale). Esri polyline geometry is {paths:[[[lng,lat],…],…]} in 4326. */
+function _mPerDeg(lat){ return { mLat:111320, mLng:111320*Math.cos(lat*Math.PI/180) }; }
+function _ptSeg(px,py, ax,ay, bx,by){
+  const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy;
+  let t = L2>0 ? ((px-ax)*dx+(py-ay)*dy)/L2 : 0; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+function _ptToPaths(lat,lng, paths){
+  const {mLat,mLng}=_mPerDeg(lat), px=lng*mLng, py=lat*mLat;
+  let min=Infinity;
+  for(const path of (paths||[])){
+    if(path.length===1){ const a=path[0]; min=Math.min(min, Math.hypot(px-a[0]*mLng, py-a[1]*mLat)); continue; }
+    for(let i=0;i+1<path.length;i++){ const a=path[i], b=path[i+1];
+      min=Math.min(min, _ptSeg(px,py, a[0]*mLng,a[1]*mLat, b[0]*mLng,b[1]*mLat)); }
+  }
+  return min;
+}
+/* Live Risk-Cat-II wind speed at a point: query the contour LINES near the point (expanding radius),
+   find the nearest distinct contour value on each side, and linearly interpolate by distance — the
+   ASCE-sanctioned method, and what the Hazard Tool does. Returns {v, lo, hi, interp} or null. */
+async function queryWindSpeed(lat,lng){
+  const base=WIND_LIVE.url; if(!base) return null;
+  for(const r of WIND_LIVE.radii){
+    const params=`geometry=${pointGeom(lat,lng)}&geometryType=esriGeometryPoint&inSR=4326`+
+      `&distance=${r}&units=esriSRUnit_Meter&spatialRel=esriSpatialRelIntersects`+
+      `&outFields=*&returnGeometry=true&outSR=4326&f=json`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
+    let j;
+    try{
+      const resp=await fetch(base+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+      if(!resp.ok) continue;
+      j=await resp.json(); if(j.error) continue;
+    }catch(e){ clearTimeout(t); return null; }   // CORS / network / timeout → county fallback
+    const feats=j.features||[];
+    if(!feats.length) continue;                  // none within this radius → expand
+    const byVal={};                              // nearest distance (m) per distinct contour value
+    for(const f of feats){
+      const v=detectWindSpeed(f.attributes||{}); if(v==null) continue;
+      const d=_ptToPaths(lat,lng, f.geometry && f.geometry.paths);
+      if(byVal[v]==null || d<byVal[v]) byVal[v]=d;
+    }
+    const vals=Object.keys(byVal).map(Number).sort((a,b)=>byVal[a]-byVal[b]);  // by nearest first
+    if(!vals.length) continue;
+    if(vals.length===1) return { v:vals[0], lo:vals[0], hi:vals[0], interp:false, url:base, label:WIND_LIVE.label };
+    const v1=vals[0], v2=vals[1], d1=byVal[v1], d2=byVal[v2], tot=d1+d2;   // two nearest contours
+    const interpV = Math.round(tot>0 ? (v1 + (v2-v1)*(d1/tot)) : v1);      // weight toward nearer line
+    return { v:interpV, lo:Math.min(v1,v2), hi:Math.max(v1,v2), interp:(v1!==v2), url:base, label:WIND_LIVE.label };
+  }
+  return null;
+}
+
+function renderWindDesign(lat, lng, cityName, countyName, liveWind){
   let key = norm(countyName);
   if(!SWFL_VULT[key] && norm(cityName)==='CAPECORAL') key='LEE';   // Cape Coral → Lee
   const c = SWFL_VULT[key] || null;
-  const vult = c ? c.v : null;
+  const cName = c ? titleCase(key) : '';
+  const live = (liveWind && typeof liveWind.v==='number') ? liveWind.v : null;
+  const vult = (live!=null) ? live : (c ? c.v : null);   // live per-point value wins; else county figure
   if(window.__exportData && vult!=null) window.__exportData.windVult=vult;
   const vasd = (vult!=null) ? Math.round(vult*Math.sqrt(0.6)) : null;  // Vasd = Vult·√0.6
-  const cName = c ? titleCase(key) : '';
   let h=`<div class="card"><div class="ch"><span class="icn">[ WND ]</span><h2>Wind Design (FBC)</h2>
     <div class="src">FBC 8th Ed. (2023)<br>ASCE 7-22</div></div><div class="cb">`;
   h+=`<div class="freshline snap"><span class="badge unk">▣ CODE</span> Florida Building Code, 8th Edition (2023) → ASCE 7-22 · design wind speed is set by location &amp; Risk Category</div>`;
-  if(c){
+  if(live!=null){
+    const interp = liveWind.interp && liveWind.lo!=null && liveWind.hi!=null && liveWind.lo!==liveWind.hi;
+    h+=`<div class="freshline snap" style="margin-top:8px"><span class="badge live">● LIVE</span> ${interp?'interpolated':'read'} at this point from the ASCE 7-22 Risk Cat II contour layer</div>`;
+    h+=fieldRow('Ultimate design wind speed (V<sub>ult</sub>)', `≈ ${vult} mph <span class="muted">(ASCE 7-22 · Risk Category II · 3-sec gust${interp?' · interpolated':''})</span>`, 'big');
+    h+=fieldRow('Nominal design speed (V<sub>asd</sub>)', `≈ ${vasd} mph <span class="muted">(= V<sub>ult</sub> × √0.6)</span>`);
+    h+=fieldRow('Exposure category', `typically C <span class="muted">(open / coastal terrain — confirm per site)</span>`);
+    h+=fieldRow('Wind-borne debris region', `${vult>=140?'Yes':'Verify'} <span class="muted">(V<sub>ult</sub> ≥ 140 mph → impact-protection / opening requirements apply)</span>`);
+    if(interp){
+      h+=`<div class="note">Point sits between the <b>${liveWind.lo}</b> and <b>${liveWind.hi} mph</b> contour lines; the value above is the <b>distance-weighted interpolation</b>. ASCE permits this — or, conservatively, design to the higher contour (<b>${liveWind.hi} mph</b>). Read live from the FGDL / UF GeoPlan ASCE 7-22 Risk Cat II layer${c?` (${esc(cName)} County planning range: ${esc(c.range)})`:''}.</div>`;
+    } else {
+      h+=`<div class="note">Point sits essentially on the <b>${vult} mph</b> contour. Read live from the FGDL / UF GeoPlan ASCE 7-22 Risk Cat II layer${c?` (${esc(cName)} County planning range: ${esc(c.range)})`:''}. The engineer of record sets the official design value.</div>`;
+    }
+  } else if(c){
     h+=fieldRow('Ultimate design wind speed (V<sub>ult</sub>)', `≈ ${vult} mph <span class="muted">(${esc(cName)} Co. · Risk Category II · 3-sec gust)</span>`, 'big');
     h+=fieldRow('Nominal design speed (V<sub>asd</sub>)', `≈ ${vasd} mph <span class="muted">(= V<sub>ult</sub> × √0.6)</span>`);
     h+=fieldRow('Exposure category', `typically C <span class="muted">(open / coastal terrain — confirm per site)</span>`);
     h+=fieldRow('Wind-borne debris region', `Yes <span class="muted">(V<sub>ult</sub> ≥ 140 mph across SW Florida → impact-protection / opening requirements apply)</span>`);
-    h+=`<div class="note"><b>${esc(cName)} County</b> Risk Cat II range: <b>${esc(c.range)}</b>. ${esc(c.note)} The value shown is a <b>planning figure</b> — wind speed varies within a county (higher toward the coast); the exact site value depends on the precise address and Risk Category and is set by the engineer of record.</div>`;
+    h+=`<div class="note"><b>${esc(cName)} County</b> Risk Cat II range: <b>${esc(c.range)}</b>. ${esc(c.note)} The live wind-zone layer didn't return a value for this point, so this is the <b>county planning figure</b> — wind speed varies within a county (higher toward the coast); the exact site value depends on the precise address and Risk Category and is set by the engineer of record.</div>`;
   } else {
     h+=`<div class="note">Design wind speed is set <b>by location</b>. Use the ASCE 7 Hazard Tool below (or the county's V<sub>ult</sub> map) to get the site's ultimate design wind speed for the relevant Risk Category. <span class="muted">(Built-in SW Florida figures cover Lee, Collier, Charlotte, Sarasota, DeSoto, Hendry &amp; Glades.)</span></div>`;
   }
@@ -4047,6 +4136,7 @@ async function runLookup(lat,lng,searchCtx){
   // Kick off the slower enrichment lookups NOW, in parallel, so they overlap instead of
   // stacking serially. Each is awaited later where it's rendered; all fail-fast (short timeout).
   const pZoning      = queryZoning(lat, lng, cityName, countyName).catch(()=>null);
+  const pWind        = queryWindSpeed(lat, lng).catch(()=>null);   // live ASCE 7-22 Risk Cat II; null → county fallback
   const pCountyFlood = (countyName && COUNTY_FLOOD_LIVE[norm(countyName)])
                          ? queryCountyFlood(lat, lng, countyName).catch(()=>null) : Promise.resolve(null);
   const pCountyLive  = (!liveSource.url && countyName && COUNTY_LIVE[norm(countyName)])
@@ -4316,7 +4406,7 @@ async function runLookup(lat,lng,searchCtx){
   html += `</div></div>`;
 
   /* ---- Wind Design (FBC 8th Ed. / ASCE 7-22): site design wind speed + calculation ---- */
-  html += renderWindDesign(lat, lng, cityName, countyName);
+  html += renderWindDesign(lat, lng, cityName, countyName, await pWind);
 
   /* ---- Zoning & setbacks: from the local CODE + permitting portal, NOT the appraiser ---- */
   const zr = resolveZoning(cityName, countyName);
