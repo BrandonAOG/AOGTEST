@@ -1065,7 +1065,7 @@ const ZONING_CITY = {
   BONITASPRINGS:{code:"https://library.municode.com/fl/bonita_springs/codes/code_of_ordinances", permit:"https://cityofbonitaspringscd.org/"},
   SANIBEL:{code:"https://library.municode.com/fl/sanibel/codes/code_of_ordinances", permit:"https://www.mysanibel.com/departments/planning-code-enforcement"},
   ESTERO:{code:"https://library.municode.com/fl/estero/codes/land_development_code", zoningCh:"https://library.municode.com/fl/estero/codes/land_development_code?nodeId=CH3ZODI", permit:"https://estero-fl.gov/building-permit-application/"},
-  FORTMYERSBEACH:{code:"https://library.municode.com/fl/fort_myers_beach/codes/code_of_ordinances", permit:"https://www.fmbgov.com/government/community-development"},
+  FORTMYERSBEACH:{code:"https://library.municode.com/fl/fort_myers_beach/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/fort_myers_beach/codes/code_of_ordinances?nodeId=PTIIICOOR_CH34ZODIDESTNO", permit:"https://www.fmbgov.com/government/community-development"},
   PUNTAGORDA:{code:"https://library.municode.com/fl/punta_gorda/codes/code_of_ordinances", permit:"https://www.pgorda.us/151/Urban-Design"},
   SARASOTA:{code:"https://library.municode.com/fl/sarasota/codes/code_of_ordinances", permit:"https://www.sarasotafl.gov/government/development-services"},  // City of Sarasota (was wrongly keyed SARASOTACITY)
   VENICE:{code:"https://library.municode.com/fl/venice/codes/code_of_ordinances", permit:"https://www.venicegov.com/government/development-services"},
@@ -3241,6 +3241,98 @@ function renderLeeSetbacks(districtCode){
   return h;
 }
 
+/* ============================ TOWN OF FORT MYERS BEACH ============================
+   FMB adopted its own LDC after incorporating (1995); zoning is its Chapter 34 (its OWN code, not
+   Lee County's). Hand-entered from Municode Table 34-3 "Dimensional Regulations in Conventional
+   Zoning Districts" (§ 34-637 lot sizes, § 34-638 setbacks). CONVENTIONAL districts only — the
+   redevelopment districts (Downtown, Old San Carlos, Santos-area, Pedestrian Commercial, etc.) and
+   PD districts use build-to lines / regulating plans / master concept plans, not this table.
+   FMB splits the SIDE setback into waterfront-lot vs non-waterfront-lot (it's a barrier island), so
+   each entry carries sideWf and sideNonWf. Height is given in feet AND stories. */
+const FMB_SETBACKS = {
+  "RS":  { name:"Residential Single-Family (RS)", front:25, sideWf:"6.5 / 7.5 / 10 ft by lot width (&lt;50 / 50–75 / &gt;75 ft)", sideNonWf:"6.5 / 7.5 / 10 ft by lot width (&lt;50 / 50–75 / &gt;75 ft)", rear:20,
+         waterfront:"50 ft (Gulf) / 25 ft (other)", heightFt:30, stories:3, lotArea:7500, lotWidth:75, lotDepth:100, far:null, coverage:"40%",
+         note:"Side setback steps with lot width (Note 9): 6.5 ft (&lt;50 ft wide), 7.5 ft (50–75 ft), 10 ft (&gt;75 ft). Front: max 65 ft of house may sit at the 25 ft front line; longer frontages need added street setback (Note 8). Coverage 40% (detached SF/two-family may be judged by building coverage instead of FAR, Note 10)." },
+  "RC":  { name:"Residential Conservation (RC)", front:25, sideWf:"6.5 / 7.5 / 10 ft by lot width (&lt;50 / 50–75 / &gt;75 ft)", sideNonWf:"6.5 / 7.5 / 10 ft by lot width (&lt;50 / 50–75 / &gt;75 ft)", rear:20,
+         waterfront:"50 ft (Gulf) / 25 ft (other)", heightFt:30, stories:3, lotArea:4000, lotWidth:45, lotDepth:80, far:null, coverage:"40%",
+         note:"Side setback steps with lot width (Note 9): 6.5 / 7.5 / 10 ft for &lt;50 / 50–75 / &gt;75 ft wide. Smaller minimum lot (4,000 sq ft) than RS. Coverage 40%." },
+  "RM":  { name:"Residential Multifamily (RM)", front:25, sideWf:"20 ft (multifamily) · 6.5 / 7.5 / 10 ft (single-/two-family, by lot width — Note 6)", sideNonWf:"20 ft (multifamily) · 6.5 / 7.5 / 10 ft (single-/two-family, by lot width — Note 6)", rear:20,
+         waterfront:"50 ft (Gulf) / 25 ft (other)", heightFt:35, stories:3, lotArea:7500, lotWidth:75, lotDepth:100, far:"1.2", coverage:"40%",
+         note:"Multifamily side setback 20 ft. Single-family &amp; two-family homes use a reduced side setback by lot width — 6.5 ft (&lt;50 ft), 7.5 ft (50–75 ft), 10 ft (&gt;75 ft) (Note 6). FAR 1.2; SF/two-family may use building coverage instead (Note 10)." },
+  "CR":  { name:"Commercial Resort (CR)", front:10, sideWf:20, sideNonWf:15, rear:20,
+         waterfront:"50 ft (Gulf) / 25 ft (other)", heightFt:30, stories:3, lotArea:20000, lotWidth:100, lotDepth:100, far:"1.2", coverage:"40%",
+         note:"Side setback 20 ft on a waterfront lot, 15 ft on a non-waterfront lot. FAR 1.2." },
+  "CM":  { name:"Commercial Marina (CM)", front:20, sideWf:20, sideNonWf:20, rear:20,
+         waterfront:"50 ft (Gulf) / 0 ft (other)", heightFt:35, stories:3, lotArea:20000, lotWidth:100, lotDepth:100, far:"1.0", coverage:"40%",
+         note:"No setback from non-Gulf water bodies (0 ft) — marine uses front the water. FAR 1.0." },
+  "CO":  { name:"Commercial Office (CO)", front:10, sideWf:10, sideNonWf:7, rear:20,
+         waterfront:"50 ft (Gulf) / 25 ft (other)", heightFt:30, stories:3, lotArea:7500, lotWidth:75, lotDepth:100, far:"1.2", coverage:"40%",
+         note:"Side setback 10 ft on a waterfront lot, 7 ft on a non-waterfront lot. FAR 1.2." },
+  "SANTOS": { name:"Santos (SANTOS)", front:10, sideWf:7, sideNonWf:5, rear:20,
+         waterfront:"50 ft (Gulf) / 25 ft (other)", heightFt:25, stories:3, lotArea:5000, lotWidth:50, lotDepth:100, far:"0.6", coverage:"40%",
+         note:"Small-lot conventional district. Side setback 7 ft waterfront / 5 ft non-waterfront. Lowest height in the conventional set (25 ft / 3 stories). FAR 0.6." },
+  "IN":  { name:"Institutional (IN)", front:20, sideWf:10, sideNonWf:7, rear:20,
+         waterfront:"50 ft (Gulf) / 25 ft (other)", heightFt:35, stories:3, lotArea:7500, lotWidth:75, lotDepth:100, far:"0.8", coverage:"40%",
+         note:"Side setback 10 ft waterfront / 7 ft non-waterfront. FAR 0.8." },
+  "CF":  { name:"Community Facilities (CF)", front:20, sideWf:15, sideNonWf:10, rear:20,
+         waterfront:"50 ft (Gulf) / 25 ft (other)", heightFt:35, stories:3, lotArea:null, lotWidth:null, lotDepth:null, far:"0.1", coverage:"40%",
+         note:"No fixed minimum lot size (N/A). Side setback 15 ft waterfront / 10 ft non-waterfront. Low intensity (FAR 0.1)." },
+  "EC":  { name:"Environmentally Critical (EC)", front:20, sideWf:25, sideNonWf:25, rear:25,
+         waterfront:"50 ft (Gulf) / 20 ft (other)", heightFt:25, stories:2, lotArea:null, lotWidth:null, lotDepth:null, far:".01", coverage:null,
+         note:"Conservation / environmentally sensitive land. 25 ft side &amp; rear. Minimum lot per § 34-652(e)(3). Very low intensity (FAR .01); max height 25 ft / 2 stories. Additional wetland buffers apply (§ 34-638(c))." },
+  "BB":  { name:"Bay Beach (BB)", special:true, note:"The Bay Beach district has no entry in Table 34-3 — its dimensional standards are set separately in § 34-651(b). Look up that section (and any approved development order for the parcel) before siting; the conventional front/side/rear table does not apply." }
+};
+
+/* Resolve an FMB zoning code to a setback entry. Exact match first, then word-boundary fallbacks. */
+function fmbSetbacks(districtCode){
+  if(!districtCode) return null;
+  const U=String(districtCode).toUpperCase().trim();
+  const tag=(entry,label)=> entry ? Object.assign({__key:label, __shown:String(districtCode).trim()}, entry) : null;
+  if(FMB_SETBACKS[U]) return tag(FMB_SETBACKS[U], U);
+  if(/\bSANTOS\b/.test(U)) return tag(FMB_SETBACKS["SANTOS"], "SANTOS");
+  if(/\bRS\b/.test(U)) return tag(FMB_SETBACKS["RS"], "RS");
+  if(/\bRC\b/.test(U)) return tag(FMB_SETBACKS["RC"], "RC");
+  if(/\bRM\b/.test(U)) return tag(FMB_SETBACKS["RM"], "RM");
+  if(/\bCR\b/.test(U)) return tag(FMB_SETBACKS["CR"], "CR");
+  if(/\bCM\b/.test(U)) return tag(FMB_SETBACKS["CM"], "CM");
+  if(/\bCO\b/.test(U)) return tag(FMB_SETBACKS["CO"], "CO");
+  if(/\bCF\b/.test(U)) return tag(FMB_SETBACKS["CF"], "CF");
+  if(/\bIN\b/.test(U)) return tag(FMB_SETBACKS["IN"], "IN");
+  if(/\bBB\b/.test(U)) return tag(FMB_SETBACKS["BB"], "BB");
+  if(/\bEC\b/.test(U)) return tag(FMB_SETBACKS["EC"], "EC");
+  return null;
+}
+
+function renderFmbSetbacks(districtCode){
+  const s=fmbSetbacks(districtCode);
+  if(!s) return '';
+  const setVal=v=>{
+    if(v==null) return null;
+    if(typeof v==='number') return v===0?'0 ft':v+' ft';
+    const t=String(v).trim(); if(!t) return null;
+    return /[a-zA-Z]/.test(t) ? t : t+' ft';
+  };
+  const shown = s.__shown || String(districtCode);
+  if(s.special){
+    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ SPECIAL</span> ${esc(shown)} · standards set separately (FMB LDC § 34-651(b))</div>`;
+    if(s.note) p+=`<div class="note">${esc(s.note)}</div>`;
+    p+=`<div class="note warnbox">Confirm the exact standards in FMB LDC § 34-651(b) and any approved development order before siting a generator or LP tank. Contact Fort Myers Beach Community Development.</div>`;
+    return p;
+  }
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)} (FMB LDC Table 34-3)</div>`;
+  if(s.lotArea!=null){ h+=fieldRow('Minimum lot', esc(fmtNum(s.lotArea)+' sq ft'+(s.lotWidth?(' · '+s.lotWidth+' ft wide'):'')+(s.lotDepth?(' × '+s.lotDepth+' ft deep'):''))); }
+  const frontV=setVal(s.front); if(frontV) h+=fieldRow('Front (street)', esc(frontV), 'big');
+  const wf=setVal(s.sideWf), nwf=setVal(s.sideNonWf);
+  if(wf && nwf && wf===nwf){ h+=fieldRow('Side', esc(wf)); }
+  else { if(wf) h+=fieldRow('Side — waterfront lot', esc(wf)); if(nwf) h+=fieldRow('Side — interior lot', esc(nwf)); }
+  const rearV=setVal(s.rear); if(rearV) h+=fieldRow('Rear', esc(rearV));
+  if(s.waterfront!=null) h+=fieldRow('Water body', esc(setVal(s.waterfront)));
+  if(s.heightFt!=null) h+=fieldRow('Max building height', esc(s.heightFt+' ft'+(s.stories?(' / '+s.stories+' stories'):'')));
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  h+=`<div class="note warnbox"><b>Town of Fort Myers Beach LDC — Table 34-3 (conventional districts).</b> FMB is its own jurisdiction (not unincorporated Lee). Redevelopment districts (Downtown, Old San Carlos, etc.) use build-to lines, and PDs follow an approved master plan — those are not in this table. FMB has been revising its codes post-Hurricane Ian, so verify the current figures in § 34-637/§ 34-638 before siting.</div>`;
+  return h;
+}
+
 
 
 
@@ -4132,6 +4224,9 @@ async function runLookup(lat,lng,searchCtx){
     if(norm(cityName)==='BONITASPRINGS' && zhit.code){ html += renderBonitaSetbacks(zhit.code); }
     // Estero adopted its own LDC (Chapter 3 zoning) and OVERRIDES Lee County.
     if(norm(cityName)==='ESTERO' && zhit.code){ html += renderEsteroSetbacks(zhit.code); }
+    // Fort Myers Beach adopted its OWN LDC (its Chapter 34) after incorporating — conventional
+    // districts come from its Table 34-3; redevelopment/PD districts fall through to the code note.
+    if(norm(cityName)==='FORTMYERSBEACH' && zhit.code){ html += renderFmbSetbacks(zhit.code); }
     // Unincorporated Lee County (Chapter 34). Incorporated cities (Cape Coral, Fort Myers, Bonita
     // Springs, Estero, Sanibel, Fort Myers Beach) adopt their own codes and are excluded via LEE_INCORP
     // — Cape Coral/Bonita/Estero render above; the rest fall through to the adopted-code note below.
