@@ -1585,6 +1585,20 @@ const ZONING_LIVE_CITY = {
   CAPECORAL: { label:"City of Cape Coral Zoning", codeField:"LMLUZN", descField:"Zoning_Desc", urls:[
     "https://capeims.capecoral.gov/arcgis/rest/services/OpenData/DCD/MapServer/3/query",
     "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/1/query"
+  ]},
+  // City of Sanibel runs its OWN ArcGIS Online org (services7.arcgis.com/OnCt8XFWOgmkvMJE) — service
+  // names verified live from the org's REST directory. Sanibel classifies land into ECOLOGICAL ZONES
+  // (A, B, E-1, E-2, D-1, D-2, F, C, G) + commercial districts (GC, TCG, TCL), governed by its own LDC
+  // Ch. 126 — NOT Lee County zoning. PRIMARY source is the Sanibel_Parcel_Address layer, which carries
+  // the per-parcel "Zoning Area Code" column (the city map's parcel popup; observed values like "COS").
+  // We PIN that field as the code via codeField so detection can't drift to a folio/other column. The
+  // 1989 Ecological Zones map-series layer is the polygon fallback (it carries the A/B/E/F/G zone). Lee
+  // County's consolidated layer is a last-ditch fallback. If none resolves, the lookup still falls
+  // through to the Municode/permit links and the Sanibel renderer shows its general reference.
+  SANIBEL: { label:"City of Sanibel Ecological Zones", codeField:"Zoning Area Code", urls:[
+    "https://services7.arcgis.com/OnCt8XFWOgmkvMJE/ArcGIS/rest/services/Sanibel_Parcel_Address/FeatureServer/0/query",
+    "https://services7.arcgis.com/OnCt8XFWOgmkvMJE/ArcGIS/rest/services/Sanibel_Future_Land_Use_Map_Series_Ecological_Zones_Map_1989/FeatureServer/0/query",
+    "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/0/query"
   ]}
 };
 
@@ -1593,7 +1607,7 @@ const ZONING_LIVE_CITY = {
 function detectZoningFields(fields){
   const up = fields.map(f=>({raw:f, u:String(f).toUpperCase()}));
   const find = pats => { for(const p of pats){ const h=up.find(f=>p.test(f.u)); if(h) return h.raw; } return null; };
-  const code = find([/^ZONING$/,/^ZONE_?CODE$/,/^ZONECODE$/,/^ZONE_?ABBR/,/^ZON_?CODE/,/^ZONE_?CLASS/,/^ZONE_?SYMB/,/^DISTRICT$/,/^ZONE$/,/ZONING/,/ZONE/,/DISTRICT/]);
+  const code = find([/^ZONING$/,/^ZONE_?CODE$/,/^ZONECODE$/,/^ZONING_?AREA_?CODE$/,/^ZONE_?AREA_?CODE$/,/^ZONE_?ABBR/,/^ZON_?CODE/,/^ZONE_?CLASS/,/^ZONE_?SYMB/,/^DISTRICT$/,/^ZONE$/,/ZONING/,/ZONE/,/DISTRICT/]);
   let desc  = find([/^ZONE_?DESC/,/^ZONEDESC/,/^ZONE_?NAME/,/^ZONINGNM/,/^ZONINGDESC/,/^DESCRIPT/,/^ZONE_?TYPE/,/^GENERAL/,/^ZONE$/,/DESC/,/NAME/]);
   if(desc===code) desc=null;
   return { code, desc };
@@ -1609,8 +1623,15 @@ async function queryZoning(lat,lng, cityName, countyName){
   if(zoningSource.url){ cands = [zoningSource.url]; isOverride=true; }   // manual paste wins
   else {
     const cityReg = cityName ? ZONING_LIVE_CITY[norm(cityName)] : null;   // city is its own zoning authority
-    const reg = cityReg || (countyName ? ZONING_LIVE[norm(countyName)] : null);
+    const cntyReg = countyName ? ZONING_LIVE[norm(countyName)] : null;
+    const reg = cityReg || cntyReg;
     if(reg){ cands = reg.urls || (reg.url?[reg.url]:[]); pin = (reg.codeField||reg.descField||reg.extra) ? {codeField:reg.codeField, descField:reg.descField, extra:reg.extra} : null; }
+    // If the city has its OWN layer set AND the county also has one, append the county layers as a
+    // fallback: a city's GIS endpoint may be down, moved, or not actually carry the district at this
+    // point. The county/regional zoning service often still covers in-city parcels (e.g. Lee's
+    // consolidated DCD_Zoning covers Sanibel/Cape Coral/Estero). Better a county-style code than
+    // nothing — the setback renderer keys on the code, so any valid code keeps the chain alive.
+    if(cityReg && cntyReg){ const cl = cntyReg.urls || (cntyReg.url?[cntyReg.url]:[]); for(const u of cl) if(!cands.includes(u)) cands.push(u); }
   }
   const multi = cands.length>1;                    // probing several layers → be stricter about what we trust
   const folio = v => v!=null && /^[0-9]{6,}$/.test(String(v).trim());   // parcel-folio numbers aren't districts
@@ -1653,7 +1674,11 @@ async function queryZoning(lat,lng, cityName, countyName){
     const info = await getLayerInfo(cu).catch(()=>null);
     if(multi && !isOverride){                       // only accept a probed layer whose name looks zoning-related
       const nm = (info && info.name) ? info.name.toLowerCase() : '';
-      if(nm && !/zon|pud|district|land\s?use|overlay/.test(nm)) continue;
+      // EXCEPTION: if the value came from an explicitly pinned codeField that the layer actually
+      // carries (e.g. Sanibel's parcel layer exposes "Zoning Area Code" though it's named
+      // "...Parcel_Address"), trust it — the pin is a deliberate, verified mapping, not a guess.
+      const pinnedHit = pin && pin.codeField && a[pin.codeField]!==undefined && codeKey===pin.codeField && code!=null;
+      if(!pinnedHit && nm && !/zon|pud|district|land\s?use|overlay/.test(nm)) continue;
     }
     return { code, desc, extras, sheetUrl, layerName:(info&&info.name)||null, lastEdit:(info&&info.lastEdit)||null, url:cu };
   }
@@ -2761,6 +2786,124 @@ function renderSarasotaSetbacks(districtCode){
   h+=`<div class="note warnbox">Required minimums from Sarasota County's Unified Development Code (Ch. 124, § 124-76), keyed to the detected district. Tiered districts (RE-1/2/3, RSF-1/2/3/4, RMF-1/2/3) vary by tier — confirm the exact tier in § 124-76. Barrier-island, Siesta Key (SKOD), waterfront and coastal-setback overlays add their own standards. Cities (Sarasota, Venice, North Port, Longboat Key) use separate codes.</div>`;
   // Sarasota's generator/equipment exemption applies countywide — always append it.
   h+=renderSarasotaEquipmentNote();
+  return h;
+}
+
+/* ---------- City of Sanibel required setbacks — Land Development Code, Chapter 126 (Zoning) ----------
+   Sanibel is a barrier-island sanctuary city in Lee County with a UNIQUE code: instead of conventional
+   zoning districts, land is classified into ECOLOGICAL ZONES (Ch. 126, Art. VII residential + Art. VIII
+   commercial + conservation districts). Verified against the user-supplied Sanibel Code PDF (Supp. No.
+   61, current 2026).
+   KEY QUIRK 1 — front setbacks are measured FROM THE ROAD CENTERLINE, not the property line: 75 ft from
+   the centerline of a minor arterial/collector road, 50 ft from the centerline of any other street.
+   This is uniform across ALL buildable residential ecological zones (E-1, E-2, D-1, D-2, F, C). Side &
+   rear are 10 ft; plus 20 ft from any open body of water; cul-de-sac 25 ft.
+   KEY QUIRK 2 — the A Gulf Beach and (largely) B Bay Beach / Mangrove Forest / wetland-conservation
+   zones are passive/conservation: little or no new principal structure is permitted (build-back only).
+   KEY QUIRK 3 — buildable area is ALSO capped by impermeable-coverage / vegetation-removal limits, so
+   the yard minimum alone does NOT define the envelope — the city Planning Dept (239-472-4136) confirms
+   the actual buildable area per parcel.
+   `front` here is null because it's a centerline distance, not a property-line number — carried in the
+   note. `noBuild` flags conservation zones. */
+const SANIBEL_SETBACKS = {
+  // Residential ecological zones (Art. VII)
+  "A":   { zone:"A Gulf Beach Zone", noBuild:true, note:"Passive recreation / conservation zone. No new permanent principal structures are permitted (lawfully existing nonconforming structures may be built back in-footprint after a natural disaster). § 126-291 et seq." },
+  "B":   { zone:"B Bay Beach Zone", front:null, side:10, rear:10, roadFront:true, note:"Bay Beach Zone. Buildable subject to strict ecological limits; confirm with Planning. § 126-311 et seq." },
+  "E1":  { zone:"E-1 Blind Pass Area Zone", front:null, side:10, rear:10, roadFront:true, note:"Min lot 20,000 sq ft; max impermeable coverage 25%. § 126-331 et seq." },
+  "E2":  { zone:"E-2 Gulf Beach Ridge Zone", front:null, side:10, rear:10, roadFront:true, note:"General residential (single-family, duplex, multifamily). § 126-351 et seq." },
+  "D1":  { zone:"D-1 Lowland Wetlands Zone", front:null, side:10, rear:10, roadFront:true, note:"Lowland wetlands — development heavily limited by environmental performance standards. § 126-371 et seq." },
+  "D2":  { zone:"D-2 Upland Wetlands Zone", front:null, side:10, rear:10, roadFront:true, note:"Upland wetlands. § 126-391 et seq." },
+  "F":   { zone:"F Mid-Island Ridge Zone", front:null, side:10, rear:10, roadFront:true, note:"Mid-island ridge — a common buildable residential zone. § 126-411 et seq." },
+  "C":   { zone:"C Mangrove Forest Zone", noBuild:true, note:"Mangrove forest conservation zone. No new principal structures (build-back only). § 126-431 et seq." },
+  "G":   { zone:"G Altered Land Zone", front:null, side:10, rear:10, roadFront:true, note:"Altered Land — previously disturbed land, generally the most buildable residential zone. § 126-451 et seq." },
+  // Commercial districts (Art. VIII) — these use conventional property-line setbacks
+  "GC":  { zone:"GC General Commercial District", front:20, side:15, rear:15, note:"Front 20 ft from front property line; side & rear 15 ft from property lines; plus open-water setback. § 126-491 et seq." },
+  "TCG": { zone:"TCG Town Center General Commercial", front:20, side:15, rear:15, note:"Town Center general commercial. Front-porch & outdoor-seating setbacks may differ (§ 126-962). § 126-510 et seq." },
+  "TCL": { zone:"TCL Town Center Limited Commercial", front:20, side:15, rear:15, note:"Town Center limited commercial. Front-porch setback may be reduced to 10 ft (§ 126-962). § 126-530 et seq." }
+};
+const SANIBEL_DISTRICT_ALIASES = {
+  "AGULFBEACH":"A","GULFBEACH":"A","BBAYBEACH":"B","BAYBEACH":"B",
+  "E1BLINDPASS":"E1","BLINDPASS":"E1","E2GULFBEACHRIDGE":"E2","GULFBEACHRIDGE":"E2",
+  "D1LOWLANDWETLANDS":"D1","LOWLANDWETLANDS":"D1","D2UPLANDWETLANDS":"D2","UPLANDWETLANDS":"D2",
+  "FMIDISLANDRIDGE":"F","MIDISLANDRIDGE":"F","CMANGROVEFOREST":"C","MANGROVEFOREST":"C",
+  "GALTEREDLAND":"G","ALTEREDLAND":"G",
+  "GCGENERALCOMMERCIAL":"GC","GENERALCOMMERCIAL":"GC","TOWNCENTERGENERAL":"TCG","TOWNCENTERLIMITED":"TCL"
+};
+/* Resolve a Sanibel ecological-zone / district code to a setbacks entry. Sanibel codes are short
+   letters (A, B, C, F, G) or letter-number (E-1, E-2, D-1, D-2) or commercial (GC, TCG, TCL). */
+function sanibelSetbacks(districtCode){
+  if(!districtCode) return null;
+  const raw=String(districtCode).toUpperCase().trim();
+  if(SANIBEL_SETBACKS[raw]) return SANIBEL_SETBACKS[raw];
+  const compact=raw.replace(/[^A-Z0-9]/g,'');      // "E-1" -> "E1", "E 1" -> "E1"
+  if(SANIBEL_SETBACKS[compact]) return SANIBEL_SETBACKS[compact];
+  const alpha=raw.replace(/[^A-Z]/g,'');
+  if(SANIBEL_DISTRICT_ALIASES[alpha]) return SANIBEL_SETBACKS[SANIBEL_DISTRICT_ALIASES[alpha]];
+  if(SANIBEL_DISTRICT_ALIASES[compact]) return SANIBEL_SETBACKS[SANIBEL_DISTRICT_ALIASES[compact]];
+  // "COS" and similar values come from the Lee County Appraiser's parcel "Zoning Area Code" column,
+  // which is an appraiser grouping — NOT always the verbatim LDC ecological-zone letter. We don't have
+  // a verified COS->zone crosswalk, so we DON'T guess a setback. Returning a soft marker lets the
+  // renderer show the general Sanibel residential reference (correct for all buildable interior zones,
+  // since side/rear are a uniform 10 ft) plus the appraiser code, rather than an invented zone.
+  if(/^(COS|CONS|OS|CON)$/.test(compact)) return { zone:null, apprCode:raw, soft:true, note:"Lee County Appraiser zoning-area grouping — confirm the exact LDC ecological zone with Sanibel Planning." };
+  return null;
+}
+/* Sanibel's emergency-generator ordinance (Ch. 126, Art. XIV, Div. 16 — § 126-1301 to 126-1308). This
+   is one of the most detailed generator rules in SWFL, so it's the headline for any Sanibel install.
+   Shown for any Sanibel parcel — it's a citywide rule. Sanibel does NOT grant a yard-encroachment
+   allowance (unlike Punta Gorda); generators must meet the underlying zone's required setbacks. */
+function renderSanibelGeneratorNote(){
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> emergency power generator ordinance · Sanibel LDC Ch. 126, Div. 16</div>`;
+  h+=`<div class="note"><b>Generators must meet the zone's required setbacks.</b> Sanibel has a dedicated emergency-generator ordinance (§ 126-1301–1308). A permanently installed generator must demonstrate compliance with all required setbacks from property lines — there's <b>no special yard-encroachment allowance</b> — and the as-built must document the distance to any dwelling unit or structure within 20 ft of the generator.</div>`;
+  h+=`<div class="note"><b>Noise cap:</b> a generator (running on outage or during its test cycle) may not exceed <b>78 dB(A) measured at any property line</b>. The city measures the sound level before issuing the completion certificate, and it must stay compliant.</div>`;
+  h+=`<div class="note"><b>Screening & coverage:</b> the generator must be effectively screened from off-site view; any sound-barrier wall must be architecturally compatible and screened with native vegetation. An administrative waiver of impermeable-coverage / vegetation-removal limits is available for up to 30 sq ft for the generator. A permit is required.</div>`;
+  h+=`<a class="palink" href="https://library.municode.com/fl/sanibel/codes/code_of_ordinances?nodeId=SPBLADECO_CH126ZO" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify Ch. 126, Div. 16 — Sanibel LDC (Municode)</a>`;
+  h+=`<div class="note">Sanibel Planning Department: (239) 472-4136 — give them the address for the parcel-specific generator placement, buildable-area and screening requirements.</div>`;
+  return h;
+}
+/* Render required setbacks for a City of Sanibel ecological zone / district (Ch. 126 numbers).
+   When no zone code was detected (Sanibel's GIS isn't reliably point-queryable here), still render a
+   general ecological-zone setback reference + the generator ordinance, so the card is useful. */
+function renderSanibelSetbacks(districtCode){
+  const s=districtCode ? sanibelSetbacks(districtCode) : null;
+  let h='';
+  if(!s || s.soft){
+    // No detected zone, an unrecognized code, OR an appraiser grouping (e.g. "COS") we can't map to a
+    // specific LDC ecological zone: show the general Sanibel residential reference. The side/rear (10 ft)
+    // are uniform across all buildable interior zones, so this is correct for those — only the
+    // road-centerline front and any conservation/no-build status need the specific zone to pin down.
+    const appr = (s && s.apprCode) ? s.apprCode : null;
+    h+=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · City of Sanibel${appr?` · parcel code "${esc(appr)}"`:''} (confirm ecological zone)</div>`;
+    if(appr) h+=`<div class="note">The Lee County Appraiser parcel layer reports a zoning-area code of <b>${esc(appr)}</b> for this parcel. That's an appraiser grouping, not necessarily the verbatim LDC ecological-zone letter — confirm the exact zone (E-1/E-2/F/G etc.) on the city's Future Land Use Map Series before relying on the front setback.</div>`;
+    h+=fieldRow('Front', '<span class="muted">from road centerline — see note</span>', 'big');
+    h+=`<div class="note"><b>Front detail:</b> in Sanibel's buildable residential ecological zones (E-1, E-2, D-1, D-2, F, G) the front setback is measured from the ROAD CENTERLINE: <b>75 ft</b> from the centerline of a minor arterial/collector road, <b>50 ft</b> from the centerline of any other street. Cul-de-sac 25 ft.</div>`;
+    h+=fieldRow('Side', '10 ft');
+    h+=fieldRow('Rear', '10 ft');
+    h+=`<div class="note">Plus 20 ft from any open body of water. Commercial districts (GC/TCG/TCL) instead use front 20 ft / side & rear 15 ft from property lines. The conservation zones (A Gulf Beach, C Mangrove Forest) generally allow no new principal structures.</div>`;
+    h+=`<a class="palink" href="https://library.municode.com/fl/sanibel/codes/code_of_ordinances?nodeId=SPBLADECO_CH126ZO" target="_blank" rel="noopener" style="margin-top:6px">↗ Ch. 126 (Zoning) — Sanibel LDC (Municode)</a>`;
+    h+=`<div class="note warnbox"><b>Sanibel is unusual.</b> Identify the parcel's ecological zone on the city's <b>Future Land Use Map Series</b>, then read that zone's standards in Ch. 126. Buildable area is also capped by impermeable-coverage & vegetation-removal limits. Confirm with the Sanibel Planning Department (239) 472-4136.</div>`;
+    h+=renderSanibelGeneratorNote();
+    return h;
+  }
+  h+=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(s.zone||String(districtCode))} (Sanibel LDC Ch. 126)</div>`;
+  if(s.noBuild){
+    h+=`<div class="note warnbox"><b>Conservation / passive zone — no new principal structures.</b> ${esc(s.note||'')}</div>`;
+  } else {
+    const ft=v=> (v!=null)?(v===0?'0 ft':v+' ft'):'<span class="muted">see code</span>';
+    if(s.roadFront){
+      h+=fieldRow('Front', '<span class="muted">from road centerline — see note</span>', 'big');
+      h+=`<div class="note"><b>Front detail:</b> measured from the ROAD CENTERLINE (not the property line): <b>75 ft</b> from the centerline of a minor arterial or collector road, <b>50 ft</b> from the centerline of any other street. Cul-de-sac: 25 ft. Plus 20 ft from any open body of water.</div>`;
+    } else {
+      h+=fieldRow('Front', ft(s.front), 'big');
+    }
+    h+=fieldRow('Side', ft(s.side));
+    h+=fieldRow('Rear', ft(s.rear));
+    if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  }
+  h+=`<a class="palink" href="https://library.municode.com/fl/sanibel/codes/code_of_ordinances?nodeId=SPBLADECO_CH126ZO" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify Ch. 126 (Zoning) — Sanibel LDC (Municode)</a>`;
+  h+=`<div class="note warnbox"><b>Sanibel is unusual:</b> the yard minimums above do NOT alone define the buildable envelope — impermeable-coverage and vegetation-removal limits, ecological-zone overlays, and special street setbacks (Lindgren Blvd, Rabbit Rd, Beach Rd) also apply. Confirm the exact buildable area with the Sanibel Planning Department (239) 472-4136 before relying on these.</div>`;
+  // Sanibel's detailed generator ordinance applies citywide — always append it.
+  h+=renderSanibelGeneratorNote();
   return h;
 }
 
@@ -5148,6 +5291,8 @@ async function runLookup(lat,lng,searchCtx){
     // City of Fort Myers keeps its LDC in Chapter 118 (§ 118.2.1 dimensional tables); PUD and
     // downtown form-based districts fall through to the PD/form-based note.
     if(norm(cityName)==='FORTMYERS' && zhit.code){ html += renderFortMyersSetbacks(zhit.code); }
+    // City of Sanibel renders below (unconditionally), since its ecological-zone GIS isn't reliably
+    // point-queryable here — see the citywide dispatch after this block.
     // Unincorporated Lee County (Chapter 34). Incorporated cities (Cape Coral, Fort Myers, Bonita
     // Springs, Estero, Sanibel, Fort Myers Beach) adopt their own codes and are excluded via LEE_INCORP
     // — Cape Coral/Bonita/Estero render above; the rest fall through to the adopted-code note below.
@@ -5175,6 +5320,11 @@ async function runLookup(lat,lng,searchCtx){
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
   if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName))){ html += renderCollierGeneratorRules(); }
   if(norm(cityName)==='CAPECORAL'){ html += renderCapeCoralGeneratorRules(); }
+  // City of Sanibel: ecological-zone setbacks + the Ch. 126 Div. 16 generator ordinance. Rendered
+  // unconditionally for any Sanibel parcel (not gated on a detected zoning code), since Sanibel's
+  // ecological-zone GIS isn't reliably point-queryable here — pass the zone code when we DID get one
+  // (renderSanibelSetbacks falls back to a general reference when the code is null/unrecognized).
+  if(norm(cityName)==='SANIBEL'){ html += renderSanibelSetbacks(zhit && zhit.code ? zhit.code : null); }
   // (building-to-line estimate feature removed)
   if(z){
     if(z.permit) html += `<a class="palink" href="${esc(z.permit)}" target="_blank" rel="noopener">↗ ${esc(jurName)} permitting / planning portal</a>`;
