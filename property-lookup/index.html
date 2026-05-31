@@ -1300,7 +1300,7 @@ const DOCS_COUNTY = {
     ecLayer: "https://ags2.colliercountyfl.gov/gis/rest/services/agency/ElevationCertificates/MapServer/0",
     ecMap:   "https://www.collier.gov/County-Development/Operations-Regulatory-Management/Floodplain-Management",
     ecNote:  "Unincorporated Collier County. Keeps historic & current ECs for structures built after Sept 14, 1979 in zones A/V. Flood hotline (239) 252-2942.",
-    permit:  "https://cvportal.colliercountyfl.gov/cityviewweb/",
+    permit:  "https://cvportal.collier.gov/cityviewweb/",
     permitBy:"address"
   },
   LEE: {
@@ -1324,8 +1324,8 @@ function resolveDocs(cityName, countyName){
    (e.g. City of Sarasota vs Sarasota County) never collide. Resolution is always
    city-by-cityName, else county-by-countyName. */
 const ZONING_COUNTY = {
-  COLLIER:{code:"https://library.municode.com/fl/collier_county/codes/land_development_code", permit:"https://cvportal.colliercountyfl.gov/cityviewweb/"},
-  LEE:{code:"https://library.municode.com/fl/lee_county/codes/land_development_code", permit:"https://www.leegov.com/dcd"},
+  COLLIER:{code:"https://library.municode.com/fl/collier_county/codes/land_development_code", permit:"https://cvportal.collier.gov/cityviewweb/"},
+  LEE:{code:"https://library.municode.com/fl/lee_county/codes/land_development_code", permit:"https://aca-prod.accela.com/leeco/default.aspx"},
   CHARLOTTE:{code:"https://library.municode.com/fl/charlotte_county/codes/code_of_ordinances", permit:"https://www.charlottecountyfl.gov/services/buildingconstruction/"},
   SARASOTA:{code:"https://library.municode.com/fl/sarasota_county/codes/code_of_ordinances", permit:"https://www.scgov.net/government/planning-and-development-services"},
   MANATEE:{code:"https://library.municode.com/fl/manatee_county/codes/code_of_ordinances", permit:"https://www.mymanatee.org/departments/building___development_services"}
@@ -1333,7 +1333,7 @@ const ZONING_COUNTY = {
 const ZONING_CITY = {
   MARCOISLAND:{code:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/marco_island/codes/code_of_ordinances?nodeId=PTIICOOR_CH30LADECO", permit:"https://www.cityofmarcoisland.com/o/comi/page/permitting-portal-information"},
   NAPLES:{code:"https://library.municode.com/fl/naples/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/naples/codes/code_of_ordinances?nodeId=PTIICOOR_CH58ZO", permit:"https://cityview2.iharriscomputer.com/CityofNaplesFlorida/Permit/Locator"},
-  CAPECORAL:{code:"https://library.municode.com/fl/cape_coral/codes/code_of_ordinances", permit:"https://energovweb.capecoral.gov/EnerGovProd/selfservice#/home"},
+  CAPECORAL:{code:"https://online.encodeplus.com/regs/capecoral-fl", zoning:"https://www.capecoral.gov/departments/development_services/city_planning_division/zoning.php", permit:"https://www.capecoral.gov/EnerGov"},
   FORTMYERS:{code:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances", zoningCh:"https://library.municode.com/fl/fort_myers/codes/code_of_ordinances?nodeId=SPBLADECO_CH118LAUSRE", permit:"https://www.cityftmyers.com/166/Community-Development"},
   BONITASPRINGS:{code:"https://library.municode.com/fl/bonita_springs/codes/code_of_ordinances", permit:"https://cityofbonitaspringscd.org/"},
   SANIBEL:{code:"https://library.municode.com/fl/sanibel/codes/code_of_ordinances", permit:"https://www.mysanibel.com/departments/planning-code-enforcement"},
@@ -1590,7 +1590,18 @@ async function queryZoning(lat,lng, cityName, countyName){
     const urlish = v => v!=null && /^https?:\/\//i.test(String(v).trim());
     // a zoning-map-sheet PDF link is useful on its own — capture it, but never show it AS the district
     let sheetUrl=null;
-    for(const k of Object.keys(a)){ const v=a[k]; if(urlish(v) && /\.pdf|zoning|gmd/i.test(String(v))){ sheetUrl=String(v).trim(); break; } }
+    for(const k of Object.keys(a)){
+      const v=a[k];
+      if(urlish(v) && /\.pdf|zoning|gmd/i.test(String(v))){
+        const s=String(v).trim();
+        // Skip known-dead links served by stale GIS attributes. Cape Coral's zoning layer still
+        // carries an old capecoral.NET "Article 4 Zoning Districts ...2019.pdf" URL that 404s
+        // (the city moved to capecoral.GOV). Don't surface it — the city zoning page is linked
+        // separately below.
+        if(/capecoral\.net/i.test(s)) continue;
+        sheetUrl=s; break;
+      }
+    }
     const codeKey = (pin && pin.codeField && a[pin.codeField]!==undefined) ? pin.codeField : det.code;
     let   descKey = (pin && pin.descField && a[pin.descField]!==undefined) ? pin.descField : det.desc;
     if(descKey===codeKey) descKey=null;
@@ -4774,12 +4785,18 @@ async function runLookup(lat,lng,searchCtx){
   // (building-to-line estimate feature removed)
   if(z){
     if(z.permit) html += `<a class="palink" href="${esc(z.permit)}" target="_blank" rel="noopener">↗ ${esc(jurName)} permitting / planning portal</a>`;
+    // Official city/county zoning page (e.g. Cape Coral's Planning Division zoning page).
+    if(z.zoning){
+      html += `<a class="palink" href="${esc(z.zoning)}" target="_blank" rel="noopener" style="margin-left:6px">↗ ${esc(jurName)} official zoning page</a>`;
+    }
     if(z.zoningCh){
       const distTxt = (zhit && zhit.code) ? esc(String(zhit.code)) : 'your district';
       html += `<a class="palink" href="${esc(z.zoningCh)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Setbacks for ${distTxt} — zoning code, live (Municode)</a>`;
       html += `<div class="note">Opens ${esc(jurName)}'s live zoning chapter. Find the <b>${(zhit&&zhit.code)?esc(String(zhit.code)):'detected'}</b> district section for its exact front/side/rear setbacks — always the current adopted text, never cached here.</div>`;
     } else if(z.code){
-      html += `<a class="palink" href="${esc(z.code)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Land development code (Municode)</a>`;
+      // Label by source: Municode vs other code platforms (e.g. encodePlus for Cape Coral's LUDR).
+      const codeLabel = /municode\.com/i.test(z.code) ? 'Land development code (Municode)' : 'Land development code';
+      html += `<a class="palink" href="${esc(z.code)}" target="_blank" rel="noopener" style="margin-left:6px">↗ ${codeLabel}</a>`;
     }
   } else {
     html += `<a class="palink" href="${municodeSearch(jurName)}" target="_blank" rel="noopener">↗ Find ${esc(jurName)} code &amp; permitting portal</a>`;
