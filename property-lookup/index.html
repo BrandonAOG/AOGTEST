@@ -4675,16 +4675,13 @@ async function runLookup(lat,lng,searchCtx){
   function _subdivFromLegal(legal){
     if(!legal) return null;
     const s = String(legal).trim().toUpperCase();
-    // Cut at the first block/lot/plat-book/OR-book/section delimiter
-    const cut = s.search(/\b(BLK\b|BLOCK\b|LOT\b|PB\s+\d|OR\s+\d|SEC\s+\d|S\d{2}T\d{2}|REPLAT|UNIT\s+\d|PHASE\s+\d|PH\s+\d)/);
-    // "UNIT N" and "PH N" with a number are plot references — but "UNIT 3" in a subdivision name
-    // like "CAPE CORAL UNIT 3" is part of the name. Keep up to and including one UNIT/PH token.
+    // Cut at the first recognised plat/legal delimiter (unit/phase/block/lot/plat-book/OR-book)
+    const cut = s.search(/\b(BLK\b|BLOCK\b|LOT\b|PB\s+\d|OR\s+\d|SEC\s+\d|S\d{2}T\d{2}|REPLAT|UNIT\s*\d|PHASE\s*\d|PH\s+\d)/);
     let name = cut > 0 ? s.slice(0, cut).trim() : s;
-    // Add back one trailing UNIT/PH + number if it was the cut point and forms the name
-    const unitMatch = s.slice(cut).match(/^(UNIT\s+\d+|PH\s+\d+|PHASE\s+\d+)\b/);
-    if(unitMatch) name = (name + ' ' + unitMatch[1]).trim();
     // Drop trailing noise words that aren't part of real subdivision names
     name = name.replace(/\b(A\s+CONDO|CONDOMINIUM|REPLAT|SUBDIVISION|SUB|PLAT|UNRECORDED|A\s+PLANNED).*$/,'').trim();
+    // Strip any trailing UNIT/PHASE/PH with optional number -- HOA covers the whole community
+    name = name.replace(/\s+\bUNIT\b.*$/i,'').replace(/\s+\bPHASE\b.*$/i,'').replace(/\s+\bPH\b.*$/i,'').trim();
     // Must be at least 4 characters and not purely numeric to be useful
     if(!name || name.length < 4 || /^\d+$/.test(name)) return null;
     return name.replace(/\b\w/g, c => c.toUpperCase());   // title-case for display
@@ -4718,7 +4715,8 @@ async function runLookup(lat,lng,searchCtx){
   {
     const _subdiv = _getSubdivName();
     const _sunbizBase = 'https://search.sunbiz.org/Inquiry/CorporationSearch/ByName';
-    function _sunbizUrl(q){ return _sunbizBase + '?inquirytype=EntityName&inquiryDirectionType=ForwardList&searchNameOrder=&corporationNameSearchString=' + encodeURIComponent(q); }
+    const _sunbizUrl = q => _sunbizBase + '?inquirytype=EntityName&inquiryDirectionType=ForwardList&searchNameOrder=&corporationNameSearchString=' + encodeURIComponent(q);
+    const _googleUrl = q => 'https://www.google.com/search?q=' + encodeURIComponent(q);
 
     html += `<div class="card"><div class="ch"><span class="icn">[ HOA ]</span><h2>HOA / Community Association</h2>
       <div class="src">FL Division of<br>Corporations · Sunbiz</div></div><div class="cb">`;
@@ -4726,13 +4724,8 @@ async function runLookup(lat,lng,searchCtx){
     if(_subdiv){
       html += `<div class="freshline"><span class="badge live">● SUBDIVISION FOUND</span> extracted from property appraiser legal description</div>`;
       html += fieldRow('Subdivision', esc(_subdiv), 'big');
-      html += `<div class="note">Florida HOAs are registered as corporations with the Division of Corporations. The link below searches Sunbiz for associations matching this subdivision name — look for entries ending in <b>INC</b>, <b>ASSOCIATION</b>, or <b>HOMEOWNERS</b>.</div>`;
       html += `<a class="palink" href="${esc(_sunbizUrl(_subdiv))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Search Sunbiz for &ldquo;${esc(_subdiv)}&rdquo;</a>`;
-      // Also offer a shorter keyword search (first two words of subdiv) in case the full name doesn't match exactly
-      const _shortKey = _subdiv.split(' ').slice(0,2).join(' ');
-      if(_shortKey && _shortKey !== _subdiv){
-        html += `<a class="palink" href="${esc(_sunbizUrl(_shortKey))}" target="_blank" rel="noopener" style="margin-top:6px; margin-left:6px">↗ Broader search: &ldquo;${esc(_shortKey)}&rdquo;</a>`;
-      }
+      html += `<a class="palink" href="${esc(_googleUrl('"' + _subdiv + '" homeowners association Florida'))} " target="_blank" rel="noopener" style="margin-top:6px">↗ Google: &ldquo;${esc(_subdiv)}&rdquo; homeowners association</a>`;
     } else {
       html += `<div class="freshline snap"><span class="badge unk">subdivision</span> not detected from legal description</div>`;
       html += `<div class="note">A subdivision name could not be extracted from the legal description for this parcel. Use the Sunbiz search below and enter the subdivision or community name manually.</div>`;
