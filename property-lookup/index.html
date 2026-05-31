@@ -2583,6 +2583,84 @@ function renderCharlotteSetbacks(districtCode){
   return h;
 }
 
+/* ---------- City of Punta Gorda required setbacks — LDR Chapter 26, Article 3 ----------
+   Punta Gorda is the only incorporated city in Charlotte County and adopts its OWN Land Development
+   Regulations (Chapter 26), so it does NOT inherit Charlotte County's Ch. 3-9 rules. Minimum yard
+   requirements from each district's "Development Standards" (Sections 3.2–3.12). The interior-vs-
+   street and waterfront yard distinctions ride in sideNote/rearNote. Verified against the user-
+   supplied Chapter 26 PDF (rev. March 2026). "section" carries the Article-3 section for reference.
+   NOTE: unlike unincorporated Charlotte, Punta Gorda has an EXPLICIT generator/equipment rule —
+   see renderPuntaGordaGeneratorNote(). */
+const PUNTA_GORDA_SETBACKS = {
+  "EP":   { section:"3.2",  front:50, side:50, rear:50, note:"Environmental Preserve: 50 ft all yards. Min lot 10 ac / 250 ft wide; max coverage 10%." },
+  "MP":   { section:"3.3",  front:null, side:null, rear:null, allFormula:true, note:"Marine Park: yards follow the abutting upland residential district's standards. No permanent structure on submerged land. Verify in § 3.3." },
+  "GS":   { section:"3.4",  front:25, side:7.5, rear:15, sideNote:"Side interior (abutting another lot/greenbelt) 7.5 ft; abutting a street or waterway 25 ft.", rearNote:"Rear interior 15 ft; abutting a waterway, street, or golf course 25 ft. (GS-3.5 / GS-5.)" },
+  "GM":   { section:"3.5",  front:25, side:null, rear:25, sideFormula:true, sideNote:"Side interior & between buildings = half the building height, not less than 10 ft; abutting a street 25 ft.", rearNote:"Rear 25 ft (abutting another yard, waterway, street, or golf course). (GM-5/10/15.)" },
+  "MH":   { section:"3.6",  front:20, side:5, rear:5, sideNote:"Side 5 ft; abutting a street 20 ft.", rearNote:"Rear 5 ft. Manufactured Home district; new developments 3–25 ac." },
+  "NR":   { section:"3.7",  front:null, side:null, rear:null, allFormula:true, note:"Neighborhood Residential: form-based; yards vary by the assigned lot type (side-yard / rear-yard / courtyard). Read the lot-type standards in § 3.7." },
+  "NC":   { section:"3.8",  front:10, side:5, rear:15, sideNote:"Side 5 ft.", rearNote:"Rear 15 ft; abutting a street 10 ft; min 25 ft from water areas.", note:"Neighborhood Center (mixed use): front min 10 / max 25 ft." },
+  "CC":   { section:"3.9",  front:10, side:0, rear:20, sideNote:"Side interior 0 ft; abutting a street 10 ft.", rearNote:"Rear 20 ft (0 ft where the building abuts an alley); waterfront 25 ft. Detached garage 3 ft.", note:"City Center (downtown, mixed use): front min 10 / max 25 ft. No minimum lot area." },
+  "HC":   { section:"3.10", front:10, side:5, rear:25, sideNote:"Side 5 ft; abutting a street 10 ft.", rearNote:"Rear 25 ft; waterfront 25 ft; accessory structure 5 ft.", note:"Highway Commercial: front min 10 / max 25 ft. Min lot 20,000 sq ft." },
+  "SP":   { section:"3.11", front:25, side:5, rear:25, sideNote:"Side 5 ft.", rearNote:"Front, street & rear yards 25 ft.", note:"Special Purpose: min lot 10,000 sq ft / 100 ft wide; min district area 5 ac; 20% open space." },
+  "P":    { section:"3.12", front:null, side:null, rear:null, allFormula:true, note:"Public district: standards set per use; verify in § 3.12." }
+};
+const PUNTA_GORDA_DISTRICT_ALIASES = {
+  "ENVIRONMENTALPRESERVE":"EP", "MARINEPARK":"MP",
+  "GENERALSINGLEFAMILY":"GS", "GENERALSINGLEFAMILYRESIDENTIAL":"GS",
+  "GENERALMULTIFAMILY":"GM", "GENERALMULTIFAMILYRESIDENTIAL":"GM",
+  "MANUFACTUREDHOME":"MH", "NEIGHBORHOODRESIDENTIAL":"NR",
+  "NEIGHBORHOODCENTER":"NC", "CITYCENTER":"CC",
+  "HIGHWAYCOMMERCIAL":"HC", "SPECIALPURPOSE":"SP", "PUBLIC":"P"
+};
+/* Resolve a Punta Gorda district code (e.g. "GS-5", "GS5", "GS", "City Center") to a setbacks entry.
+   Charlotte's parcel layer 17 carries city zoning codes for in-city parcels, so the same zoningcode
+   the tool already reads feeds this. Family codes with a numeric suffix (GS-3.5, GM-10) collapse to
+   the base family, which is what the setback table is keyed on. */
+function puntaGordaSetbacks(districtCode){
+  if(!districtCode) return null;
+  const raw=String(districtCode).toUpperCase().trim();
+  if(PUNTA_GORDA_SETBACKS[raw]) return PUNTA_GORDA_SETBACKS[raw];
+  const alphaOnly=raw.replace(/[^A-Z]/g,'');
+  if(PUNTA_GORDA_SETBACKS[alphaOnly]) return PUNTA_GORDA_SETBACKS[alphaOnly];   // GS5 -> GS
+  if(PUNTA_GORDA_DISTRICT_ALIASES[alphaOnly]) return PUNTA_GORDA_SETBACKS[PUNTA_GORDA_DISTRICT_ALIASES[alphaOnly]];
+  // base before any slash/paren/space/hyphen-number
+  const base=raw.split(/[\s(/-]/)[0].replace(/[^A-Z]/g,'');
+  if(PUNTA_GORDA_SETBACKS[base]) return PUNTA_GORDA_SETBACKS[base];
+  if(PUNTA_GORDA_DISTRICT_ALIASES[base]) return PUNTA_GORDA_SETBACKS[PUNTA_GORDA_DISTRICT_ALIASES[base]];
+  return null;
+}
+/* Punta Gorda's explicit generator/equipment encroachment allowance (LDR Ch. 26, Art. 7). This is
+   the practical headline for a generator install — it's shown for ANY Punta Gorda parcel, because it
+   applies citywide regardless of district. Charlotte County (unincorporated) has no equivalent. */
+function renderPuntaGordaGeneratorNote(){
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment encroachment · Punta Gorda LDR Ch. 26 Art. 7</div>`;
+  h+=`<div class="note"><b>Generators may sit in a required yard.</b> Generators (with A/C units, pool & solar equipment) may encroach <b>up to 4 ft into a required side yard</b> and <b>up to 4 ft into a required rear yard</b>. Where the yard is 5 ft or less wide, the projection can't exceed half the yard width. Up to 4 ft into a recorded drainage/utility easement is also allowed (but nothing permanent may sit in an easement in use).</div>`;
+  h+=`<div class="note"><b>Screening (new construction outside the Special Residential Overlay):</b> the equipment must be screened from view at grade from the public right-of-way by 100% landscaping, a landscaping/fence combination, or an architecturally compatible wall or opaque fence panel — screen ≤ 6 ft tall, ≤ 8 ft long (or the equipment length, whichever is less), ≤ 4 ft wide.</div>`;
+  h+=`<a class="palink" href="https://library.municode.com/fl/punta_gorda/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify in Punta Gorda LDR (Chapter 26)</a>`;
+  return h;
+}
+/* Render required setbacks for a City of Punta Gorda district (governing Ch. 26 numbers). */
+function renderPuntaGordaSetbacks(districtCode){
+  const s=puntaGordaSetbacks(districtCode);
+  if(!s) return '';
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(String(districtCode))} (Punta Gorda LDR § ${esc(s.section)})</div>`;
+  const formula = s.allFormula;
+  const ft=(v,isFormula)=> (v!=null)?(v===0?'0 ft':v+' ft')
+                         : ((isFormula||formula)?'<span class="muted">height-based — see note</span>'
+                         : '<span class="muted">see code</span>');
+  h+=fieldRow('Front', ft(s.front), 'big');
+  h+=fieldRow('Side', ft(s.side, s.sideFormula));
+  h+=fieldRow('Rear', ft(s.rear));
+  if(s.sideNote) h+=`<div class="note"><b>Side detail:</b> ${esc(s.sideNote)}</div>`;
+  if(s.rearNote) h+=`<div class="note"><b>Rear detail:</b> ${esc(s.rearNote)}</div>`;
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  h+=`<a class="palink" href="https://library.municode.com/fl/punta_gorda/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § ${esc(s.section)} — Punta Gorda LDR (Municode)</a>`;
+  h+=`<div class="note warnbox">Required minimums from the City of Punta Gorda Land Development Regulations (Chapter 26), keyed to the detected district. Historic Overlay, Waterfront Overlay and Special Residential Overlay areas add their own standards. Verify overlays and corner-lot rules before relying on these.</div>`;
+  // Punta Gorda's explicit generator allowance applies citywide — always append it.
+  h+=renderPuntaGordaGeneratorNote();
+  return h;
+}
+
 /* ---------- Cape Coral required setbacks — LUDR Article 4, Table 4.1.3.B ----------
    Cape Coral's table uses more yard types than Collier: Front, Front (cul-de-sac), Side,
    Corner-lot street side, Rear (primary), and Rear for pool cage. Verified against user-pasted
@@ -4682,6 +4760,19 @@ async function runLookup(lat,lng,searchCtx){
 
   if(liveHit){
     const det=detectFields(Object.keys(liveRes.features[0].attributes));
+    // Some live county feeds are "lean" — they carry owner/value/zoning but NO living-area or
+    // year-built (Charlotte's layer 17, Collier's similar layer). The dated statewide FDOR roll
+    // DOES carry those (TOT_LVG_AR, ACT_YR_BLT). It's already fetched in parallel (pParcel →
+    // `parcel`), so when the live layer lacks a field, splice the roll's value into the live
+    // attributes object under the name the detector expects — the existing render + Excel export
+    // then pick it up with no further changes. Only fills gaps; never overwrites a live value.
+    if(parcel && !parcel.__err && parcel.features && parcel.features[0]){
+      const _ra=parcel.features[0].attributes||{}, _la=liveRes.features[0].attributes;
+      if(!det.liv){ const _liv=pick(_ra,'TOT_LVG_AR','TOTLVGAR','HEATED_AREA','HEATEDAREA','LIVING_AREA','LIVINGAREA','BLDG_SQFT');
+        if(_liv!=null && String(_liv).trim()!=='' && Number(String(_liv).replace(/[^0-9.]/g,''))>0){ _la.TOT_LVG_AR=_liv; det.liv='TOT_LVG_AR'; } }
+      if(!det.yr){ const _y=pick(_ra,'ACT_YR_BLT','YR_BLT','EFF_YR_BLT','ACTYRBLT');
+        if(_y!=null && String(_y).trim()!=='' && Number(String(_y).replace(/[^0-9]/g,''))>0){ _la.ACT_YR_BLT=_y; det.yr='ACT_YR_BLT'; } }
+    }
     if(det.yr){ const _y=pick(liveRes.features[0].attributes,det.yr); if(_y) parcelYearBuilt=_y; }
     const le=liveMeta&&liveMeta.lastEdit;
     html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}</div>`;
@@ -4958,6 +5049,9 @@ async function runLookup(lat,lng,searchCtx){
     // Springs, Estero, Sanibel, Fort Myers Beach) adopt their own codes and are excluded via LEE_INCORP
     // — Cape Coral/Bonita/Estero render above; the rest fall through to the adopted-code note below.
     if(norm(countyName)==='LEE' && !LEE_INCORP.has(norm(cityName)) && zhit.code){ html += renderLeeSetbacks(zhit.code); }
+    // City of Punta Gorda adopts its OWN LDR (Chapter 26) and OVERRIDES Charlotte County. Its zoning
+    // codes ride on Charlotte's parcel layer 17 (same zhit.code), so route in-city parcels here.
+    if(norm(cityName)==='PUNTAGORDA' && zhit.code){ html += renderPuntaGordaSetbacks(zhit.code); }
     // Unincorporated Charlotte County (Code of Laws & Ordinances Ch. 3-9). Punta Gorda (the county's
     // only city) adopts its own code and is excluded via CHARLOTTE_INCORP — it falls through to the note.
     if(norm(countyName)==='CHARLOTTE' && !CHARLOTTE_INCORP.has(norm(cityName)) && zhit.code){ html += renderCharlotteSetbacks(zhit.code); }
