@@ -167,7 +167,7 @@
   .field{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--dash)}
   .field:last-child{border-bottom:none}
   .field .k{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;flex:none;padding-top:1px;width:118px}
-  .field .v{font-family:var(--mono);font-size:12.5px;color:var(--ink);text-align:right;word-break:break-word;flex:1}
+  .field .v{font-family:var(--mono);font-size:12.5px;color:var(--ink);text-align:right;overflow-wrap:anywhere;flex:1;min-width:0}
   .field .v.big{font-size:14px;color:var(--signal);font-weight:600}
   .field .v.zone{font-size:15px;font-weight:600}
   .v.muted{color:var(--faint)}
@@ -313,6 +313,77 @@
 
   @media (max-width:520px){ header h1{font-size:19px} #panel{top:8px;left:8px} }
 
+  /* Measurement mirror: when html.measuring-print is set (briefly, by fitFactor before printing),
+     apply the SAME sizing the @media print block uses, so offsetHeight reads the true print height.
+     Keep this in sync with the print rules below (font sizes / paddings / field stacking). */
+  html.measuring-print .summary-strip{ display:none; }
+  html.measuring-print .card{ margin:0 0 6px; border:1px solid #bbb; border-radius:6px; width:100%; }
+  html.measuring-print .card .ch{ padding:4px 8px; }
+  html.measuring-print .card .ch h2{ font-size:10.5px; }
+  html.measuring-print .card .ch .icn{ font-size:9px; }
+  html.measuring-print .card .src{ display:none; }
+  html.measuring-print .card .cb{ padding:4px 8px 6px; }
+  html.measuring-print .field{ padding:2.5px 0; gap:1px; flex-direction:column; align-items:stretch; }
+  html.measuring-print .field .k{ font-size:8px; width:auto; min-width:0; }
+  html.measuring-print .field .v{ font-size:9px; text-align:left; }
+  html.measuring-print .field .v.big{ font-size:10px; }
+  html.measuring-print .freshline{ font-size:8px; padding:2px 0; }
+  html.measuring-print .badge{ font-size:8px; padding:1px 5px; }
+  html.measuring-print .note{ display:none; }
+  html.measuring-print .note.warnbox{ display:block; padding:4px 6px; font-size:8px; line-height:1.4; }
+  html.measuring-print .palink{ display:none; }
+  html.measuring-print a.link{ display:none; }
+
+  /* Intro disclaimer is helpful before a search; once results load the breadcrumb + summary strip
+     carry the context, so hide it to reclaim vertical space. */
+  body.has-results .intro-note{ display:none; }
+
+  /* ---- Breadcrumb · Summary strip · Tabs (all viewports) ---------------------------------- */
+  .breadcrumb{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--faint);
+    padding:8px 2px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;line-height:1.3}
+  .breadcrumb .bc{color:var(--dim)} .breadcrumb .bc.cur{color:var(--signal)}
+  .breadcrumb .sep{color:var(--faint);opacity:.6}
+
+  .summary-strip{margin-top:9px;border:1px solid var(--line);border-radius:9px;overflow:hidden;
+    background:var(--card-head-bg)}
+  .summary-strip .sum-addr{font-family:var(--disp);font-weight:700;font-size:14px;letter-spacing:.01em;
+    color:var(--ink);padding:10px 12px 8px;line-height:1.25}
+  .summary-strip .sum-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 11px}
+  .sum-chips .chip{font-family:var(--mono);font-size:10.5px;line-height:1;display:inline-flex;
+    align-items:center;gap:5px;padding:6px 9px;border-radius:20px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--ink);white-space:nowrap}
+  .sum-chips .chip b{color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:9px}
+  .sum-chips .chip.warn{border-color:var(--warn);color:var(--warn)}
+  .sum-chips .chip.good{border-color:var(--good)}
+
+  .panel-sticky{position:sticky;top:0;z-index:6;background:var(--panel2);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding-bottom:1px}
+  .tabbar{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+  .tabbar::-webkit-scrollbar{display:none}
+  .tab{flex:none;background:none;border:none;cursor:pointer;font-family:var(--disp);font-weight:600;
+    font-size:12px;letter-spacing:.03em;color:var(--dim);padding:9px 13px 8px;border-bottom:2px solid transparent;
+    white-space:nowrap;transition:color .12s,border-color .12s}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--signal);border-bottom-color:var(--signal)}
+  .tab .tcount{font-family:var(--mono);font-size:9px;color:var(--faint);margin-left:4px}
+  .tabpanel{display:none}
+  .tabpanel.active{display:block}
+
+  /* ---- Desktop: dock the panel on the left, map fills the rest (map stays fully visible) ----
+     The floating panel becomes a fixed-width full-height left column; #map shifts right to sit
+     beside it. Cards within a tab stack in a single column. Below 1080px the panel stays a floating
+     box (and ≤680px the mobile bottom-sheet rules take over). */
+  @media (min-width:1080px){
+    #panel{
+      top:var(--abh,48px); left:0; bottom:0; width:440px; max-width:440px;
+      height:calc(100vh - var(--abh,48px)); max-height:none;
+      border-radius:0; border-top:none; border-left:none; border-bottom:none;
+      box-shadow:6px 0 28px var(--shadow-soft);
+    }
+    #map{ inset:var(--abh,48px) 0 0 440px; }
+    .cardflow{ column-count:1; }   /* one category at a time — no masonry in tabbed mode */
+  }
+
   /* ---- Mobile: panel becomes a snapping, draggable bottom sheet ---- */
   @media (max-width:680px){
     html,body{overflow:hidden}
@@ -426,7 +497,7 @@
 
   /* ---------- PRINT: one 8.5×11 sheet, ink on white, everything that loaded ---------- */
   @media print{
-    @page{ size:letter; margin:0.45in; }
+    @page{ size:8.5in 11in; margin:0 0.45in; }   /* Letter, no top/bottom margin; keep L/R gutters */
     /* force light ink-on-white regardless of the screen theme */
     html,body{ background:#fff !important; color:#111 !important;
       height:auto !important; min-height:0 !important; max-height:none !important;
@@ -449,14 +520,26 @@
       -webkit-overflow-scrolling:auto !important; }
     header{ padding:0 !important; border:none !important; background:#fff !important; }
 
-    /* print header */
-    #printHead{ display:block !important; border-bottom:2px solid #111; padding-bottom:8px; margin-bottom:10px; }
-    #printHead .ph-row{ display:flex; align-items:center; gap:10px; }
-    #printHead .ph-logo{ width:34px; height:34px; object-fit:contain; }
-    #printHead .ph-name{ font-family:var(--disp); font-weight:700; font-size:15px; letter-spacing:.06em; color:#111; }
-    #printHead .ph-sub{ font-family:var(--mono); font-size:8.5px; letter-spacing:.04em; color:#444; margin-top:1px; }
-    #printHead .ph-meta{ font-family:var(--mono); font-size:9.5px; color:#222; margin-top:7px; line-height:1.5; }
-    #printHead .ph-meta b{ color:#111; }
+    /* print header → NEWSPAPER MASTHEAD. Big serif title, hairline rules above and
+       below (the classic double-rule nameplate), and the location/jurisdiction line
+       set as a centered dateline. Spans the full page above the two columns. */
+    #printHead{ display:block !important; border:none !important;
+      border-top:2px solid #111 !important; border-bottom:1px solid #111 !important;
+      padding:4px 0 4px !important; margin:0 0 8px !important; text-align:center !important; }
+    #printHead .ph-row{ display:block !important; text-align:center !important; }
+    #printHead .ph-logo{ display:none !important; }
+    #printHead .ph-name{ font-family:Georgia,'Times New Roman',serif !important; font-weight:700 !important;
+      font-size:24px !important; letter-spacing:.04em !important; color:#111 !important;
+      text-transform:uppercase !important; line-height:1.05 !important; }
+    #printHead .ph-sub{ font-family:Georgia,'Times New Roman',serif !important; font-size:11px !important;
+      font-style:italic !important; letter-spacing:.04em !important; color:#333 !important; margin-top:2px !important; }
+    #printHead .ph-meta{ font-family:Georgia,'Times New Roman',serif !important; font-size:10.5px !important;
+      color:#222 !important; margin-top:4px !important; line-height:1.4 !important;
+      border-top:1px solid #111 !important; padding-top:3px !important; text-align:center !important; }
+    #printHead .ph-meta b{ color:#111 !important; font-weight:700 !important; }
+    #printHead .ph-meta div{ display:inline !important; }
+    #printHead .ph-meta div:after{ content:"  ·  " !important; color:#666 !important; }
+    #printHead .ph-meta div:last-child:after{ content:"" !important; }
 
     /* Print layout.
        Two-up layout uses CSS multi-column (NOT grid): Safari prints `columns` reliably, while a
@@ -466,49 +549,168 @@
        of the print engine adding its own shrink on top (which made it tiny). Supported in
        Chrome/Edge/Safari; pre-126 Firefox ignores it and just prints at full size — acceptable. */
     #results{
-      column-count:2; column-gap:12px;
       display:block !important; overflow:visible !important; padding:0 !important;
-      zoom:var(--print-fit,1);
     }
+    /* Tabs collapse for print. The JS flattens every card to be a DIRECT child of .tabpanels
+       (see flattenForPrint) and hides the empty .tabpanel wrappers, so the 2-column multicol sees
+       cards as true sibling flow items and balances them onto one page reliably across engines.
+       IMPORTANT: the fit-to-page `zoom` is applied to .tabpanels — the SAME element that carries
+       column-count. Putting zoom on an ancestor (#results) while columns live on a descendant makes
+       Chrome silently collapse the columns to one (zoom + descendant multicol bug); keeping them on
+       one element avoids that and restores the 2-up layout. */
+    .tabbar{ display:none !important; }
+    .panel-sticky{ position:static !important; background:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; padding:0 !important; }
+    /* Zoom on .tabpanels; the two columns are produced by NATIVE CSS multi-column on
+       .printflow (its child). A flex row was used here before — but a flex container is a
+       single atomic box that can't fragment across printed pages and aligns both column
+       tops to the same line, so it can never produce true newspaper order (fill the LEFT
+       column to the bottom of the page, THEN continue at the top of the RIGHT column).
+       `column-fill:auto` is exactly that: the engine packs column 1 full before starting
+       column 2, and paginates correctly if content runs past one page. */
+    /* IMPORTANT (Chrome/Skia bug): if `zoom` is on an ANCESTOR while `column-count` is on a
+       DESCENDANT, Chrome silently collapses the columns to ONE. So zoom and columns must live
+       on the SAME element. We carry BOTH on .printflow and leave .tabpanels as a plain block. */
+    .tabpanels{ display:block !important; zoom:1 !important; }
+    .printflow{
+      display:block !important;
+      zoom:var(--print-fit,1);              /* fit-to-page lives HERE, with the columns */
+      column-count:2 !important;
+      column-gap:16px !important;
+      column-rule:1px solid #ccc !important; /* thin rule between columns, like a newspaper */
+    }
+    /* the JS no longer hand-splits into .printcol; if a stray wrapper exists, neutralise it */
+    .printflow .printcol{ display:contents !important; }
+    .breadcrumb{ display:none !important; }
+    .summary-strip{ display:none !important; }   /* breadcrumb-style summary is screen-only; the print header already carries Location/Jurisdiction */
     .pcol{ display:block !important; min-width:0; }
-    .card{ break-inside:avoid; page-break-inside:avoid; -webkit-column-break-inside:avoid;
-      background:#fff !important; border:1px solid #bbb !important; border-radius:6px !important;
-      margin:0 0 6px !important; overflow:visible !important; display:block; width:100%; }
-    /* Notes-heavy cards (zoning/setbacks/generator) may be tall; let THEM split internally
-       as a last resort rather than forcing the whole report to a 2nd page. Keep rows atomic. */
-    .card.tall{ break-inside:auto; page-break-inside:auto; -webkit-column-break-inside:auto; }
-    .field,.freshline,.badge{ break-inside:avoid; page-break-inside:avoid; }
-    .card .ch{ background:#f0f0f0 !important; border-bottom:1px solid #bbb !important; padding:4px 8px !important; }
-    .card .ch h2{ font-size:10.5px !important; color:#111 !important; }
-    .card .ch .icn{ color:#444 !important; font-size:9px !important; }
-    .card .src{ display:none !important; }       /* drop the right-aligned source tag to save width */
-    .card .cb{ padding:4px 8px 6px !important; }
 
-    /* compact fields */
-    .field{ padding:2.5px 0 !important; border-bottom:1px dashed #ddd !important; gap:8px !important; }
-    .field .k{ font-size:8px !important; color:#555 !important; width:auto !important; min-width:74px; }
-    .field .v{ font-size:9px !important; color:#111 !important; }
-    .field .v.big{ font-size:10px !important; color:#111 !important; }
-    .freshline{ font-size:8px !important; color:#333 !important; padding:2px 0 !important; }
+    /* ====================================================================
+       NEWSPAPER ARTICLE MODE
+       The cards stop looking like cards. No borders, no fills, no rounded
+       boxes — each "card" becomes a run of article text inside the flowing
+       two-column body. Card titles become run-in section subheads. Fields
+       become tight "Label  value" lines set like dense body copy. The whole
+       thing reads top-to-bottom down column one, then column two, the way
+       you read a newspaper article — not a grid of separate panels.
+       ==================================================================== */
 
-    /* badges: outline only, no fills (toner-friendly, still legible) */
-    .badge{ font-size:8px !important; padding:1px 5px !important; color:#111 !important;
-      background:#fff !important; border:1px solid #999 !important; }
-    .badge.sfha{ font-weight:700 !important; border:1.5px solid #111 !important; }
+    /* set the column body in a serif at article scale, justified */
+    .printflow{
+      font-family: Georgia, 'Times New Roman', serif !important;
+      font-size:11.5px !important;
+      line-height: 1.42 !important;
+      color:#111 !important;
+      text-align: justify !important;
+      hyphens: auto !important; -webkit-hyphens:auto !important;
+    }
 
-    /* notes / warnboxes: keep, but quiet — keep warnboxes visually distinct with a left rule */
-    .note{ font-size:8px !important; color:#222 !important; line-height:1.4 !important; padding:3px 0 1px !important; }
-    .note.warnbox{ background:#fafafa !important; border:1px solid #ccc !important; border-left:3px solid #888 !important;
-      color:#222 !important; padding:4px 6px !important; }
-    .note.warnbox b{ color:#111 !important; }
+    /* card = invisible flowing section. NO box, NO break-avoid (text flows
+       across the column boundary like a real article column). A little space
+       above each section sets it off from the previous one. */
+    .card{
+      display:block !important; width:100% !important;
+      background:none !important; border:none !important; border-radius:0 !important;
+      box-shadow:none !important; overflow:visible !important;
+      margin:0 0 4px !important; padding:0 !important;
+      break-inside:auto !important; page-break-inside:auto !important; -webkit-column-break-inside:auto !important;
+    }
+    .card.tall{ break-inside:auto !important; page-break-inside:auto !important; }
 
-    /* links: show as plain bold text (no button chrome, no giant URLs) */
-    .palink{ background:#fff !important; border:none !important; color:#111 !important; font-size:8px !important;
-      padding:2px 0 !important; margin:2px 0 0 !important; text-decoration:none !important; font-weight:600 !important; }
-    a.link{ color:#111 !important; font-size:8px !important; }
-    a[href]:after{ content:"" !important; }     /* suppress UA "(url)" appending */
+    /* card header → run-in subhead. The icon glyph is dropped; the h2 becomes
+       a bold small-caps lead line that sits ON the text flow, no banner bg. */
+    .card .ch{
+      display:block !important; background:none !important; border:none !important;
+      padding:0 !important; margin:6px 0 1px !important;
+      break-after:avoid !important; page-break-after:avoid !important;
+    }
+    .card .ch h2{
+      font-family: Georgia, 'Times New Roman', serif !important;
+      font-size:12.5px !important; font-weight:700 !important;
+      letter-spacing:.02em !important; text-transform:uppercase !important;
+      color:#111 !important; margin:0 !important; display:block !important;
+      border-bottom:1px solid #111 !important; padding-bottom:1px !important;
+    }
+    .card .ch .icn{ display:none !important; }
+    .card .src{ display:none !important; }
+    .card .cb{ padding:0 !important; margin:0 !important; display:block !important; }
 
-    /* slightly tighten type globally for the page */
+    /* field → inline "Label  value" line, NOT a flex row, NOT stacked, NO
+       dashed rule. Reads as running fact copy: the label in small caps, the
+       value right after it. Lines wrap naturally and pack tight. */
+    .field{
+      display:block !important; padding:0 !important; margin:0 !important;
+      border:none !important; gap:0 !important;
+      break-inside:avoid !important; page-break-inside:avoid !important;
+      text-align:left !important;
+    }
+    .field .k{
+      display:inline !important;
+      font-family: Georgia, 'Times New Roman', serif !important;
+      font-size:10.5px !important; font-weight:400 !important;
+      letter-spacing:.04em !important; text-transform:uppercase !important;
+      color:#555 !important; width:auto !important; min-width:0 !important;
+      padding:0 !important; margin:0 !important;
+    }
+    .field .k:after{ content:" " !important; }
+    .field .v{
+      display:inline !important;
+      font-family: Georgia, 'Times New Roman', serif !important;
+      font-size:11.5px !important; font-weight:400 !important; color:#111 !important;
+      text-align:left !important; padding:0 !important; margin:0 !important;
+      overflow-wrap:normal !important; word-break:normal !important;
+    }
+    .field .v.big, .field .v.zone{ font-size:12px !important; font-weight:700 !important; color:#111 !important; }
+
+    /* FRESHLINES come in two flavors:
+       (a) provenance ("● LIVE queried in real time", "updated 5/20/2026") — screen
+           chrome with no value on paper. HIDE.
+       (b) section labels that carry a .badge ("▭ LOT dimensions & size",
+           "▣ REQUIRED setbacks · RSF-4", "⚡ GENERATOR · LDC 5.03.07") — these
+           introduce a sub-table and DO matter. Keep them, but as a clean italic
+           serif run-in subhead, no box, no glyph. */
+    .freshline{ display:none !important; }                 /* default: hide provenance */
+    .freshline:has(.badge){
+      display:block !important;                            /* section labels: keep */
+      font-family: Georgia,'Times New Roman',serif !important;
+      font-size:10.75px !important; font-style:italic !important; font-weight:400 !important;
+      color:#222 !important; padding:0 !important; margin:4px 0 1px !important;
+      letter-spacing:0 !important;
+      break-after:avoid !important; page-break-after:avoid !important;
+    }
+
+    /* badges: the glyph-prefixed ones (▭ ▣ ⚡ etc.) tofu in print fonts. The JS print-prep
+       strips the leading glyph so only the label text (LOT / REQUIRED / GENERATOR …) shows.
+       Render the chip as inline bold serif text — no box, no fill. */
+    .freshline .badge{
+      display:inline !important; background:none !important; border:none !important;
+      padding:0 !important; margin:0 !important; color:#111 !important;
+      font-family: Georgia,'Times New Roman',serif !important; font-weight:700 !important;
+      font-size:10.75px !important; text-transform:uppercase !important; letter-spacing:.03em !important;
+    }
+    .freshline .badge:after{ content:" — " !important; font-weight:400 !important; color:#555 !important; }
+    .badge{
+      display:inline !important; font-family: Georgia,'Times New Roman',serif !important;
+      font-size:11px !important; font-weight:700 !important; padding:0 !important;
+      color:#111 !important; background:none !important; border:none !important;
+    }
+    .badge.sfha{ font-weight:700 !important; text-decoration:underline !important; }
+
+    /* notes: long explanatory prose still hidden (screen guidance). Warnboxes
+       become an emphasized inset line in the article — italic, no box. */
+    .note{ display:none !important; }
+    .note.warnbox{
+      display:block !important; background:none !important; border:none !important;
+      border-left:2px solid #111 !important; color:#111 !important;
+      padding:0 0 0 6px !important; margin:3px 0 !important;
+      font-size:10.75px !important; line-height:1.4 !important; font-style:italic !important;
+      break-inside:avoid !important;
+    }
+    .note.warnbox b{ color:#111 !important; font-style:normal !important; }
+
+    /* links: hidden on paper */
+    .palink, a.link{ display:none !important; }
+    a[href]:after{ content:"" !important; }
+
     *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
 </style>
@@ -541,7 +743,7 @@
     </div>
     <div class="kick">Florida Parcel &amp; Flood Instrument</div>
     <h1>Property Lookup</h1>
-    <p>Flood &amp; jurisdiction query official servers in real time. Owner/parcel auto-uses the <b>live county feed</b> where wired (Collier, Lee, Charlotte, Manatee, Sarasota) and the dated state roll elsewhere. Add any county's live URL below. Florida only.</p>
+    <p class="intro-note noprint">Flood &amp; jurisdiction query official servers in real time. Owner/parcel auto-uses the <b>live county feed</b> where wired (Collier, Lee, Charlotte, Manatee, Sarasota) and the dated state roll elsewhere. Add any county's live URL below. Florida only.</p>
   </header>
 
   <div class="search">
@@ -3985,8 +4187,8 @@ function renderWindDesign(lat, lng, cityName, countyName, liveWind){
   if(live!=null){
     const interp = liveWind.interp && liveWind.lo!=null && liveWind.hi!=null && liveWind.lo!==liveWind.hi;
     h+=`<div class="freshline snap" style="margin-top:8px"><span class="badge live">● LIVE</span> ${interp?'interpolated':'read'} at this point from the ASCE 7-22 Risk Cat II contour layer</div>`;
-    h+=fieldRow('Ultimate design wind speed (V<sub>ult</sub>)', `≈ ${vult} mph <span class="muted">(ASCE 7-22 · Risk Category II · 3-sec gust${interp?' · interpolated':''})</span>`, 'big');
-    h+=fieldRow('Nominal design speed (V<sub>asd</sub>)', `≈ ${vasd} mph <span class="muted">(= V<sub>ult</sub> × √0.6)</span>`);
+    h+=fieldRow('Ultimate design wind speed (Vult)', `≈ ${vult} mph <span class="muted">(ASCE 7-22 · Risk Category II · 3-sec gust${interp?' · interpolated':''})</span>`, 'big');
+    h+=fieldRow('Nominal design speed (Vasd)', `≈ ${vasd} mph <span class="muted">(= V<sub>ult</sub> × √0.6)</span>`);
     h+=fieldRow('Exposure category', `typically C <span class="muted">(open / coastal terrain — confirm per site)</span>`);
     h+=fieldRow('Wind-borne debris region', `${vult>=140?'Yes':'Verify'} <span class="muted">(V<sub>ult</sub> ≥ 140 mph → impact-protection / opening requirements apply)</span>`);
     if(interp){
@@ -3995,8 +4197,8 @@ function renderWindDesign(lat, lng, cityName, countyName, liveWind){
       h+=`<div class="note">Point sits essentially on the <b>${vult} mph</b> contour. Read live from the FGDL / UF GeoPlan ASCE 7-22 Risk Cat II layer${c?` (${esc(cName)} County planning range: ${esc(c.range)})`:''}. The engineer of record sets the official design value.</div>`;
     }
   } else if(c){
-    h+=fieldRow('Ultimate design wind speed (V<sub>ult</sub>)', `≈ ${vult} mph <span class="muted">(${esc(cName)} Co. · Risk Category II · 3-sec gust)</span>`, 'big');
-    h+=fieldRow('Nominal design speed (V<sub>asd</sub>)', `≈ ${vasd} mph <span class="muted">(= V<sub>ult</sub> × √0.6)</span>`);
+    h+=fieldRow('Ultimate design wind speed (Vult)', `≈ ${vult} mph <span class="muted">(${esc(cName)} Co. · Risk Category II · 3-sec gust)</span>`, 'big');
+    h+=fieldRow('Nominal design speed (Vasd)', `≈ ${vasd} mph <span class="muted">(= V<sub>ult</sub> × √0.6)</span>`);
     h+=fieldRow('Exposure category', `typically C <span class="muted">(open / coastal terrain — confirm per site)</span>`);
     h+=fieldRow('Wind-borne debris region', `Yes <span class="muted">(V<sub>ult</sub> ≥ 140 mph across SW Florida → impact-protection / opening requirements apply)</span>`);
     h+=`<div class="note"><b>${esc(cName)} County</b> Risk Cat II range: <b>${esc(c.range)}</b>. ${esc(c.note)} The live wind-zone layer didn't return a value for this point, so this is the <b>county planning figure</b> — wind speed varies within a county (higher toward the coast); the exact site value depends on the precise address and Risk Category and is set by the engineer of record.</div>`;
@@ -4056,11 +4258,28 @@ function parcelTooltipHTML(info){
   return rows.length ? rows.join('') : '';
 }
 
+/* Heuristic: does this string look like a street/mailing address rather than a person/entity name?
+   Used to suppress county "owner2/name2" fields that actually hold a mailing address. */
+function isAddressLike(s){
+  if(!s) return false;
+  const t=String(s).trim().toUpperCase();
+  // starts with a house number, or contains a PO box / common street-type or unit token
+  if(/^\d+\s+\S/.test(t)) return true;
+  if(/\bP\.?\s?O\.?\s+BOX\b/.test(t)) return true;
+  if(/\b(ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|TER|TERRACE|PKWY|PARKWAY|WAY|CIR|CIRCLE|PL|PLACE|HWY|HIGHWAY|TRL|TRAIL|SQ|LOOP|PT|POINT|APT|UNIT|STE|SUITE)\b/.test(t)) return true;
+  if(/\b\d{5}(-\d{4})?\b/.test(t)) return true;   // ZIP code present
+  return false;
+}
+
 /* Render a parcel from any county layer using auto-detected field names */
 function renderParcelGeneric(a, d){
   let h='';
   const owner = d.owner?pick(a,d.owner):null;
-  const own2  = d.owner2?pick(a,d.owner2):null;
+  let   own2  = d.owner2?pick(a,d.owner2):null;
+  // Some county feeds (e.g. Collier) put the owner's MAILING ADDRESS in the "owner2/name2" field
+  // rather than a co-owner. Suppress it when it looks like a street address so we don't print
+  // "Owner 2: 1962 GULF SHORE BLVD S".
+  if(own2 && isAddressLike(own2)) own2=null;
   const pid   = d.pid?pick(a,d.pid):null;
   const site  = d.site?pick(a,d.site):null;
   const city  = d.city?pick(a,d.city):null;
@@ -4291,7 +4510,8 @@ async function runLookup(lat,lng,searchCtx){
     else { const _sel=pickSpecificParcel(parcel.features); parcel.features=[_sel.feature]; parcel.__multi=_sel.count; }
     const a=parcel.features[0].attributes;
     const owner=pick(a,'OWN_NAME');
-    const own2 =pick(a,'OWN_NAME2','S_OWN_NAM2');
+    let own2 =pick(a,'OWN_NAME2','S_OWN_NAM2');
+    if(own2 && isAddressLike(own2)) own2=null;   // suppress mailing-address-in-name2 (e.g. Collier)
     const pid  =pick(a,'PARCEL_ID');
     const site =[pick(a,'PHY_ADDR1'),pick(a,'PHY_ADDR2')].filter(Boolean).join(' ');
     const siteCity=[pick(a,'PHY_CITY'),pick(a,'PHY_ZIPCD')].filter(Boolean).join(' ');
@@ -4723,7 +4943,86 @@ async function runLookup(lat,lng,searchCtx){
       when:new Date() };
   }catch(e){ window.__printMeta={ lat:lat, lng:lng, when:new Date() }; }
 
-  results.innerHTML = setStatus('ok','Done — '+(new Date()).toLocaleTimeString()) + html;
+  const _bc  = buildBreadcrumb(countyName, cityName, window.__printMeta);
+  const _sum = buildSummaryStrip(window.__exportData, window.__printMeta);
+  results.innerHTML = setStatus('ok','Done — '+(new Date()).toLocaleTimeString())
+    + _bc + _sum + '<div class="cardflow">' + html + '</div>';
+  tabifyResults(results);
+  document.body.classList.add('has-results');   // hides the intro disclaimer now that the breadcrumb/summary carry context
+}
+
+/* ---- Docked/tabbed view helpers (desktop redesign) ----------------------------------------
+   The 9 render functions still each emit a self-contained .card; we assemble them into .cardflow
+   as before, then post-process: build a breadcrumb + always-visible summary strip, and reorganize
+   the cards into category tabs. Decoupled from the renderers (matches by card title), so adding or
+   removing a card needs no change here. Print/PDF reveals every tab (see @media print). */
+function _shortAddr(s){ if(!s) return null; const t=String(s).split(',')[0].trim(); return t||String(s).trim(); }
+function buildBreadcrumb(county, city, meta){
+  const addr = meta && meta.addr ? _shortAddr(meta.addr) : null;
+  const parts = ['<span class="bc">Florida</span>'];
+  if(county) parts.push('<span class="bc">'+esc(titleCase(county))+' County</span>');
+  parts.push('<span class="bc">'+(city?esc(titleCase(city)):'Unincorporated')+'</span>');
+  if(addr) parts.push('<span class="bc cur">'+esc(addr)+'</span>');
+  return '<div class="breadcrumb">'+parts.join('<span class="sep">\u203a</span>')+'</div>';
+}
+function buildSummaryStrip(ed, meta){
+  ed = ed||{};
+  const addr = (meta && meta.addr) ? esc(meta.addr)
+             : (meta && meta.where) ? esc(meta.where) : 'Selected location';
+  const chip=(label,val,cls)=> val ? '<span class="chip '+(cls||'')+'"><b>'+label+'</b> '+esc(String(val))+'</span>' : '';
+  let chips='';
+  if(ed.county) chips+=chip('County', ed.county+' County');
+  chips+=chip('Juris', ed.municipality || 'Unincorporated');
+  if(ed.zoning) chips+=chip('Zoning', ed.zoning);
+  if(ed.floodZone) chips+=chip('Flood', ed.floodZone, /^(a|v|ae|ve|ao|ah)\b/i.test(String(ed.floodZone))?'warn':'good');
+  if(ed.windVult) chips+=chip('Wind', ed.windVult+' mph', (+ed.windVult>=140)?'warn':'');
+  return '<div class="summary-strip"><div class="sum-addr">'+(addr||'Selected location')+'</div>'
+       + (chips?('<div class="sum-chips">'+chips+'</div>'):'') + '</div>';
+}
+function tabifyResults(root){
+  const flow = root.querySelector('.cardflow');
+  if(!flow) return;
+  const cards=[...flow.querySelectorAll(':scope > .card')];
+  if(!cards.length) return;
+  const MAP=[
+    [/jurisdiction/i,'site'],[/parcel/i,'site'],
+    [/zoning/i,'zoning'],[/flood/i,'flood'],[/wind/i,'wind'],
+    [/electric/i,'utilities'],[/natural gas|propane/i,'utilities'],
+    [/permit/i,'permits'],[/aerial|street view/i,'aerial']
+  ];
+  const TABS=[['site','Site'],['zoning','Zoning'],['flood','Flood'],['wind','Wind'],
+              ['utilities','Utilities'],['permits','Permits'],['aerial','Aerial']];
+  const bucket={};
+  cards.forEach(c=>{
+    const h=(c.querySelector('h2')?c.querySelector('h2').textContent:'')||'';
+    let key='site'; for(const [re,k] of MAP){ if(re.test(h)){ key=k; break; } }
+    (bucket[key]=bucket[key]||[]).push(c);
+  });
+  const bar=document.createElement('div'); bar.className='tabbar'; bar.setAttribute('role','tablist');
+  const panels=document.createElement('div'); panels.className='tabpanels';
+  let first=null;
+  TABS.forEach(([key,label])=>{
+    const items=bucket[key]; if(!items||!items.length) return;
+    if(!first) first=key;
+    const btn=document.createElement('button'); btn.className='tab'; btn.dataset.tab=key; btn.type='button';
+    btn.innerHTML=label+(items.length>1?'<span class="tcount">'+items.length+'</span>':'');
+    bar.appendChild(btn);
+    const panel=document.createElement('div'); panel.className='tabpanel'; panel.dataset.tab=key;
+    items.forEach(c=>panel.appendChild(c));
+    panels.appendChild(panel);
+  });
+  flow.replaceWith(panels);
+  const sticky=document.createElement('div'); sticky.className='panel-sticky';
+  const sumEl=root.querySelector('.summary-strip');
+  if(sumEl) sticky.appendChild(sumEl);   // move the summary into the sticky header
+  sticky.appendChild(bar);
+  panels.parentNode.insertBefore(sticky, panels);
+  const activate=key=>{
+    bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===key));
+    panels.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active', p.dataset.tab===key));
+  };
+  bar.addEventListener('click',e=>{ const b=e.target.closest('.tab'); if(b) activate(b.dataset.tab); });
+  if(first) activate(first);
 }
 
 function titleCase(s){ return String(s||'').toLowerCase().replace(/\b([a-z])/g,m=>m.toUpperCase()).replace(/\bMc([a-z])/,(m,c)=>'Mc'+c.toUpperCase()); }
@@ -4773,7 +5072,7 @@ async function doSearch(){
       map.setView([ng.lat,ng.lng], 18);
       await runLookup(ng.lat, ng.lng, searchCtx);
       const label = ng.addr ? esc(ng.addr) : esc(q);
-      const conf = `<div class="note" style="padding:2px 2px 4px">Matched (${esc(titleCase(ng.county))} County NG911): <b style="color:var(--ink)">${label}</b> — authoritative address point; confirm the marker is on the right lot.</div>`;
+      const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(titleCase(ng.county))} County NG911): <b style="color:var(--ink)">${label}</b> — authoritative address point; confirm the marker is on the right lot.</div>`;
       results.insertAdjacentHTML('afterbegin',conf);
       return;
     }
@@ -4787,7 +5086,7 @@ async function doSearch(){
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
   map.setView([g.lat,g.lng], 18);
   await runLookup(g.lat,g.lng, searchCtx);
-  const conf = `<div class="note" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
+  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 document.getElementById('go').onclick=doSearch;
@@ -4849,7 +5148,7 @@ async function chooseSuggestion(it){
   // marker authoritatively. This removes two network round-trips from the search.
   map.setView([it.lat,it.lng], 18);
   await runLookup(it.lat,it.lng, searchCtx);
-  const conf = `<div class="note" style="padding:2px 2px 4px">Matched: <b style="color:var(--ink)">${esc(it.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
+  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched: <b style="color:var(--ink)">${esc(it.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 
@@ -5094,8 +5393,14 @@ window.Sheet=Sheet;
 
 /* ---------- Print: fill the report header, then print one sheet ---------- */
 (function(){
-  const btn=document.getElementById('printBtn'); if(!btn) return;
-  btn.addEventListener('click',()=>{
+  const btn=document.getElementById('printBtn');
+  let _flatten = null;
+  let _origTitle = null;
+
+  // Build the two-column flowing print layout. Runs on the tool's print button AND on the browser's
+  // own beforeprint event (Cmd-P / Ctrl-P / browser menu), so the layout + note-hiding always apply.
+  function preparePrint(){
+    if(_flatten) return;                 // already prepared (avoid double-run if both paths fire)
     const m=window.__printMeta||{};
     const el=document.getElementById('printMeta');
     if(el){
@@ -5111,93 +5416,105 @@ window.Sheet=Sheet;
       el.innerHTML=rows;
     }
     const hasResults = document.querySelector('#results .card');
-    if(!hasResults){ alert('Look up a property first — there\u2019s nothing to print yet.'); return; }
+    if(!hasResults) return;
 
     // Name the saved/printed file after the homeowner + property address.
-    // The browser uses document.title as the default PDF/print filename, so we set it
-    // here and restore the original title once the print/save dialog has been handled.
     const pm = window.__parcelMeta||{};
     const fileBits = [ (pm.owner||'').trim(), (pm.site||m.addr||'').trim() ]
       .filter(Boolean)
       .map(s=>s.replace(/[\\\/:*?"<>|\u0000-\u001f]+/g,' ').replace(/\s+/g,' ').trim());
     let fileName = fileBits.join(' - ');
     if(!fileName){
-      fileName = (typeof m.lat==='number')
-        ? ('Property '+m.lat.toFixed(5)+', '+m.lng.toFixed(5))
-        : 'Property Lookup';
+      fileName = (typeof m.lat==='number') ? ('Property '+m.lat.toFixed(5)+', '+m.lng.toFixed(5)) : 'Property Lookup';
     }
     fileName = fileName.slice(0,120);
-    const _origTitle = document.title;
+    _origTitle = document.title;
     document.title = fileName;
 
-    // Tag the tallest card(s) so they may split internally if the report would otherwise spill
-    // onto a second page; shorter cards stay atomic. (Threshold ~ a third of a letter page.)
-    const cards=[...document.querySelectorAll('#results .card')];
-    cards.forEach(c=>c.classList.remove('tall'));
-    cards.filter(c=>c.offsetHeight>300).forEach(c=>c.classList.add('tall'));
+    // Tag tall cards so they may split internally rather than forcing a page break.
+    const allcards=[...document.querySelectorAll('#results .card')];
+    allcards.forEach(c=>c.classList.remove('tall'));
+    allcards.filter(c=>c.offsetHeight>300).forEach(c=>c.classList.add('tall'));
 
-    // No DOM repack: the print CSS uses `column-count:2`, which Safari prints reliably and
-    // balances into two columns itself. We only compute the fit-to-one-page factor.
+    const PRINT_SHRINK = 1.0;
+    document.documentElement.style.setProperty('--print-fit', String(PRINT_SHRINK));
 
-    // Auto-fit via `zoom`. The earlier version guessed the printed height from the screen height
-    // with a fudge factor and consistently under-shrank — leaving the report in the top half of
-    // the page (tiny type, empty bottom). Instead we MEASURE the real two-column height: briefly
-    // apply the same column layout the print stylesheet uses, read the laid-out height, then pick
-    // the zoom that makes the content FILL the usable page height (scaling up to fill, down only
-    // if it would overflow). One letter page at 0.45in margins ≈ 9.5in usable; minus the ~0.5in
-    // print header ≈ 9.0in × 96px ≈ 865px for the columns. Target ~96% of that so it fills the
-    // sheet without risking a hairline spill to page 2.
-    const fitFactor=()=>{
-      // Usable column height on a letter page: 11in − 0.9in margins − ~0.5in print header
-      // ≈ 9.6in × 96px ≈ 920px. Target ~88% of it — a deliberate cushion so a report lands fully
-      // on one page (printing at "Actual size") without spilling a few lines to page 2.
-      const TARGET_PX = 920 * 0.88;
-      const MAX = 1.4, MIN = 0.62;    // allow scale-UP to fill short reports; floor for legibility
+    // FLATTEN + FLOW: hoist every card, in reading order, into ONE multi-column container.
+    // The CSS on .printflow (column-count:2; column-fill:auto) does the newspaper fill:
+    // it packs the LEFT column top-to-bottom to the bottom of the page, THEN continues at
+    // the top of the RIGHT column. No manual height measuring or hand-splitting — the
+    // print engine fragments the flow correctly, which a flex row never could.
+    const panelsEl = document.querySelector('#results .tabpanels');
+    if(!panelsEl) return;
+    const panels = [...panelsEl.querySelectorAll(':scope > .tabpanel')];
+    const flow = document.createElement('div'); flow.className='printflow';
+    panelsEl.appendChild(flow);
 
-      // Measure the natural SINGLE-column height at the printed content width. NOTE: a
-      // `column-count:2` element with auto height reports its full single-column scrollHeight
-      // (the browser has no height to balance against), so we must NOT set column-count here —
-      // we measure one column at full width, then halve it, since print splits it into two
-      // balanced columns each ~half the height. Measuring at the real page content width
-      // (~730px) makes the line-wrapping — and thus the height — match the printed page.
-      const prev = { w: results.style.width, zoom: results.style.zoom, cc: results.style.columnCount };
-      results.style.zoom = '1';
-      results.style.columnCount = '1';
-      results.style.width = '730px';
-      const oneColH_screenFont = results.scrollHeight || results.offsetHeight || 0;
-      results.style.width = prev.w; results.style.zoom = prev.zoom; results.style.columnCount = prev.cc;
+    const moved = [];
+    const collected = [];
+    panels.forEach(panel=>{
+      [...panel.querySelectorAll(':scope > .card')].forEach(card=>{
+        if(card.classList.contains('noprint') || card.classList.contains('scoutcard')) return;
+        moved.push({ card, panel, next: card.nextSibling });
+        collected.push(card);
+      });
+      panel.style.display='none';
+    });
 
-      // Two columns → roughly half that height. Then apply print-font compaction. Ratio calibrated
-      // from a real print: a report measuring 4242px (1-col @730px, screen fonts) printed its two
-      // columns ~899px tall, i.e. ~0.42 of the halved height. (Earlier 0.35 underestimated and
-      // scaled up too far, spilling a few lines to page 2.)
-      const twoColH_screenFont = oneColH_screenFont / 2;
-      const PRINT_FONT_RATIO = 0.42;
-      const colH = twoColH_screenFont * PRINT_FONT_RATIO;
+    // Reading order: Jurisdiction → Parcel → Flood → Zoning → Wind, then any extras.
+    const titleOf=c=>{ const t=c.querySelector('h2'); return t?t.textContent.toLowerCase():''; };
+    const order=[/jurisdiction/, /parcel/, /flood/, /zoning/, /wind/];
+    const cards=[], used=new Set();
+    order.forEach(re=>{ const c=collected.find(x=>!used.has(x)&&re.test(titleOf(x))); if(c){ cards.push(c); used.add(c); } });
+    collected.forEach(c=>{ if(!used.has(c)){ cards.push(c); used.add(c); } });
 
-      let z = colH>0 ? (TARGET_PX / colH) : 1;
-      z = Math.max(MIN, Math.min(MAX, z));
-      document.documentElement.style.setProperty('--print-fit', String(Math.round(z*1000)/1000));
-    };
-    fitFactor();
+    // Strip leading decorative glyphs (▭ ▣ ⚡ ● ▣ etc.) from section-label badges so they
+    // don't render as tofu boxes in the print serif font. Non-destructive: stash originals.
+    const glyphEdits = [];
+    document.querySelectorAll('#results .freshline .badge').forEach(b=>{
+      const orig = b.textContent;
+      // remove any run of leading non-(letter/digit) chars + following spaces
+      const cleaned = orig.replace(/^[^\p{L}\p{N}]+\s*/u, '').trim();
+      if(cleaned !== orig){ glyphEdits.push({ node:b, orig }); b.textContent = cleaned; }
+    });
 
-    // Restore the page (title) once printing is done. afterprint is primary; the timeout is a
-    // backstop for the cases where iOS Safari never fires it.
-    const cleanup=()=>{
-      document.title=_origTitle;
-      document.documentElement.style.removeProperty('--print-fit');
-      window.removeEventListener('afterprint',cleanup);
-    };
-    window.addEventListener('afterprint',cleanup);
-    setTimeout(cleanup, 8000);
+    // Append in reading order; column-fill:auto handles left-then-right flow.
+    cards.forEach(card=>flow.appendChild(card));
 
-    // iOS Safari builds the print snapshot synchronously and will capture the page
-    // BEFORE the header text + scale above have repainted — yielding a blank or
-    // half-built sheet. Wait two frames (layout + paint) and a beat, then print.
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      setTimeout(()=>{ try{ window.print(); }catch(e){ /* no-op */ } }, 80);
-    }));
-  });
+    _flatten = { panelsEl, panels, moved, flow, glyphEdits };
+  }
+
+  function restorePrint(){
+    document.documentElement.style.removeProperty('--print-fit');
+    if(_origTitle!=null){ document.title=_origTitle; _origTitle=null; }
+    if(!_flatten) return;
+    if(_flatten.glyphEdits){ _flatten.glyphEdits.forEach(e=>{ e.node.textContent = e.orig; }); }
+    _flatten.panels.forEach(panel=>{ panel.style.display=''; });
+    const byPanel = new Map();
+    _flatten.moved.forEach(m=>{ if(!byPanel.has(m.panel)) byPanel.set(m.panel,[]); byPanel.get(m.panel).push(m.card); });
+    byPanel.forEach((list,panel)=>{ list.forEach(card=>panel.appendChild(card)); });
+    if(_flatten.flow && _flatten.flow.parentNode) _flatten.flow.parentNode.removeChild(_flatten.flow);
+    _flatten = null;
+  }
+
+  // Browser-initiated print (Cmd-P / Ctrl-P / menu): prepare on beforeprint, restore on afterprint.
+  window.addEventListener('beforeprint', preparePrint);
+  window.addEventListener('afterprint', restorePrint);
+
+  // Tool's print button: prepare, then trigger print (with iOS double-rAF), then restore.
+  if(btn){
+    btn.addEventListener('click',()=>{
+      const hasResults = document.querySelector('#results .card');
+      if(!hasResults){ alert('Look up a property first — there\u2019s nothing to print yet.'); return; }
+      preparePrint();
+      const backstop=setTimeout(restorePrint, 8000);
+      const once=()=>{ clearTimeout(backstop); restorePrint(); window.removeEventListener('afterprint',once); };
+      window.addEventListener('afterprint',once);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        setTimeout(()=>{ try{ window.print(); }catch(e){ /* no-op */ } }, 80);
+      }));
+    });
+  }
 })();
 
 
