@@ -1377,6 +1377,10 @@ const LEE_INCORP = new Set(['CAPECORAL','FORTMYERS','BONITASPRINGS','ESTERO','SA
    falls through to the generic adopted-code note. norm()-form. */
 const CHARLOTTE_INCORP = new Set(['PUNTAGORDA']);
 
+/* Incorporated municipalities within Sarasota County that adopt their OWN codes and must NOT inherit
+   unincorporated Sarasota County's UDC (Ch. 124) setbacks. norm()-form. */
+const SARASOTA_INCORP = new Set(['SARASOTA','VENICE','NORTHPORT','LONGBOATKEY']);
+
 /* ---------- City of Naples setback QUICK-REFERENCE (Code of Ordinances, Ch. 58) ----------
    Hand-entered from Municode. These are a CONVENIENCE COPY — the live § deep-link beside each
    result is the source of truth (ordinances change; this table can go stale). Numbers are base
@@ -1548,6 +1552,14 @@ const ZONING_LIVE = {
     codeField:"zoningcode", descField:"landuse",
     urls:[
     "https://agis.charlottecountyfl.gov/arcgis/rest/services/Essentials/CCGIS_Web_Layers2022/MapServer/17/query"
+  ]},
+  // Sarasota County's public "CountyZoning" polygon layer (Enterprise GIS / ArcGIS Hub item
+  // e720c251e6f145708b584eeb20fb13e8). Returns the UDC district per parcel. Field names aren't pinned;
+  // detectZoningFields() resolves the code/description columns (typically ZONE/ZONING/ZONELABEL). If
+  // this host path changes, the lookup degrades gracefully to the Municode/permit links below.
+  SARASOTA: { label:"Sarasota County Zoning (UDC)", urls:[
+    "https://services1.arcgis.com/RatJUQXQHIYjpRMG/arcgis/rest/services/CountyZoning/FeatureServer/0/query",
+    "https://ags3.scgov.net/server/rest/services/Hosted/CountyZoning/FeatureServer/0/query"
   ]}
 };
 
@@ -2658,6 +2670,97 @@ function renderPuntaGordaSetbacks(districtCode){
   h+=`<div class="note warnbox">Required minimums from the City of Punta Gorda Land Development Regulations (Chapter 26), keyed to the detected district. Historic Overlay, Waterfront Overlay and Special Residential Overlay areas add their own standards. Verify overlays and corner-lot rules before relying on these.</div>`;
   // Punta Gorda's explicit generator allowance applies citywide — always append it.
   h+=renderPuntaGordaGeneratorNote();
+  return h;
+}
+
+/* ---------- Unincorporated Sarasota County required setbacks — Unified Development Code (UDC) -------
+   Sarasota consolidated its old Appendix A (Zoning) + Chapter 74 (LDRs) into the UNIFIED DEVELOPMENT
+   CODE = Chapter 124 of the Code of Ordinances. Yard standards are in § 124-76 (Base Districts),
+   keyed per district. Sarasota's terminology: "Street Yard" = front. Numbers verified against the
+   user-supplied Sarasota County Code PDF (Supp. No. 74/93, May 2026 — current UDC). Where a district
+   has tiered values (RE-1/2/3, RSF-1/2/3/4, RMF-1/2/3), the most permissive/representative residential
+   tier is shown with the range in the note; click through to § 124-76 for the exact tier. front/side/
+   rear are minimum feet; "waterfront" carried in note. NOTE: this is UNINCORPORATED Sarasota County —
+   the cities (Sarasota, Venice, North Port, Longboat Key) have their own separate codes. */
+const SARASOTA_SETBACKS = {
+  // Open Use
+  "OUC": { front:50, side:50, rear:50, note:"Open Use Conservation: all yards 50 ft; waterfront 50 ft. Max height 35 ft; density 1/25 ac." },
+  "OUA": { front:50, side:50, rear:50, note:"Open Use Agricultural: all yards 50 ft; waterfront 50 ft. Density 1/160 ac." },
+  "OUR": { front:50, side:50, rear:50, note:"Open Use Rural: all yards 50 ft; waterfront 50 ft. Max height 35 ft; density 1/10 ac." },
+  "OUE": { front:50, side:50, rear:50, sideNote:"Side (single) 50 ft; side (total, both sides) 100 ft.", note:"Open Use Estate: street 50 ft; rear 50 ft; waterfront 50 ft. Max height 35 ft; building coverage 20%; density 1 DU/5 ac." },
+  // Residential
+  "RE":  { front:25, side:10, rear:20, sideNote:"Side (single) RE-1 20 ft / RE-2 10 ft / RE-3 10 ft; side (total) 40/20/20 ft.", rearNote:"Rear 20 ft; waterfront 20 ft (20/30 in some cases).", note:"Residential Estate (RE-1/2/3). Street yard 25 ft all tiers; max height 35 ft; building coverage 25–30%." },
+  "RSF": { front:20, side:6, rear:10, sideNote:"Side (single) RSF-1/2 8 ft, RSF-3/4 6 ft; side (total) 18/18/15/15 ft.", rearNote:"Rear 10 ft; waterfront 20 ft (residential), 20/30 ft nonresidential.", note:"Residential Single-Family (RSF-1/2/3/4). Street yard 20 ft all tiers; max height 35 ft." },
+  "RMF": { front:20, side:8, rear:10, sideNote:"Side (single) 8 ft; side (total) 18 ft.", rearNote:"Rear 10 ft; waterfront 20 ft (residential), 20/30 ft nonresidential.", note:"Residential Multifamily (RMF-1/2/3). Street yard 20 ft; max height 35–45 ft; building coverage 35% (res)." },
+  "RMH": { front:10, side:5, rear:5, sideNote:"Side 5 ft.", rearNote:"Rear 5 ft; waterfront 20 ft. (Park/subdivision standards; street yard 10 ft new homes.)", note:"Residential Manufactured Home. A/C may project into setbacks. Max height 25 ft (35 ft rec. facilities)." },
+  // Commercial
+  "CN":  { front:20, side:8, rear:10, sideNote:"Side 8 ft; side/rear abutting a residential district 20 ft.", rearNote:"Rear 10 ft; waterfront 20 ft.", note:"Commercial Neighborhood." },
+  "OPI": { front:25, side:10, rear:10, sideNote:"Side 10 ft; side/rear abutting a residential district 20 ft.", rearNote:"Rear 10 ft; waterfront 20 ft.", note:"Office, Professional & Institutional." },
+  "CG":  { front:20, side:8, rear:10, sideNote:"Side 8 ft; side/rear abutting a residential district 20 ft.", rearNote:"Rear 10 ft; waterfront 20 ft.", note:"Commercial General." },
+  "CI":  { front:20, side:8, rear:10, sideNote:"Side 8 ft; side/rear abutting a residential district 20 ft.", rearNote:"Rear 10 ft; waterfront 20 ft.", note:"Commercial Intensive." },
+  "CHI": { front:50, side:50, rear:50, sideNote:"Side 50 ft; side/rear abutting a residential district 50 ft.", rearNote:"Rear 50 ft; waterfront 20 ft.", note:"Commercial Highway Interchange." },
+  "CM":  { front:20, side:8, rear:10, sideNote:"Side 8 ft; side/rear abutting a residential district 20 ft.", rearNote:"Rear 10 ft; waterfront 20 ft.", note:"Commercial Marine." },
+  // Industrial
+  "IR":  { front:25, side:8, rear:25, sideNote:"Side 8 ft; side/rear abutting a residential district 75 ft.", rearNote:"Rear 25 ft; waterfront 20 ft.", note:"Industrial & Research." },
+  "ILW": { front:25, side:8, rear:25, sideNote:"Side 8 ft; side/rear abutting a residential district 75 ft.", rearNote:"Rear 25 ft; waterfront 20 ft.", note:"Industrial, Light Manufacturing & Warehousing." },
+  // Special Purpose
+  "GU":  { front:null, side:null, rear:null, allFormula:true, note:"Government Use: standards set per use / by the Board; verify in § 124-77." },
+  "MP":  { front:null, side:null, rear:null, allFormula:true, note:"Marine Park: special-purpose standards; verify in § 124-77." }
+};
+const SARASOTA_DISTRICT_ALIASES = {
+  "OPENUSECONSERVATION":"OUC","OPENUSEAGRICULTURAL":"OUA","OPENUSERURAL":"OUR","OPENUSEESTATE":"OUE",
+  "RESIDENTIALESTATE":"RE","RESIDENTIALSINGLEFAMILY":"RSF","RESIDENTIALMULTIFAMILY":"RMF",
+  "RESIDENTIALMANUFACTUREDHOME":"RMH","MANUFACTUREDHOME":"RMH",
+  "COMMERCIALNEIGHBORHOOD":"CN","OFFICEPROFESSIONALINSTITUTIONAL":"OPI","OFFICEPROFESSIONAL":"OPI",
+  "COMMERCIALGENERAL":"CG","COMMERCIALINTENSIVE":"CI","COMMERCIALHIGHWAYINTERCHANGE":"CHI","COMMERCIALMARINE":"CM",
+  "INDUSTRIALRESEARCH":"IR","INDUSTRIALLIGHTMANUFACTURINGANDWAREHOUSING":"ILW","GOVERNMENTUSE":"GU","MARINEPARK":"MP"
+};
+/* Resolve a Sarasota UDC district code (e.g. "RSF-3", "RSF3", "RMF-2", "OUE", "CG") to a setbacks
+   entry. Tiered families (RSF-1..4, RMF-1..3, RE-1..3) collapse to the base family the table is
+   keyed on. */
+function sarasotaSetbacks(districtCode){
+  if(!districtCode) return null;
+  const raw=String(districtCode).toUpperCase().trim();
+  if(SARASOTA_SETBACKS[raw]) return SARASOTA_SETBACKS[raw];
+  const alpha=raw.replace(/[^A-Z]/g,'');          // RSF3 / RSF-3 -> RSF
+  if(SARASOTA_SETBACKS[alpha]) return SARASOTA_SETBACKS[alpha];
+  if(SARASOTA_DISTRICT_ALIASES[alpha]) return SARASOTA_SETBACKS[SARASOTA_DISTRICT_ALIASES[alpha]];
+  const base=raw.split(/[\s(/-]/)[0].replace(/[^A-Z]/g,'');
+  if(SARASOTA_SETBACKS[base]) return SARASOTA_SETBACKS[base];
+  if(SARASOTA_DISTRICT_ALIASES[base]) return SARASOTA_SETBACKS[SARASOTA_DISTRICT_ALIASES[base]];
+  return null;
+}
+/* Sarasota's mechanical-equipment / generator rule (UDC § 124-73(e)(4)f). Shown for any
+   unincorporated Sarasota parcel — it's a countywide accessory-equipment rule, not district-specific.
+   Sarasota EXEMPTS above-grade A/C, mechanical, electrical & plumbing equipment (incl. generators)
+   from side and rear yard setbacks, with a 3-ft-from-line / no-easement floor. The Siesta Key
+   Overlay (SKOD) is the exception — there equipment must meet the full underlying side-yard setback. */
+function renderSarasotaEquipmentNote(){
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment placement · Sarasota UDC § 124-73</div>`;
+  h+=`<div class="note"><b>Generators are exempt from the side & rear yard setbacks.</b> Above-grade (or FEMA-elevated) A/C, mechanical, electrical and plumbing equipment — which includes a standby generator — is exempt from side and rear yard setback requirements, but <b>may not be closer than 3 ft to a property line</b> and <b>may not sit in any easement</b>. In a PUD with no required setbacks, it still can't go in an easement.</div>`;
+  h+=`<div class="note"><b>Siesta Key (SKOD) exception:</b> on Siesta Key, new at-grade or elevated mechanical equipment (A/C, pool equipment, generators) must meet the underlying district's full minimum <b>side</b> yard setback, and must be screened (lattice or similar). Replacing existing equipment is exempt if the existing encroachment isn't increased.</div>`;
+  h+=`<a class="palink" href="https://library.municode.com/fl/sarasota_county/codes/code_of_ordinances?nodeId=PTIICOOR_CH124UNDECO" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 124-73 — Sarasota UDC (Municode)</a>`;
+  return h;
+}
+/* Render required setbacks for an unincorporated Sarasota County district (UDC § 124-76 numbers). */
+function renderSarasotaSetbacks(districtCode){
+  const s=sarasotaSetbacks(districtCode);
+  if(!s) return '';
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(String(districtCode))} (Sarasota UDC § 124-76)</div>`;
+  const formula = s.allFormula;
+  const ft=(v,isFormula)=> (v!=null)?(v===0?'0 ft':v+' ft')
+                         : ((isFormula||formula)?'<span class="muted">per use — see note</span>'
+                         : '<span class="muted">see code</span>');
+  h+=fieldRow('Front (street yard)', ft(s.front), 'big');
+  h+=fieldRow('Side', ft(s.side, s.sideFormula));
+  h+=fieldRow('Rear', ft(s.rear));
+  if(s.sideNote) h+=`<div class="note"><b>Side detail:</b> ${esc(s.sideNote)}</div>`;
+  if(s.rearNote) h+=`<div class="note"><b>Rear detail:</b> ${esc(s.rearNote)}</div>`;
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  h+=`<a class="palink" href="https://library.municode.com/fl/sarasota_county/codes/code_of_ordinances?nodeId=PTIICOOR_CH124UNDECO" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 124-76 — Sarasota UDC (Municode)</a>`;
+  h+=`<div class="note warnbox">Required minimums from Sarasota County's Unified Development Code (Ch. 124, § 124-76), keyed to the detected district. Tiered districts (RE-1/2/3, RSF-1/2/3/4, RMF-1/2/3) vary by tier — confirm the exact tier in § 124-76. Barrier-island, Siesta Key (SKOD), waterfront and coastal-setback overlays add their own standards. Cities (Sarasota, Venice, North Port, Longboat Key) use separate codes.</div>`;
+  // Sarasota's generator/equipment exemption applies countywide — always append it.
+  h+=renderSarasotaEquipmentNote();
   return h;
 }
 
@@ -5055,6 +5158,9 @@ async function runLookup(lat,lng,searchCtx){
     // Unincorporated Charlotte County (Code of Laws & Ordinances Ch. 3-9). Punta Gorda (the county's
     // only city) adopts its own code and is excluded via CHARLOTTE_INCORP — it falls through to the note.
     if(norm(countyName)==='CHARLOTTE' && !CHARLOTTE_INCORP.has(norm(cityName)) && zhit.code){ html += renderCharlotteSetbacks(zhit.code); }
+    // Unincorporated Sarasota County (Unified Development Code, Ch. 124 § 124-76). Cities (Sarasota,
+    // Venice, North Port, Longboat Key) adopt their own codes and are excluded via SARASOTA_INCORP.
+    if(norm(countyName)==='SARASOTA' && !SARASOTA_INCORP.has(norm(cityName)) && zhit.code){ html += renderSarasotaSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
