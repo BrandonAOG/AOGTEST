@@ -5334,10 +5334,18 @@ const Sheet=(function(){
   let hidden=false;
   const vh=()=>window.innerHeight;
   function apply(px){ panel.style.setProperty('--sheet-h', px+'px'); }
-  function show(){ hidden=false; panel.classList.remove('hidden'); tab.classList.remove('show'); }
+  function show(){
+    hidden=false;
+    panel.classList.remove('hidden');
+    tab.classList.remove('show');
+    panel.style.transform='';                 // clear any leftover drag/dismiss translate
+  }
   function hide(){
     if(!isMobile()) return;
-    hidden=true; panel.classList.add('hidden'); tab.classList.add('show');
+    hidden=true;
+    panel.style.transform='';                 // let the CSS .hidden translateY(105%) take over cleanly
+    panel.classList.add('hidden');
+    tab.classList.add('show');
   }
   function snapTo(i){
     idx=Math.max(0,Math.min(SNAPS.length-1,i));
@@ -5442,8 +5450,9 @@ const Sheet=(function(){
   window.addEventListener('mousemove',move);
   window.addEventListener('touchend',up);
   window.addEventListener('mouseup',up);
-  // pull-up tab brings the sheet back (at peek, so the map stays mostly visible)
-  tab.addEventListener('click',()=>{ snapTo(0); });
+  // pull-up tab brings the sheet back to a usable HALF height (not a sliver), so one tap
+  // gives you the panel back; from there the grip can drag it up to full or back down.
+  tab.addEventListener('click',()=>{ snapTo(1); });
   // tapping the grip (no drag) cycles peek -> half -> full -> peek...
   let tapStartY=0,moved=false;
   grip.addEventListener('touchstart',e=>{tapStartY=e.touches[0].clientY;moved=false;},{passive:true});
