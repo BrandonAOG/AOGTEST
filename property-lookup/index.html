@@ -4865,6 +4865,8 @@ async function runLookup(lat,lng,searchCtx){
   window.__parcelMeta=null;   // cleared each lookup; set when a parcel renders
   // Collected for the "Export to Excel" feature (imports into the Estimate sheet).
   window.__exportData={ lat:lat, lng:lng, today:new Date().toLocaleDateString('en-US') };
+  // Store for targeted single-service retries (flood / zoning)
+  window.__lastLookup = null;
   // marker
   if(marker) map.removeLayer(marker);
   marker=L.circleMarker([lat,lng],{renderer:canvasRenderer,radius:6,color:'#ffb000',weight:2,fillColor:'#ffb000',fillOpacity:.9}).addTo(map);
@@ -4897,6 +4899,8 @@ async function runLookup(lat,lng,searchCtx){
   let cityName   = (!city.__err   && city.features   && city.features[0])   ? city.features[0].attributes.NAME   : null;
   window.__lastCounty = countyName || '';   // for the live-feed diagnostic
   if(window.__exportData){ window.__exportData.county=countyName?titleCase(countyName):''; window.__exportData.municipality=cityName?titleCase(cityName):''; }
+  // Store for targeted retries
+  window.__lastLookup = { lat, lng, cityName, countyName };
   const paUrl = countyName ? PA[norm(countyName)] : null;
 
   // Kick off the slower enrichment lookups NOW, in parallel, so they overlap instead of
@@ -5202,7 +5206,7 @@ async function runLookup(lat,lng,searchCtx){
   html += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
   let nfhlZone=null;   // captured for the county cross-check below
   if(flood.__err){
-    html += `<div class="note">Flood service did not respond (${esc(flood.__err)}). FEMA's server can be slow on mobile — <a href="#" onclick="if(lastLoc){runLookup(lastLoc.lat,lastLoc.lng);}return false;" style="color:var(--blueprint)">tap to retry</a>.</div>`;
+    html += `<div class="note" id="floodErrNote">Flood service did not respond (${esc(flood.__err)}). <a href="#" id="floodRetryBtn" style="color:var(--blueprint)">Tap to retry flood only</a>.</div>`;
   } else if(flood.features && flood.features.length){
     const zones=flood.features.map(f=>f.attributes);
     const z=zones[0];
@@ -5321,7 +5325,7 @@ async function runLookup(lat,lng,searchCtx){
     html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Read the district off the map sheet above; setbacks &amp; use standards come from <b>${esc(jurName)}</b>'s adopted land development code (Municode) and permitting portal.</div>`;
   } else {
-    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
+    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?` — <a href="#" id="zoningRetryBtn" style="color:var(--blueprint)">tap to retry live zoning</a>`:' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
   }
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
@@ -5605,6 +5609,85 @@ async function runLookup(lat,lng,searchCtx){
     + _bc + _sum + '<div class="cardflow">' + html + '</div>';
   tabifyResults(results);
   document.body.classList.add('has-results');   // hides the intro disclaimer now that the breadcrumb/summary carry context
+
+  // Wire targeted retry buttons (flood-only, zoning-only) — only present if those services failed/missed.
+  // Each re-fetches just its own service and patches the card body in place; no full-page reload.
+  (function wireRetryButtons(){
+    const floodBtn = document.getElementById('floodRetryBtn');
+    if(floodBtn){
+      floodBtn.addEventListener('click', async function(e){
+        e.preventDefault();
+        const note = document.getElementById('floodErrNote');
+        if(note) note.textContent = 'Retrying FEMA flood service…';
+        const ctx = window.__lastLookup; if(!ctx) return;
+        try{
+          const r = await arcQueryRetry(EP.flood, ctx.lat, ctx.lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, FLOOD_TIMEOUT);
+          // Find the flood card body and replace just the .cb content
+          const cb = (function(){
+            const all=[...document.querySelectorAll('.card .ch h2')];
+            const hd=all.find(h=>h.textContent.includes('Flood Hazard'));
+            return hd ? hd.closest('.card').querySelector('.cb') : null;
+          })();
+          if(!cb){ runLookup(ctx.lat,ctx.lng); return; }   // fallback: full reload
+          let inner='';
+          inner += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
+          if(r.features && r.features.length){
+            const zones=r.features.map(f=>f.attributes);
+            const z=zones[0];
+            const zone=z.FLD_ZONE||'—';
+            if(window.__exportData) window.__exportData.floodZone=String(zone);
+            const sub=z.ZONE_SUBTY&&z.ZONE_SUBTY.trim()?z.ZONE_SUBTY:null;
+            const sfha=(z.SFHA_TF==='T');
+            const bfe=(z.STATIC_BFE!=null&&Number(z.STATIC_BFE)>-9999)?Number(z.STATIC_BFE):null;
+            const depth=(z.DEPTH!=null&&Number(z.DEPTH)>-9999&&Number(z.DEPTH)!==0)?Number(z.DEPTH):null;
+            if(window.__exportData){ if(bfe!=null) window.__exportData.bfe=bfe; else if(depth!=null) window.__exportData.floodDepth=depth; }
+            const badge=sfha?`<span class="badge sfha">HIGH-RISK · SFHA</span>`:/^X\b/.test(String(zone).trim().toUpperCase())?`<span class="badge safe">Reduced risk</span>`:`<span class="badge unk">${esc(zone)}</span>`;
+            inner+=`<div class="field"><div class="k">Flood zone</div><div class="v zone">${esc(zone)} ${badge}</div></div>`;
+            if(sub) inner+=fieldRow('Zone subtype',esc(sub));
+            inner+=fieldRow('In SFHA?',sfha?'Yes — mandatory insurance area':'No');
+            inner+=fieldRow('Base Flood Elev.',bfe!=null?esc(bfe)+' ft (NAVD88)':'<span class="muted">none published for this zone</span>');
+            if(depth!=null) inner+=fieldRow('Base flood depth',esc(depth)+' ft');
+            if(zones.length>1) inner+=fieldRow('Note','Point sits on a zone boundary — '+zones.length+' zones overlap here.');
+          } else {
+            inner+=`<div class="field"><div class="k">Flood zone</div><div class="v zone"><span class="badge unk">Not mapped</span></div></div>`;
+          }
+          cb.innerHTML=inner;
+        } catch(err){
+          const note2=document.getElementById('floodErrNote');
+          if(note2) note2.innerHTML=`Flood service still not responding (${esc(err.message)}). <a href="#" id="floodRetryBtn" style="color:var(--blueprint)">Try again</a>.`;
+          // Re-wire since we replaced the element
+          wireRetryButtons();
+        }
+      });
+    }
+
+    const zonBtn = document.getElementById('zoningRetryBtn');
+    if(zonBtn){
+      zonBtn.addEventListener('click', async function(e){
+        e.preventDefault();
+        zonBtn.textContent='Retrying zoning…';
+        const ctx = window.__lastLookup; if(!ctx) return;
+        try{
+          const zhit = await queryZoning(ctx.lat, ctx.lng, ctx.cityName, ctx.countyName);
+          const cb=(function(){
+            const all=[...document.querySelectorAll('.card .ch h2')];
+            const hd=all.find(h=>h.textContent.includes('Zoning'));
+            return hd ? hd.closest('.card').querySelector('.cb') : null;
+          })();
+          if(!cb){ runLookup(ctx.lat,ctx.lng); return; }
+          if(zhit && ((zhit.code!=null&&String(zhit.code).trim()!=='') || (zhit.desc!=null&&String(zhit.desc).trim()!=='') || (zhit.extras&&zhit.extras.length))){
+            // Got a result — do a full reload so all the setback renderers fire correctly
+            runLookup(ctx.lat, ctx.lng);
+          } else {
+            zonBtn.textContent='No live zoning data at this point — try again';
+          }
+        } catch(err){
+          zonBtn.textContent='Zoning retry failed — tap to try again';
+          zonBtn.addEventListener('click', function(e2){ e2.preventDefault(); runLookup(ctx.lat,ctx.lng); }, {once:true});
+        }
+      });
+    }
+  })();
 }
 
 /* ---- Docked/tabbed view helpers (desktop redesign) ----------------------------------------
