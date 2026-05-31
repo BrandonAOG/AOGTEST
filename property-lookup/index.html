@@ -2185,13 +2185,20 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
   }catch(e){ clearTimeout(t); throw e; }
 }
 const ENRICH_TIMEOUT = 6000;   // shorter timeout for secondary/enrichment lookups so a dead server fails fast
-const ZONING_TIMEOUT = (typeof L!=='undefined' && L.Browser && L.Browser.mobile) ? 14000 : 6000;  // zoning GIS servers are slower on mobile cell connections
+/* Detect mobile/touch reliably — navigator.maxTouchPoints works on all modern browsers without
+   depending on Leaflet being loaded or UA string sniffing. Falls back to pointercoarse media query. */
+const IS_MOBILE_CONN = (function(){
+  try{ if(navigator.maxTouchPoints>1) return true; }catch(e){}
+  try{ if(window.matchMedia('(pointer:coarse)').matches) return true; }catch(e){}
+  return false;
+})();
+const ZONING_TIMEOUT = IS_MOBILE_CONN ? 14000 : 6000;
 const COUNTY_FEED_TIMEOUT = 13000;  // primary county parcel feeds get a generous timeout (dense areas can be slow)
 // FEMA's NFHL server (hazards.fema.gov) is slow and strict (TLS 1.2 + cipher suites). On a phone
 // — typically a slower cell connection — the default 9s often isn't enough to complete the TLS
 // handshake + the geometry-bearing flood query, and Safari reports the aborted request as
 // "Load failed". Give mobile more headroom; desktop stays snappy.
-const FLOOD_TIMEOUT = (typeof L!=='undefined' && L.Browser && L.Browser.mobile) ? 20000 : 9000;
+const FLOOD_TIMEOUT = IS_MOBILE_CONN ? 20000 : 9000;
 
 /* Retry wrapper: ArcGIS Online services occasionally fail transiently (a 5xx/CORS blip comes back
    fast). One quick retry clears most of these. But a *timeout* means the server is just slow —
