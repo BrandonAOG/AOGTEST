@@ -415,10 +415,10 @@
     /* fully hidden: slide the whole sheet off the bottom so the map is unobstructed */
     #panel.hidden{transform:translateY(105%)}
     /* grab handle (tap target + drag origin) — clearly a slide bar */
-    .sheet-grip{display:block;position:relative;height:30px;flex:none;cursor:grab;touch-action:none}
-    .sheet-grip::before{content:"";position:absolute;top:11px;left:50%;transform:translateX(-50%);
-      width:54px;height:6px;border-radius:4px;background:var(--grip);transition:background .15s,width .15s}
-    .sheet-grip:active::before{background:var(--signal);width:64px}
+    .sheet-grip{display:block;position:relative;height:34px;flex:none;cursor:grab;touch-action:none}
+    .sheet-grip::before{content:"";position:absolute;top:13px;left:50%;transform:translateX(-50%);
+      width:56px;height:6px;border-radius:4px;background:var(--grip);transition:background .15s,width .15s}
+    .sheet-grip:active::before{background:var(--signal);width:66px}
 
     /* floating pull-up tab — only visible when the sheet is hidden */
     .sheet-tab{display:none;position:absolute;z-index:1100;bottom:14px;left:50%;transform:translateX(-50%);
@@ -728,6 +728,32 @@
     a[href]:after{ content:"" !important; }
 
     *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+
+  /* ---------- SAFARI-ONLY print overrides ----------
+     Safari (incl. iOS/mobile Safari) handles the fit-to-page `zoom` unreliably in print, so
+     the report can spill onto a 2nd page where Chrome/Edge keep it on one. This block targets
+     ONLY Safari/WebKit-not-Blink (the `@media not all and (min-resolution:.001dpcm)` +
+     `@supports(-webkit-appearance:none)` pair is a long-standing Safari-only selector) and
+     trims every print font-size by 1.5px so the whole thing fits one page in Safari too.
+     Chrome/Edge/Firefox never see these rules and keep their existing sizes. */
+  @media not all and (min-resolution:.001dpcm){
+    @supports (-webkit-appearance:none){
+      @media print{
+        #printHead .ph-name{ font-size:22.5px !important; }
+        #printHead .ph-sub{ font-size:9.5px !important; }
+        #printHead .ph-meta{ font-size:9px !important; }
+        .printflow{ font-size:10px !important; }
+        .card .ch h2{ font-size:11px !important; }
+        .field .k{ font-size:9px !important; }
+        .field .v{ font-size:10px !important; }
+        .field .v.big, .field .v.zone{ font-size:10.5px !important; }
+        .freshline:has(.badge){ font-size:9.25px !important; }
+        .freshline .badge{ font-size:9.25px !important; }
+        .badge{ font-size:9.5px !important; }
+        .note.warnbox{ font-size:9.25px !important; }
+      }
+    }
   }
 </style>
 </head>
@@ -5318,27 +5344,46 @@ const Sheet=(function(){
     else snapTo(1);
   }
   // drag
-  let dragging=false,startY=0,startH=0;
+  let dragging=false,startY=0,startH=0,curY=0,lastY=0,lastT=0,vY=0;
   function down(e){
     if(!isMobile()) return;
     dragging=true; panel.classList.add('dragging');
     startY=(e.touches?e.touches[0].clientY:e.clientY);
     startH=panel.getBoundingClientRect().height;
+    curY=startY; lastY=startY; lastT=Date.now(); vY=0;
+    panel.style.transform='';                    // clear any leftover translate
     e.preventDefault();
   }
   function move(e){
     if(!dragging) return;
     const y=(e.touches?e.touches[0].clientY:e.clientY);
-    let h=startH+(startY-y);                    // drag up = taller
-    h=Math.max(vh()*0.06,Math.min(vh()*0.92,h));
-    apply(h);
+    // track velocity for flick-to-dismiss
+    const now=Date.now(), dt=now-lastT;
+    if(dt>0){ vY=(y-lastY)/dt; lastY=y; lastT=now; }
+    curY=y;
+    let h=startH+(startY-y);                      // drag up = taller
+    const minH=vh()*0.06;
+    if(h<=minH){
+      // already at the floor and still dragging DOWN → let the whole sheet slide off-screen,
+      // revealing the map live under the finger instead of stopping dead at 6%.
+      apply(minH);
+      const overshoot=Math.max(0, minH-h);        // how far past the floor the finger went
+      panel.style.transform='translateY('+overshoot+'px)';
+    }else{
+      panel.style.transform='';
+      h=Math.min(vh()*0.92,h);
+      apply(h);
+    }
   }
   function up(){
     if(!dragging) return;
     dragging=false; panel.classList.remove('dragging');
+    panel.style.transform='';                     // animate back via CSS transition if not hidden
     const frac=panel.getBoundingClientRect().height/vh();
-    // dragged below the peek point → dismiss entirely so the map is fully visible
-    if(frac < SNAPS[0]*0.75){ hide(); return; }
+    const flungDown=vY>0.6;                        // fast downward flick
+    const draggedLow=frac < SNAPS[0]*1.1;          // dragged near/below the peek point
+    // dragged below peek OR flicked down hard → dismiss entirely so the map is fully visible
+    if(draggedLow || flungDown){ hide(); return; }
     // otherwise snap to nearest defined point
     let best=0,bd=1e9;
     SNAPS.forEach((s,i)=>{ const d=Math.abs(s-frac); if(d<bd){bd=d;best=i;} });
