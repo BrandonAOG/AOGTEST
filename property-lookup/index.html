@@ -196,6 +196,15 @@
   .palink{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:var(--palink-bg);border:1px solid var(--palink-line);color:var(--blueprint);
     font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.03em;padding:8px 12px;border-radius:7px;text-decoration:none}
   .palink:hover{background:var(--palink-hover)}
+  /* Inline "Retry" used when a GIS request was dropped (iOS connection-burst). Sized as a real
+     tap target so it works on a phone, where these failures actually happen. */
+  .retry-btn{display:inline-flex;align-items:center;gap:5px;margin-left:6px;cursor:pointer;
+    background:var(--signal);color:var(--signal-ink);border:none;border-radius:6px;
+    font-family:var(--disp);font-weight:700;font-size:12px;letter-spacing:.03em;
+    padding:7px 12px;min-height:32px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;
+    transition:background .15s}
+  .retry-btn:hover{background:var(--signal-hover)}
+  .retry-btn:active{transform:translateY(1px)}
 
   /* ---- Aerial & Street View scouting card ---- */
   .aerial-wrap{position:relative;margin-top:4px;border-radius:9px;overflow:hidden;border:1px solid var(--line);
@@ -1256,7 +1265,7 @@ async function queryCountyFlood(lat,lng,countyName){
   if(!reg) return null;
   const cands = reg.urls || (reg.url?[reg.url]:[]);
   for(const cu of cands){
-    const r = await arcQuery(cu, lat, lng, '*', false, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
+    const r = await arcQueryRetry(cu, lat, lng, '*', false, ENRICH_TIMEOUT, 3).catch(e=>({__err:e.message}));
     if(r && !r.__err && r.features && r.features[0]){
       const a = r.features[0].attributes || {};
       const det = detectFloodZoneField(Object.keys(a));
@@ -1636,7 +1645,7 @@ async function queryZoning(lat,lng, cityName, countyName){
   const multi = cands.length>1;                    // probing several layers → be stricter about what we trust
   const folio = v => v!=null && /^[0-9]{6,}$/.test(String(v).trim());   // parcel-folio numbers aren't districts
   for(const cu of cands){
-    const r = await arcQuery(cu, lat, lng, '*', false, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
+    const r = await arcQueryRetry(cu, lat, lng, '*', false, ENRICH_TIMEOUT, 3).catch(e=>({__err:e.message}));
     if(!(r && !r.__err && r.features && r.features[0])) continue;
     const a = r.features[0].attributes || {};
     const det = detectZoningFields(Object.keys(a));
@@ -2192,9 +2201,16 @@ const COUNTY_FEED_TIMEOUT = 13000;  // primary county parcel feeds get a generou
 // reports the aborted request as "Load failed". Bump mobile further; desktop stays snappy.
 const FLOOD_TIMEOUT = _IS_MOBILE ? 20000 : 9000;
 
-/* Retry wrapper: ArcGIS Online services occasionally fail transiently (a 5xx/CORS blip comes back
-   fast). One quick retry clears most of these. But a *timeout* means the server is just slow —
-   retrying only makes the user wait the full timeout twice, so we bail out immediately on abort. */
+/* Retry wrapper: GIS services fail transiently for two different reasons, handled differently:
+     1. A *timeout* (AbortError) means the server is just slow — retrying only makes the user wait
+        the full timeout again, so we bail out immediately on abort.
+     2. A *connection drop* — on iOS Safari this surfaces as a TypeError "Load failed". This is what
+        happens when a lookup's request burst collides with the map's fresh tile load and overruns
+        Safari's simultaneous-connection ceiling: the excess requests are dropped INSTANTLY (not after
+        the timeout). The cure is to wait for the tile burst to clear and try again — so we use a
+        PROGRESSIVE backoff (longer each pass) and allow a few tries, which lets a later attempt land
+        once connections have freed up. This is why flood/zoning "Load failed" on cellular after the
+        tabbed redesign loaded imagery more eagerly. */
 async function arcQueryRetry(url, lat, lng, outFields, withGeom, timeoutMs, tries){
   let lastErr=null;
   const n=tries||2;
@@ -2202,8 +2218,10 @@ async function arcQueryRetry(url, lat, lng, outFields, withGeom, timeoutMs, trie
     try{ return await arcQuery(url, lat, lng, outFields, withGeom, timeoutMs); }
     catch(e){
       lastErr=e;
-      if(e && (e.name==='AbortError' || /abort/i.test(e.message||''))) break;   // timed out — don't wait again
-      if(i<n-1) await new Promise(r=>setTimeout(r,250));
+      if(e && (e.name==='AbortError' || /abort/i.test(e.message||''))) break;   // genuine timeout — don't wait again
+      // Connection drop / transient blip: back off progressively (400ms, 800ms, 1200ms…) so a later
+      // attempt arrives after the concurrent tile burst has released its connections.
+      if(i<n-1) await new Promise(r=>setTimeout(r, 400*(i+1)));
     }
   }
   throw lastErr;
@@ -4861,8 +4879,14 @@ function renderParcelGeneric(a, d){
 }
 
 let runId=0;
+// Remembered so a per-card "Retry" can re-run the exact same lookup (used when a request was
+// dropped by an iOS connection-burst — by the time the user taps Retry the tiles are cached and
+// connections are free, so the re-run almost always succeeds).
+window.__lastLookupArgs=null;
+window.retryLookup=function(){ if(window.__lastLookupArgs) runLookup.apply(null, window.__lastLookupArgs); };
 async function runLookup(lat,lng,searchCtx){
   const myId=++runId;
+  window.__lastLookupArgs=[lat,lng,searchCtx];
   window.__parcelMeta=null;   // cleared each lookup; set when a parcel renders
   // Collected for the "Export to Excel" feature (imports into the Estimate sheet).
   window.__exportData={ lat:lat, lng:lng, today:new Date().toLocaleDateString('en-US') };
@@ -4878,7 +4902,7 @@ async function runLookup(lat,lng,searchCtx){
 
   // Fire all queries in parallel; each degrades independently.
   const pParcel  = arcQueryRetry(EP.parcel, lat, lng, '*', true).catch(e=>({__err:e.message}));
-  const pFlood   = arcQueryRetry(EP.flood, lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, FLOOD_TIMEOUT).catch(e=>({__err:e.message}));
+  const pFlood   = arcQueryRetry(EP.flood, lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, FLOOD_TIMEOUT, 4).catch(e=>({__err:e.message}));
   const pCity    = arcQuery(EP.city,    lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
   const pCounty  = arcQuery(EP.county,  lat, lng, 'NAME', false).catch(e=>({__err:e.message}));
   const pLive    = liveSource.url ? arcQuery(liveSource.url, lat, lng, '*', true).catch(e=>({__err:e.message})) : Promise.resolve(null);
@@ -5203,7 +5227,7 @@ async function runLookup(lat,lng,searchCtx){
   html += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
   let nfhlZone=null;   // captured for the county cross-check below
   if(flood.__err){
-    html += `<div class="note">Flood service did not respond (${esc(flood.__err)}).</div>`;
+    html += `<div class="note">Flood service did not respond (${esc(flood.__err)}). <button type="button" class="retry-btn" onclick="retryLookup()">↻ Retry</button></div>`;
   } else if(flood.features && flood.features.length){
     const zones=flood.features.map(f=>f.attributes);
     const z=zones[0];
@@ -5322,7 +5346,8 @@ async function runLookup(lat,lng,searchCtx){
     html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Read the district off the map sheet above; setbacks &amp; use standards come from <b>${esc(jurName)}</b>'s adopted land development code (Municode) and permitting portal.</div>`;
   } else {
-    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
+    const _hasZoningLayer = !!(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')]||zoningSource.url);
+    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${_hasZoningLayer?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.${_hasZoningLayer?' <button type="button" class="retry-btn" onclick="retryLookup()">↻ Retry live district</button>':''}</div>`;
   }
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
