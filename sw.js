@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.0.8';
+var CACHE_NAME = 'aog-forms-v2.0.9';
 var DEV_MODE   = false;
 
 // Stores last known cache progress so late-loading pages can request it
@@ -20,6 +20,9 @@ var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE duri
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
+  'Property Lookup: fixed gas/electric territories not loading on mobile',
+  'Property Lookup: territory data now cached for offline use',
+  'Property Lookup: wider desktop panel, newspaper-style print',
   'Major hub redesign — new dark industrial UI',
   'Added 40 random animated background themes',
   'Cards now fully transparent with no blur',
@@ -51,6 +54,8 @@ var PRECACHE_URLS = [
   './breaker-conductor/',
   './conduit-fill/',
   './property-lookup/',
+  './property-lookup/fl_gas_territories.geojson',
+  './property-lookup/fl_electric_territories.geojson',
   './gas-calc/',
   './spec-viewer/'
 ];
