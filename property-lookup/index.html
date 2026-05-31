@@ -2194,13 +2194,13 @@ const IS_MOBILE_CONN = (function(){
   try{ if(window.matchMedia('(pointer:coarse)').matches) return true; }catch(e){}
   return false;
 })();
-const ZONING_TIMEOUT = IS_MOBILE_CONN ? 14000 : 6000;
+const ZONING_TIMEOUT = IS_MOBILE_CONN ? 30000 : 6000;
 const COUNTY_FEED_TIMEOUT = 13000;  // primary county parcel feeds get a generous timeout (dense areas can be slow)
 // FEMA's NFHL server (hazards.fema.gov) is slow and strict (TLS 1.2 + cipher suites). On a phone
 // — typically a slower cell connection — the default 9s often isn't enough to complete the TLS
 // handshake + the geometry-bearing flood query, and Safari reports the aborted request as
 // "Load failed". Give mobile more headroom; desktop stays snappy.
-const FLOOD_TIMEOUT = IS_MOBILE_CONN ? 20000 : 9000;
+const FLOOD_TIMEOUT = IS_MOBILE_CONN ? 30000 : 9000;
 
 /* Retry wrapper: ArcGIS Online services occasionally fail transiently (a 5xx/CORS blip comes back
    fast). One quick retry clears most of these. But a *timeout* means the server is just slow —
