@@ -788,7 +788,7 @@
   <button id="btnSat" class="active">Satellite</button>
   <button id="btnStreet">Street</button>
   <button id="btnBounds" class="active" title="Toggle color-coded incorporated city-limit outlines">◰ City limits</button>
-  <button id="btnRadar" title="Toggle live NWS rain/storm radar (NEXRAD, refreshes every few minutes)">◵ Radar</button>
+  <button id="btnRadar" title="Toggle animated rain/storm radar (RainViewer · last ~2h, looping)">◵ Radar</button>
   <button id="btnCone" title="Show the NHC forecast cone &amp; track for any active tropical system">⬢ Cone</button>
 </div>
 
@@ -1764,49 +1764,54 @@ function mapToast(msg, ms){
   clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'), ms||3200);
 }
 
-/* ---------- Animated rain/storm radar (IEM NEXRAD, time-aware WMS) ----------
-   Free, key-less NWS NEXRAD composite from the Iowa Environmental Mesonet.
-   We build a series of past 5-minute frames (the layer is time-aware: pass a
-   `time` param per frame), preload them all hidden, then cycle their opacity to
-   play a smooth loop with no per-frame tile reload. Sits above the basemap but
-   below parcels/markers (those live in the vector overlay pane). */
-const RADAR_URL='https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q-t.cgi';
-const RADAR_FRAMES=10;        // number of frames in the loop
-const RADAR_STEP_MIN=5;       // minutes between frames (IEM publishes every 5 min)
-const RADAR_OPACITY=0.55;
+/* ---------- Animated rain/storm radar (RainViewer, CDN tiles) ----------
+   Switched from IEM's on-demand WMS (one server-rendered image per frame/pan/zoom —
+   the source of the lag) to RainViewer's pre-rendered CDN tile pyramid: fetch one small
+   timeline JSON, build a tileLayer per past frame, preload them hidden, then cycle opacity
+   for a smooth loop with no per-frame reload. Free, key-less, worldwide.
+   Free-tier limits: past radar only (~2h, 10-min steps), max native zoom 7 (we upscale
+   past that for tight property zooms), Universal Blue color scheme. Attribution required. */
+const RADAR_JSON='https://api.rainviewer.com/public/weather-maps.json';
+const RADAR_FRAMES=10;        // most-recent N past frames to loop
+const RADAR_TILE=256;         // tile size (256 keeps requests light)
+const RADAR_COLOR=2;          // 2 = Universal Blue (the personal-use scheme)
+const RADAR_SMOOTH=1, RADAR_SNOW=1;   // smoothing on, snow colors on  → "_1_1.png"
+const RADAR_MAXNATIVE=7;      // RainViewer free tier caps tiles at z7; upscale beyond
+const RADAR_OPACITY=0.6;
 const RADAR_PLAY_MS=550;      // per-frame delay
 const RADAR_PAUSE_MS=1400;    // extra hold on the newest (last) frame
 
-let radarOn=false, radarFrames=[], radarIdx=0, radarPlayTimer=null, radarRefreshTimer=null;
+let radarOn=false, radarFrames=[], radarIdx=0, radarPlayTimer=null, radarRefreshTimer=null, radarHost='';
 
-function radarStamp(d){ // → "YYYY-MM-DDTHH:MM:00Z" (UTC, 5-min aligned, no millis)
-  const p=n=>String(n).padStart(2,'0');
-  return d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate())+'T'+
-         p(d.getUTCHours())+':'+p(d.getUTCMinutes())+':00Z';
-}
-function buildRadarTimes(){
-  const now=Date.now();
-  // newest frame: floor to 5 min, then back one step so the data is reliably published
-  let newest=Math.floor(now/(RADAR_STEP_MIN*60000))*(RADAR_STEP_MIN*60000) - RADAR_STEP_MIN*60000;
-  const times=[];
-  for(let i=RADAR_FRAMES-1;i>=0;i--){ times.push(new Date(newest - i*RADAR_STEP_MIN*60000)); }
-  return times;  // oldest → newest
-}
-function makeRadarFrame(date){
-  const lyr=L.tileLayer.wms(RADAR_URL,{
-    layers:'nexrad-n0q-wmst', format:'image/png', transparent:true, opacity:0,
-    time:radarStamp(date), attribution:'Radar: IEM / NWS NEXRAD'
+function makeRadarFrame(frame){
+  // frame = { time:<epoch seconds>, path:"/v2/radar/<ts>" } from the RainViewer JSON
+  const url=radarHost+frame.path+'/'+RADAR_TILE+'/{z}/{x}/{y}/'+RADAR_COLOR+'/'+RADAR_SMOOTH+'_'+RADAR_SNOW+'.png';
+  const lyr=L.tileLayer(url,{
+    opacity:0, tileSize:RADAR_TILE, maxNativeZoom:RADAR_MAXNATIVE, maxZoom:19,
+    updateWhenIdle:L.Browser.mobile, keepBuffer:2, crossOrigin:true,
+    attribution:'Radar &copy; <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>'
   });
-  lyr._radarDate=date; lyr.setZIndex(250);   // above basemap, below vector overlays
+  lyr._radarDate=new Date(frame.time*1000);
+  lyr.setZIndex(250);   // above basemap, below vector overlays
   return lyr;
 }
 function clearRadarFrames(){
   radarFrames.forEach(f=>{ try{ map.removeLayer(f); }catch(e){} });
   radarFrames=[]; radarIdx=0;
 }
-function buildRadar(){
+async function fetchRadarFrames(){
+  const r=await fetch(RADAR_JSON,{cache:'no-store'});
+  if(!r.ok) throw new Error('radar http '+r.status);
+  const j=await r.json();
+  radarHost=j.host||'https://tilecache.rainviewer.com';
+  const past=(j.radar&&j.radar.past)?j.radar.past:[];
+  if(!past.length) throw new Error('no radar frames');
+  return past.slice(-RADAR_FRAMES);   // newest N, oldest → newest
+}
+async function buildRadar(){
   clearRadarFrames();
-  radarFrames=buildRadarTimes().map(makeRadarFrame);
+  const frames=await fetchRadarFrames();
+  radarFrames=frames.map(makeRadarFrame);
   radarFrames.forEach(f=>f.addTo(map));   // preload all frames (hidden at opacity 0)
 }
 function showRadarFrame(i){
@@ -1827,12 +1832,25 @@ function radarTick(){
   const delay=(radarIdx===radarFrames.length-1)?RADAR_PAUSE_MS:RADAR_PLAY_MS;
   radarPlayTimer=setTimeout(radarTick, delay);
 }
-function startRadar(){
-  buildRadar(); showRadarFrame(0);
+async function startRadar(){
+  try{
+    await buildRadar();
+  }catch(e){
+    radarOn=false;
+    if(btnRadar) btnRadar.classList.remove('active');
+    mapToast('Radar unavailable right now — try again shortly.', 2600);
+    return;
+  }
+  if(!radarOn){ clearRadarFrames(); return; }   // toggled off while the JSON was loading
+  showRadarFrame(0);
   clearTimeout(radarPlayTimer); radarPlayTimer=setTimeout(radarTick, RADAR_PLAY_MS);
-  // rebuild the frame set every 5 min so the loop keeps advancing with real time
+  // refresh the frame set every 5 min so the loop keeps advancing with real time
   clearInterval(radarRefreshTimer);
-  radarRefreshTimer=setInterval(()=>{ if(radarOn){ const keep=radarIdx; buildRadar(); showRadarFrame(Math.min(keep,radarFrames.length-1)); } }, RADAR_STEP_MIN*60000);
+  radarRefreshTimer=setInterval(async ()=>{
+    if(!radarOn) return;
+    const keep=radarIdx;
+    try{ await buildRadar(); showRadarFrame(Math.min(keep,radarFrames.length-1)); }catch(e){}
+  }, 5*60000);
   const clk=document.getElementById('radarClock'); if(clk) clk.classList.add('show');
 }
 function stopRadar(){
@@ -1844,7 +1862,7 @@ function stopRadar(){
 const btnRadar=document.getElementById('btnRadar');
 if(btnRadar) btnRadar.onclick=function(){
   radarOn=!radarOn; this.classList.toggle('active',radarOn);
-  if(radarOn){ startRadar(); mapToast('Animated NEXRAD radar · last hour, looping', 2600); }
+  if(radarOn){ startRadar(); mapToast('Animated radar (RainViewer) · last ~2h, looping', 2600); }
   else { stopRadar(); }
 };
 
