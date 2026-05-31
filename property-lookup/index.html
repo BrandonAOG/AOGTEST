@@ -383,13 +383,20 @@
   .sum-chips .chip.good{border-color:var(--good)}
 
   .panel-sticky{position:static}
-  .tabbar{position:sticky;top:0;z-index:6;display:flex;gap:2px;border-bottom:1px solid var(--line);
+  .tabbar-wrap{position:sticky;top:0;z-index:6;position:relative;overflow:hidden}
+  .tabbar{display:flex;gap:2px;border-bottom:1px solid var(--line);
     overflow-x:auto;scrollbar-width:none;background:var(--panel2);
-    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scroll-behavior:smooth}
   .tabbar::-webkit-scrollbar{display:none}
+  /* Fade-right hint so users know the tab bar scrolls on mobile */
+  .tabbar-wrap::after{
+    content:'';pointer-events:none;position:absolute;top:0;right:0;bottom:1px;width:36px;
+    background:linear-gradient(to right,transparent,var(--panel2));
+  }
   .tab{flex:none;background:none;border:none;cursor:pointer;font-family:var(--disp);font-weight:600;
     font-size:12px;letter-spacing:.03em;color:var(--dim);padding:9px 13px 8px;border-bottom:2px solid transparent;
-    white-space:nowrap;transition:color .12s,border-color .12s}
+    white-space:nowrap;transition:color .12s,border-color .12s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
   .tab:hover{color:var(--ink)}
   .tab.active{color:var(--signal);border-bottom-color:var(--signal)}
   .tab .tcount{font-family:var(--mono);font-size:9px;color:var(--faint);margin-left:4px}
@@ -585,7 +592,7 @@
        column-count. Putting zoom on an ancestor (#results) while columns live on a descendant makes
        Chrome silently collapse the columns to one (zoom + descendant multicol bug); keeping them on
        one element avoids that and restores the 2-up layout. */
-    .tabbar{ display:none !important; }
+    .tabbar,.tabbar-wrap{ display:none !important; }
     .panel-sticky{ position:static !important; background:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; padding:0 !important; }
     /* Zoom on .tabpanels; the two columns are produced by NATIVE CSS multi-column on
        .printflow (its child). A flex row was used here before — but a flex container is a
@@ -2182,7 +2189,7 @@ const COUNTY_FEED_TIMEOUT = 13000;  // primary county parcel feeds get a generou
 // — typically a slower cell connection — the default 9s often isn't enough to complete the TLS
 // handshake + the geometry-bearing flood query, and Safari reports the aborted request as
 // "Load failed". Give mobile more headroom; desktop stays snappy.
-const FLOOD_TIMEOUT = (typeof L!=='undefined' && L.Browser && L.Browser.mobile) ? 14000 : 9000;
+const FLOOD_TIMEOUT = (typeof L!=='undefined' && L.Browser && L.Browser.mobile) ? 20000 : 9000;
 
 /* Retry wrapper: ArcGIS Online services occasionally fail transiently (a 5xx/CORS blip comes back
    fast). One quick retry clears most of these. But a *timeout* means the server is just slow —
@@ -5195,7 +5202,7 @@ async function runLookup(lat,lng,searchCtx){
   html += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
   let nfhlZone=null;   // captured for the county cross-check below
   if(flood.__err){
-    html += `<div class="note">Flood service did not respond (${esc(flood.__err)}).</div>`;
+    html += `<div class="note">Flood service did not respond (${esc(flood.__err)}). FEMA's server can be slow on mobile — <a href="#" onclick="if(lastLoc){runLookup(lastLoc.lat,lastLoc.lng);}return false;" style="color:var(--blueprint)">tap to retry</a>.</div>`;
   } else if(flood.features && flood.features.length){
     const zones=flood.features.map(f=>f.attributes);
     const z=zones[0];
@@ -5668,11 +5675,17 @@ function tabifyResults(root){
   const sticky=document.createElement('div'); sticky.className='panel-sticky';
   const sumEl=root.querySelector('.summary-strip');
   if(sumEl) sticky.appendChild(sumEl);   // summary lives here, in normal (non-sticky) flow
+  // Wrap the tabbar in a .tabbar-wrap so we can add the scroll-fade hint
+  const barWrap=document.createElement('div'); barWrap.className='tabbar-wrap';
+  barWrap.appendChild(bar);
   panels.parentNode.insertBefore(sticky, panels);
-  panels.parentNode.insertBefore(bar, panels);   // tab bar right above the panels, sticky
+  panels.parentNode.insertBefore(barWrap, panels);   // tab bar right above the panels, sticky
   const activate=key=>{
     bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===key));
     panels.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active', p.dataset.tab===key));
+    // Scroll the active tab into view so it's always visible on mobile
+    const activeBtn=bar.querySelector('.tab.active');
+    if(activeBtn) activeBtn.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});
   };
   bar.addEventListener('click',e=>{ const b=e.target.closest('.tab'); if(b) activate(b.dataset.tab); });
   if(first) activate(first);
