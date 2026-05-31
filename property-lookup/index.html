@@ -5356,6 +5356,9 @@ const Sheet=(function(){
   }
   function move(e){
     if(!dragging) return;
+    // Claim the gesture so a drag that travels over the (now tall, scrollable) results
+    // region after a search stays a SHEET DRAG instead of becoming a content scroll.
+    if(e.cancelable) e.preventDefault();
     const y=(e.touches?e.touches[0].clientY:e.clientY);
     // track velocity for flick-to-dismiss
     const now=Date.now(), dt=now-lastT;
