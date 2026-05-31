@@ -1642,8 +1642,9 @@ async function queryZoning(lat,lng, cityName, countyName){
   }
   const multi = cands.length>1;                    // probing several layers → be stricter about what we trust
   const folio = v => v!=null && /^[0-9]{6,}$/.test(String(v).trim());   // parcel-folio numbers aren't districts
+  let zoningTimedOut = false;
   for(const cu of cands){
-    const r = await arcQuery(cu, lat, lng, '*', false, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
+    const r = await arcQuery(cu, lat, lng, '*', false, ZONING_TIMEOUT).catch(e=>{ if(e&&(e.name==='AbortError'||/abort|timeout/i.test(e.message||''))) zoningTimedOut=true; return {__err:e.message}; });
     if(!(r && !r.__err && r.features && r.features[0])) continue;
     const a = r.features[0].attributes || {};
     const det = detectZoningFields(Object.keys(a));
@@ -1689,7 +1690,7 @@ async function queryZoning(lat,lng, cityName, countyName){
     }
     return { code, desc, extras, sheetUrl, layerName:(info&&info.name)||null, lastEdit:(info&&info.lastEdit)||null, url:cu };
   }
-  return null;
+  return zoningTimedOut ? { __timedOut:true } : null;
 }
 
 /* layer-metadata cache: name, last edit date, fields, detected mapping */
@@ -2184,6 +2185,7 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
   }catch(e){ clearTimeout(t); throw e; }
 }
 const ENRICH_TIMEOUT = 6000;   // shorter timeout for secondary/enrichment lookups so a dead server fails fast
+const ZONING_TIMEOUT = (typeof L!=='undefined' && L.Browser && L.Browser.mobile) ? 14000 : 6000;  // zoning GIS servers are slower on mobile cell connections
 const COUNTY_FEED_TIMEOUT = 13000;  // primary county parcel feeds get a generous timeout (dense areas can be slow)
 // FEMA's NFHL server (hazards.fema.gov) is slow and strict (TLS 1.2 + cipher suites). On a phone
 // — typically a slower cell connection — the default 9s often isn't enough to complete the TLS
@@ -5324,8 +5326,10 @@ async function runLookup(lat,lng,searchCtx){
     html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> zoning map sheet located for this point</div>`;
     html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Read the district off the map sheet above; setbacks &amp; use standards come from <b>${esc(jurName)}</b>'s adopted land development code (Municode) and permitting portal.</div>`;
+  } else if(zhit && zhit.__timedOut){
+    html += `<div class="note warnbox"><b>Live zoning timed out</b> — the GIS server for <b>${esc(jurName)}</b> didn't respond in time on this connection. <a href="#" id="zoningRetryBtn" style="color:var(--blueprint)">Tap to retry</a>.</div>`;
   } else {
-    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?` — <a href="#" id="zoningRetryBtn" style="color:var(--blueprint)">tap to retry live zoning</a>`:' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
+    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code.${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?` <a href="#" id="zoningRetryBtn" style="color:var(--blueprint)">Tap to retry live zoning</a>.`:' No live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel.'}</div>`;
   }
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
