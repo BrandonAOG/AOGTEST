@@ -104,13 +104,27 @@
   }
 
   // ── Reload once the new SW takes control ───────────────────
+  // Guard against reload loops: controllerchange can fire in multiple tabs / more than once.
+  var aogRefreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (aogRefreshing) return;
+    aogRefreshing = true;
     window.location.reload();
   });
 
   // ── Register SW and watch for a waiting update ─────────────
   navigator.serviceWorker.register('../sw.js', { scope: '../' })
     .then(function (reg) {
+
+      // Actively check for a new sw.js NOW and every few minutes. Without this, the browser
+      // only re-checks on its own schedule (often only on navigation, or ~once a day), so a
+      // freshly pushed update (bumped CACHE_NAME) may not surface the banner for a long time.
+      try { reg.update(); } catch (e) {}
+      setInterval(function () { try { reg.update(); } catch (e) {} }, 5 * 60 * 1000);
+      // Also re-check whenever the user returns to the tab/app.
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) { try { reg.update(); } catch (e) {} }
+      });
 
       // Waiting worker already present on page load
       if (reg.waiting) {
