@@ -917,7 +917,7 @@ function appraiserParcelLink(countyName, pid){
   switch(c){
     case 'COLLIER':  return digits?`https://www.collierappraiser.com/main_search/RecordDetail.html?FolioID=${digits}`:home;
     case 'LEE':      return `https://www.leepa.org/Search/PropertySearch.aspx`;            // STRAP search
-    case 'CHARLOTTE':return digits?`https://www.ccappraiser.com/Show_parcel.aspx?acct=${digits}`:home;
+    case 'CHARLOTTE':return digits?`https://www.ccappraiser.com/Show_parcel.asp?acct=${digits}`:home;
     case 'SARASOTA': return digits?`https://www.sc-pa.com/propertysearch/parcel/details/${digits}`:home;
     default:         return home;
   }
@@ -1203,9 +1203,15 @@ const COUNTY_LIVE = {
     "https://leegis.leegov.com/arcgis/rest/services/LeeParcels/MapServer/0/query",
     "https://leegis.leegov.com/arcgis/rest/services/AGOL/AGOL_Layers_LCGIS/MapServer/0/query"
   ]},
-  CHARLOTTE: { label:"Charlotte County GIS", urls:[
-    // Charlotte County public GIS parcels (verify host/layer)
-    "https://agis.charlottecountyfl.gov/arcgis/rest/services/Parcels/MapServer/0/query"
+  CHARLOTTE: { label:"Charlotte County GIS (live parcel layer)", urls:[
+    // ✅ verified live: the parcel layer Charlotte's own public GIS viewer queries — layer 17 of the
+    // Essentials/CCGIS_Web_Layers2022 service. Confirmed PUBLIC and CORS-open for cross-origin point
+    // queries (an in-county point returns 1 feature). Field map: owner=ownersname, parcel=ACCOUNT,
+    // value=totvalue (Just Market), use=usecode — all auto-detected (ACCOUNT + FullPropertyAddress
+    // added to detectFields). NOTE: this layer has NO year-built / heated-area / sale fields, so those
+    // still come from the statewide roll fallback (lean layer, like Collier). Values are space-padded
+    // strings; Number()/fmtMoney handle the padding fine.
+    "https://agis.charlottecountyfl.gov/arcgis/rest/services/Essentials/CCGIS_Web_Layers2022/MapServer/17/query"
   ]},
   MANATEE : { label:"Manatee (SWFWMD/PA)", urls:[
     "https://www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/LocationInfo/MapServer/74/query"
@@ -1365,6 +1371,11 @@ const COLLIER_INCORP = new Set(['NAPLES','MARCOISLAND','EVERGLADESCITY']);
    Coral, Bonita Springs and Estero have their own renderers above; Fort Myers, Sanibel and Fort
    Myers Beach fall through to the generic "look it up in the adopted code" note. norm()-form. */
 const LEE_INCORP = new Set(['CAPECORAL','FORTMYERS','BONITASPRINGS','ESTERO','SANIBEL','FORTMYERSBEACH']);
+
+/* Incorporated municipality within Charlotte County that adopts its OWN code and therefore must NOT
+   inherit unincorporated Charlotte's Ch. 3-9 setbacks. Punta Gorda is the county's only city; it
+   falls through to the generic adopted-code note. norm()-form. */
+const CHARLOTTE_INCORP = new Set(['PUNTAGORDA']);
 
 /* ---------- City of Naples setback QUICK-REFERENCE (Code of Ordinances, Ch. 58) ----------
    Hand-entered from Municode. These are a CONVENIENCE COPY — the live § deep-link beside each
@@ -1528,6 +1539,15 @@ const ZONING_LIVE = {
     "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Zoning_General_(Editable)_view/FeatureServer/1/query",
     // fallback: map-sheet index (gives the official zoning map sheet PDF if the above is unavailable)
     "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Zoning_Links_view/FeatureServer/0/query"
+  ]},
+  // ✅ Charlotte carries the zoning district ON its parcel layer (layer 17, the same feed the owner/
+  // value lookup uses): field "zoningcode" = district (e.g. RSF-3.5, CG), "landuse" = readable use.
+  // Charlotte has no separate zoning-polygon service, so we reuse layer 17 and PIN the fields — the
+  // auto-detector would otherwise grab "description" (the long legal text) as the district name.
+  CHARLOTTE: { label:"Charlotte County Zoning",
+    codeField:"zoningcode", descField:"landuse",
+    urls:[
+    "https://agis.charlottecountyfl.gov/arcgis/rest/services/Essentials/CCGIS_Web_Layers2022/MapServer/17/query"
   ]}
 };
 
@@ -2069,10 +2089,10 @@ function detectFields(fields){
   return {
     owner: find([/^OWN_?NAME$/,/^OWNER$/,/^OWNER_?NAME$/,/^OWNERNAME$/,/^OWNER1$/,/^NAME1$/,/^O_NAME/,/OWN.*NAME/,/^GRANTEE/]),
     owner2:find([/^OWN_?NAME2$/,/^OWNER2$/,/^OWNER_?NAME2$/,/^NAME2$/,/OWN.*NAME2/]),
-    pid:   find([/^STRAP/,/^PARCEL_?ID$/,/^PARCELID$/,/^PARID$/,/^FOLIO/,/^PIN$/,/^APN$/,/PARCEL.*(ID|NO|NUM)/,/PROP_?ID/]),
-    site:  find([/^SITE_?ADDR/,/^PHY_?ADDR1$/,/^PHY_?ADDR$/,/SITUS/,/^S_ADDR/,/SITE.*ADDR/,/^LOCATION$/,/SITEADDRESS/,/^ADDRESS$/]),
+    pid:   find([/^STRAP/,/^PARCEL_?ID$/,/^PARCELID$/,/^PARID$/,/^FOLIO/,/^PIN$/,/^APN$/,/^ACCOUNT$/,/PARCEL.*(ID|NO|NUM)/,/PROP_?ID/]),
+    site:  find([/^SITE_?ADDR/,/^PHY_?ADDR1$/,/^PHY_?ADDR$/,/SITUS/,/^S_ADDR/,/SITE.*ADDR/,/^LOCATION$/,/SITEADDRESS/,/^ADDRESS$/,/^FULLPROPERTYADDRESS$/,/^PROPERTY_?ADDR/]),
     city:  find([/^SITE_?CITY$/,/^PHY_?CITY$/,/SITUS.*CITY/]),
-    jv:    find([/^JV$/,/^JUST_?VAL/,/^JUSTVALUE$/,/^MKT_?VAL/,/^MARKET/,/^TOTAL_?VAL/,/^JUST$/,/^TOTVAL/]),
+    jv:    find([/^JV$/,/^JUST_?VAL/,/^JUSTVALUE$/,/^MKT_?VAL/,/^MARKET_?VAL/,/^MARKETVALUE$/,/^TOTAL_?VAL/,/^JUST$/,/^TOTVAL/]),
     land:  find([/^LND_?VAL/,/^LAND_?VAL/,/^LAND$/]),
     yr:    find([/^ACT_?YR_?BLT$/,/^YR_?BLT$/,/^YEAR_?BUILT$/,/YRBLT/,/YEARBUILT/,/ACTYRBLT/,/^EFF_?YR/,/^MAXBUILTY$/,/^NEWBUILT$/]),
     liv:   find([/^TOT_?LVG_?AR/,/LIV.*AREA/,/AREA.*LIV/,/^HEATED/,/HEAT.*AREA/,/AREA.*HEAT/,/TOTLIVING/,/LIVINGAREA/,/^GRSAR/,/^BLDG_?SQFT$/,/^BLDGSQFT$/,/^SQFT_?BLDG$/,/^FLOOR_?AREA$/,/^FLOORAREA$/,/^UNDER_?AIR$/,/^UNDERAIR$/,/^CONDITIONED/,/^BLDG_?AREA$/,/^BUILDINGAREA$/,/^CALC_?AREA$/,/^BLDGSF$/,/^BLDG_?SF$/]),
@@ -2464,6 +2484,102 @@ function renderCollierSetbacks(districtCode){
   if(s.sideNote) h+=`<div class="note"><b>Side detail:</b> ${esc(s.sideNote)}</div>`;
   if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
   h+=`<div class="note warnbox">Required minimums from the adopted Land Development Code (§ 4.02.01 Table 2.1), keyed to the detected district. "Height-based" yards depend on building height or lot width — see the note. Verify overlays, PUD terms, and corner-lot rules (front yard on each frontage) in the code before relying on these.</div>`;
+  return h;
+}
+
+/* ---------- Charlotte County required setbacks — Code of Laws & Ordinances Ch. 3-9 ----------
+   Minimum yard requirements (setbacks) from each district's "Development standards" table in
+   Chapter 3-9 (Zoning). The detected district comes from Charlotte's GIS parcel layer (zoningcode).
+   Charlotte distinguishes interior vs street side/rear yards and carries a waterfront yard; those
+   nuances ride in sideNote/rearNote. Districts whose yards are formula-driven (RMF interior side/rear,
+   PD/MU peripheral) are flagged with allFormula/sideFormula and rendered as "see note". Section number
+   carried for the Municode deep link. Verified against the user-supplied Ch. 3-9 text. */
+const CHARLOTTE_SETBACKS = {
+  "ES":      { section:"3-9-28", front:25, side:10, rear:20, note:"Urban Service Area shown; Rural Service Area: front 40, side 20, rear 20. Abutting water 20 ft; side/rear abutting Gulf of Mexico 50 ft." },
+  "AG":      { section:"3-9-30", front:40, side:20, rear:20, rearNote:"Abutting water 20 ft." },
+  "EM":      { section:"3-9-31", front:100, side:100, rear:100, note:"Excavation & Mining: 100 ft all yards." },
+  "RE-1":    { section:"3-9-32", front:40, side:20, rear:15, rearNote:"Rear 15 ft (accessory buildings 10 ft); abutting water 20 ft." },
+  "RE-5":    { section:"3-9-32", front:40, side:20, rear:15, rearNote:"Rear 15 ft (accessory buildings 10 ft); abutting water 20 ft." },
+  "RSF-2":   { section:"3-9-33", front:25, side:15, rear:20, sideNote:"Side interior 15 ft / street 20 ft.", rearNote:"Rear interior 20 ft (accessory 10 ft) / street 25 ft; abutting greenbelt 15 ft; abutting water 20 ft." },
+  "RSF-3.5": { section:"3-9-33", front:25, side:7.5, rear:20, sideNote:"Side interior 7.5 ft / street 15 ft.", rearNote:"Rear interior 20 ft (accessory 10 ft) / street 25 ft; abutting greenbelt 15 ft; abutting water 20 ft." },
+  "RSF-5":   { section:"3-9-33", front:25, side:7.5, rear:20, sideNote:"Side interior 7.5 ft / street 15 ft.", rearNote:"Rear interior 20 ft (accessory 10 ft) / street 25 ft; abutting greenbelt 15 ft; abutting water 20 ft." },
+  "RMF-3.5": { section:"3-9-34", front:25, side:null, rear:null, sideFormula:true, sideNote:"Interior side & rear = half the building height, not less than 15 ft. Side (street) 15 ft, rear (street) 15 ft, abutting water 20 ft. If abutting a single-family district, no structure closer than 25 ft or the building height, whichever is greater.", note:"Interior side & rear yards are height-based (½ building height, min 15 ft)." },
+  "RMF-5":   { section:"3-9-34", front:25, side:null, rear:null, sideFormula:true, sideNote:"Interior side & rear = half the building height, not less than 15 ft. Side (street) 15 ft, rear (street) 15 ft, abutting water 20 ft. If abutting a single-family district, no structure closer than 25 ft or the building height, whichever is greater.", note:"Interior side & rear yards are height-based (½ building height, min 15 ft)." },
+  "RMF-10":  { section:"3-9-34", front:25, side:null, rear:null, sideFormula:true, sideNote:"Interior side & rear = half the building height, not less than 15 ft. Side (street) 15 ft, rear (street) 15 ft, abutting water 20 ft. If abutting a single-family district, no structure closer than 25 ft or the building height, whichever is greater.", note:"Interior side & rear yards are height-based (½ building height, min 15 ft)." },
+  "RMF-12":  { section:"3-9-34", front:25, side:null, rear:null, sideFormula:true, sideNote:"Interior side & rear = half the building height, not less than 15 ft. Side (street) 15 ft, rear (street) 15 ft, abutting water 20 ft. If abutting a single-family district, no structure closer than 25 ft or the building height, whichever is greater.", note:"Interior side & rear yards are height-based (½ building height, min 15 ft)." },
+  "RMF-15":  { section:"3-9-34", front:25, side:null, rear:null, sideFormula:true, sideNote:"Interior side & rear = half the building height, not less than 15 ft. Side (street) 15 ft, rear (street) 15 ft, abutting water 20 ft. If abutting a single-family district, no structure closer than 25 ft or the building height, whichever is greater.", note:"Interior side & rear yards are height-based (½ building height, min 15 ft)." },
+  "RMF-T":   { section:"3-9-35", front:25, side:7.5, rear:15, sideNote:"Interior side 7.5 ft or half the building height, whichever is greater; side abutting a road 15 ft; abutting water 20 ft.", rearNote:"Rear abutting a lot 15 ft / abutting a road 25 ft / abutting water 20 ft." },
+  "MHP":     { section:"3-9-36", front:10, side:5, rear:10, note:"Manufactured Home Park (platted) shown: front 10, side 5, rear 10. Not-platted: park boundary 25 ft, front 10, 10 ft from another structure (no fixed side/rear). Abutting water 20 ft." },
+  "MHC":     { section:"3-9-37", front:25, side:7.5, rear:15, sideNote:"Side interior 7.5 ft / street 15 ft.", rearNote:"Rear interior 15 ft (accessory 10 ft) / street 25 ft; abutting water 20 ft." },
+  "RVP":     { section:"3-9-38", front:10, side:5, rear:5, note:"Recreational Vehicle Park (platted) shown: front 10, side 5, rear 5. Park boundary 25 ft; abutting water 20 ft. No structure/RV closer than 5 ft to side/rear lot line." },
+  "OMI":     { section:"3-9-39", front:10, side:7.5, rear:10, sideNote:"Single-family side 7.5 ft; multifamily/nonresidential side interior = half the building height, min 7.5 ft; side (street) 10 ft.", rearNote:"Rear interior 10 ft / street 10 ft; abutting water 20 ft. If abutting a residential district, no structure closer than 25 ft or building height, whichever is greater." },
+  "CN":      { section:"3-9-40", front:0, side:7.5, rear:15, sideNote:"Side interior 7.5 ft / street 15 ft.", rearNote:"Rear interior 15 ft / street 15 ft; abutting water 20 ft. If abutting a residential district, no structure closer than 25 ft or building height, whichever is greater." },
+  "CT":      { section:"3-9-41", front:15, side:0, rear:10, sideNote:"Side interior 0 ft / street 20 ft.", rearNote:"Rear interior 10 ft / street 25 ft; abutting water 20 ft. Multifamily uses follow RMF-15. If abutting a residential district, no structure closer than 25 ft or building height, whichever is greater." },
+  "CG":      { section:"3-9-42", front:15, side:0, rear:10, sideNote:"Side interior 0 ft / street 10 ft.", rearNote:"Rear interior 10 ft / street 10 ft; abutting water 20 ft." },
+  "IG":      { section:"3-9-43", front:10, side:0, rear:10, sideNote:"Side interior 0 ft / street 10 ft (adjacent to nonindustrial uses: front 25, side interior 10, side street 15).", rearNote:"Rear interior 10 ft / street 10 ft (adjacent to nonindustrial: rear interior 15 / street 20); abutting water 20 ft. If abutting a residential district, no structure closer than 25 ft or building height, whichever is greater." },
+  "II":      { section:"3-9-44", front:10, side:0, rear:10, sideNote:"Side interior 0 ft / street 10 ft (adjacent to nonindustrial uses: front 15, side street 15).", rearNote:"Rear interior 10 ft / street 10 ft (adjacent to nonindustrial: rear 15); abutting water 20 ft. If abutting a residential district, no structure closer than 25 ft or building height, whichever is greater." },
+  "PD":      { section:"3-9-45", front:null, side:null, rear:null, allFormula:true, note:"Planned Development: internal yards set through the PD rezoning. No structure closer to the PD's peripheral property line than 25 ft (or as required by § 3-9-88 waterfront), whichever is greater. RCMU / conservation subdivisions: 50 ft peripheral. US 41 Overlay: 25-ft PD setback waived. See § 3-9-45.1." },
+  "MU":      { section:"3-9-46", front:null, side:null, rear:null, allFormula:true, note:"Mixed-Use: no minimum yards, except 25 ft (or § 3-9-88, whichever greater) where directly abutting residentially-zoned land not separated by a right-of-way; abutting water 20 ft. Maximum street-frontage setbacks (Exhibit 5): perimeter 20/20/none, primary & secondary 15/10/20 (front/side/rear)." },
+  "ECAP":    { section:"3-9-48", front:20, side:10, rear:15, sideNote:"Total of all interior side yards ≥ 20% of lot width (max total 50 ft); minimum any side 10 ft.", rearNote:"Rear 15 ft; abutting water 20 ft; adjacent to residential use/zoning 50 ft." },
+  // Charlotte Harbor Community Development Code sub-districts (§ 3-9-47)
+  "CHCR":    { section:"3-9-47", front:10, side:7.5, rear:20, sideNote:"Side interior 7.5 ft / street 15 ft. Accessory structures 10 ft rear / 20 ft abutting water.", rearNote:"Rear interior 20 ft / street 25 ft; abutting water 20 ft; abutting greenbelt 15 ft." },
+  "CHNBR":   { section:"3-9-47", front:0, side:10, rear:10, sideNote:"Side interior 10 ft / street 10 ft.", rearNote:"Rear interior 10 ft / street 10 ft; abutting water 20 ft. Front along US 41/Edgewater/Harborview/Kings Hwy: min 10 / max 35 ft; along other roads: min 0 / max 9 ft." },
+  "CHMU":    { section:"3-9-47", front:15, side:10, rear:10, sideNote:"Side interior 10 ft / street 10 ft.", rearNote:"Rear interior 10 ft / street 10 ft; abutting water 20 ft. Front along US 41/Edgewater/Harborview/Kings Hwy: min 15 / max 35 ft; along other roads: min 0 / max 9 ft." },
+  "CHRW":    { section:"3-9-47", front:0, side:7.5, rear:15, sideNote:"Side interior 7.5 ft / street 0 ft.", rearNote:"Rear interior 15 ft / street 0 ft; abutting water 20 ft. Front max 25 ft along US 41/Edgewater/Harborview/Kings Hwy, 9 ft along other roads." }
+};
+/* Full-word / alternate forms a GIS layer might return instead of the short district code. */
+const CHARLOTTE_DISTRICT_ALIASES = {
+  "ENVIRONMENTALLYSENSITIVE":"ES", "AGRICULTURE":"AG", "AGRICULTUREGENERAL":"AG",
+  "EXCAVATIONANDMINING":"EM", "EXCAVATIONMINING":"EM",
+  "RESIDENTIALESTATE":"RE-1", "RESIDENTIALSINGLEFAMILY":"RSF-3.5",
+  "RESIDENTIALMULTIFAMILY":"RMF-10", "RESIDENTIALMULTIFAMILYTOURIST":"RMF-T",
+  "MANUFACTUREDHOMEPARK":"MHP", "MANUFACTUREDHOMECONVENTIONAL":"MHC",
+  "RECREATIONALVEHICLEPARK":"RVP", "OFFICEMEDICALINSTITUTIONAL":"OMI",
+  "COMMERCIALNEIGHBORHOOD":"CN", "COMMERCIALTOURIST":"CT", "COMMERCIALGENERAL":"CG",
+  "INDUSTRIALGENERAL":"IG", "INDUSTRIALINTENSIVE":"II", "PLANNEDDEVELOPMENT":"PD",
+  "MIXEDUSE":"MU"
+};
+/* Resolve a Charlotte district code to a setbacks entry. Handles "RSF3.5"/"RSF-3.5"/"RSF 3.5",
+   plain "RSF" (→ most common RSF-3.5), CG/IG without a number, and full-word aliases. */
+function charlotteSetbacks(districtCode){
+  if(!districtCode) return null;
+  const raw=String(districtCode).toUpperCase().trim();
+  if(CHARLOTTE_SETBACKS[raw]) return CHARLOTTE_SETBACKS[raw];
+  const alphaOnly=raw.replace(/[^A-Z]/g,'');
+  if(CHARLOTTE_DISTRICT_ALIASES[alphaOnly]) return CHARLOTTE_SETBACKS[CHARLOTTE_DISTRICT_ALIASES[alphaOnly]];
+  // normalize spacing & ensure hyphen between letters and a (possibly decimal) number: RSF3.5 -> RSF-3.5
+  let k=raw.replace(/\s+/g,'').replace(/^([A-Z]+)[- ]?(\d)/,'$1-$2');
+  if(CHARLOTTE_SETBACKS[k]) return CHARLOTTE_SETBACKS[k];
+  // bare family code with no suffix → representative member
+  const fam={ "RE":"RE-1", "RSF":"RSF-3.5", "RMF":"RMF-10" };
+  const famKey=raw.replace(/[^A-Z]/g,'');
+  if(fam[famKey]) return CHARLOTTE_SETBACKS[fam[famKey]];
+  // base before any slash/paren/space
+  const base=raw.split(/[\s(/]/)[0].replace(/^([A-Z]+)[- ]?(\d)/,'$1-$2');
+  if(CHARLOTTE_SETBACKS[base]) return CHARLOTTE_SETBACKS[base];
+  const baseAlpha=base.replace(/[^A-Z]/g,'');
+  if(fam[baseAlpha]) return CHARLOTTE_SETBACKS[fam[baseAlpha]];
+  if(CHARLOTTE_DISTRICT_ALIASES[baseAlpha]) return CHARLOTTE_SETBACKS[CHARLOTTE_DISTRICT_ALIASES[baseAlpha]];
+  return null;
+}
+/* Render required setbacks for a Charlotte County district (governing Ch. 3-9 numbers). */
+function renderCharlotteSetbacks(districtCode){
+  const s=charlotteSetbacks(districtCode);
+  if(!s) return '';
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(String(districtCode))} (Charlotte Code § ${esc(s.section)})</div>`;
+  const formula = s.allFormula;
+  const ft=(v,isFormula)=> (v!=null)?(v===0?'0 ft':v+' ft')
+                         : ((isFormula||formula)?'<span class="muted">height-based — see note</span>'
+                         : '<span class="muted">see code</span>');
+  h+=fieldRow('Front', ft(s.front), 'big');
+  h+=fieldRow('Side', ft(s.side, s.sideFormula));
+  h+=fieldRow('Rear', ft(s.rear));
+  if(s.sideNote) h+=`<div class="note"><b>Side detail:</b> ${esc(s.sideNote)}</div>`;
+  if(s.rearNote) h+=`<div class="note"><b>Rear detail:</b> ${esc(s.rearNote)}</div>`;
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  const secUrl="https://library.municode.com/fl/charlotte_county/codes/code_of_ordinances";
+  h+=`<a class="palink" href="${esc(secUrl)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § ${esc(s.section)} — Charlotte Code (Municode)</a>`;
+  h+=`<div class="note warnbox">Required minimums from Charlotte County's adopted Code of Laws & Ordinances (Ch. 3-9), keyed to the detected district. Properties on a barrier island or within 1,200 ft of named waters must also meet § 3-9-88 (waterfront). Verify overlays, PD terms, and corner-lot rules (a front yard applies on each street frontage) before relying on these.</div>`;
   return h;
 }
 
@@ -4842,6 +4958,9 @@ async function runLookup(lat,lng,searchCtx){
     // Springs, Estero, Sanibel, Fort Myers Beach) adopt their own codes and are excluded via LEE_INCORP
     // — Cape Coral/Bonita/Estero render above; the rest fall through to the adopted-code note below.
     if(norm(countyName)==='LEE' && !LEE_INCORP.has(norm(cityName)) && zhit.code){ html += renderLeeSetbacks(zhit.code); }
+    // Unincorporated Charlotte County (Code of Laws & Ordinances Ch. 3-9). Punta Gorda (the county's
+    // only city) adopts its own code and is excluded via CHARLOTTE_INCORP — it falls through to the note.
+    if(norm(countyName)==='CHARLOTTE' && !CHARLOTTE_INCORP.has(norm(cityName)) && zhit.code){ html += renderCharlotteSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
