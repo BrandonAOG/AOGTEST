@@ -383,22 +383,13 @@
   .sum-chips .chip.good{border-color:var(--good)}
 
   .panel-sticky{position:static}
-  /* sticky keeps the tab bar pinned while the panel body scrolls;
-     relative establishes a stacking context for the ::after fade overlay —
-     both are needed, and sticky wins the cascade since it's the last position value */
-  .tabbar-wrap{position:sticky;top:0;z-index:6}
-  .tabbar-wrap::after{
-    content:'';pointer-events:none;position:absolute;top:0;right:0;bottom:1px;width:36px;
-    background:linear-gradient(to right,transparent,var(--panel2));
-  }
-  .tabbar{display:flex;gap:2px;border-bottom:1px solid var(--line);
+  .tabbar{position:sticky;top:0;z-index:6;display:flex;gap:2px;border-bottom:1px solid var(--line);
     overflow-x:auto;scrollbar-width:none;background:var(--panel2);
-    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
-    -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scroll-behavior:smooth}
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
   .tabbar::-webkit-scrollbar{display:none}
   .tab{flex:none;background:none;border:none;cursor:pointer;font-family:var(--disp);font-weight:600;
     font-size:12px;letter-spacing:.03em;color:var(--dim);padding:9px 13px 8px;border-bottom:2px solid transparent;
-    white-space:nowrap;transition:color .12s,border-color .12s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    white-space:nowrap;transition:color .12s,border-color .12s}
   .tab:hover{color:var(--ink)}
   .tab.active{color:var(--signal);border-bottom-color:var(--signal)}
   .tab .tcount{font-family:var(--mono);font-size:9px;color:var(--faint);margin-left:4px}
@@ -594,7 +585,7 @@
        column-count. Putting zoom on an ancestor (#results) while columns live on a descendant makes
        Chrome silently collapse the columns to one (zoom + descendant multicol bug); keeping them on
        one element avoids that and restores the 2-up layout. */
-    .tabbar,.tabbar-wrap{ display:none !important; }
+    .tabbar{ display:none !important; }
     .panel-sticky{ position:static !important; background:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; padding:0 !important; }
     /* Zoom on .tabpanels; the two columns are produced by NATIVE CSS multi-column on
        .printflow (its child). A flex row was used here before — but a flex container is a
@@ -1644,9 +1635,8 @@ async function queryZoning(lat,lng, cityName, countyName){
   }
   const multi = cands.length>1;                    // probing several layers → be stricter about what we trust
   const folio = v => v!=null && /^[0-9]{6,}$/.test(String(v).trim());   // parcel-folio numbers aren't districts
-  let zoningTimedOut = false;
   for(const cu of cands){
-    const r = await arcQuery(cu, lat, lng, '*', false, ZONING_TIMEOUT).catch(e=>{ if(e&&(e.name==='AbortError'||/abort|timeout/i.test(e.message||''))) zoningTimedOut=true; return {__err:e.message}; });
+    const r = await arcQuery(cu, lat, lng, '*', false, ENRICH_TIMEOUT).catch(e=>({__err:e.message}));
     if(!(r && !r.__err && r.features && r.features[0])) continue;
     const a = r.features[0].attributes || {};
     const det = detectZoningFields(Object.keys(a));
@@ -1692,7 +1682,7 @@ async function queryZoning(lat,lng, cityName, countyName){
     }
     return { code, desc, extras, sheetUrl, layerName:(info&&info.name)||null, lastEdit:(info&&info.lastEdit)||null, url:cu };
   }
-  return zoningTimedOut ? { __timedOut:true } : null;
+  return null;
 }
 
 /* layer-metadata cache: name, last edit date, fields, detected mapping */
@@ -2186,21 +2176,21 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
     return j;
   }catch(e){ clearTimeout(t); throw e; }
 }
-const ENRICH_TIMEOUT = 6000;   // shorter timeout for secondary/enrichment lookups so a dead server fails fast
-/* Detect mobile/touch reliably — navigator.maxTouchPoints works on all modern browsers without
-   depending on Leaflet being loaded or UA string sniffing. Falls back to pointercoarse media query. */
-const IS_MOBILE_CONN = (function(){
-  try{ if(navigator.maxTouchPoints>1) return true; }catch(e){}
-  try{ if(window.matchMedia('(pointer:coarse)').matches) return true; }catch(e){}
-  return false;
-})();
-const ZONING_TIMEOUT = IS_MOBILE_CONN ? 30000 : 6000;
+// Single source of truth for "are we on a phone" so every cellular-aware timeout reads the same flag.
+const _IS_MOBILE = (typeof L!=='undefined' && L.Browser && L.Browser.mobile);
+// Secondary/enrichment lookups (zoning district, Elevation Certificate, county flood cross-check,
+// county parcel point-in-polygon). These hit the SAME slow/strict county & gov GIS servers the
+// flood query does, and a successful zoning hit needs TWO sequential round-trips (the /query plus a
+// layer-metadata fetch). On cellular the old flat 6s blew past on at least one leg, so the card fell
+// through to its "no data" branch — the reported "zoning not coming through on mobile". Give phones
+// the same headroom flood already gets; desktop/wifi stays snappy at 6s so a dead server fails fast.
+const ENRICH_TIMEOUT = _IS_MOBILE ? 14000 : 6000;
 const COUNTY_FEED_TIMEOUT = 13000;  // primary county parcel feeds get a generous timeout (dense areas can be slow)
 // FEMA's NFHL server (hazards.fema.gov) is slow and strict (TLS 1.2 + cipher suites). On a phone
-// — typically a slower cell connection — the default 9s often isn't enough to complete the TLS
-// handshake + the geometry-bearing flood query, and Safari reports the aborted request as
-// "Load failed". Give mobile more headroom; desktop stays snappy.
-const FLOOD_TIMEOUT = IS_MOBILE_CONN ? 30000 : 9000;
+// — typically a slower cell connection, and with this query queued behind the other parallel
+// lookups — even 14s wasn't always enough to finish the TLS handshake + geometry query, and Safari
+// reports the aborted request as "Load failed". Bump mobile further; desktop stays snappy.
+const FLOOD_TIMEOUT = _IS_MOBILE ? 20000 : 9000;
 
 /* Retry wrapper: ArcGIS Online services occasionally fail transiently (a 5xx/CORS blip comes back
    fast). One quick retry clears most of these. But a *timeout* means the server is just slow —
@@ -4876,8 +4866,6 @@ async function runLookup(lat,lng,searchCtx){
   window.__parcelMeta=null;   // cleared each lookup; set when a parcel renders
   // Collected for the "Export to Excel" feature (imports into the Estimate sheet).
   window.__exportData={ lat:lat, lng:lng, today:new Date().toLocaleDateString('en-US') };
-  // Store for targeted single-service retries (flood / zoning)
-  window.__lastLookup = null;
   // marker
   if(marker) map.removeLayer(marker);
   marker=L.circleMarker([lat,lng],{renderer:canvasRenderer,radius:6,color:'#ffb000',weight:2,fillColor:'#ffb000',fillOpacity:.9}).addTo(map);
@@ -4910,8 +4898,6 @@ async function runLookup(lat,lng,searchCtx){
   let cityName   = (!city.__err   && city.features   && city.features[0])   ? city.features[0].attributes.NAME   : null;
   window.__lastCounty = countyName || '';   // for the live-feed diagnostic
   if(window.__exportData){ window.__exportData.county=countyName?titleCase(countyName):''; window.__exportData.municipality=cityName?titleCase(cityName):''; }
-  // Store for targeted retries
-  window.__lastLookup = { lat, lng, cityName, countyName };
   const paUrl = countyName ? PA[norm(countyName)] : null;
 
   // Kick off the slower enrichment lookups NOW, in parallel, so they overlap instead of
@@ -5217,7 +5203,7 @@ async function runLookup(lat,lng,searchCtx){
   html += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
   let nfhlZone=null;   // captured for the county cross-check below
   if(flood.__err){
-    html += `<div class="note" id="floodErrNote">Flood service did not respond (${esc(flood.__err)}). <a href="#" id="floodRetryBtn" style="color:var(--blueprint)">Tap to retry flood only</a>.</div>`;
+    html += `<div class="note">Flood service did not respond (${esc(flood.__err)}).</div>`;
   } else if(flood.features && flood.features.length){
     const zones=flood.features.map(f=>f.attributes);
     const z=zones[0];
@@ -5335,10 +5321,8 @@ async function runLookup(lat,lng,searchCtx){
     html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> zoning map sheet located for this point</div>`;
     html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Read the district off the map sheet above; setbacks &amp; use standards come from <b>${esc(jurName)}</b>'s adopted land development code (Municode) and permitting portal.</div>`;
-  } else if(zhit && zhit.__timedOut){
-    html += `<div class="note warnbox"><b>Live zoning timed out</b> — the GIS server for <b>${esc(jurName)}</b> didn't respond in time on this connection. <a href="#" id="zoningRetryBtn" style="color:var(--blueprint)">Tap to retry</a>.</div>`;
   } else {
-    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code.${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?` <a href="#" id="zoningRetryBtn" style="color:var(--blueprint)">Tap to retry live zoning</a>.`:' No live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel.'}</div>`;
+    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
   }
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
@@ -5622,85 +5606,6 @@ async function runLookup(lat,lng,searchCtx){
     + _bc + _sum + '<div class="cardflow">' + html + '</div>';
   tabifyResults(results);
   document.body.classList.add('has-results');   // hides the intro disclaimer now that the breadcrumb/summary carry context
-
-  // Wire targeted retry buttons (flood-only, zoning-only) — only present if those services failed/missed.
-  // Each re-fetches just its own service and patches the card body in place; no full-page reload.
-  (function wireRetryButtons(){
-    const floodBtn = document.getElementById('floodRetryBtn');
-    if(floodBtn){
-      floodBtn.addEventListener('click', async function(e){
-        e.preventDefault();
-        const note = document.getElementById('floodErrNote');
-        if(note) note.textContent = 'Retrying FEMA flood service…';
-        const ctx = window.__lastLookup; if(!ctx) return;
-        try{
-          const r = await arcQueryRetry(EP.flood, ctx.lat, ctx.lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, FLOOD_TIMEOUT);
-          // Find the flood card body and replace just the .cb content
-          const cb = (function(){
-            const all=[...document.querySelectorAll('.card .ch h2')];
-            const hd=all.find(h=>h.textContent.includes('Flood Hazard'));
-            return hd ? hd.closest('.card').querySelector('.cb') : null;
-          })();
-          if(!cb){ runLookup(ctx.lat,ctx.lng); return; }   // fallback: full reload
-          let inner='';
-          inner += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
-          if(r.features && r.features.length){
-            const zones=r.features.map(f=>f.attributes);
-            const z=zones[0];
-            const zone=z.FLD_ZONE||'—';
-            if(window.__exportData) window.__exportData.floodZone=String(zone);
-            const sub=z.ZONE_SUBTY&&z.ZONE_SUBTY.trim()?z.ZONE_SUBTY:null;
-            const sfha=(z.SFHA_TF==='T');
-            const bfe=(z.STATIC_BFE!=null&&Number(z.STATIC_BFE)>-9999)?Number(z.STATIC_BFE):null;
-            const depth=(z.DEPTH!=null&&Number(z.DEPTH)>-9999&&Number(z.DEPTH)!==0)?Number(z.DEPTH):null;
-            if(window.__exportData){ if(bfe!=null) window.__exportData.bfe=bfe; else if(depth!=null) window.__exportData.floodDepth=depth; }
-            const badge=sfha?`<span class="badge sfha">HIGH-RISK · SFHA</span>`:/^X\b/.test(String(zone).trim().toUpperCase())?`<span class="badge safe">Reduced risk</span>`:`<span class="badge unk">${esc(zone)}</span>`;
-            inner+=`<div class="field"><div class="k">Flood zone</div><div class="v zone">${esc(zone)} ${badge}</div></div>`;
-            if(sub) inner+=fieldRow('Zone subtype',esc(sub));
-            inner+=fieldRow('In SFHA?',sfha?'Yes — mandatory insurance area':'No');
-            inner+=fieldRow('Base Flood Elev.',bfe!=null?esc(bfe)+' ft (NAVD88)':'<span class="muted">none published for this zone</span>');
-            if(depth!=null) inner+=fieldRow('Base flood depth',esc(depth)+' ft');
-            if(zones.length>1) inner+=fieldRow('Note','Point sits on a zone boundary — '+zones.length+' zones overlap here.');
-          } else {
-            inner+=`<div class="field"><div class="k">Flood zone</div><div class="v zone"><span class="badge unk">Not mapped</span></div></div>`;
-          }
-          cb.innerHTML=inner;
-        } catch(err){
-          const note2=document.getElementById('floodErrNote');
-          if(note2) note2.innerHTML=`Flood service still not responding (${esc(err.message)}). <a href="#" id="floodRetryBtn" style="color:var(--blueprint)">Try again</a>.`;
-          // Re-wire since we replaced the element
-          wireRetryButtons();
-        }
-      });
-    }
-
-    const zonBtn = document.getElementById('zoningRetryBtn');
-    if(zonBtn){
-      zonBtn.addEventListener('click', async function(e){
-        e.preventDefault();
-        zonBtn.textContent='Retrying zoning…';
-        const ctx = window.__lastLookup; if(!ctx) return;
-        try{
-          const zhit = await queryZoning(ctx.lat, ctx.lng, ctx.cityName, ctx.countyName);
-          const cb=(function(){
-            const all=[...document.querySelectorAll('.card .ch h2')];
-            const hd=all.find(h=>h.textContent.includes('Zoning'));
-            return hd ? hd.closest('.card').querySelector('.cb') : null;
-          })();
-          if(!cb){ runLookup(ctx.lat,ctx.lng); return; }
-          if(zhit && ((zhit.code!=null&&String(zhit.code).trim()!=='') || (zhit.desc!=null&&String(zhit.desc).trim()!=='') || (zhit.extras&&zhit.extras.length))){
-            // Got a result — do a full reload so all the setback renderers fire correctly
-            runLookup(ctx.lat, ctx.lng);
-          } else {
-            zonBtn.textContent='No live zoning data at this point — try again';
-          }
-        } catch(err){
-          zonBtn.textContent='Zoning retry failed — tap to try again';
-          zonBtn.addEventListener('click', function(e2){ e2.preventDefault(); runLookup(ctx.lat,ctx.lng); }, {once:true});
-        }
-      });
-    }
-  })();
 }
 
 /* ---- Docked/tabbed view helpers (desktop redesign) ----------------------------------------
@@ -5771,17 +5676,11 @@ function tabifyResults(root){
   const sticky=document.createElement('div'); sticky.className='panel-sticky';
   const sumEl=root.querySelector('.summary-strip');
   if(sumEl) sticky.appendChild(sumEl);   // summary lives here, in normal (non-sticky) flow
-  // Wrap the tabbar in a .tabbar-wrap so we can add the scroll-fade hint
-  const barWrap=document.createElement('div'); barWrap.className='tabbar-wrap';
-  barWrap.appendChild(bar);
   panels.parentNode.insertBefore(sticky, panels);
-  panels.parentNode.insertBefore(barWrap, panels);   // tab bar right above the panels, sticky
+  panels.parentNode.insertBefore(bar, panels);   // tab bar right above the panels, sticky
   const activate=key=>{
     bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===key));
     panels.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active', p.dataset.tab===key));
-    // Scroll the active tab into view so it's always visible on mobile
-    const activeBtn=bar.querySelector('.tab.active');
-    if(activeBtn) activeBtn.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});
   };
   bar.addEventListener('click',e=>{ const b=e.target.closest('.tab'); if(b) activate(b.dataset.tab); });
   if(first) activate(first);
