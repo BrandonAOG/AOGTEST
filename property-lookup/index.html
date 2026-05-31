@@ -383,17 +383,19 @@
   .sum-chips .chip.good{border-color:var(--good)}
 
   .panel-sticky{position:static}
-  .tabbar-wrap{position:sticky;top:0;z-index:6;position:relative;overflow:hidden}
+  /* sticky keeps the tab bar pinned while the panel body scrolls;
+     relative establishes a stacking context for the ::after fade overlay —
+     both are needed, and sticky wins the cascade since it's the last position value */
+  .tabbar-wrap{position:sticky;top:0;z-index:6}
+  .tabbar-wrap::after{
+    content:'';pointer-events:none;position:absolute;top:0;right:0;bottom:1px;width:36px;
+    background:linear-gradient(to right,transparent,var(--panel2));
+  }
   .tabbar{display:flex;gap:2px;border-bottom:1px solid var(--line);
     overflow-x:auto;scrollbar-width:none;background:var(--panel2);
     -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
     -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scroll-behavior:smooth}
   .tabbar::-webkit-scrollbar{display:none}
-  /* Fade-right hint so users know the tab bar scrolls on mobile */
-  .tabbar-wrap::after{
-    content:'';pointer-events:none;position:absolute;top:0;right:0;bottom:1px;width:36px;
-    background:linear-gradient(to right,transparent,var(--panel2));
-  }
   .tab{flex:none;background:none;border:none;cursor:pointer;font-family:var(--disp);font-weight:600;
     font-size:12px;letter-spacing:.03em;color:var(--dim);padding:9px 13px 8px;border-bottom:2px solid transparent;
     white-space:nowrap;transition:color .12s,border-color .12s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
