@@ -402,12 +402,12 @@
      box (and ≤680px the mobile bottom-sheet rules take over). */
   @media (min-width:1080px){
     #panel{
-      top:var(--abh,48px); left:0; bottom:0; width:440px; max-width:440px;
+      top:var(--abh,48px); left:0; bottom:0; width:600px; max-width:600px;
       height:calc(100vh - var(--abh,48px)); max-height:none;
       border-radius:0; border-top:none; border-left:none; border-bottom:none;
       box-shadow:6px 0 28px var(--shadow-soft);
     }
-    #map{ inset:var(--abh,48px) 0 0 440px; }
+    #map{ inset:var(--abh,48px) 0 0 600px; }
     .cardflow{ column-count:1; }   /* one category at a time — no masonry in tabbed mode */
   }
 
@@ -1025,7 +1025,8 @@ function loadTerritoryGeoJSON(text){
   }
   if(!out.length) throw new Error('No polygon features found in that file.');
   TERRITORIES=out;
-  try{ STORE.set('fl_util_geojson', JSON.stringify(gj)); }catch(e){ /* too big for storage; keep in memory */ }
+  // Not cached in localStorage on purpose — same-origin file, already HTTP-cached; the
+  // large write was failing on mobile. autoLoadTerritories() refetches from cache.
   return out.length;
 }
 
@@ -1075,6 +1076,7 @@ async function autoLoadTerritories(){
     const r=await fetch(UTIL_GEOJSON_FILE, {cache:'force-cache'});
     if(!r.ok) return false;
     loadTerritoryGeoJSON(await r.text());
+    if(typeof lastLoc!=='undefined' && lastLoc && typeof runLookup==='function'){ try{ runLookup(lastLoc.lat,lastLoc.lng); }catch(e){} }
     return true;
   }catch(e){ return false; }
 }
@@ -1135,7 +1137,11 @@ function loadGasGeoJSON(text){
     else if(g.type==='MultiPolygon') out.push({props,polys:g.coordinates}); }
   if(!out.length) throw new Error('No polygon features found in that file.');
   GAS_TERRITORIES=out;
-  try{ STORE.set('fl_gas_geojson', JSON.stringify(gj)); }catch(e){}
+  // NOTE: we intentionally do NOT cache this in localStorage. The file is ~1.4MB and
+  // same-origin (already HTTP-cached by the browser). Writing it to localStorage blew the
+  // quota / got throttled on mobile Safari — which left GAS_TERRITORIES null on the next
+  // load, so the gas card fell back to "no data". autoLoadGas() refetches from the HTTP
+  // cache instantly instead.
   return out.length;
 }
 function findGasAt(lat,lng){
@@ -1145,7 +1151,14 @@ function findGasAt(lat,lng){
 }
 async function autoLoadGas(){
   if(GAS_TERRITORIES) return true;
-  try{ const r=await fetch(GAS_GEOJSON_FILE,{cache:'force-cache'}); if(!r.ok) return false; loadGasGeoJSON(await r.text()); return true; }
+  try{
+    const r=await fetch(GAS_GEOJSON_FILE,{cache:'force-cache'}); if(!r.ok) return false;
+    loadGasGeoJSON(await r.text());
+    // If a lookup already ran before this big file finished arriving (common on mobile,
+    // where the fetch is slower), re-run it so the Gas card fills in with real data.
+    if(typeof lastLoc!=='undefined' && lastLoc && typeof runLookup==='function'){ try{ runLookup(lastLoc.lat,lastLoc.lng); }catch(e){} }
+    return true;
+  }
   catch(e){ return false; }
 }
 function handleGasFile(file){
@@ -5757,12 +5770,11 @@ window.Sheet=Sheet;
 
 (async function restore(){
   const a=STORE.get('fl_addr'); if(a){ document.getElementById('addr').value=a; updateClearBtn(); }
-  const tg=STORE.get('fl_util_geojson');
-  if(tg){ try{ loadTerritoryGeoJSON(tg); }catch(e){} }     // re-load saved territory data first
-  if(!TERRITORIES){ await autoLoadTerritories(); }          // else load the file shipped beside this page
-  const gg=STORE.get('fl_gas_geojson');
-  if(gg){ try{ loadGasGeoJSON(gg); }catch(e){} }            // gas territories: saved copy first
-  if(!GAS_TERRITORIES){ await autoLoadGas(); }              // else the gas file shipped beside this page
+  // Load the territory polygon files that ship beside this page, in parallel, and WAIT for
+  // them before any initial lookup — so the Utilities + Gas cards have data on first render.
+  // (We no longer read these from localStorage: the files are big and same-origin, so the
+  // browser's HTTP cache is the right cache; the old localStorage copy failed on mobile.)
+  await Promise.all([ autoLoadTerritories(), autoLoadGas() ]);
   const lu=STORE.get('fl_live');
   if(lu){ document.getElementById('liveUrl').value=lu; document.getElementById('adv').open=true; try{ await testLiveSource(); }catch(e){} }
   const zu=STORE.get('fl_zoning_url');
