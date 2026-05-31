@@ -356,9 +356,10 @@
   .sum-chips .chip.warn{border-color:var(--warn);color:var(--warn)}
   .sum-chips .chip.good{border-color:var(--good)}
 
-  .panel-sticky{position:sticky;top:0;z-index:6;background:var(--panel2);
-    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding-bottom:1px}
-  .tabbar{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+  .panel-sticky{position:static}
+  .tabbar{position:sticky;top:0;z-index:6;display:flex;gap:2px;border-bottom:1px solid var(--line);
+    overflow-x:auto;scrollbar-width:none;background:var(--panel2);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
   .tabbar::-webkit-scrollbar{display:none}
   .tab{flex:none;background:none;border:none;cursor:pointer;font-family:var(--disp);font-weight:600;
     font-size:12px;letter-spacing:.03em;color:var(--dim);padding:9px 13px 8px;border-bottom:2px solid transparent;
@@ -4990,8 +4991,8 @@ function tabifyResults(root){
     [/electric/i,'utilities'],[/natural gas|propane/i,'utilities'],
     [/permit/i,'permits'],[/aerial|street view/i,'aerial']
   ];
-  const TABS=[['site','Site'],['zoning','Zoning'],['flood','Flood'],['wind','Wind'],
-              ['utilities','Utilities'],['permits','Permits'],['aerial','Aerial']];
+  const TABS=[['aerial','Aerial'],['site','Site'],['zoning','Zoning'],['flood','Flood'],['wind','Wind'],
+              ['utilities','Utilities'],['permits','Permits']];
   const bucket={};
   cards.forEach(c=>{
     const h=(c.querySelector('h2')?c.querySelector('h2').textContent:'')||'';
@@ -5012,11 +5013,14 @@ function tabifyResults(root){
     panels.appendChild(panel);
   });
   flow.replaceWith(panels);
+  // Summary strip stays in normal flow (scrolls away). The tab bar is inserted as its own
+  // sibling directly before the panels, so its position:sticky sticks to the top of the
+  // shared scroll container while you scroll through the panels below.
   const sticky=document.createElement('div'); sticky.className='panel-sticky';
   const sumEl=root.querySelector('.summary-strip');
-  if(sumEl) sticky.appendChild(sumEl);   // move the summary into the sticky header
-  sticky.appendChild(bar);
+  if(sumEl) sticky.appendChild(sumEl);   // summary lives here, in normal (non-sticky) flow
   panels.parentNode.insertBefore(sticky, panels);
+  panels.parentNode.insertBefore(bar, panels);   // tab bar right above the panels, sticky
   const activate=key=>{
     bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===key));
     panels.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active', p.dataset.tab===key));
