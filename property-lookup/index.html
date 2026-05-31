@@ -5,6 +5,17 @@
 <script>
   /* Apply saved theme ASAP (before paint) to avoid a flash. No saved value => auto-follow OS. */
   try{ var _t=localStorage.getItem('aog_theme'); if(_t==='light'||_t==='dark') document.documentElement.setAttribute('data-theme',_t); }catch(e){}
+  /* Detect Safari / iOS-WebKit so the print stylesheet can shrink type 1.5px to keep the
+     report on ONE page (Safari mishandles the fit-to-page zoom that Chrome/Edge honor).
+     Includes Chrome/Firefox on iOS (CriOS/FxiOS) since iOS forces them onto WebKit too,
+     which shares the same print-zoom behavior. Excludes desktop Chrome/Edge/Opera. */
+  try{
+    var ua=navigator.userAgent;
+    var iOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+    var isSafariDesktop = /Safari/.test(ua) && !/Chrome|Chromium|Edg\/|OPR\/|CriOS|FxiOS|Android/.test(ua);
+    var isIOSWebKit = iOS && !/Android/.test(ua);   // all iOS browsers are WebKit
+    if(isSafariDesktop || isIOSWebKit){ document.documentElement.classList.add('is-safari'); }
+  }catch(e){}
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Property Lookup · Always On Generators</title>
@@ -732,28 +743,24 @@
 
   /* ---------- SAFARI-ONLY print overrides ----------
      Safari (incl. iOS/mobile Safari) handles the fit-to-page `zoom` unreliably in print, so
-     the report can spill onto a 2nd page where Chrome/Edge keep it on one. This block targets
-     ONLY Safari/WebKit-not-Blink (the `@media not all and (min-resolution:.001dpcm)` +
-     `@supports(-webkit-appearance:none)` pair is a long-standing Safari-only selector) and
-     trims every print font-size by 1.5px so the whole thing fits one page in Safari too.
-     Chrome/Edge/Firefox never see these rules and keep their existing sizes. */
-  @media not all and (min-resolution:.001dpcm){
-    @supports (-webkit-appearance:none){
-      @media print{
-        #printHead .ph-name{ font-size:22.5px !important; }
-        #printHead .ph-sub{ font-size:9.5px !important; }
-        #printHead .ph-meta{ font-size:9px !important; }
-        .printflow{ font-size:10px !important; }
-        .card .ch h2{ font-size:11px !important; }
-        .field .k{ font-size:9px !important; }
-        .field .v{ font-size:10px !important; }
-        .field .v.big, .field .v.zone{ font-size:10.5px !important; }
-        .freshline:has(.badge){ font-size:9.25px !important; }
-        .freshline .badge{ font-size:9.25px !important; }
-        .badge{ font-size:9.5px !important; }
-        .note.warnbox{ font-size:9.25px !important; }
-      }
-    }
+     the report can spill onto a 2nd page where Chrome/Edge keep it on one. We detect Safari in
+     JS (reliable) and set html.is-safari; the CSS media-query "Safari hacks" don't evaluate
+     dependably under PRINT media, which is why the earlier attempt didn't take. These rules
+     trim every print font-size by 1.5px so it fits one page in Safari too. Chrome/Edge/Firefox
+     never get the class, so they keep their existing sizes. */
+  @media print{
+    html.is-safari #printHead .ph-name{ font-size:22.5px !important; }
+    html.is-safari #printHead .ph-sub{ font-size:9.5px !important; }
+    html.is-safari #printHead .ph-meta{ font-size:9px !important; }
+    html.is-safari .printflow{ font-size:10px !important; }
+    html.is-safari .card .ch h2{ font-size:11px !important; }
+    html.is-safari .field .k{ font-size:9px !important; }
+    html.is-safari .field .v{ font-size:10px !important; }
+    html.is-safari .field .v.big, html.is-safari .field .v.zone{ font-size:10.5px !important; }
+    html.is-safari .freshline:has(.badge){ font-size:9.25px !important; }
+    html.is-safari .freshline .badge{ font-size:9.25px !important; }
+    html.is-safari .badge{ font-size:9.5px !important; }
+    html.is-safari .note.warnbox{ font-size:9.25px !important; }
   }
 </style>
 </head>
@@ -5400,6 +5407,36 @@ const Sheet=(function(){
     const brandDown=e=>{ if(e.target.closest('a,button')) return; down(e); };
     brand.addEventListener('touchstart',brandDown,{passive:false});
     brand.addEventListener('mousedown',brandDown);
+  }
+
+  /* Let the SEARCH area act as a drag surface too — important after a search, when the
+     brand bar is hidden and the slim search row is the obvious thing to grab to pull the
+     sheet down and reveal the map. We must NOT steal taps meant for the input/buttons, so:
+       - ignore touches that land on the input, buttons, links, or the suggest/history dropdowns
+       - use a DEFERRED start: record the touch, and only begin a real drag once the finger
+         has moved down past a small threshold. A plain tap never crosses the threshold, so
+         focusing the field to type still works. */
+  const searchEl=panel.querySelector('.search');
+  if(searchEl){
+    let pStartY=0, pending=false;
+    const isInteractive=t=> !!(t.closest('input,textarea,button,a,select,summary,.suggest,.history'));
+    searchEl.addEventListener('touchstart',e=>{
+      if(!isMobile()) return;
+      if(isInteractive(e.target)) return;        // let taps on the field/buttons through
+      pending=true; pStartY=e.touches[0].clientY;
+    },{passive:true});
+    searchEl.addEventListener('touchmove',e=>{
+      if(!pending || dragging) return;
+      const dy=e.touches[0].clientY - pStartY;
+      if(dy>8){                                  // a deliberate downward drag → take over
+        pending=false;
+        down(e);                                 // begins the real drag (preventDefault inside)
+      } else if(dy < -8){
+        pending=false;                           // upward intent isn't a dismiss gesture; bail
+      }
+    },{passive:false});
+    searchEl.addEventListener('touchend',()=>{ pending=false; },{passive:true});
+    searchEl.addEventListener('touchcancel',()=>{ pending=false; },{passive:true});
   }
   window.addEventListener('touchmove',move,{passive:false});
   window.addEventListener('mousemove',move);
