@@ -747,8 +747,17 @@
      JS (reliable) and set html.is-safari; the CSS media-query "Safari hacks" don't evaluate
      dependably under PRINT media, which is why the earlier attempt didn't take. These rules
      trim every print font-size by 1.5px so it fits one page in Safari too. Chrome/Edge/Firefox
-     never get the class, so they keep their existing sizes. */
+     never get the class, so they keep their existing sizes.
+
+     CRITICAL for MOBILE Safari: iOS applies automatic "text size adjust" (text inflation) that
+     OVERRIDES explicit font-size in print/PDF — which is why the sizes weren't changing on a
+     phone. We pin -webkit-text-size-adjust:none so iOS honors the px values below. This is
+     scoped to html.is-safari + @media print, so desktop browsers are never touched. */
   @media print{
+    html.is-safari, html.is-safari *{
+      -webkit-text-size-adjust:none !important;
+      text-size-adjust:none !important;
+    }
     html.is-safari #printHead .ph-name{ font-size:22.5px !important; }
     html.is-safari #printHead .ph-sub{ font-size:9.5px !important; }
     html.is-safari #printHead .ph-meta{ font-size:9px !important; }
