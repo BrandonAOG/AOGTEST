@@ -4662,6 +4662,87 @@ async function runLookup(lat,lng,searchCtx){
   }
   html += `</div></div>`;
 
+  /* ---- HOA / Sunbiz ---- */
+  /* Extract the subdivision name from a Florida legal description.
+     FL legal descriptions start with the subdivision name followed by a block/lot/plat book reference.
+     Examples:
+       "CAPE CORAL UNIT 8 BLK 547 PB 12-50 LOT 4"   → "CAPE CORAL UNIT 8"
+       "PELICAN BAY PH 2 BLOCK A LOT 22 OR 1234"     → "PELICAN BAY PH 2"
+       "GATEWAY PH 3 LOT 19"                          → "GATEWAY PH 3"
+       "HERITAGE COVE PHA UNIT 4 BLK 21 LOT 1"       → "HERITAGE COVE PHA UNIT 4"
+     Strategy: strip everything from the first recognisable plat/legal delimiter onwards.
+  */
+  function _subdivFromLegal(legal){
+    if(!legal) return null;
+    const s = String(legal).trim().toUpperCase();
+    // Cut at the first block/lot/plat-book/OR-book/section delimiter
+    const cut = s.search(/\b(BLK\b|BLOCK\b|LOT\b|PB\s+\d|OR\s+\d|SEC\s+\d|S\d{2}T\d{2}|REPLAT|UNIT\s+\d|PHASE\s+\d|PH\s+\d)/);
+    // "UNIT N" and "PH N" with a number are plot references — but "UNIT 3" in a subdivision name
+    // like "CAPE CORAL UNIT 3" is part of the name. Keep up to and including one UNIT/PH token.
+    let name = cut > 0 ? s.slice(0, cut).trim() : s;
+    // Add back one trailing UNIT/PH + number if it was the cut point and forms the name
+    const unitMatch = s.slice(cut).match(/^(UNIT\s+\d+|PH\s+\d+|PHASE\s+\d+)\b/);
+    if(unitMatch) name = (name + ' ' + unitMatch[1]).trim();
+    // Drop trailing noise words that aren't part of real subdivision names
+    name = name.replace(/\b(A\s+CONDO|CONDOMINIUM|REPLAT|SUBDIVISION|SUB|PLAT|UNRECORDED|A\s+PLANNED).*$/,'').trim();
+    // Must be at least 4 characters and not purely numeric to be useful
+    if(!name || name.length < 4 || /^\d+$/.test(name)) return null;
+    return name.replace(/\b\w/g, c => c.toUpperCase());   // title-case for display
+  }
+
+  /* Pull the best subdivision keyword from whichever parcel source fired:
+     1. S_LEGAL (statewide roll) — most reliable
+     2. Live feed attributes — check common SUBDIV / SUBDIVISION / S_LEGAL equivalent fields
+     3. Legal description from live feed generic detector  */
+  function _getSubdivName(){
+    try {
+      // Statewide roll: S_LEGAL is always available when the roll answered
+      let legal = null;
+      if(parcel && !parcel.__err && parcel.features && parcel.features[0]){
+        legal = pick(parcel.features[0].attributes, 'S_LEGAL');
+      }
+      // Live county feed may have its own legal/subdiv field
+      if(!legal && liveRes && liveRes.features && liveRes.features[0]){
+        const la = liveRes.features[0].attributes;
+        // Try named subdivision fields first, then fall back to any legal description
+        legal = ciPick(la,
+          'SUBDIVISION','SUBDIV','SUBNAME','SUB_NAME','LEGAL','LEGAL_DESC',
+          'LEGAL_DESCRIPTION','S_LEGAL','LEGALDESC','PLAT_BOOK_NAME','PLATNAME');
+      }
+      const fromLegal = _subdivFromLegal(legal);
+      if(fromLegal) return fromLegal;
+      return null;
+    } catch(e){ return null; }
+  }
+
+  {
+    const _subdiv = _getSubdivName();
+    const _sunbizBase = 'https://search.sunbiz.org/Inquiry/CorporationSearch/ByName';
+    function _sunbizUrl(q){ return _sunbizBase + '?inquirytype=EntityName&inquiryDirectionType=ForwardList&searchNameOrder=&corporationNameSearchString=' + encodeURIComponent(q); }
+
+    html += `<div class="card"><div class="ch"><span class="icn">[ HOA ]</span><h2>HOA / Community Association</h2>
+      <div class="src">FL Division of<br>Corporations · Sunbiz</div></div><div class="cb">`;
+
+    if(_subdiv){
+      html += `<div class="freshline"><span class="badge live">● SUBDIVISION FOUND</span> extracted from property appraiser legal description</div>`;
+      html += fieldRow('Subdivision', esc(_subdiv), 'big');
+      html += `<div class="note">Florida HOAs are registered as corporations with the Division of Corporations. The link below searches Sunbiz for associations matching this subdivision name — look for entries ending in <b>INC</b>, <b>ASSOCIATION</b>, or <b>HOMEOWNERS</b>.</div>`;
+      html += `<a class="palink" href="${esc(_sunbizUrl(_subdiv))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Search Sunbiz for &ldquo;${esc(_subdiv)}&rdquo;</a>`;
+      // Also offer a shorter keyword search (first two words of subdiv) in case the full name doesn't match exactly
+      const _shortKey = _subdiv.split(' ').slice(0,2).join(' ');
+      if(_shortKey && _shortKey !== _subdiv){
+        html += `<a class="palink" href="${esc(_sunbizUrl(_shortKey))}" target="_blank" rel="noopener" style="margin-top:6px; margin-left:6px">↗ Broader search: &ldquo;${esc(_shortKey)}&rdquo;</a>`;
+      }
+    } else {
+      html += `<div class="freshline snap"><span class="badge unk">subdivision</span> not detected from legal description</div>`;
+      html += `<div class="note">A subdivision name could not be extracted from the legal description for this parcel. Use the Sunbiz search below and enter the subdivision or community name manually.</div>`;
+      html += `<a class="palink" href="${esc(_sunbizBase)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Open Sunbiz entity search</a>`;
+    }
+
+    html += `<div class="note warnbox">Sunbiz is Florida&rsquo;s official Division of Corporations registry. HOAs and community associations must register here as Florida not-for-profit corporations — search the subdivision name to find the registered agent, officers, and annual report filings. Not all communities have an HOA; some use a master deed or deed restrictions without a corporation.</div>`;
+    html += `</div></div>`;
+  }
+
   /* ---- Flood ---- */
   html += `<div class="card"><div class="ch"><span class="icn">[ FLD ]</span><h2>FEMA Flood Hazard</h2>
     <div class="src">FEMA National<br>Flood Hazard Layer</div></div><div class="cb">`;
@@ -5092,11 +5173,12 @@ function tabifyResults(root){
   if(!cards.length) return;
   const MAP=[
     [/jurisdiction/i,'site'],[/parcel/i,'site'],
+    [/hoa|sunbiz/i,'hoa'],
     [/zoning/i,'zoning'],[/flood/i,'flood'],[/wind/i,'wind'],
     [/electric/i,'utilities'],[/natural gas|propane/i,'utilities'],
     [/permit/i,'permits'],[/aerial|street view/i,'aerial']
   ];
-  const TABS=[['aerial','Aerial'],['site','Site'],['zoning','Zoning'],['flood','Flood'],['wind','Wind'],
+  const TABS=[['aerial','Aerial'],['site','Site'],['hoa','HOA'],['zoning','Zoning'],['flood','Flood'],['wind','Wind'],
               ['utilities','Utilities'],['permits','Permits']];
   const bucket={};
   cards.forEach(c=>{
