@@ -206,6 +206,23 @@
   .retry-btn:hover{background:var(--signal-hover)}
   .retry-btn:active{transform:translateY(1px)}
 
+  /* ---- Network diagnostics overlay (screenshot-friendly bug report) ---- */
+  .diag-overlay{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.62);
+    align-items:center;justify-content:center;padding:14px}
+  .diag-overlay.show{display:flex}
+  .diag-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    width:100%;max-width:600px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 18px 60px var(--shadow-strong)}
+  .diag-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;
+    border-bottom:1px solid var(--line);font-family:var(--disp);font-weight:700;font-size:14px;color:var(--ink)}
+  .diag-head .kick{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--signal);text-transform:uppercase;display:block;margin-bottom:2px}
+  .diag-x{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;line-height:1;padding:2px 8px;flex:none}
+  .diag-x:hover{color:var(--ink)}
+  .diag-pre{margin:0;padding:12px 14px;overflow:auto;flex:1;white-space:pre-wrap;word-break:break-word;
+    -webkit-overflow-scrolling:touch;font-family:var(--mono);font-size:11px;line-height:1.55;color:var(--ink);background:var(--input-bg)}
+  .diag-actions{display:flex;gap:8px;padding:11px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .diag-hint{padding:0 14px 13px;font-size:11px;color:var(--dim);line-height:1.4}
+
   /* ---- Aerial & Street View scouting card ---- */
   .aerial-wrap{position:relative;margin-top:4px;border-radius:9px;overflow:hidden;border:1px solid var(--line);
     background:var(--input-bg);aspect-ratio:600/300;display:block;text-decoration:none}
@@ -787,6 +804,7 @@
   <a class="ab-btn" href="../">🏠 HOME</a>
   <a class="ab-btn" id="printBtn" role="button" tabindex="0" title="Print this report (1 page)" aria-label="Print report" style="cursor:pointer;">📄 PDF</a>
   <a class="ab-btn" id="excelBtn" role="button" tabindex="0" title="Export to Excel for the Estimate sheet" aria-label="Export to Excel" style="cursor:pointer;">📊 EXCEL</a>
+  <a class="ab-btn" id="debugBtn" role="button" tabindex="0" title="Show network diagnostics for the last lookup" aria-label="Network diagnostics" style="cursor:pointer;" onclick="openDiag()">🐞 DEBUG</a>
   <button class="theme-toggle-btn" id="themeToggle" type="button" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
 </div>
 <div id="map"></div>
@@ -2176,15 +2194,123 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
     `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent(outFields)}`+
     `&returnGeometry=${withGeom?'true':'false'}${withGeom?'&outSR=4326':''}&f=json`;
   const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),timeoutMs||9000);
+  const _d=(typeof DIAG!=='undefined')?DIAG.start(url,timeoutMs||9000):null;   // diagnostics: time + outcome
+  let _status=null;
   try{
     const r=await fetch(url+'?'+params,{signal:ctrl.signal});
-    clearTimeout(t);
+    clearTimeout(t); _status=r.status;
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j=await r.json();
     if(j.error) throw new Error(j.error.message||'service error');
+    if(_d) DIAG.end(_d,{ok:true,status:_status,feats:(j.features?j.features.length:null)});
     return j;
-  }catch(e){ clearTimeout(t); throw e; }
+  }catch(e){ clearTimeout(t); if(_d) DIAG.end(_d,{ok:false,status:_status,errName:e.name||'Error',errMsg:e.message||String(e)}); throw e; }
 }
+
+/* ---------- Network diagnostics buffer (powers the 🐞 DEBUG overlay) ----------
+   Records every arcQuery: host, time-to-settle, attempt outcome, and how many GIS requests were
+   already in flight when it started. The key tell for the "Load failed" bug: a request that fails
+   in ~200–800ms (NOT near its timeout) was DROPPED by the browser's connection ceiling, not slow —
+   and a high "inflt" number at that moment is the collision fingerprint. Tile loads aren't fetch()
+   calls so they're not counted here, but the time-to-fail alone distinguishes drop from timeout. */
+const DIAG=(function(){
+  let log=[], inflight=0, peak=0, env=null, startedAt=null;
+  function snapEnv(){
+    const c=navigator.connection||navigator.mozConnection||navigator.webkitConnection||{};
+    env={ when:new Date().toISOString(),
+      ua:navigator.userAgent,
+      mobile:(typeof L!=='undefined'&&L.Browser&&L.Browser.mobile)?true:false,
+      online:navigator.onLine,
+      conn:{type:c.effectiveType||'?',down:(c.downlink!=null?c.downlink:'?'),rtt:(c.rtt!=null?c.rtt:'?'),save:!!c.saveData},
+      vp:window.innerWidth+'x'+window.innerHeight,
+      floodTO:(typeof FLOOD_TIMEOUT!=='undefined'?FLOOD_TIMEOUT:'?'),
+      enrichTO:(typeof ENRICH_TIMEOUT!=='undefined'?ENRICH_TIMEOUT:'?') };
+  }
+  function hostOf(u){ try{ return new URL(u).host; }catch(e){ return String(u).slice(0,42); } }
+  function reset(label){ log=[]; inflight=0; peak=0; startedAt=performance.now(); snapEnv(); env.label=label||''; }
+  function start(url,to){ inflight++; if(inflight>peak) peak=inflight;
+    return {host:hostOf(url),t0:performance.now(),inAtStart:inflight,to:to}; }
+  function end(rec,out){ inflight=Math.max(0,inflight-1);
+    log.push(Object.assign({host:rec.host,inAtStart:rec.inAtStart,to:rec.to,
+      ms:Math.round(performance.now()-rec.t0),
+      at:Math.round(performance.now()-(startedAt||rec.t0))}, out));
+    if(log.length>150) log.shift(); }
+  function classify(r){
+    if(r.ok) return 'ok';
+    const m=(r.errMsg||'')+' '+(r.errName||'');
+    if(/abort/i.test(m)) return 'TIMEOUT';                       // hit our AbortController
+    if(/load failed|failed to fetch|networkerror|typeerror/i.test(m)) return (r.ms<3000?'DROPPED':'NET');
+    if(/^HTTP/.test(m)) return 'HTTP';
+    return 'ERR';
+  }
+  function text(){
+    if(!env) snapEnv();
+    const L2=[];
+    L2.push('=== AOG PROPERTY LOOKUP · NETWORK DIAGNOSTICS ===');
+    if(env.label) L2.push('lookup : '+env.label);
+    L2.push('time   : '+env.when);
+    L2.push('mobile : '+env.mobile+'   online: '+env.online+'   viewport: '+env.vp);
+    L2.push('network: '+env.conn.type+'  ~'+env.conn.down+'Mbps  rtt '+env.conn.rtt+'ms  dataSaver '+env.conn.save);
+    L2.push('timeouts: flood '+env.floodTO+'ms · enrich '+env.enrichTO+'ms   |   peak concurrent: '+peak);
+    L2.push('ua     : '+env.ua);
+    L2.push('---- requests this lookup (oldest first) ----');
+    L2.push('  KIND     start  took  inflt try host  / result');
+    if(!log.length){ L2.push('  (no requests captured — run a lookup, then open DEBUG)'); }
+    log.forEach(r=>{
+      const k=classify(r);
+      L2.push('  '+k.padEnd(8)
+        +' '+(r.at+'ms').padStart(6)
+        +' '+(r.ms+'ms').padStart(6)
+        +' '+String(r.inAtStart).padStart(2)
+        +'  '+String(r.attempt||1)
+        +'  '+r.host
+        +(r.ok?('  ['+(r.feats!=null?r.feats+' feat':'ok')+(r.status?(' '+r.status):'')+']')
+              :('  <'+(r.errName||'err')+': '+(r.errMsg||'')+'>')));
+    });
+    const drops=log.filter(r=>classify(r)==='DROPPED').length;
+    const tos=log.filter(r=>classify(r)==='TIMEOUT').length;
+    L2.push('---- summary ----');
+    L2.push('  total '+log.length+' · dropped '+drops+' · timed-out '+tos+' · peak concurrent '+peak);
+    if(drops) L2.push('  ⇒ DROPPED requests = browser connection ceiling hit (the "Load failed" cause).');
+    return L2.join('\n');
+  }
+  return { reset, start, end, text };
+})();
+window.DIAG=DIAG;
+
+function openDiag(){
+  let ov=document.getElementById('diagOverlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='diagOverlay'; ov.className='diag-overlay';
+    ov.addEventListener('click',e=>{ if(e.target===ov) closeDiag(); });
+    ov.innerHTML='<div class="diag-box">'
+      +'<div class="diag-head"><span><span class="kick">Always On Generators</span>Network diagnostics</span>'
+      +'<button type="button" class="diag-x" aria-label="Close" onclick="closeDiag()">\u2715</button></div>'
+      +'<pre class="diag-pre" id="diagPre"></pre>'
+      +'<div class="diag-actions">'
+      +'<button type="button" class="retry-btn" onclick="copyDiag(this)">\u29C9 Copy report</button>'
+      +'<button type="button" class="retry-btn" onclick="retryLookup();closeDiag();">\u21BB Re-run lookup</button>'
+      +'</div>'
+      +'<div class="diag-hint" id="diagHint">Screenshot this, or tap <b>Copy report</b> and paste it back. The KIND column shows whether each request was <b>DROPPED</b> (connection ceiling) or <b>TIMEOUT</b> (slow server).</div>'
+      +'</div>';
+    document.body.appendChild(ov);
+  }
+  document.getElementById('diagPre').textContent=DIAG.text();
+  ov.classList.add('show');
+}
+function closeDiag(){ const ov=document.getElementById('diagOverlay'); if(ov) ov.classList.remove('show'); }
+function copyDiag(btn){
+  const txt=DIAG.text();
+  const done=ok=>{ const h=document.getElementById('diagHint'); if(h) h.innerHTML= ok?'Copied \u2713 — paste it back to me.':'Couldn\u2019t copy automatically — long-press the text above to select & copy, or just screenshot it.'; };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(()=>done(true)).catch(()=>fallbackCopyDiag(txt,done)); }
+  else fallbackCopyDiag(txt,done);
+}
+function fallbackCopyDiag(txt,done){
+  try{ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.top='-9999px';
+    document.body.appendChild(ta); ta.focus(); ta.select(); const ok=document.execCommand('copy'); document.body.removeChild(ta); done&&done(ok); }
+  catch(e){ done&&done(false); }
+}
+window.openDiag=openDiag; window.closeDiag=closeDiag; window.copyDiag=copyDiag;
 // Single source of truth for "are we on a phone" so every cellular-aware timeout reads the same flag.
 const _IS_MOBILE = (typeof L!=='undefined' && L.Browser && L.Browser.mobile);
 // Secondary/enrichment lookups (zoning district, Elevation Certificate, county flood cross-check,
@@ -4887,6 +5013,7 @@ window.retryLookup=function(){ if(window.__lastLookupArgs) runLookup.apply(null,
 async function runLookup(lat,lng,searchCtx){
   const myId=++runId;
   window.__lastLookupArgs=[lat,lng,searchCtx];
+  if(typeof DIAG!=='undefined') DIAG.reset((searchCtx&&searchCtx.raw)?searchCtx.raw:(lat.toFixed(5)+', '+lng.toFixed(5)));
   window.__parcelMeta=null;   // cleared each lookup; set when a parcel renders
   // Collected for the "Export to Excel" feature (imports into the Estimate sheet).
   window.__exportData={ lat:lat, lng:lng, today:new Date().toLocaleDateString('en-US') };
@@ -5227,7 +5354,7 @@ async function runLookup(lat,lng,searchCtx){
   html += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
   let nfhlZone=null;   // captured for the county cross-check below
   if(flood.__err){
-    html += `<div class="note">Flood service did not respond (${esc(flood.__err)}). <button type="button" class="retry-btn" onclick="retryLookup()">↻ Retry</button></div>`;
+    html += `<div class="note">Flood service did not respond (${esc(flood.__err)}). <button type="button" class="retry-btn" onclick="retryLookup()">↻ Retry</button> <button type="button" class="retry-btn" onclick="openDiag()" style="background:var(--panel2);color:var(--ink);border:1px solid var(--line)">🐞 Details</button></div>`;
   } else if(flood.features && flood.features.length){
     const zones=flood.features.map(f=>f.attributes);
     const z=zones[0];
@@ -5347,7 +5474,7 @@ async function runLookup(lat,lng,searchCtx){
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Read the district off the map sheet above; setbacks &amp; use standards come from <b>${esc(jurName)}</b>'s adopted land development code (Municode) and permitting portal.</div>`;
   } else {
     const _hasZoningLayer = !!(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')]||zoningSource.url);
-    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${_hasZoningLayer?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.${_hasZoningLayer?' <button type="button" class="retry-btn" onclick="retryLookup()">↻ Retry live district</button>':''}</div>`;
+    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${_hasZoningLayer?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.${_hasZoningLayer?' <button type="button" class="retry-btn" onclick="retryLookup()">↻ Retry live district</button> <button type="button" class="retry-btn" onclick="openDiag()" style="background:var(--panel2);color:var(--ink);border:1px solid var(--line)">🐞 Details</button>':''}</div>`;
   }
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
