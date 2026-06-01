@@ -4594,6 +4594,58 @@ async function reverseAddrPoint(countyName, lat, lng, wantHN, wantStreetRaw){
     return { addr:txt, lat:cLat, lng:cLng, matchedHN: !!hnBest };
   }catch(e){ clearTimeout(t); return null; }
 }
+/* FORWARD address-point lookup: query the county's address-point layer DIRECTLY by house number
+   (a server-side WHERE on the number field), independent of any geocoder result. This is the
+   authoritative anchor for an address search in a lean-feed county (e.g. Collier) — it doesn't
+   matter where OSM/Census put the pin. Among same-number points it keeps the one whose street
+   agrees with what the user typed, breaking remaining ties by distance to the geocoded point (if any).
+   Returns {addr,lat,lng} or null. */
+async function forwardAddrPoint(countyName, ctx, refLat, refLng){
+  const url = countyName ? ADDRPOINT_FEEDS[norm(countyName)] : null;
+  if(!url || !ctx || !ctx.hn) return null;
+  // Try each plausible house-number field until one returns rows. Collier's is ADDRNUM.
+  const numFields=['ADDRNUM','ADD_NUMBER','HOUSE_NUM','STNUM','STREET_NUM'];
+  for(const nf of numFields){
+    const where = `${nf}='${String(ctx.hn).replace(/'/g,"''")}'`;
+    const params=`where=${encodeURIComponent(where)}&outFields=*&returnGeometry=true&outSR=4326`+
+      `&resultRecordCount=200&f=json`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
+    let j=null;
+    try{
+      const r=await fetch(url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+      if(!r.ok) continue;
+      j=await r.json();
+    }catch(e){ clearTimeout(t); continue; }
+    if(!j || j.error) continue;                 // field name wrong → try the next candidate
+    if(!j.features || !j.features.length) return null;   // field valid but no such number → give up
+    // pick the same-number point on the right street, nearest the geocoded ref point when we have one
+    let chosen=null, chosenG=null, bestD=Infinity, anyStreet=false, firstValid=null, firstG=null;
+    const haveRef = isFinite(refLat) && isFinite(refLng);
+    for(const f of j.features){
+      const a=f.attributes||{};
+      const st=(a.STATUS||a.Status||'').toString().toUpperCase();
+      if(st && /(RETIRE|INACTIVE|INVALID|DELETE)/.test(st)) continue;
+      const g=f.geometry; if(!g) continue;
+      const gx=(g.x!=null?g.x:g.X), gy=(g.y!=null?g.y:g.Y);
+      if(gx==null||gy==null) continue;
+      if(!firstValid){ firstValid=a; firstG={lat:gy,lng:gx}; }
+      const streetOK = !ctx.raw || sameStreet(ctx.raw, formatAddrPoint(a));
+      if(!streetOK) continue;
+      anyStreet=true;
+      const dd = haveRef ? ((gx-refLng)*(gx-refLng)+(gy-refLat)*(gy-refLat)) : 0;
+      if(dd<bestD){ bestD=dd; chosen=a; chosenG={lat:gy,lng:gx}; }
+      if(!haveRef) break;     // no ref point to disambiguate — first street match is fine
+    }
+    // if no point matched the street (e.g. user typed no street, or street naming differs), fall back
+    // to the first valid same-number point so we still anchor on the correct house number.
+    if(!chosen && firstValid){ chosen=firstValid; chosenG=firstG; }
+    if(!chosen) return null;
+    const txt=formatAddrPoint(chosen);
+    if(!txt) return null;
+    return { addr:txt, lat:chosenG.lat, lng:chosenG.lng };
+  }
+  return null;
+}
 function parcelUnit(a){
   if(!a) return null;
   const u = a.SITEUNIT||a.UNIT||a.UNITNUM||a.UNIT_NO;
@@ -5083,10 +5135,20 @@ async function runLookup(lat,lng,searchCtx){
         if(searchCtx && searchCtx.hn){
           ngHit = await resolveAddressNG911(countyName, searchCtx, lat, lng).catch(()=>null);
         }
+        // FORWARD ADDRESS-POINT ANCHOR (lean-feed counties, e.g. Collier): query the address-point
+        // layer directly by house number — independent of the geocoder. If found, this point is the
+        // authoritative location: drive the parcel point-in-polygon from HERE, not from the (often
+        // off-by-one or off-parcel) geocoded pin. Fixes both wrong-house and "no parcel at point".
+        let fwdHit=null;
+        if(searchCtx && searchCtx.hn && ADDRPOINT_FEEDS[norm(countyName)]){
+          fwdHit = await forwardAddrPoint(countyName, searchCtx, lat, lng).catch(()=>null);
+        }
         // For a point-only NG911 county (e.g. Collier — authoritative point, no STRAP), run the
         // parcel point-in-polygon from the NG911 point instead of the geocoded point.
-        const qLat = (ngHit && ngHit.pointOnly && isFinite(ngHit.lat)) ? ngHit.lat : lat;
-        const qLng = (ngHit && ngHit.pointOnly && isFinite(ngHit.lng)) ? ngHit.lng : lng;
+        const qLat = (fwdHit && isFinite(fwdHit.lat)) ? fwdHit.lat
+                   : (ngHit && ngHit.pointOnly && isFinite(ngHit.lat)) ? ngHit.lat : lat;
+        const qLng = (fwdHit && isFinite(fwdHit.lng)) ? fwdHit.lng
+                   : (ngHit && ngHit.pointOnly && isFinite(ngHit.lng)) ? ngHit.lng : lng;
         for(const cu of cands){
           let al=null, matchedAddr=null, exactUnit=true, multi=0;
           // 0) AUTHORITATIVE (STRAP path): NG911 maps the address to a parcel STRAP; fetch by STRAP.
@@ -5116,6 +5178,9 @@ async function runLookup(lat,lng,searchCtx){
             sameStreet(searchCtx.raw, parcelAddrText(pointFeat.attributes||{})));
           if(!al && pointFeat && pointOnRightStreet){
             al={features:[pointFeat]};
+            // Forward address-point anchored this search → record the authoritative point + address.
+            if(fwdHit){ al.__ngLat=fwdHit.lat; al.__ngLng=fwdHit.lng; matchedAddr=fwdHit.addr||null;
+              try{ if(!parcelAddrText(pointFeat.attributes||{})) pointFeat.attributes.SITEADDR=fwdHit.addr; }catch(e){} }
             // Tag NG911-point-driven matches so the UI can show the authoritative-address badge.
             if(ngHit && ngHit.pointOnly){ al.__ng911=true; al.__ngLat=ngHit.lat; al.__ngLng=ngHit.lng; matchedAddr=ngHit.addr||null; }
           }
