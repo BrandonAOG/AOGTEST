@@ -1714,20 +1714,26 @@ const map = L.map('map',{
   tap:false,                    // Leaflet's legacy tap handler causes 300ms delay / double-fire on modern mobile
   zoomSnap:0.5,                 // smoother pinch-zoom steps
   wheelPxPerZoomLevel:120,
-  zoomAnimationThreshold:4
+  zoomAnimationThreshold:4,
+  // ---- desktop responsiveness ----
+  fadeAnimation:false,          // skip the per-tile cross-fade — tiles snap in immediately, no compositing churn
+  markerZoomAnimation:false,    // don't animate vector/marker positions through the zoom; they jump to final spot
+  inertia:true, inertiaDeceleration:3400, inertiaMaxSpeed:Infinity
 }).setView([27.9,-83.4],7);
-const canvasRenderer = L.canvas({ padding:0.5 });   // shared canvas for all vector layers
+// Bigger canvas padding => the vector canvas is drawn well beyond the viewport, so short pans
+// reuse the already-rendered bitmap instead of triggering a full redraw on every frame.
+const canvasRenderer = L.canvas({ padding:2, tolerance:4 });   // shared canvas for all vector layers
 const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  {maxZoom:19,attribution:"Imagery &copy; Esri",updateWhenIdle:L.Browser.mobile,keepBuffer:2});
+  {maxZoom:19,attribution:"Imagery &copy; Esri",updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
 const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-  {maxZoom:19,opacity:.9,updateWhenIdle:L.Browser.mobile,keepBuffer:2});
+  {maxZoom:19,opacity:.9,updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
 const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  {maxZoom:19,attribution:"&copy; OpenStreetMap contributors",updateWhenIdle:L.Browser.mobile,keepBuffer:2});
+  {maxZoom:19,attribution:"&copy; OpenStreetMap contributors",updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
 const satGroup = L.layerGroup([sat,labels]).addTo(map);
 // USGS National Map topographic basemap — keyless XYZ tiles. Gives terrain, contours & elevation
 // context (handy for spotting low ground before siting a pad). Cached only to z16, so upscale above.
 const topo = L.tileLayer("https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
-  {maxZoom:19,maxNativeZoom:16,attribution:"Topo &copy; USGS The National Map",updateWhenIdle:L.Browser.mobile,keepBuffer:2});
+  {maxZoom:19,maxNativeZoom:16,attribution:"Topo &copy; USGS The National Map",updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
 
 const btnSat=document.getElementById('btnSat'), btnStreet=document.getElementById('btnStreet'), btnTopo=document.getElementById('btnTopo');
 // The three basemaps are mutually exclusive; overlays (city limits / flood / parcels / radar) sit on top.
@@ -1777,15 +1783,24 @@ let boundsLayer = L.geoJSON(null, {
   onEachFeature:(f,lyr)=>{ if(L.Browser.mobile) return;   // sticky hover tooltips are wasted on touch and add per-move work
     const nm=f.properties&&(f.properties.NAME||f.properties.name); if(nm){ lyr.bindTooltip(String(nm),{sticky:true,direction:'top',className:'bnd-tip'}); lyr.on('tooltipopen',ev=>{ const el=ev.tooltip&&ev.tooltip.getElement(); if(el){ const col=cityColor(nm); el.style.background=col; el.style.color='#10151b'; const arrow=el.querySelector('.leaflet-tooltip-tip'); if(arrow) arrow.style.background=col; } }); } }
 }).addTo(map);
-let boundsOn=true, boundsBusy=false, boundsKey='';
+// Pad a LatLngBounds outward by `f` of its own size, so we fetch a region larger than the
+// viewport and can pan freely inside it without re-fetching or rebuilding the vector canvas.
+function _padEnvelope(b, f){
+  const dx=(b.getEast()-b.getWest())*f, dy=(b.getNorth()-b.getSouth())*f;
+  return L.latLngBounds([b.getSouth()-dy, b.getWest()-dx], [b.getNorth()+dy, b.getEast()+dx]);
+}
+let boundsOn=true, boundsBusy=false, boundsKey='', boundsFetched=null;
 async function refreshBoundaries(){
   if(!boundsOn){ return; }
-  if(map.getZoom() < 9){ boundsLayer.clearLayers(); boundsKey=''; return; }   // too zoomed out to be useful
+  if(map.getZoom() < 9){ boundsLayer.clearLayers(); boundsKey=''; boundsFetched=null; return; }   // too zoomed out to be useful
   const b=map.getBounds();
+  // Already have data covering the current view? Don't touch the network or the canvas.
+  if(boundsFetched && boundsFetched.contains(b) && !boundsBusy) return;
   const key=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(n=>n.toFixed(2)).join(',');
   if(key===boundsKey || boundsBusy) return;                                    // skip redundant fetches
   boundsBusy=true;
-  const env=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+  const pb=_padEnvelope(b,0.6);
+  const env=`${pb.getWest()},${pb.getSouth()},${pb.getEast()},${pb.getNorth()}`;
   // CLASSFP LIKE 'C%' = incorporated places only (excludes CDP communities U1/U2)
   const where=encodeURIComponent("CLASSFP LIKE 'C%'");
   const url=EP.city+
@@ -1825,7 +1840,7 @@ async function refreshBoundaries(){
           if(fgj && fgj.features && fgj.features.length){ gj.features = gj.features.concat(fgj.features); }
         }
       }catch(_){ /* fallback is best-effort; never break the main layer */ }
-      boundsLayer.clearLayers(); boundsLayer.addData(gj); boundsKey=key;
+      boundsLayer.clearLayers(); boundsLayer.addData(gj); boundsKey=key; boundsFetched=pb;
     }
   }catch(e){ /* leave existing outlines on failure */ }
   finally{ boundsBusy=false; }
@@ -1874,6 +1889,9 @@ async function refreshParcelLines(){
   if(!parcelLinesOn) return;
   if(map.getZoom() < 16){ parcelLinesLayer.clearLayers(); parcelKey=''; return; }   // too dense zoomed out
   const b=map.getBounds();
+  // Parcels are dense and the server caps at 3000 records, so we must NOT enlarge the query
+  // envelope (that would push on-screen parcels past the cap and leave the view empty). We do a
+  // light same-view skip instead: only refetch once the view has shifted meaningfully.
   const key=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(n=>n.toFixed(4)).join(',');
   if(key===parcelKey || parcelBusy) return;
   parcelBusy=true;
@@ -1900,7 +1918,7 @@ let parcelTimer=null;
 map.on('moveend zoomend', ()=>{ clearTimeout(parcelTimer); parcelTimer=setTimeout(refreshParcelLines,BOUNDS_DEBOUNCE); });
 document.getElementById('btnBounds').onclick=function(){
   boundsOn=!boundsOn; this.classList.toggle('active',boundsOn);
-  if(boundsOn){ boundsKey=''; refreshBoundaries(); } else { boundsLayer.clearLayers(); }
+  if(boundsOn){ boundsKey=''; boundsFetched=null; refreshBoundaries(); } else { boundsLayer.clearLayers(); boundsFetched=null; }
 };
 // Live coordinate readout follows the cursor — desktop only. On touch there's no hover, so
 // this handler would only fire mid-drag and fight the pan; skip it entirely on mobile. Throttle
