@@ -2454,6 +2454,43 @@ function featCentroid(f){
   for(const r of rings){ let a=0; for(let i=0,n=r.length,j=n-1;i<n;j=i++){ a+=r[j][0]*r[i][1]-r[i][0]*r[j][1]; } a=Math.abs(a); if(a>ba){ba=a;best=r;} }
   return best?ringCentroid(best):null;
 }
+/* squared distance from point to a line segment (planar; fine at parcel scale) */
+function _segDist2(px,py,ax,ay,bx,by){
+  const dx=bx-ax, dy=by-ay; const l2=dx*dx+dy*dy;
+  let tt = l2? ((px-ax)*dx+(py-ay)*dy)/l2 : 0; tt=tt<0?0:tt>1?1:tt;
+  const cx=ax+tt*dx, cy=ay+tt*dy; return (px-cx)*(px-cx)+(py-cy)*(py-cy);
+}
+/* distance from a point to the polygon's nearest edge (any ring) */
+function _distToEdges(px,py,rings){
+  let m=Infinity;
+  for(const ring of rings){ for(let i=0,n=ring.length,j=n-1;i<n;j=i++){
+    const d=_segDist2(px,py,ring[j][0],ring[j][1],ring[i][0],ring[i][1]); if(d<m)m=d;
+  } }
+  return m;
+}
+/* Label point: the most-interior point of a parcel (a light "pole of inaccessibility").
+   The area-weighted centroid can land on a building or outside a concave/irregular lot; this samples
+   a grid inside the bounding box, keeps points inside the polygon, and returns the one farthest from
+   any edge — visually the open center of the lot. Falls back to the centroid if sampling finds nothing. */
+function labelPoint(f){
+  const rings=(f.geometry&&f.geometry.rings)||[]; if(!rings.length) return featCentroid(f);
+  // use the largest ring as the outer boundary; smaller rings (if any) act as holes for inside-test
+  let outer=rings[0], oa=-1;
+  for(const r of rings){ let a=0; for(let i=0,n=r.length,j=n-1;i<n;j=i++){ a+=r[j][0]*r[i][1]-r[i][0]*r[j][1]; } a=Math.abs(a); if(a>oa){oa=a;outer=r;} }
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  for(const p of outer){ if(p[0]<minx)minx=p[0]; if(p[0]>maxx)maxx=p[0]; if(p[1]<miny)miny=p[1]; if(p[1]>maxy)maxy=p[1]; }
+  const poly=[outer];   // treat as single-ring for inside test (holes are rare for parcels)
+  const N=12;           // 12×12 sample grid — plenty for a parcel, negligible cost
+  const stepx=(maxx-minx)/N, stepy=(maxy-miny)/N;
+  let best=null, bestD=-1;
+  for(let i=1;i<N;i++) for(let k=1;k<N;k++){
+    const px=minx+stepx*i, py=miny+stepy*k;
+    if(!pointInPolygon(px,py,poly)) continue;
+    const d=_distToEdges(px,py,rings);
+    if(d>bestD){ bestD=d; best=[px,py]; }
+  }
+  return best || featCentroid(f);
+}
 
 /* Pick the MOST SPECIFIC parcel when a point intersects several (e.g. a condo/multi-unit
    master "5102-5116" record overlapping the individual unit). The specific unit is almost
@@ -5043,26 +5080,43 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng){
     const j=await r.json();
     if(j.error || !j.features || !j.features.length) return;
     const want = subjectHN!=null ? String(subjectHN).trim() : null;
-    let placed=0, seen=new Set();
+    const haveAnchor = isFinite(subjLat) && isFinite(subjLng);
+    // PASS 1: build the label list, and decide which ONE parcel is the subject.
+    // Exact test first: does the anchor point fall INSIDE this parcel's polygon? That's definitive
+    // regardless of lot size/shape. Fallback: nearest centroid among same-numbered parcels.
+    const labels=[];   // {hn, lat, lng, feat}
+    let subjIdx=-1, subjInside=false, subjBestD=Infinity, seen=new Set();
     for(const f of j.features){
-      if(placed>=200) break;                              // safety cap on label count
+      if(labels.length>=200) break;                       // safety cap
       const a=f.attributes||{};
       const txt=parcelAddrText(a);                        // auto-detects SITEADDR/PHY_ADDR1/SITUS/etc.
       const hn=houseNum(txt);
       if(!hn) continue;
-      const c=featCentroid(f); if(!c) continue;           // [x=lng, y=lat]
+      const c=labelPoint(f); if(!c) continue;             // [x=lng, y=lat] — most-interior point of the lot
       const key=hn+'@'+c[0].toFixed(5)+','+c[1].toFixed(5);
       if(seen.has(key)) continue; seen.add(key);
-      // is this the subject parcel? match by number AND proximity to the matched point
-      let isSubj=false;
-      if(want && hn===want){
-        if(subjLat==null||subjLng==null) isSubj=true;
-        else { const dd=(c[0]-subjLng)*(c[0]-subjLng)+(c[1]-subjLat)*(c[1]-subjLat); if(dd < 0.0000025) isSubj=true; } // ~within ~50m
+      const idx=labels.length;
+      labels.push({ hn, lat:c[1], lng:c[0], feat:f });
+      // subject candidate?
+      if(want && hn===want && haveAnchor){
+        const rings=(f.geometry&&f.geometry.rings)||null;
+        const inside = rings ? pointInRing(subjLng, subjLat, rings[0]) : false;
+        const dd=(c[0]-subjLng)*(c[0]-subjLng)+(c[1]-subjLat)*(c[1]-subjLat);
+        // prefer a polygon the anchor is actually inside; among those (or among centroid-distance
+        // candidates) keep the closest. An inside-match always beats a not-inside one.
+        if(inside && !subjInside){ subjInside=true; subjIdx=idx; subjBestD=dd; }
+        else if(inside===subjInside && dd<subjBestD){ subjIdx=idx; subjBestD=dd; }
+      } else if(want && hn===want && !haveAnchor && subjIdx<0){
+        subjIdx=idx;   // no anchor to disambiguate — first same-number match
       }
-      const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(hn)}</div>`, iconSize:null });
-      L.marker([c[1],c[0]],{icon, interactive:false, keyboard:false}).addTo(nbrNumLayer);
-      placed++;
     }
+    // PASS 2: render. Only the chosen subject gets the highlight.
+    for(let i=0;i<labels.length;i++){
+      const L0=labels[i]; const isSubj = (i===subjIdx);
+      const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(L0.hn)}</div>`, iconSize:null });
+      L.marker([L0.lat,L0.lng],{icon, interactive:false, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
+    }
+    const placed=labels.length;
     if(placed){ nbrNumLayer.addTo(map); }
   }catch(e){ /* best-effort; never block the result */ }
 }
