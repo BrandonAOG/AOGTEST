@@ -255,6 +255,10 @@
   .parcel-tip .pt-lbl{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--blueprint);display:block;margin-bottom:1px}
   .parcel-tip .pt-val{font-weight:600;color:var(--ink)}
   .parcel-tip .pt-row+.pt-row{margin-top:6px}
+  .nbr-num{background:rgba(10,16,22,.74);color:#bfe9ff;border:1px solid rgba(57,211,255,.45);border-radius:5px;
+    font-family:var(--mono);font-size:10px;font-weight:600;line-height:1;letter-spacing:.02em;padding:2px 4px;
+    white-space:nowrap;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.45);pointer-events:none;transform:translate(-50%,-50%)}
+  .nbr-num.subject{background:#ffb000;color:#10151b;border-color:#ffd166;font-weight:700;font-size:11px;box-shadow:0 1px 6px rgba(255,176,0,.5)}
   .crosshair{position:absolute;z-index:999;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10.5px;color:var(--dim);background:var(--crosshair-bg);border:1px solid var(--line);padding:5px 12px;border-radius:20px;pointer-events:none}
 
   .empty{text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;padding:26px 10px;line-height:1.6}
@@ -5014,6 +5018,62 @@ function drawParcel(g, info){
   }catch(e){}
 }
 
+/* ---------- Neighbor house-number labels (all counties) ----------
+   After a parcel renders, label the parcels currently in view with their house numbers so the user
+   can eyeball whether the matched address sits in the right numeric run (1562·1564·1566·1570) or is
+   off by a house. Universal across all 67 counties via the statewide cadastral layer, which carries
+   an address field + geometry. The subject parcel's number is highlighted. Best-effort: silent on
+   any failure, and skipped when zoomed out too far to be readable. */
+const nbrNumLayer = L.layerGroup();
+let nbrNumOn = true;   // labels follow the parcel view by default; tied to the parcel result
+function clearNeighborNumbers(){ try{ nbrNumLayer.clearLayers(); if(map.hasLayer(nbrNumLayer)) map.removeLayer(nbrNumLayer); }catch(e){} }
+async function showNeighborNumbers(subjectHN, subjLat, subjLng){
+  if(!nbrNumOn) return;
+  try{
+    clearNeighborNumbers();
+    if(map.getZoom() < 16) return;                       // too dense/zoomed-out to be legible
+    const b=map.getBounds();
+    const env=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+    const url=PARCEL_FS+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+      `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=*&returnGeometry=true&outSR=4326`+
+      `&resultRecordCount=400&f=json`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+    const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return;
+    const j=await r.json();
+    if(j.error || !j.features || !j.features.length) return;
+    const want = subjectHN!=null ? String(subjectHN).trim() : null;
+    let placed=0, seen=new Set();
+    for(const f of j.features){
+      if(placed>=200) break;                              // safety cap on label count
+      const a=f.attributes||{};
+      const txt=parcelAddrText(a);                        // auto-detects SITEADDR/PHY_ADDR1/SITUS/etc.
+      const hn=houseNum(txt);
+      if(!hn) continue;
+      const c=featCentroid(f); if(!c) continue;           // [x=lng, y=lat]
+      const key=hn+'@'+c[0].toFixed(5)+','+c[1].toFixed(5);
+      if(seen.has(key)) continue; seen.add(key);
+      // is this the subject parcel? match by number AND proximity to the matched point
+      let isSubj=false;
+      if(want && hn===want){
+        if(subjLat==null||subjLng==null) isSubj=true;
+        else { const dd=(c[0]-subjLng)*(c[0]-subjLng)+(c[1]-subjLat)*(c[1]-subjLat); if(dd < 0.0000025) isSubj=true; } // ~within ~50m
+      }
+      const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(hn)}</div>`, iconSize:null });
+      L.marker([c[1],c[0]],{icon, interactive:false, keyboard:false}).addTo(nbrNumLayer);
+      placed++;
+    }
+    if(placed){ nbrNumLayer.addTo(map); }
+  }catch(e){ /* best-effort; never block the result */ }
+}
+// Keep the labels in sync as the user pans/zooms after a search (debounced, same as parcel lines).
+let _nbrTimer=null, _nbrCtx=null;
+map.on('moveend zoomend', ()=>{
+  if(!nbrNumOn || !_nbrCtx) return;
+  clearTimeout(_nbrTimer);
+  _nbrTimer=setTimeout(()=>{ showNeighborNumbers(_nbrCtx.hn, _nbrCtx.lat, _nbrCtx.lng); }, BOUNDS_DEBOUNCE);
+});
+
 /* Build the hover-tooltip markup for a parcel from {site, pid, owner} (any may be missing). */
 function parcelTooltipHTML(info){
   if(!info) return '';
@@ -5090,6 +5150,7 @@ async function runLookup(lat,lng,searchCtx){
   if(marker) map.removeLayer(marker);
   marker=L.circleMarker([lat,lng],{renderer:canvasRenderer,radius:6,color:'#ffb000',weight:2,fillColor:'#ffb000',fillOpacity:.9}).addTo(map);
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
+  clearNeighborNumbers(); _nbrCtx=null;
   saveLoc(lat,lng);
   document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
 
@@ -5328,6 +5389,14 @@ async function runLookup(lat,lng,searchCtx){
         pid:   det.pid?pick(_a,det.pid):null,
         site:  det.site?[pick(_a,det.site), (det.city?pick(_a,det.city):null)].filter(Boolean).join(', '):null
       });
+      // Neighbor house-number labels: anchor on the subject's number (from its address) + the
+      // matched point so the right lot is highlighted. Runs after fitBounds so the view is settled.
+      try{
+        const _sHN = houseNum(det.site?pick(_a,det.site):'') || (searchCtx&&searchCtx.hn) || null;
+        const _sLat = liveRes.__ngLat!=null?liveRes.__ngLat:lat, _sLng=liveRes.__ngLng!=null?liveRes.__ngLng:lng;
+        _nbrCtx={ hn:_sHN, lat:_sLat, lng:_sLng };
+        setTimeout(()=>showNeighborNumbers(_sHN,_sLat,_sLng), 350);
+      }catch(e){}
     }
     { const _a=liveRes.features[0].attributes; const _ra=pick(_a,'TOTALACRES')||pick(_a,'ACREAGE')||pick(_a,'GIS_ACRES')||null;
       html += renderLotDimensions(liveRes.features[0].geometry, _ra); }
@@ -5404,6 +5473,11 @@ async function runLookup(lat,lng,searchCtx){
       pid:   pid||null,
       site:  [site, siteCity].filter(Boolean).join(', ')||null
     });
+    try{
+      const _sHN = houseNum(site||'') || (searchCtx&&searchCtx.hn) || null;
+      _nbrCtx={ hn:_sHN, lat:lat, lng:lng };
+      setTimeout(()=>showNeighborNumbers(_sHN, lat, lng), 350);
+    }catch(e){}
     html += renderLotDimensions(parcel.features[0].geometry, pick(a,'TOTALACRES'));
     if(parcel.__multi && parcel.__multi>1) html += `<div class="note">${parcel.__multi} parcels overlap this point (common with condos/multi-unit). Showing the most specific one — verify on the appraiser if it's not the unit you meant.</div>`;
   } else if(parcel && parcel.__err){
