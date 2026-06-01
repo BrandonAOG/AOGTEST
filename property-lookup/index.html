@@ -4972,6 +4972,15 @@ async function runLookup(lat,lng,searchCtx){
       })().catch(()=>({res:null,meta:null,err:'lookup failed'}))
     : Promise.resolve(null);
 
+  // Pre-fire the Permits/Elevation-Certificate query NOW, in parallel with everything else.
+  // It used to be awaited serially inside the permits card (a slow/dead EC server could add
+  // up to ~15s on its own), which dominated the total search time. Firing it here lets it
+  // overlap; the permits card just awaits the already-running promise.
+  const _docCfgEC = resolveDocs(cityName, countyName).cfg;
+  const pEC = (_docCfgEC && _docCfgEC.ecLayer)
+    ? queryEC(_docCfgEC.ecLayer, lat, lng).catch(e=>({err:e.message}))
+    : Promise.resolve(null);
+
   /* ---- Aerial & Street View: scout the property first (keyless deep-links + Esri aerial) ---- */
   html += renderAerialScout(lat, lng);
 
@@ -5252,6 +5261,19 @@ async function runLookup(lat,lng,searchCtx){
   }
   html += `</div></div>`;
 
+  /* ---- FIRST PAINT ----------------------------------------------------------------------
+     The high-value cards (jurisdiction, parcel/owner, FEMA flood) are fully built now, off the
+     core parallel batch — typically back in ~1-2s. Show them immediately instead of holding the
+     whole panel until the slower enrichment lookups (wind, zoning, permits, utilities) finish.
+     The full render below replaces this; nothing is lost, the search just *loads* in ~2s. */
+  if(myId===runId){
+    results.innerHTML = '<div class="cardflow">' + html
+      + '<div class="card noprint"><div class="cb"><div class="freshline">'
+      + '<span class="badge live">● LOADING</span> pulling wind design, zoning, permits &amp; utilities…'
+      + '</div></div></div></div>';
+    document.body.classList.add('has-results');
+  }
+
   /* ---- Wind Design (FBC 8th Ed. / ASCE 7-22): site design wind speed + calculation ---- */
   html += renderWindDesign(lat, lng, cityName, countyName, await pWind);
 
@@ -5384,7 +5406,7 @@ async function runLookup(lat,lng,searchCtx){
   // --- Elevation Certificate (live attempt where a layer is wired) ---
   let ecRendered=false;
   if(docCfg && docCfg.ecLayer){
-    const ec = await queryEC(docCfg.ecLayer, lat, lng).catch(e=>({err:e.message}));
+    const ec = await pEC;
     if(myId!==runId) return;
     if(ec && !ec.err && ec.features && ec.features.length){
       html += `<div class="freshline"><span class="badge live">● LIVE</span> elevation certificate on file at this point</div>`;
