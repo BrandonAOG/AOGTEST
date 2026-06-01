@@ -5701,10 +5701,18 @@ async function runLookup(lat,lng,searchCtx){
     }
   },0);
 
-  // Capture a label + coords for the print header (best available address, else coords)
+  // Capture a label + coords for the print header (best available address, else coords).
+  // IMPORTANT: only trust the typed #addr box when this lookup actually came FROM a search
+  // (searchCtx present). On a bare map click there is no searchCtx, so reusing #addr would
+  // leave the heading stuck on the previously-searched address. In that case prefer the
+  // parcel's resolved site address, then fall back to the clicked coordinates.
   try{
-    const _typed=(document.getElementById('addr')&&document.getElementById('addr').value||'').trim();
-    const _addr=(searchCtx&&searchCtx.raw)?searchCtx.raw:(_typed||null);
+    const _parcelSite=(window.__exportData && window.__exportData.address)
+      ? [window.__exportData.address, window.__exportData.city].filter(Boolean).join(', ')
+      : ((window.__parcelMeta && window.__parcelMeta.site) || null);
+    const _coords='Pin: '+lat.toFixed(5)+', '+lng.toFixed(5);
+    const _addr=(searchCtx&&searchCtx.raw) ? searchCtx.raw
+              : (_parcelSite || _coords);
     window.__printMeta={ addr:_addr, lat:lat, lng:lng,
       where:[cityName?titleCase(cityName):null, countyName?titleCase(countyName)+' County':null].filter(Boolean).join(', '),
       when:new Date() };
