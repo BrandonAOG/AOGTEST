@@ -4798,6 +4798,138 @@ function renderNaplesSetbacks(districtCode, yearBuilt){
   return h;
 }
 
+/* ====================================================================================
+   DEVELOPMENT CAPACITY (computed envelope) — Naples & Collier
+   Derives the buildable-capacity figures PropZone-style reports show, from the parcel's
+   LOT AREA × the district's dimensional standards. These are CALCULATED estimates from the
+   adopted code's ratios — NOT permit numbers. Overlays, flood zones, PUD terms, corner/
+   waterfront conditions, non-conforming status, height bonuses and setback envelopes can all
+   change the real allowance, so every figure is shown with a verify caveat.
+
+   Each district entry may carry:
+     heightFt   max building height (ft)
+     stories    max stories
+     coverage   max lot coverage (fraction of lot area that may be covered by building footprint)
+     far        floor-area ratio (max gross building area ÷ lot area)
+     density    max dwelling units per ACRE (residential)
+     openSpace  min open space (fraction)
+     units      explicit max dwelling units (overrides density math when set, e.g. single-family =1)
+     note       any condition worth surfacing
+   Any field may be omitted; the renderer only shows what's present.
+   Sources: City of Naples Code Ch. 58 (zoning) dimensional tables; Collier LDC §§ 2.03, 4.02.
+   Hand-entered — verify against the live code. ==================================================== */
+const NAPLES_CAPACITY = {
+  // Residential single-family (Ch. 58). Coverage/height per the R-district schedule; SF districts = 1 unit.
+  "R1-15":  { heightFt:30, stories:2, coverage:0.30, far:0.45, units:1, note:"Single-family. Min lot 15,000 sq ft." },
+  "R1-10":  { heightFt:30, stories:2, coverage:0.35, far:0.50, units:1, note:"Single-family. Min lot 10,000 sq ft." },
+  "R1-7.5": { heightFt:30, stories:3, coverage:0.67, far:2.0,  units:1, note:"Single-family residence district. Min lot 7,500 sq ft. Coverage/FAR per Ch. 58 schedule — verify the current footprint & area caps for this lot." },
+  "R1-5":   { heightFt:30, stories:2, coverage:0.40, far:0.60, units:1, note:"Single-family. Min lot 5,000 sq ft." },
+  "R2-6":   { heightFt:30, stories:3, coverage:0.50, far:0.75, density:14.5, note:"Two-/multi-family low density." },
+  "R3-12":  { heightFt:42, stories:4, coverage:0.50, far:1.0,  density:12,  note:"Multi-family medium density." },
+  "R3-16":  { heightFt:42, stories:4, coverage:0.55, far:1.2,  density:16,  note:"Multi-family." },
+  "R3-22":  { heightFt:50, stories:5, coverage:0.55, far:1.5,  density:22,  note:"Multi-family high density." },
+  "RT":     { heightFt:50, stories:5, coverage:0.60, far:1.6,  density:26,  note:"Resort tourist (hotel/motel/multifamily). Density varies by use." },
+  "RMF":    { heightFt:42, stories:4, coverage:0.50, far:1.0,  density:16,  note:"Multi-family residential." },
+  // Commercial / office / downtown (Ch. 58)
+  "C1":     { heightFt:42, stories:3, coverage:0.60, far:1.5, note:"Neighborhood/limited commercial." },
+  "C1A":    { heightFt:42, stories:3, coverage:0.60, far:1.5, note:"Commercial." },
+  "C2":     { heightFt:42, stories:3, coverage:0.65, far:2.0, note:"General commercial." },
+  "C2A":    { heightFt:42, stories:3, coverage:0.65, far:2.0, note:"Commercial." },
+  "D":      { heightFt:42, stories:3, coverage:0.80, far:2.5, note:"Downtown — form-based; verify the specific frontage/overlay standards." },
+  "PS":     { heightFt:42, stories:3, coverage:0.60, far:1.5, note:"Professional services / office." },
+  "GPS":    { heightFt:42, stories:3, coverage:0.60, far:1.5, note:"General professional services." },
+  "I":      { heightFt:42, stories:3, coverage:0.70, far:1.5, note:"Industrial." },
+  "PD":     { note:"Planned Development — capacity is fixed by the approved PD ordinance/master plan, not a generic schedule. Verify the PD document." },
+  "CF":     { heightFt:42, stories:3, coverage:0.50, far:1.0, note:"Community facilities." }
+};
+const COLLIER_CAPACITY = {
+  // Residential (LDC § 2.03.01 / 4.02). SF districts = 1 unit/lot; RMF carry a density cap (units/ac).
+  "E":      { heightFt:35, stories:2, coverage:0.30, units:1, note:"Estates. Min lot 2.25 ac (typ). Single principal dwelling per LDC § 2.03.01." },
+  "A":      { heightFt:35, coverage:0.30, density:0.2, note:"Rural Agricultural — 1 unit / 5 ac base density." },
+  "RSF-1":  { heightFt:35, stories:2, coverage:0.30, units:1, note:"Single-family, 1 unit/ac max." },
+  "RSF-2":  { heightFt:35, stories:2, coverage:0.35, units:1, note:"Single-family, 2 units/ac max." },
+  "RSF-3":  { heightFt:35, stories:2, coverage:0.40, units:1, note:"Single-family, 3 units/ac max." },
+  "RSF-4":  { heightFt:35, stories:2, coverage:0.40, units:1, note:"Single-family, 4 units/ac max." },
+  "RSF-5":  { heightFt:35, stories:2, coverage:0.40, units:1, note:"Single-family, 5 units/ac max." },
+  "RSF-6":  { heightFt:35, stories:2, coverage:0.40, units:1, note:"Single-family, 6 units/ac max." },
+  "RMF-6":  { heightFt:35, stories:2, coverage:0.40, density:6,  note:"Multi-family, 6 units/ac max." },
+  "RMF-12": { heightFt:50, stories:3, coverage:0.45, density:12, note:"Multi-family, 12 units/ac max. Height-based yards." },
+  "RMF-16": { heightFt:75, stories:5, coverage:0.45, density:16, note:"Multi-family, 16 units/ac max. Height-based yards." },
+  "RT":     { heightFt:50, coverage:0.76, density:26, note:"Resort tourist — 26 units/ac (hotel/motel) or 16 (timeshare/multifamily). Max coverage 76%." },
+  "VR":     { heightFt:30, stories:2, coverage:0.40, density:7.26, note:"Village residential." },
+  "MH":     { heightFt:30, coverage:0.40, density:7.26, note:"Mobile home." },
+  "TTRVC":  { heightFt:30, density:12, note:"Travel-trailer/RV campground — 12 units/ac." },
+  // Commercial / industrial (LDC § 4.02) — coverage/FAR vary; figures are typical maxima, verify.
+  "C-1":    { heightFt:35, coverage:0.50, far:0.40, note:"Commercial professional/general office." },
+  "C-2":    { heightFt:35, coverage:0.50, far:0.40, note:"Commercial convenience." },
+  "C-3":    { heightFt:50, coverage:0.50, far:0.50, note:"Commercial intermediate." },
+  "C-4":    { heightFt:75, coverage:0.50, far:0.60, note:"General commercial." },
+  "C-5":    { heightFt:75, coverage:0.50, far:0.60, note:"Heavy commercial." },
+  "I":      { heightFt:50, coverage:0.50, far:0.50, note:"Industrial." },
+  "BP":     { heightFt:35, coverage:0.50, far:0.50, note:"Business park." },
+  "CF":     { heightFt:35, coverage:0.40, note:"Community facility." },
+  "P":      { note:"Public use — capacity per the most restrictive adjoining district / approved plan." },
+  "CON":    { heightFt:35, coverage:0.01, units:1, note:"Conservation — minimal development." },
+  "GC":     { heightFt:35, coverage:0.10, note:"Golf course." }
+};
+/* normalize a district code to a capacity-table key (mirrors the setback normalizer) */
+function _capKey(code, aliases){
+  if(code==null) return null;
+  const raw=String(code).toUpperCase().trim();
+  if(!raw) return null;
+  return { raw,
+    alpha: raw.replace(/[^A-Z]/g,''),
+    hyph:  raw.replace(/\s+/g,'').replace(/^([A-Z]+)(\d)/,'$1-$2'),
+    base:  raw.split(/[\s(/-]/)[0].replace(/^([A-Z]+)(\d)/,'$1-$2') };
+}
+function capacityRules(table, code){
+  const k=_capKey(code); if(!k) return null;
+  return table[k.raw] || table[k.hyph] || table[k.base] || null;
+}
+/* Compute capacity figures from lot area (sq ft) × a district rule entry. */
+function computeCapacity(rule, lotSqft){
+  if(!rule || !isFinite(lotSqft) || lotSqft<=0) return null;
+  const acres = lotSqft/43560;
+  const out = { heightFt:rule.heightFt||null, stories:rule.stories||null, note:rule.note||null,
+                coveragePct: rule.coverage!=null?Math.round(rule.coverage*100):null,
+                far: rule.far!=null?rule.far:null };
+  if(rule.coverage!=null) out.footprintSqft = Math.round(lotSqft*rule.coverage);
+  if(rule.far!=null)      out.maxBuildingSqft = Math.round(lotSqft*rule.far);
+  if(rule.openSpace!=null) out.openSpaceSqft = Math.round(lotSqft*rule.openSpace);
+  // dwelling units: explicit override wins (e.g. single-family =1), else density × acres (floored)
+  if(rule.units!=null) out.maxUnits = rule.units;
+  else if(rule.density!=null){ out.maxUnits = Math.max(0, Math.floor(rule.density*acres)); out.densityPerAcre = rule.density; }
+  return out;
+}
+/* Render the Development Capacity card. jurLabel e.g. "City of Naples" / "Collier County". */
+function renderCapacityCard(table, districtCode, lotSqft, jurLabel, codeRef){
+  const rule = capacityRules(table, districtCode);
+  if(!rule){ return ''; }
+  const cap = computeCapacity(rule, lotSqft);
+  if(!cap) return '';
+  let h=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">▣ CAPACITY</span> development envelope · ${esc(String(districtCode))}${jurLabel?' · '+esc(jurLabel):''}</div>`;
+  const haveLot = isFinite(lotSqft) && lotSqft>0;
+  if(!haveLot){
+    h+=`<div class="note">Lot area unavailable, so building totals can't be computed — showing the district ratios only.</div>`;
+  }
+  if(cap.heightFt!=null) h+=fieldRow('Max building height', esc(cap.heightFt+' ft'+(cap.stories?(' / '+cap.stories+' stories'):'')), 'big');
+  else if(cap.stories!=null) h+=fieldRow('Max stories', esc(String(cap.stories)), 'big');
+  if(cap.coveragePct!=null){
+    const fp = cap.footprintSqft!=null ? ' → ≈ '+cap.footprintSqft.toLocaleString('en-US')+' ft² footprint' : '';
+    h+=fieldRow('Max lot coverage', esc(cap.coveragePct+'%'+ (haveLot?fp:'')));
+  }
+  if(cap.far!=null){
+    const ba = cap.maxBuildingSqft!=null ? ' → ≈ '+cap.maxBuildingSqft.toLocaleString('en-US')+' ft² gross' : '';
+    h+=fieldRow('Floor-area ratio (FAR)', esc(cap.far+(haveLot?ba:'')));
+  }
+  if(cap.maxUnits!=null) h+=fieldRow('Max dwelling units', esc(cap.maxUnits+(cap.densityPerAcre?(' (@ '+cap.densityPerAcre+' du/ac)'):(cap.maxUnits===1?' (single-family)':''))));
+  if(cap.openSpaceSqft!=null) h+=fieldRow('Min open space', esc('≈ '+cap.openSpaceSqft.toLocaleString('en-US')+' ft²'));
+  if(cap.note) h+=`<div class="note" style="padding-top:2px">${esc(cap.note)}</div>`;
+  h+=`<div class="note warnbox" style="margin-top:4px"><b>Computed estimate — not a permit figure.</b> These totals are the district's code ratios applied to this lot's area${haveLot?' (≈ '+Math.round(lotSqft).toLocaleString('en-US')+' ft²)':''}. Overlays, the flood zone, PUD terms, corner/waterfront conditions, non-conforming status and the setback envelope can all lower what's actually buildable. Verify with ${esc(jurLabel||'the jurisdiction')}'s planning/building department before relying on any number.</div>`;
+  if(codeRef) h+=`<a class="palink" href="${esc(codeRef)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify dimensional standards in the adopted code</a>`;
+  return h;
+}
+
 /* ---------- Naples § 56-41 mechanical-equipment / generator siting (Always On Generators) ----------
    Always-applicable rules (fuel near a line, auto-cycle window, screening) render for every Naples
    parcel. The pre-ordinance 36" side-yard allowance for NEW generators is gated on year-built, with
@@ -5187,10 +5319,15 @@ function renderParcelGeneric(a, d){
   if(site) h += fieldRow('Site address', esc(site)+(city?'<br>'+esc(city):''));
   if(mail) h += fieldRow('Owner mailing', esc(mail)+(mailCity?'<br>'+esc(mailCity):''));
   if(use)  h += fieldRow('Existing use', esc(use));
-  if(jv)   h += fieldRow('Just (market) value', jv);
+  if(jv)   h += fieldRow('Just (market) value'+(a.__asmtYr?' '+esc(String(a.__asmtYr)):''), jv);
+  if(a.__assessedVal!=null) h += fieldRow('Assessed value', fmtMoney(a.__assessedVal));
+  if(a.__taxableVal!=null)  h += fieldRow('Taxable value', fmtMoney(a.__taxableVal));
   if(land) h += fieldRow('Land value', land);
-  if(yr)   h += fieldRow('Year built', esc(yr));
+  if(yr){ const effExtra = (a.__effYr!=null && String(a.__effYr)!==String(yr)) ? ` (effective ${esc(String(a.__effYr))})` : '';
+    const bldExtra = (a.__bldgCount!=null && Number(a.__bldgCount)>1) ? ` · ${esc(String(a.__bldgCount))} bldgs` : '';
+    h += fieldRow('Year built', esc(String(yr))+effExtra+bldExtra); }
   if(sp)   h += fieldRow('Last sale', sp+(sy?' ('+esc(sy)+')':''));
+  if(a.__legal) h += fieldRow('Legal', '<span style="font-size:11px">'+esc(String(a.__legal))+'</span>');
   return h;
 }
 
@@ -5227,6 +5364,7 @@ async function runLookup(lat,lng,searchCtx){
 
   let html='';
   let parcelYearBuilt=null;   // captured from whichever parcel source answers; used for Naples § 56-41 generator gating
+  let parcelLotSqft=null;     // captured from parcel geometry; used for the Development Capacity card
 
   /* ---- Location / jurisdiction ---- */
   let countyName = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
@@ -5443,10 +5581,32 @@ async function runLookup(lat,lng,searchCtx){
     // then pick it up with no further changes. Only fills gaps; never overwrites a live value.
     if(parcel && !parcel.__err && parcel.features && parcel.features[0]){
       const _ra=parcel.features[0].attributes||{}, _la=liveRes.features[0].attributes;
+      const _num=v=>v!=null&&String(v).trim()!==''&&Number(String(v).replace(/[^0-9.]/g,''))>0;
+      // living area
       if(!det.liv){ const _liv=pick(_ra,'TOT_LVG_AR','TOTLVGAR','HEATED_AREA','HEATEDAREA','LIVING_AREA','LIVINGAREA','BLDG_SQFT');
-        if(_liv!=null && String(_liv).trim()!=='' && Number(String(_liv).replace(/[^0-9.]/g,''))>0){ _la.TOT_LVG_AR=_liv; det.liv='TOT_LVG_AR'; } }
+        if(_num(_liv)){ _la.TOT_LVG_AR=_liv; det.liv='TOT_LVG_AR'; } }
+      // year built (actual)
       if(!det.yr){ const _y=pick(_ra,'ACT_YR_BLT','YR_BLT','EFF_YR_BLT','ACTYRBLT');
-        if(_y!=null && String(_y).trim()!=='' && Number(String(_y).replace(/[^0-9]/g,''))>0){ _la.ACT_YR_BLT=_y; det.yr='ACT_YR_BLT'; } }
+        if(_num(_y)){ _la.ACT_YR_BLT=_y; det.yr='ACT_YR_BLT'; } }
+      // lot / land square footage
+      if(!det.lotSqft){ const _ls=pick(_ra,'LND_SQFOOT','LOT_SQFT','LAND_SQFT','LOTSQFT','SQFT_LND');
+        if(_num(_ls)){ _la.LND_SQFOOT=_ls; det.lotSqft='LND_SQFOOT'; } }
+      // just / market value (prefer plain JV, else homestead just value)
+      if(!det.jv){ const _jv=pick(_ra,'JV','JV_HMSTD','JUST_VAL','JUSTVALUE');
+        if(_num(_jv)){ _la.JV=_jv; det.jv='JV'; } }
+      // land value
+      if(!det.land){ const _lv=pick(_ra,'LND_VAL','LAND_VAL','LANDVALUE');
+        if(_num(_lv)){ _la.LND_VAL=_lv; det.land='LND_VAL'; } }
+      // use code
+      if(!det.use){ const _uc=pick(_ra,'DOR_UC','PA_UC','LAND_USE');
+        if(_uc!=null && String(_uc).trim()!==''){ _la.DOR_UC=_uc; det.use='DOR_UC'; } }
+      // extra roll detail surfaced via dedicated fields on the live attrs (rendered below)
+      const _eff=pick(_ra,'EFF_YR_BLT'); if(_num(_eff)) _la.__effYr=_eff;
+      const _bld=pick(_ra,'NO_BULDNG','NO_BULDNGS','BLDG_NUM'); if(_num(_bld)) _la.__bldgCount=_bld;
+      const _av=pick(_ra,'AV_SD','AV_NSD','ASSD_VAL'); if(_num(_av)) _la.__assessedVal=_av;
+      const _tv=pick(_ra,'TV_SD','TV_NSD','TAXABLE_VAL'); if(_num(_tv)) _la.__taxableVal=_tv;
+      const _ay=pick(_ra,'ASMNT_YR'); if(_ay!=null&&String(_ay).trim()!=='') _la.__asmtYr=_ay;
+      const _lg=pick(_ra,'S_LEGAL','LEGAL','LEGAL_1'); if(_lg!=null&&String(_lg).trim()!=='') _la.__legal=_lg;
     }
     if(det.yr){ const _y=pick(liveRes.features[0].attributes,det.yr); if(_y) parcelYearBuilt=_y; }
     const le=liveMeta&&liveMeta.lastEdit;
@@ -5469,7 +5629,9 @@ async function runLookup(lat,lng,searchCtx){
       }catch(e){}
     }
     { const _a=liveRes.features[0].attributes; const _ra=pick(_a,'TOTALACRES')||pick(_a,'ACREAGE')||pick(_a,'GIS_ACRES')||null;
-      html += renderLotDimensions(liveRes.features[0].geometry, _ra); }
+      html += renderLotDimensions(liveRes.features[0].geometry, _ra);
+      try{ const _dim=parcelDimensions(liveRes.features[0].geometry); if(_dim&&_dim.areaSqft>0) parcelLotSqft=_dim.areaSqft;
+        else if(_ra&&Number(_ra)>0) parcelLotSqft=Number(_ra)*43560; }catch(e){} }
     if(liveMeta && liveMeta.ng911){
       html += `<div class="note"><span class="badge live" style="font-size:9px">● ADDRESS MATCH</span> Resolved via the county's official NG911 address layer${liveMeta.note?'. '+esc(liveMeta.note):' — the exact parcel for this address.'}</div>`;
     } else if(liveMeta && liveMeta.approx && liveMeta.note){
@@ -5549,6 +5711,8 @@ async function runLookup(lat,lng,searchCtx){
       setTimeout(()=>showNeighborNumbers(_sHN, lat, lng), 350);
     }catch(e){}
     html += renderLotDimensions(parcel.features[0].geometry, pick(a,'TOTALACRES'));
+    try{ const _dim=parcelDimensions(parcel.features[0].geometry); if(_dim&&_dim.areaSqft>0) parcelLotSqft=_dim.areaSqft;
+      else { const _ta=pick(a,'TOTALACRES'); if(_ta&&Number(_ta)>0) parcelLotSqft=Number(_ta)*43560; } }catch(e){}
     if(parcel.__multi && parcel.__multi>1) html += `<div class="note">${parcel.__multi} parcels overlap this point (common with condos/multi-unit). Showing the most specific one — verify on the appraiser if it's not the unit you meant.</div>`;
   } else if(parcel && parcel.__err){
     html += `<div class="note">Parcel service did not respond (${esc(parcel.__err)}). Try again, or use the county appraiser link above.</div>`;
@@ -5729,13 +5893,13 @@ async function runLookup(lat,lng,searchCtx){
     if(zhit.code!=null && String(zhit.code).trim()!==''){ html += fieldRow('Zoning district', esc(String(zhit.code)), 'big'); if(window.__exportData) window.__exportData.zoning=String(zhit.code).trim(); }
     if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
-    if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code, parcelYearBuilt); }
+    if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code, parcelYearBuilt); html += renderCapacityCard(NAPLES_CAPACITY, zhit.code, parcelLotSqft, 'City of Naples', null); }
     if(norm(cityName)==='MARCOISLAND' && zhit.code){ html += renderMarcoSetbacks(zhit.code); }
     // Collier COUNTY setbacks apply only to UNINCORPORATED Collier. The incorporated cities —
     // Naples and Marco Island — each adopt their own Land Development Code, so they must NOT
     // inherit county rules. (Naples and Marco Island are handled above; if a Marco Island district
     // isn't in the quick-ref table, it falls through to the "look it up in the adopted code" note.)
-    if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName)) && zhit.code){ html += renderCollierSetbacks(zhit.code); }
+    if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName)) && zhit.code){ html += renderCollierSetbacks(zhit.code); html += renderCapacityCard(COLLIER_CAPACITY, zhit.code, parcelLotSqft, 'Collier County', null); }
     if(norm(cityName)==='CAPECORAL' && zhit.code){ html += renderCapeCoralSetbacks(zhit.code); }
     if(norm(cityName)==='BONITASPRINGS' && zhit.code){ html += renderBonitaSetbacks(zhit.code); }
     // Estero adopted its own LDC (Chapter 3 zoning) and OVERRIDES Lee County.
