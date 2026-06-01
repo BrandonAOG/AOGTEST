@@ -5168,7 +5168,7 @@ async function runLookup(lat,lng,searchCtx){
     ? arcQuery(_utilUrl, lat, lng, '*', false).catch(e=>({__err:e.message}))
     : Promise.resolve(null);
 
-  const [parcel,flood,city,county,live,util] = await Promise.all([pParcel,pFlood,pCity,pCounty,pLive,pUtil]);
+  let [parcel,flood,city,county,live,util] = await Promise.all([pParcel,pFlood,pCity,pCounty,pLive,pUtil]);
   if(myId!==runId) return; // a newer query superseded this one
 
   let html='';
@@ -5356,6 +5356,22 @@ async function runLookup(lat,lng,searchCtx){
     const cl = await pCountyLive;
     if(myId!==runId) return;
     if(cl){ liveRes=cl.res; liveMeta=cl.meta; liveErr=cl.err; }
+  }
+  // RE-ANCHOR THE STATEWIDE ROLL: the statewide parcel (`parcel`) was queried at the raw geocoded
+  // point, which can land on the NEIGHBOUR's lot (the off-by-one geocoder drift). When the live-feed
+  // lookup resolved an authoritative address point (liveRes.__ngLat/__ngLng) that sits meaningfully
+  // away from the geocoded point, the statewide record we fetched is the wrong parcel — its spliced
+  // living-area / year-built / value would be the neighbour's. Re-query the roll AT the corrected
+  // point and use that instead, so every roll-sourced field matches the parcel actually shown.
+  if(liveRes && isFinite(liveRes.__ngLat) && isFinite(liveRes.__ngLng)){
+    const _dd=(liveRes.__ngLat-lat)*(liveRes.__ngLat-lat)+(liveRes.__ngLng-lng)*(liveRes.__ngLng-lng);
+    if(_dd > 1e-9){   // ~> a few metres: only re-fetch when the point actually moved
+      const _reParcel = await arcQueryRetry(EP.parcel, liveRes.__ngLat, liveRes.__ngLng, '*', true)
+        .catch(()=>null);
+      if(_reParcel && !_reParcel.__err && _reParcel.features && _reParcel.features[0]){
+        parcel = _reParcel;
+      }
+    }
   }
   const liveHit = !!liveRes;
   const srcLabel = liveHit ? `live county feed` : `FL Dept. of Revenue<br>statewide roll`;
