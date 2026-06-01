@@ -2227,7 +2227,7 @@ function detectFields(fields){
     owner: find([/^OWN_?NAME$/,/^OWNER$/,/^OWNER_?NAME$/,/^OWNERNAME$/,/^OWNER1$/,/^NAME1$/,/^O_NAME/,/OWN.*NAME/,/^GRANTEE/]),
     owner2:find([/^OWN_?NAME2$/,/^OWNER2$/,/^OWNER_?NAME2$/,/^NAME2$/,/OWN.*NAME2/]),
     pid:   find([/^STRAP/,/^PARCEL_?ID$/,/^PARCELID$/,/^PARID$/,/^FOLIO/,/^PIN$/,/^APN$/,/^ACCOUNT$/,/PARCEL.*(ID|NO|NUM)/,/PROP_?ID/]),
-    site:  find([/^SITE_?ADDR/,/^PHY_?ADDR1$/,/^PHY_?ADDR$/,/SITUS/,/^S_ADDR/,/SITE.*ADDR/,/^LOCATION$/,/SITEADDRESS/,/^ADDRESS$/,/^FULLPROPERTYADDRESS$/,/^PROPERTY_?ADDR/]),
+    site:  find([/^SITE_?ADDR/,/^PHY_?ADDR1$/,/^PHY_?ADDR$/,/SITUS/,/^S_ADDR/,/SITE.*ADDR/,/^LOCATION$/,/SITEADDRESS/,/^STUBADDRESS$/,/^ADDRESS$/,/^FULLPROPERTYADDRESS$/,/^PROPERTY_?ADDR/]),
     city:  find([/^SITE_?CITY$/,/^PHY_?CITY$/,/SITUS.*CITY/]),
     jv:    find([/^JV$/,/^JUST_?VAL/,/^JUSTVALUE$/,/^MKT_?VAL/,/^MARKET_?VAL/,/^MARKETVALUE$/,/^TOTAL_?VAL/,/^JUST$/,/^TOTVAL/]),
     land:  find([/^LND_?VAL/,/^LAND_?VAL/,/^LAND$/]),
@@ -4318,16 +4318,8 @@ const NG911 = {
     numField:"Add_Number", stField:"St_Name", unitField:"Unit", strapField:"STRAP",
     lonField:"Longitude", latField:"Latitude", addrField:"Full_Address"
   },
-  // Collier (City of Naples authoritative address points; covers all of Collier incl. Naples).
-  // No STRAP/parcel-id field, so this is POINT-ONLY: it returns the authoritative address point,
-  // and the normal point-in-polygon parcel query runs from that exact spot. Geometry is requested
-  // in WGS84 via outSR=4326 (no lat/lon fields). FULLNAME holds "108th AVE N" etc., so strict
-  // client-side street matching is required to avoid 8th≈98th≈108th collisions.
-  COLLIER: {
-    url:"https://g.naplesgov.com/arcgis/rest/services/BaseMaps/NaplesBaseMap/MapServer/0/query",
-    numField:"ADDRNUM", stField:"FULLNAME", unitField:"UNITID", strapField:null,
-    addrField:"FULLADDR", pointOnly:true, strictStreet:true
-  }
+  // Collier NG911 disabled — it caused address-resolution problems. Collier now falls back to the
+  // normal geocoder + point-in-polygon parcel path like uncovered counties.
 };
 /* Strict street agreement for NG911 candidate filtering. Unlike sameStreet() (lenient, any-token
    overlap), this requires the distinctive street tokens — INCLUDING ordinals/numbers like 8TH —
@@ -4517,6 +4509,90 @@ function parcelAddrText(a){
   const parts=[a.SITENUMBER,a.SITESTREET,a.SITEUNIT].filter(Boolean);
   if(parts.length) return parts.join(' ');
   return '';
+}
+/* ---------- Reverse address-point lookup for "lean" parcel feeds ----------
+   Some counties (e.g. Collier) publish parcels with NO site-address field; the address lives in a
+   SEPARATE point layer. After we have the parcel polygon, query that layer for the address point that
+   falls INSIDE the polygon (preferred) or nearest the click, and return a formatted address string.
+   Field names are auto-detected so it tolerates schema variation. */
+const ADDRPOINT_FEEDS = {
+  // Collier — Site Address Points (layer 3). Fields incl. ADDRNUM, UNITID, UNITTYPE, STATUS, and a
+  // full-street/site field (FULLADDR/STUBADDRESS/ST_NAME). CORS-friendly (same org as parcels).
+  COLLIER: "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Site_Address_Points_b/FeatureServer/3/query"
+};
+/* Build a readable address from an address-point's attributes, auto-detecting field names. */
+function formatAddrPoint(a){
+  if(!a) return '';
+  const F={}; for(const k in a){ F[k.toUpperCase()]=a[k]; }
+  // a single full-address field is best if present
+  const full = F.FULLADDR||F.FULL_ADDR||F.STUBADDRESS||F.SITEADDRESS||F.SITE_ADDR||F.FULLADDRESS||F.ADDRESS;
+  if(full && String(full).trim()) return String(full).trim().replace(/\s+/g,' ');
+  // otherwise assemble from parts
+  const num = F.ADDRNUM||F.ADD_NUMBER||F.HOUSE_NUM||F.STNUM||F.STREET_NUM;
+  const pre = F.PREDIR||F.PRE_DIR||F.ST_PREDIR;
+  const name= F.ST_NAME||F.STREETNAME||F.STNAME||F.FULLNAME||F.STREET;
+  const typ = F.ST_TYPE||F.STREETTYPE||F.STTYPE||F.SUFFIX;
+  const pos = F.POSTDIR||F.POST_DIR||F.ST_POSDIR;
+  const unitT=F.UNITTYPE||F.UNIT_TYPE; const unitId=F.UNITID||F.UNIT||F.UNIT_NO;
+  const street=[pre,name,typ,pos].filter(v=>v!=null&&String(v).trim()!=='').join(' ').replace(/\s+/g,' ').trim();
+  const base=[num,street].filter(v=>v!=null&&String(v).trim()!=='').join(' ').trim();
+  const unit=[unitT,unitId].filter(v=>v!=null&&String(v).trim()!=='').join(' ').trim();
+  return (unit?`${base} ${unit}`:base).trim();
+}
+/* Query the county's address-point layer at lat/lng. Returns a formatted address string or null.
+   wantHN (optional): the house number the user typed. When supplied, an exact house-number match
+   (on the same street, nearest such point) is preferred over the merely-closest point — this fixes
+   geocoder drift that lands the query point a few metres into the NEIGHBOUR's lot (off-by-one-house).
+   wantStreetRaw (optional): the typed address, used to confirm the street matches. */
+async function reverseAddrPoint(countyName, lat, lng, wantHN, wantStreetRaw){
+  const url = countyName ? ADDRPOINT_FEEDS[norm(countyName)] : null;
+  if(!url || !isFinite(lat) || !isFinite(lng)) return null;
+  // When we have a house number to match, widen the window (~75 m) so the correct house is in range
+  // even if the geocoder drifted next door; otherwise keep it tight (~25 m) for a bare map click.
+  const d = wantHN ? 0.0007 : 0.00025;
+  const env=`${lng-d},${lat-d},${lng+d},${lat+d}`;
+  const params=`geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+    `&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326`+
+    `&resultRecordCount=200&f=json`;
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
+  try{
+    const r=await fetch(url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return null;
+    const j=await r.json();
+    if(j.error||!j.features||!j.features.length) return null;
+    const hnStr = wantHN!=null ? String(wantHN).trim() : null;
+    let best=null, bestD=Infinity;          // closest point overall (fallback)
+    let hnBest=null, hnBestD=Infinity;       // closest point whose house number matches wantHN
+    for(const f of j.features){
+      const a=f.attributes||{};
+      // skip retired/invalid points if a STATUS field flags them
+      const st=(a.STATUS||a.Status||'').toString().toUpperCase();
+      if(st && /(RETIRE|INACTIVE|INVALID|DELETE)/.test(st)) continue;
+      const g=f.geometry;
+      const gx=g?(g.x!=null?g.x:g.X):null, gy=g?(g.y!=null?g.y:g.Y):null;
+      const dd=(gx!=null&&gy!=null)?((gx-lng)*(gx-lng)+(gy-lat)*(gy-lat)):Infinity;
+      if(dd<bestD){ bestD=dd; best=a; }
+      if(hnStr){
+        // house number on this point (dedicated field if present, else parsed from the text)
+        const F={}; for(const k in a){ F[k.toUpperCase()]=a[k]; }
+        let pnum = F.ADDRNUM||F.ADD_NUMBER||F.HOUSE_NUM||F.STNUM||F.STREET_NUM;
+        if(pnum==null||String(pnum).trim()===''){ const m=String(formatAddrPoint(a)).match(/^\s*(\d+)/); pnum=m?m[1]:null; }
+        if(pnum!=null && String(pnum).trim()===hnStr){
+          // if the user typed a street, require it to agree (guards against same number on another road)
+          const okStreet = !wantStreetRaw || sameStreet(wantStreetRaw, formatAddrPoint(a));
+          if(okStreet && dd<hnBestD){ hnBestD=dd; hnBest=a; }
+        }
+      }
+    }
+    const chosen = hnBest || best || (j.features[0] && j.features[0].attributes) || null;
+    if(!chosen) return null;
+    const txt=formatAddrPoint(chosen);
+    if(!txt) return null;
+    // find the chosen feature's coords (so the caller can snap the marker/parcel if the geocoder drifted)
+    let cLat=null, cLng=null;
+    for(const f of j.features){ if(f.attributes===chosen && f.geometry){ const g=f.geometry; cLng=(g.x!=null?g.x:g.X); cLat=(g.y!=null?g.y:g.Y); break; } }
+    return { addr:txt, lat:cLat, lng:cLng, matchedHN: !!hnBest };
+  }catch(e){ clearTimeout(t); return null; }
 }
 function parcelUnit(a){
   if(!a) return null;
@@ -5063,6 +5139,40 @@ async function runLookup(lat,lng,searchCtx){
           if(al && al.features[0]){
             al.__multi=multi; al.__matchedAddr=matchedAddr; al.__exactUnit=exactUnit;
             res=al;
+            // LEAN-FEED ADDRESS FILL: if this county's parcel layer carries no site-address field
+            // (e.g. Collier), reverse-look-up the address from the county's separate address-point
+            // layer at the parcel's location and splice it in as SITEADDR so the normal detector +
+            // renderer + export pick it up with no further changes. When the user typed a house number
+            // and the matched address point sits on a DIFFERENT parcel than the geocoded point landed
+            // on (classic off-by-one-house geocoder drift), re-fetch the parcel AT the matched point so
+            // the polygon, marker, owner and address all agree.
+            try{
+              const _aAttr=al.features[0].attributes||{};
+              if(!parcelAddrText(_aAttr) && ADDRPOINT_FEEDS[norm(countyName)]){
+                const _pLat = (al.__ngLat!=null?al.__ngLat:lat), _pLng=(al.__ngLng!=null?al.__ngLng:lng);
+                const _hn = (searchCtx && searchCtx.hn) ? searchCtx.hn : null;
+                const _sraw = (searchCtx && searchCtx.raw) ? searchCtx.raw : null;
+                const _ap = await reverseAddrPoint(countyName, _pLat, _pLng, _hn, _sraw).catch(()=>null);
+                if(_ap && _ap.addr){
+                  let _spliced=false;
+                  // If we matched the typed house number at a point away from the geocoded spot, re-anchor
+                  // the parcel to that point so we don't show the neighbour's lot.
+                  if(_ap.matchedHN && isFinite(_ap.lat) && isFinite(_ap.lng)){
+                    const _pr2 = await arcQueryRetry(cu, _ap.lat, _ap.lng, '*', true, ENRICH_TIMEOUT).catch(()=>null);
+                    if(_pr2 && !_pr2.__err && _pr2.features && _pr2.features[0]){
+                      const _sel=pickSpecificParcel(_pr2.features);
+                      const _na=_sel.feature.attributes||{};
+                      _na.SITEADDR=_ap.addr;
+                      al.features[0]=_sel.feature; multi=_sel.count;
+                      al.__multi=_sel.count; al.__ngLat=_ap.lat; al.__ngLng=_ap.lng;
+                      _spliced=true;
+                    }
+                  }
+                  if(!_spliced){ _aAttr.SITEADDR=_ap.addr; }
+                  al.__matchedAddr=_ap.addr;
+                }
+              }
+            }catch(e){}
             // Skip the extra metadata round-trip when NG911 already gave us an authoritative match.
             const info = al.__ng911 ? null : await getLayerInfo(cu).catch(()=>null);
             meta={ name:reg.label||(info&&info.name), lastEdit:(info&&info.lastEdit)||null, approx:al.__approx, note:al.__note, ng911:al.__ng911 }; err=null; break;
