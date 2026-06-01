@@ -787,7 +787,10 @@
 <div class="layerswitch">
   <button id="btnSat" class="active">Satellite</button>
   <button id="btnStreet">Street</button>
+  <button id="btnTopo" title="USGS topographic / terrain basemap — elevation &amp; contour context for low-ground / pad siting">⛰ Topo</button>
   <button id="btnBounds" class="active" title="Toggle color-coded incorporated city-limit outlines">◰ City limits</button>
+  <button id="btnFlood" title="Shade FEMA flood-hazard zones (AE / VE / X) across the view — live NFHL. Zoom in to see it.">≋ Flood</button>
+  <button id="btnParcels" title="Draw statewide parcel / lot lines — zoom in close (FL cadastral)">▦ Parcels</button>
   <button id="btnRadar" title="Toggle animated rain/storm radar (RainViewer · last ~2h, looping)">◵ Radar</button>
   <button id="btnCone" title="Show the NHC forecast cone &amp; track for any active tropical system">⬢ Cone</button>
 </div>
@@ -1721,10 +1724,24 @@ const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services
 const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   {maxZoom:19,attribution:"&copy; OpenStreetMap contributors",updateWhenIdle:L.Browser.mobile,keepBuffer:2});
 const satGroup = L.layerGroup([sat,labels]).addTo(map);
+// USGS National Map topographic basemap — keyless XYZ tiles. Gives terrain, contours & elevation
+// context (handy for spotting low ground before siting a pad). Cached only to z16, so upscale above.
+const topo = L.tileLayer("https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
+  {maxZoom:19,maxNativeZoom:16,attribution:"Topo &copy; USGS The National Map",updateWhenIdle:L.Browser.mobile,keepBuffer:2});
 
-const btnSat=document.getElementById('btnSat'), btnStreet=document.getElementById('btnStreet');
-btnSat.onclick=()=>{map.addLayer(satGroup);map.removeLayer(street);btnSat.classList.add('active');btnStreet.classList.remove('active');};
-btnStreet.onclick=()=>{map.addLayer(street);map.removeLayer(satGroup);btnStreet.classList.add('active');btnSat.classList.remove('active');};
+const btnSat=document.getElementById('btnSat'), btnStreet=document.getElementById('btnStreet'), btnTopo=document.getElementById('btnTopo');
+// The three basemaps are mutually exclusive; overlays (city limits / flood / parcels / radar) sit on top.
+// All basemaps live in the low tilePane, so they always render beneath the overlays regardless of order.
+function setBasemap(which){
+  [satGroup,street,topo].forEach(l=>{ if(map.hasLayer(l)) map.removeLayer(l); });
+  ({sat:satGroup,street:street,topo:topo}[which]||satGroup).addTo(map);
+  btnSat.classList.toggle('active', which==='sat');
+  btnStreet.classList.toggle('active', which==='street');
+  btnTopo.classList.toggle('active', which==='topo');
+}
+btnSat.onclick=()=>setBasemap('sat');
+btnStreet.onclick=()=>setBasemap('street');
+btnTopo.onclick=()=>setBasemap('topo');
 
 let marker=null, parcelLayer=null;
 map.on('click', e => runLookup(e.latlng.lat, e.latlng.lng));
@@ -1816,6 +1833,71 @@ async function refreshBoundaries(){
 let boundsTimer=null;
 const BOUNDS_DEBOUNCE = L.Browser.mobile ? 700 : 350;   // wait longer on phones so a pan settles before refetching
 map.on('moveend zoomend', ()=>{ clearTimeout(boundsTimer); boundsTimer=setTimeout(refreshBoundaries,BOUNDS_DEBOUNCE); });
+
+/* ---------- FEMA flood-hazard shading (NFHL layer 28 — the same zones the panel queries on click) -
+   FEMA's NFHL is a *dynamic* ArcGIS MapServer (not pre-cached tiles), so we request a rendered PNG
+   per map tile from its export endpoint. Keyless + CORS-enabled. Lives in the tilePane above the
+   basemap, below the vector overlays. Tiny TileLayer subclass turns each tile's lat/lng bounds into
+   the EPSG:3857 bbox the export endpoint wants. */
+const FEMA_NFHL_MS = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer";
+const ArcGISExportTiles = L.TileLayer.extend({
+  getTileUrl: function(coords){
+    const b  = this._tileCoordsToBounds(coords);                 // tile bounds (lat/lng)
+    const nw = this._map.options.crs.project(b.getNorthWest());  // -> Web Mercator metres
+    const se = this._map.options.crs.project(b.getSouthEast());
+    const bbox = [nw.x, se.y, se.x, nw.y].join(',');             // xmin,ymin,xmax,ymax
+    return L.Util.template(this._url, L.extend({ bbox }, this.options));
+  }
+});
+const floodLayer = new ArcGISExportTiles(
+  FEMA_NFHL_MS + "/export?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857"
+              + "&size=256,256&layers=show:28&f=image&bbox={bbox}",
+  { tileSize:256, opacity:0.45, minZoom:10, maxZoom:19, zIndex:240,
+    attribution:'Flood zones &copy; FEMA NFHL', updateWhenIdle:L.Browser.mobile });
+let floodOn=false;
+const btnFlood=document.getElementById('btnFlood');
+if(btnFlood) btnFlood.onclick=function(){
+  floodOn=!floodOn; this.classList.toggle('active',floodOn);
+  if(floodOn){ floodLayer.addTo(map); if(map.getZoom()<10) mapToast('Zoom in to see flood-zone shading.',2400); }
+  else map.removeLayer(floodLayer);
+};
+
+/* ---------- Parcel / lot-line overlay (statewide cadastral) ----------
+   Same FL DOR cadastral the panel reads on click, drawn as thin lines across the view. Parcels are
+   dense, so we only fetch when zoomed in tight (z>=16), cap the record count, draw no fill, and
+   debounce on pan/zoom — exactly like the city-limit layer above. */
+const PARCEL_FS = "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query";
+const parcelLinesLayer = L.geoJSON(null, { renderer:canvasRenderer,
+  style:{ color:'#39d3ff', weight:1, opacity:.7, fill:false } });
+let parcelLinesOn=false, parcelBusy=false, parcelKey='';
+async function refreshParcelLines(){
+  if(!parcelLinesOn) return;
+  if(map.getZoom() < 16){ parcelLinesLayer.clearLayers(); parcelKey=''; return; }   // too dense zoomed out
+  const b=map.getBounds();
+  const key=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(n=>n.toFixed(4)).join(',');
+  if(key===parcelKey || parcelBusy) return;
+  parcelBusy=true;
+  const env=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+  const url=PARCEL_FS+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+    `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=&returnGeometry=true&outSR=4326`+
+    `&resultRecordCount=3000&f=geojson`;
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
+    const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
+    if(r.ok){ const gj=await r.json();
+      if(gj && gj.features){ parcelLinesLayer.clearLayers(); parcelLinesLayer.addData(gj); parcelKey=key; } }
+  }catch(e){ /* keep existing lines on failure */ }
+  finally{ parcelBusy=false; }
+}
+const btnParcels=document.getElementById('btnParcels');
+if(btnParcels) btnParcels.onclick=function(){
+  parcelLinesOn=!parcelLinesOn; this.classList.toggle('active',parcelLinesOn);
+  if(parcelLinesOn){ parcelLinesLayer.addTo(map); parcelKey='';
+    if(map.getZoom()<16) mapToast('Zoom in close to see parcel lines.',2400); else refreshParcelLines(); }
+  else map.removeLayer(parcelLinesLayer);
+};
+let parcelTimer=null;
+map.on('moveend zoomend', ()=>{ clearTimeout(parcelTimer); parcelTimer=setTimeout(refreshParcelLines,BOUNDS_DEBOUNCE); });
 document.getElementById('btnBounds').onclick=function(){
   boundsOn=!boundsOn; this.classList.toggle('active',boundsOn);
   if(boundsOn){ boundsKey=''; refreshBoundaries(); } else { boundsLayer.clearLayers(); }
@@ -4992,6 +5074,20 @@ async function runLookup(lat,lng,searchCtx){
   html += fieldRow('Coordinates', `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
   if(paUrl) html += `<a class="palink" href="${paUrl}" target="_blank" rel="noopener">↗ Open ${esc(titleCase(countyName))} County Property Appraiser</a>`;
   html += `</div></div>`;
+
+  /* ---- EARLY FIRST PAINT --------------------------------------------------------------------
+     Jurisdiction (county/municipality/coords/appraiser link) is built off the FAST city+county
+     lookups and is ready almost immediately. Paint it NOW — before the parcel section, which for a
+     pre-wired county (Lee, Collier, Charlotte…) blocks on the NG911 + live-feed chain below. That
+     await was gating the old first paint, so a Cape Coral search felt slow; this fixes it. The two
+     paints further down (parcel+flood, then the full panel) replace this as their data arrives. */
+  if(myId===runId){
+    results.innerHTML = '<div class="cardflow">' + html
+      + '<div class="card noprint"><div class="cb"><div class="freshline">'
+      + '<span class="badge live">● LOADING</span> pulling parcel, flood &amp; site detail…'
+      + '</div></div></div></div>';
+    document.body.classList.add('has-results');
+  }
 
   /* ---- Parcel / owner : prefer LIVE feed (manual paste OR pre-wired county), else statewide roll ---- */
   let liveRes=null, liveMeta=null, liveErr=null;
