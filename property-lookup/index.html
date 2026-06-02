@@ -5287,25 +5287,19 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
     if(map.getZoom() < 16) return;                       // too dense/zoomed-out to be legible
     const b=map.getBounds();
     const env=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
-    // Request ONLY the fields the labels need (address + parcel-id candidates), not every field.
-    // outFields=* with returnGeometry on 400 parcels is a heavy payload that can exceed the 12s
-    // timeout on a real web origin (e.g. GitHub Pages) even when it squeaks through locally —
-    // which silently drops all the number labels. A lean field list returns fast everywhere.
-    const lblFields='PHY_ADDR1,SITEADDR,SITE_ADDR,SITUS,FULLADDR,ADDRESS,SITENUMBER,SITESTREET,SITEUNIT,'+
-      'PARCEL_ID,PARCELID,PARCEL,FOLIO,STRAP,PIN,PID,ACCOUNT,PARCEL_NO,PARCELNO,APN';
-    const lblBase=PARCEL_FS+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
-      `&spatialRel=esriSpatialRelIntersects&where=1%3D1&returnGeometry=true&outSR=4326&resultRecordCount=400&f=json`;
-    const lblFetch=async(fields)=>{
-      const u=lblBase+`&outFields=${encodeURIComponent(fields)}`;
-      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
-      try{ const r=await fetch(u,{signal:ctrl.signal}); clearTimeout(t);
-        if(!r.ok) return null; return await r.json(); }
-      catch(e){ clearTimeout(t); return null; }
-    };
-    let j=await lblFetch(lblFields);
-    // If the server rejected a field name (schema differs), retry once pulling all fields.
-    if(!j || j.error){ j=await lblFetch('*'); }
-    if(!j || j.error || !j.features || !j.features.length) return;
+    // Request only the two fields the labels need, both confirmed to exist on the statewide layer
+    // (PHY_ADDR1 = address, PARCEL_ID = id). A lean single query keeps the payload small and avoids
+    // both the timeout and the rate-limit-on-double-request that broke labels on the live web origin.
+    // (Guessing extra field names is what failed before: ArcGIS rejects the whole query if ANY
+    // requested field doesn't exist on the layer.)
+    const url=PARCEL_FS+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+      `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=${encodeURIComponent('PHY_ADDR1,PARCEL_ID')}`+
+      `&returnGeometry=true&outSR=4326&resultRecordCount=400&f=json`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+    const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return;
+    const j=await r.json();
+    if(j.error || !j.features || !j.features.length) return;
     const want = subjectHN!=null ? String(subjectHN).trim() : null;
     const _pidDigits = s => (s==null?'':String(s).replace(/\D/g,''));
     const wantPidRaw = (subjPid!=null && String(subjPid).trim()!=='') ? String(subjPid).trim() : null;
