@@ -5449,17 +5449,25 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
         if(fpid!=null && (String(fpid).trim()===wantPidRaw || (wantPidDig && fdig && fdig===wantPidDig))){ subjIdx=i; break; }
       }
     }
+    // Distance guard: in a mobile-home/condo park MANY lots share one street number, and the only
+    // same-numbered PARCEL in view may be the shared tract sitting far from the user's actual unit.
+    // Accepting it would jump the orange highlight away from the home — and on zoom-in it looked like
+    // the highlight vanished. So a non-PID parcel match must be reasonably NEAR the anchor (~60 m);
+    // otherwise we leave subjIdx<0 and let the gap-fill unit POINT (inside the tract) take the
+    // highlight instead. ~60 m in degrees ≈ 0.00055 (lat); squared for the no-sqrt compare.
+    const NEAR_SUBJ2 = 0.00055*0.00055;
     if(subjIdx<0 && want && haveAnchor){
       // No polygon geometry now (centroid-only query for speed), so pick the nearest same-numbered
-      // parcel centroid to the anchor. Good enough for the highlight; the PID match above is exact.
-      let bestD=Infinity;
+      // parcel centroid to the anchor — but only if it's actually close. The PID match above is exact.
+      let bestD=Infinity, bestI=-1;
       for(let i=0;i<labels.length;i++){
         if(labels[i].hn!==want) continue;
         const dd=(labels[i].lng-subjLng)*(labels[i].lng-subjLng)+(labels[i].lat-subjLat)*(labels[i].lat-subjLat);
-        if(dd<bestD){ bestD=dd; subjIdx=i; }
+        if(dd<bestD){ bestD=dd; bestI=i; }
       }
+      if(bestI>=0 && bestD<=NEAR_SUBJ2) subjIdx=bestI;
     }
-    if(subjIdx<0 && want){   // no anchor — first same-number match
+    if(subjIdx<0 && want && !haveAnchor){   // no anchor — first same-number match
       for(let i=0;i<labels.length;i++){ if(labels[i].hn===want){ subjIdx=i; break; } }
     }
     // PASS 2: render every label; the chosen subject (if any) gets the highlight.
