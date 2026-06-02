@@ -2462,6 +2462,24 @@ function houseNum(s){
   return m?m[1]:null;
 }
 function searchUnit(s){ const m=(s||'').match(/(?:#|\bunit\b|\bapt\b|\bste\b)\s*([A-Za-z0-9\-]+)/i); return m?m[1].toUpperCase().replace(/[^A-Z0-9]/g,''):null; }
+/* Short map-label text: house number + the street portion of an address, so duplicate numbers in a
+   park/condo (200, 200, 200…) read as "200 EAST", "200 WEST" etc. Drops the city/state/zip tail and
+   keeps it compact for the on-map chip. Falls back to just the house number when no street is found. */
+function numStreetLabel(addr, hn){
+  const num = hn || houseNum(addr);
+  if(!addr) return num||'';
+  let s=String(addr).trim().replace(/\s+/g,' ');
+  // cut off anything after a comma (city, state, zip)
+  s=s.split(',')[0].trim();
+  // drop a trailing 5-digit (or zip+4) zip if no comma was present
+  s=s.replace(/\s+\d{5}(?:-\d{4})?$/,'').trim();
+  // drop a trailing state abbreviation (FL) but keep real street suffixes like ST/DR/RD
+  s=s.replace(/\s+FL$/,'').trim();
+  // remove a leading house number so we can re-prepend the clean one
+  let street=s.replace(/^\s*\d{1,6}[A-Za-z]?\s*/,'').trim();
+  if(!street) return num||s;
+  return (num?num+' ':'')+street;
+}
 
 /* area-weighted centroid of an Esri polygon ring [[x,y],...] */
 function ringCentroid(ring){
@@ -5406,7 +5424,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
       if(cx==null||cy==null){ const fc=featCentroid(f); if(!fc) continue; cx=fc[0]; cy=fc[1]; }
       const key=hn+'@'+cx.toFixed(5)+','+cy.toFixed(5);
       if(seen.has(key)) continue; seen.add(key);
-      labels.push({ hn, lat:cy, lng:cx, feat:f });
+      labels.push({ hn, lat:cy, lng:cx, feat:f, txt });
     }
     // --- Wrong-house correction (small bolt-on): decide which ONE label is the subject highlight.
     // This NEVER removes a label — it only chooses which existing label gets the "subject" style.
@@ -5438,7 +5456,8 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
     // PASS 2: render every label; the chosen subject (if any) gets the highlight.
     for(let i=0;i<labels.length;i++){
       const L0=labels[i]; const isSubj = (i===subjIdx);
-      const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(L0.hn)}</div>`, iconSize:null });
+      const labelTxt = numStreetLabel(L0.txt, L0.hn);
+      const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(labelTxt)}</div>`, iconSize:null });
       L.marker([L0.lat,L0.lng],{icon, interactive:false, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
     }
     if(labels.length){ nbrNumLayer.addTo(map); }
@@ -5487,7 +5506,8 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
             if(ptSeen.has(key)) continue; ptSeen.add(key);
             // highlight if this is the subject number and we didn't already highlight a parcel label
             const isSubj = (want && hn===want && subjIdx<0);
-            const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(hn)}</div>`, iconSize:null });
+            const labelTxt = numStreetLabel(formatAddrPoint(a), hn);
+            const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(labelTxt)}</div>`, iconSize:null });
             L.marker([gy,gx],{icon, interactive:false, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
             added++;
           }
