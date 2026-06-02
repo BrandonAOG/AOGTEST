@@ -1753,7 +1753,7 @@ btnSat.onclick=()=>setBasemap('sat');
 btnStreet.onclick=()=>setBasemap('street');
 btnTopo.onclick=()=>setBasemap('topo');
 
-let marker=null, parcelLayer=null;
+let marker=null, parcelLayer=null, homeParcelLayer=null;
 map.on('click', e => runLookup(e.latlng.lat, e.latlng.lng));
 
 /* ---------- City/county separation: color-coded INCORPORATED city outlines ----------
@@ -4681,9 +4681,12 @@ async function forwardAddrPoint(countyName, ctx, refLat, refLng){
       if(dd<bestD){ bestD=dd; chosen=a; chosenG={lat:gy,lng:gx}; }
       if(!haveRef) break;     // no ref point to disambiguate — first street match is fine
     }
-    // if no point matched the street (e.g. user typed no street, or street naming differs), fall back
-    // to the first valid same-number point so we still anchor on the correct house number.
-    if(!chosen && firstValid){ chosen=firstValid; chosenG=firstG; }
+    // If no point matched the street, only fall back to a bare same-number point when the user gave
+    // NO street to match against. If they DID type a street and nothing on it matched, snapping to a
+    // random same-number house on a different street is wrong (e.g. "130 Georgetown" silently
+    // becoming a "130" on Lanchester Ct in the same villa community) — return null so the caller
+    // keeps the geocoded point / parcel-polygon result instead of a confidently-wrong address.
+    if(!chosen && firstValid && !ctx.raw){ chosen=firstValid; chosenG=firstG; }
     if(!chosen) return null;
     const txt=formatAddrPoint(chosen);
     if(!txt) return null;
@@ -5192,31 +5195,80 @@ function drawParcel(g, info){
       try{ const _d=parcelDimensions(g); if(_d&&_d.acres>0) acres=_d.acres; }catch(e){}
       const oversized = acres>MAX_HOME_LOT_ACRES;
       const latlngs=g.rings.map(r=>r.map(p=>[p[1],p[0]]));
-      // A tract gets a dimmer, dashed outline so it reads as context, not "your lot".
-      parcelLayer=L.polygon(latlngs,{renderer:canvasRenderer,color:'#39d3ff',weight:2,
-        fillColor:'#39d3ff',fillOpacity:oversized?.05:.12,
-        dashArray:oversized?'6 5':null,opacity:oversized?.7:1}).addTo(map);
+      // Shared tract → ORANGE dashed outline (context). Normal home lot → solid BLUE.
+      const col = oversized ? '#ff8c1a' : '#39d3ff';
+      parcelLayer=L.polygon(latlngs,{renderer:canvasRenderer,color:col,weight:oversized?3.5:2,
+        fillColor:col,fillOpacity:oversized?.05:.12,
+        dashArray:oversized?'6 5':null,opacity:oversized?.85:1}).addTo(map);
       // Hover popup: address / parcel ID / owner. Follows the cursor (sticky) while over the lot.
       const tip=parcelTooltipHTML(info);
       if(tip){
         parcelLayer.bindTooltip(tip,{sticky:true,direction:'top',className:'parcel-tip',opacity:1});
         if(!L.Browser.mobile){   // hover brighten is desktop-only; saves sticky-tracking work on touch
-          parcelLayer.on('mouseover',()=>parcelLayer.setStyle({fillOpacity:oversized?.14:.28,weight:3}));
-          parcelLayer.on('mouseout', ()=>parcelLayer.setStyle({fillOpacity:oversized?.05:.12,weight:2}));
+          parcelLayer.on('mouseover',()=>parcelLayer.setStyle({fillOpacity:oversized?.14:.28,weight:oversized?4.5:3}));
+          parcelLayer.on('mouseout', ()=>parcelLayer.setStyle({fillOpacity:oversized?.05:.12,weight:oversized?3.5:2}));
         }
       }
       if(oversized){
         // Don't zoom out to the whole tract — that hides the house and kills the number labels.
         // Center on the queried point at a house-level zoom instead. marker holds the click point.
-        let center=null;
-        try{ if(marker) center=marker.getLatLng(); }catch(e){}
-        if(!center){ try{ center=parcelLayer.getBounds().getCenter(); }catch(e){} }
+        let center=null, clat=null, clng=null;
+        try{ if(marker){ const ll=marker.getLatLng(); center=ll; clat=ll.lat; clng=ll.lng; } }catch(e){}
+        if(!center){ try{ center=parcelLayer.getBounds().getCenter(); clat=center.lat; clng=center.lng; }catch(e){} }
         if(center){ const z=Math.max(map.getZoom(), 18); map.setView(center, z); }
+        // Now find the INDIVIDUAL home parcel inside the shared tract and outline it in blue.
+        if(isFinite(clat)&&isFinite(clng)) drawHomeWithinTract(clat, clng, acres, info);
       } else {
         map.fitBounds(parcelLayer.getBounds(),{maxZoom:19,padding:[60,60]});
       }
     }
   }catch(e){}
+}
+
+/* When the returned parcel is an oversized shared tract (orange), query the statewide cadastral
+   layer at the clicked point and find the SMALLER parcel that actually contains it — that's the
+   individual home lot. Draw that one in solid blue inside the orange tract. Best-effort: if no
+   smaller containing parcel exists (the tract really is the only record), we just leave the orange
+   outline as-is. */
+async function drawHomeWithinTract(lat, lng, tractAcres, info){
+  try{
+    if(homeParcelLayer){ map.removeLayer(homeParcelLayer); homeParcelLayer=null; }
+    // tight box around the click — enough to catch the containing lot without pulling the county
+    const d=0.0016;  // ~150 m
+    const env=`${lng-d},${lat-d},${lng+d},${lat+d}`;
+    const url=PARCEL_FS+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+      `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=*&returnGeometry=true&outSR=4326`+
+      `&resultRecordCount=200&f=json`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+    const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return;
+    const j=await r.json();
+    if(j.error || !j.features || !j.features.length) return;
+    // Among parcels that CONTAIN the clicked point, pick the smallest that's plausibly a home lot
+    // (smaller than the tract, and at/under the home-lot cap). That's the individual house.
+    let best=null, bestA=Infinity;
+    for(const f of j.features){
+      const rings=f.geometry&&f.geometry.rings; if(!rings||!rings.length) continue;
+      if(!pointInRing(lng,lat,rings[0])) continue;          // must contain the click
+      let a=Infinity; try{ const _d=parcelDimensions(f.geometry); if(_d&&_d.acres>0) a=_d.acres; }catch(e){}
+      if(a>=tractAcres) continue;                            // skip the tract itself / anything as big
+      if(a>MAX_HOME_LOT_ACRES) continue;                     // still too big to be one home
+      if(a<bestA){ bestA=a; best=f; }
+    }
+    if(!best) return;
+    const latlngs=best.geometry.rings.map(rr=>rr.map(p=>[p[1],p[0]]));
+    homeParcelLayer=L.polygon(latlngs,{renderer:canvasRenderer,color:'#39d3ff',weight:2.5,
+      fillColor:'#39d3ff',fillOpacity:.14,opacity:1}).addTo(map);
+    // give the blue home lot the same hover card as the main parcel, when we have one
+    const tip=parcelTooltipHTML(info);
+    if(tip){
+      homeParcelLayer.bindTooltip(tip,{sticky:true,direction:'top',className:'parcel-tip',opacity:1});
+      if(!L.Browser.mobile){
+        homeParcelLayer.on('mouseover',()=>homeParcelLayer.setStyle({fillOpacity:.28,weight:3}));
+        homeParcelLayer.on('mouseout', ()=>homeParcelLayer.setStyle({fillOpacity:.14,weight:2.5}));
+      }
+    }
+  }catch(e){ /* best-effort; never block the result */ }
 }
 
 /* ---------- Neighbor house-number labels (all counties) ----------
@@ -5228,28 +5280,41 @@ function drawParcel(g, info){
 const nbrNumLayer = L.layerGroup();
 let nbrNumOn = true;   // labels follow the parcel view by default; tied to the parcel result
 function clearNeighborNumbers(){ try{ nbrNumLayer.clearLayers(); if(map.hasLayer(nbrNumLayer)) map.removeLayer(nbrNumLayer); }catch(e){} }
-async function showNeighborNumbers(subjectHN, subjLat, subjLng){
+async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
   if(!nbrNumOn) return;
   try{
     clearNeighborNumbers();
     if(map.getZoom() < 16) return;                       // too dense/zoomed-out to be legible
     const b=map.getBounds();
     const env=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
-    const url=PARCEL_FS+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
-      `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=*&returnGeometry=true&outSR=4326`+
-      `&resultRecordCount=400&f=json`;
-    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
-    const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
-    if(!r.ok) return;
-    const j=await r.json();
-    if(j.error || !j.features || !j.features.length) return;
+    // Request ONLY the fields the labels need (address + parcel-id candidates), not every field.
+    // outFields=* with returnGeometry on 400 parcels is a heavy payload that can exceed the 12s
+    // timeout on a real web origin (e.g. GitHub Pages) even when it squeaks through locally —
+    // which silently drops all the number labels. A lean field list returns fast everywhere.
+    const lblFields='PHY_ADDR1,SITEADDR,SITE_ADDR,SITUS,FULLADDR,ADDRESS,SITENUMBER,SITESTREET,SITEUNIT,'+
+      'PARCEL_ID,PARCELID,PARCEL,FOLIO,STRAP,PIN,PID,ACCOUNT,PARCEL_NO,PARCELNO,APN';
+    const lblBase=PARCEL_FS+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+      `&spatialRel=esriSpatialRelIntersects&where=1%3D1&returnGeometry=true&outSR=4326&resultRecordCount=400&f=json`;
+    const lblFetch=async(fields)=>{
+      const u=lblBase+`&outFields=${encodeURIComponent(fields)}`;
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+      try{ const r=await fetch(u,{signal:ctrl.signal}); clearTimeout(t);
+        if(!r.ok) return null; return await r.json(); }
+      catch(e){ clearTimeout(t); return null; }
+    };
+    let j=await lblFetch(lblFields);
+    // If the server rejected a field name (schema differs), retry once pulling all fields.
+    if(!j || j.error){ j=await lblFetch('*'); }
+    if(!j || j.error || !j.features || !j.features.length) return;
     const want = subjectHN!=null ? String(subjectHN).trim() : null;
+    const _pidDigits = s => (s==null?'':String(s).replace(/\D/g,''));
+    const wantPidRaw = (subjPid!=null && String(subjPid).trim()!=='') ? String(subjPid).trim() : null;
+    const wantPidDig = _pidDigits(wantPidRaw);
     const haveAnchor = isFinite(subjLat) && isFinite(subjLng);
-    // PASS 1: build the label list, and decide which ONE parcel is the subject.
-    // Exact test first: does the anchor point fall INSIDE this parcel's polygon? That's definitive
-    // regardless of lot size/shape. Fallback: nearest centroid among same-numbered parcels.
+    // PASS 1: build the label list — EVERY parcel in view that has an address gets an entry, so all
+    // the house numbers show. (This is the simple, complete behavior.)
     const labels=[];   // {hn, lat, lng, feat}
-    let subjIdx=-1, subjInside=false, subjBestD=Infinity, seen=new Set();
+    let seen=new Set();
     for(const f of j.features){
       if(labels.length>=200) break;                       // safety cap
       const a=f.attributes||{};
@@ -5259,29 +5324,43 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng){
       const c=labelPoint(f); if(!c) continue;             // [x=lng, y=lat] — most-interior point of the lot
       const key=hn+'@'+c[0].toFixed(5)+','+c[1].toFixed(5);
       if(seen.has(key)) continue; seen.add(key);
-      const idx=labels.length;
       labels.push({ hn, lat:c[1], lng:c[0], feat:f });
-      // subject candidate?
-      if(want && hn===want && haveAnchor){
-        const rings=(f.geometry&&f.geometry.rings)||null;
-        const inside = rings ? pointInRing(subjLng, subjLat, rings[0]) : false;
-        const dd=(c[0]-subjLng)*(c[0]-subjLng)+(c[1]-subjLat)*(c[1]-subjLat);
-        // prefer a polygon the anchor is actually inside; among those (or among centroid-distance
-        // candidates) keep the closest. An inside-match always beats a not-inside one.
-        if(inside && !subjInside){ subjInside=true; subjIdx=idx; subjBestD=dd; }
-        else if(inside===subjInside && dd<subjBestD){ subjIdx=idx; subjBestD=dd; }
-      } else if(want && hn===want && !haveAnchor && subjIdx<0){
-        subjIdx=idx;   // no anchor to disambiguate — first same-number match
+    }
+    // --- Wrong-house correction (small bolt-on): decide which ONE label is the subject highlight.
+    // This NEVER removes a label — it only chooses which existing label gets the "subject" style.
+    // Priority: (1) exact parcel-ID match, (2) anchor falls inside the parcel, (3) nearest same
+    // house number to the anchor. In tight villa clusters the ID/inside test keeps the highlight on
+    // the right unit instead of drifting to a neighbour.
+    let subjIdx=-1;
+    if(wantPidRaw){
+      for(let i=0;i<labels.length;i++){
+        const a=labels[i].feat.attributes||{};
+        const fpid=pick(a,'PARCEL_ID','PARCELID','PARCEL','FOLIO','STRAP','PIN','PID','ACCOUNT','PARCEL_NO','PARCELNO','APN');
+        const fdig=_pidDigits(fpid);
+        if(fpid!=null && (String(fpid).trim()===wantPidRaw || (wantPidDig && fdig && fdig===wantPidDig))){ subjIdx=i; break; }
       }
     }
-    // PASS 2: render. Only the chosen subject gets the highlight.
+    if(subjIdx<0 && want && haveAnchor){
+      let bestInside=false, bestD=Infinity;
+      for(let i=0;i<labels.length;i++){
+        if(labels[i].hn!==want) continue;
+        const rings=(labels[i].feat.geometry&&labels[i].feat.geometry.rings)||null;
+        const inside = rings ? pointInRing(subjLng, subjLat, rings[0]) : false;
+        const dd=(labels[i].lng-subjLng)*(labels[i].lng-subjLng)+(labels[i].lat-subjLat)*(labels[i].lat-subjLat);
+        if(inside && !bestInside){ bestInside=true; subjIdx=i; bestD=dd; }
+        else if(inside===bestInside && dd<bestD){ subjIdx=i; bestD=dd; }
+      }
+    }
+    if(subjIdx<0 && want){   // no anchor — first same-number match
+      for(let i=0;i<labels.length;i++){ if(labels[i].hn===want){ subjIdx=i; break; } }
+    }
+    // PASS 2: render every label; the chosen subject (if any) gets the highlight.
     for(let i=0;i<labels.length;i++){
       const L0=labels[i]; const isSubj = (i===subjIdx);
       const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(L0.hn)}</div>`, iconSize:null });
       L.marker([L0.lat,L0.lng],{icon, interactive:false, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
     }
-    const placed=labels.length;
-    if(placed){ nbrNumLayer.addTo(map); }
+    if(labels.length){ nbrNumLayer.addTo(map); }
   }catch(e){ /* best-effort; never block the result */ }
 }
 // Keep the labels in sync as the user pans/zooms after a search (debounced, same as parcel lines).
@@ -5289,7 +5368,7 @@ let _nbrTimer=null, _nbrCtx=null;
 map.on('moveend zoomend', ()=>{
   if(!nbrNumOn || !_nbrCtx) return;
   clearTimeout(_nbrTimer);
-  _nbrTimer=setTimeout(()=>{ showNeighborNumbers(_nbrCtx.hn, _nbrCtx.lat, _nbrCtx.lng); }, BOUNDS_DEBOUNCE);
+  _nbrTimer=setTimeout(()=>{ showNeighborNumbers(_nbrCtx.hn, _nbrCtx.lat, _nbrCtx.lng, _nbrCtx.pid); }, BOUNDS_DEBOUNCE);
 });
 
 /* Build the hover-tooltip markup for a parcel from {site, pid, owner} (any may be missing). */
@@ -5373,6 +5452,7 @@ async function runLookup(lat,lng,searchCtx){
   if(marker) map.removeLayer(marker);
   marker=L.circleMarker([lat,lng],{renderer:canvasRenderer,radius:6,color:'#ffb000',weight:2,fillColor:'#ffb000',fillOpacity:.9}).addTo(map);
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
+  if(homeParcelLayer){ map.removeLayer(homeParcelLayer); homeParcelLayer=null; }
   clearNeighborNumbers(); _nbrCtx=null;
   saveLoc(lat,lng);
   document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
@@ -5654,10 +5734,14 @@ async function runLookup(lat,lng,searchCtx){
       // Neighbor house-number labels: anchor on the subject's number (from its address) + the
       // matched point so the right lot is highlighted. Runs after fitBounds so the view is settled.
       try{
-        const _sHN = houseNum(det.site?pick(_a,det.site):'') || (searchCtx&&searchCtx.hn) || null;
+        // Prefer the house number the USER searched for the highlighted subject — that's what they
+        // expect to see on their house. Fall back to the matched parcel's address number for map
+        // clicks (no search number).
+        const _sHN = (searchCtx&&searchCtx.hn) || houseNum(det.site?pick(_a,det.site):'') || null;
         const _sLat = liveRes.__ngLat!=null?liveRes.__ngLat:lat, _sLng=liveRes.__ngLng!=null?liveRes.__ngLng:lng;
-        _nbrCtx={ hn:_sHN, lat:_sLat, lng:_sLng };
-        setTimeout(()=>showNeighborNumbers(_sHN,_sLat,_sLng), 350);
+        const _sPid = det.pid?pick(_a,det.pid):null;
+        _nbrCtx={ hn:_sHN, lat:_sLat, lng:_sLng, pid:(_sPid!=null?String(_sPid):null) };
+        setTimeout(()=>showNeighborNumbers(_sHN,_sLat,_sLng,(_sPid!=null?String(_sPid):null)), 350);
       }catch(e){}
     }
     { const _a=liveRes.features[0].attributes; const _ra=pick(_a,'TOTALACRES')||pick(_a,'ACREAGE')||pick(_a,'GIS_ACRES')||null;
@@ -5739,8 +5823,8 @@ async function runLookup(lat,lng,searchCtx){
     });
     try{
       const _sHN = houseNum(site||'') || (searchCtx&&searchCtx.hn) || null;
-      _nbrCtx={ hn:_sHN, lat:lat, lng:lng };
-      setTimeout(()=>showNeighborNumbers(_sHN, lat, lng), 350);
+      _nbrCtx={ hn:_sHN, lat:lat, lng:lng, pid:(pid!=null?String(pid):null) };
+      setTimeout(()=>showNeighborNumbers(_sHN, lat, lng, (pid!=null?String(pid):null)), 350);
     }catch(e){}
     html += renderLotDimensions(parcel.features[0].geometry, pick(a,'TOTALACRES'));
     try{ const _dim=parcelDimensions(parcel.features[0].geometry); if(_dim&&_dim.areaSqft>0) parcelLotSqft=_dim.areaSqft;
