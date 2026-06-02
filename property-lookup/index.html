@@ -257,7 +257,10 @@
   .parcel-tip .pt-row+.pt-row{margin-top:6px}
   .nbr-num{background:rgba(10,16,22,.74);color:#bfe9ff;border:1px solid rgba(57,211,255,.45);border-radius:5px;
     font-family:var(--mono);font-size:10px;font-weight:600;line-height:1;letter-spacing:.02em;padding:2px 4px;
-    white-space:nowrap;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.45);pointer-events:none;transform:translate(-50%,-50%)}
+    white-space:nowrap;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.45);pointer-events:none;transform:translate(-50%,-50%);
+    display:flex;flex-direction:column;align-items:center;gap:1px}
+  .nbr-num .nbr-hn{font-weight:700}
+  .nbr-num .nbr-st{font-size:8px;font-weight:500;opacity:.82;letter-spacing:.04em}
   .nbr-num.subject{background:#ffb000;color:#10151b;border-color:#ffd166;font-weight:700;font-size:11px;box-shadow:0 1px 6px rgba(255,176,0,.5)}
   .crosshair{position:absolute;z-index:999;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10.5px;color:var(--dim);background:var(--crosshair-bg);border:1px solid var(--line);padding:5px 12px;border-radius:20px;pointer-events:none}
 
@@ -2462,12 +2465,12 @@ function houseNum(s){
   return m?m[1]:null;
 }
 function searchUnit(s){ const m=(s||'').match(/(?:#|\bunit\b|\bapt\b|\bste\b)\s*([A-Za-z0-9\-]+)/i); return m?m[1].toUpperCase().replace(/[^A-Z0-9]/g,''):null; }
-/* Short map-label text: house number + the street portion of an address, so duplicate numbers in a
-   park/condo (200, 200, 200…) read as "200 EAST", "200 WEST" etc. Drops the city/state/zip tail and
-   keeps it compact for the on-map chip. Falls back to just the house number when no street is found. */
-function numStreetLabel(addr, hn){
-  const num = hn || houseNum(addr);
-  if(!addr) return num||'';
+/* Short map-label parts: house number + the street portion of an address, so duplicate numbers in a
+   park/condo (200, 200, 200…) read as "200 / EAST", "200 / WEST" etc. Drops the city/state/zip tail.
+   Returns {num, street}; street is '' when none is found. */
+function numStreetParts(addr, hn){
+  const num = hn || houseNum(addr) || '';
+  if(!addr) return {num, street:''};
   let s=String(addr).trim().replace(/\s+/g,' ');
   // cut off anything after a comma (city, state, zip)
   s=s.split(',')[0].trim();
@@ -2475,10 +2478,16 @@ function numStreetLabel(addr, hn){
   s=s.replace(/\s+\d{5}(?:-\d{4})?$/,'').trim();
   // drop a trailing state abbreviation (FL) but keep real street suffixes like ST/DR/RD
   s=s.replace(/\s+FL$/,'').trim();
-  // remove a leading house number so we can re-prepend the clean one
+  // remove the leading house number so only the street remains
   let street=s.replace(/^\s*\d{1,6}[A-Za-z]?\s*/,'').trim();
-  if(!street) return num||s;
-  return (num?num+' ':'')+street;
+  return {num, street};
+}
+/* Two-line label HTML: number on top, street below (street omitted when absent). */
+function numStreetLabelHTML(addr, hn){
+  const {num, street}=numStreetParts(addr, hn);
+  const numHTML = num ? `<span class="nbr-hn">${esc(num)}</span>` : '';
+  const stHTML  = street ? `<span class="nbr-st">${esc(street)}</span>` : '';
+  return numHTML + stHTML;
 }
 
 /* area-weighted centroid of an Esri polygon ring [[x,y],...] */
@@ -5456,8 +5465,8 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
     // PASS 2: render every label; the chosen subject (if any) gets the highlight.
     for(let i=0;i<labels.length;i++){
       const L0=labels[i]; const isSubj = (i===subjIdx);
-      const labelTxt = numStreetLabel(L0.txt, L0.hn);
-      const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(labelTxt)}</div>`, iconSize:null });
+      const labelHTML = numStreetLabelHTML(L0.txt, L0.hn);
+      const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${labelHTML}</div>`, iconSize:null });
       L.marker([L0.lat,L0.lng],{icon, interactive:false, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
     }
     if(labels.length){ nbrNumLayer.addTo(map); }
@@ -5485,9 +5494,12 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
           // unit, so add it.
           const NEAR=0.00011, NEAR2=NEAR*NEAR;
           const ptSeen=new Set();
-          let added=0;
+          // PASS A: collect the gap-fill points (no highlighting yet). In a mobile-home park MANY
+          // points share the same house number, so highlighting every same-numbered point lit up
+          // the whole park in orange. Gather first, then highlight only the ONE nearest the anchor.
+          const ptLabels=[];   // {hn, lat, lng, a}
           for(const f of aj.features){
-            if(added>=400) break;
+            if(ptLabels.length>=400) break;
             const a=f.attributes||{};
             const st=(a.STATUS||a.Status||'').toString().toUpperCase();
             if(st && /(RETIRE|INACTIVE|INVALID|DELETE)/.test(st)) continue;
@@ -5504,11 +5516,29 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
             if(dup) continue;
             const key=hn+'@'+gx.toFixed(5)+','+gy.toFixed(5);
             if(ptSeen.has(key)) continue; ptSeen.add(key);
-            // highlight if this is the subject number and we didn't already highlight a parcel label
-            const isSubj = (want && hn===want && subjIdx<0);
-            const labelTxt = numStreetLabel(formatAddrPoint(a), hn);
-            const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(labelTxt)}</div>`, iconSize:null });
-            L.marker([gy,gx],{icon, interactive:false, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
+            ptLabels.push({ hn, lat:gy, lng:gx, a });
+          }
+          // Choose at most ONE point to highlight: only when a parcel label wasn't already chosen
+          // as the subject. Pick the nearest same-numbered point to the anchor (the searched/tapped
+          // location), so a single home lights up instead of every unit sharing that number.
+          let ptSubjIdx=-1;
+          if(want && subjIdx<0){
+            let bestD=Infinity;
+            for(let i=0;i<ptLabels.length;i++){
+              if(ptLabels[i].hn!==want) continue;
+              if(haveAnchor){
+                const dd=(ptLabels[i].lng-subjLng)*(ptLabels[i].lng-subjLng)+(ptLabels[i].lat-subjLat)*(ptLabels[i].lat-subjLat);
+                if(dd<bestD){ bestD=dd; ptSubjIdx=i; }
+              } else if(ptSubjIdx<0){ ptSubjIdx=i; }   // no anchor: first same-number point
+            }
+          }
+          // PASS B: render the gap-fill points; only ptSubjIdx (if any) gets the subject highlight.
+          let added=0;
+          for(let i=0;i<ptLabels.length;i++){
+            const P=ptLabels[i]; const isSubj=(i===ptSubjIdx);
+            const labelHTML = numStreetLabelHTML(formatAddrPoint(P.a), P.hn);
+            const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${labelHTML}</div>`, iconSize:null });
+            L.marker([P.lat,P.lng],{icon, interactive:false, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
             added++;
           }
           if(added && !map.hasLayer(nbrNumLayer)) nbrNumLayer.addTo(map);
