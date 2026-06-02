@@ -1753,7 +1753,7 @@ btnSat.onclick=()=>setBasemap('sat');
 btnStreet.onclick=()=>setBasemap('street');
 btnTopo.onclick=()=>setBasemap('topo');
 
-let marker=null, parcelLayer=null;
+let marker=null, parcelLayer=null, homeParcelLayer=null;
 map.on('click', e => runLookup(e.latlng.lat, e.latlng.lng));
 
 /* ---------- City/county separation: color-coded INCORPORATED city outlines ----------
@@ -2496,6 +2496,10 @@ function labelPoint(f){
    master "5102-5116" record overlapping the individual unit). The specific unit is almost
    always the smallest-area polygon, so we choose the feature with the smallest geometry.
    Returns {feature, count}. Falls back to features[0] if areas can't be computed. */
+/* Largest plausible single residential/home lot, in acres. Above this a polygon is almost
+   certainly a subdivision tract / common area / master condo parcel — not the individual house.
+   Used both to bias parcel selection and to stop a tract from driving the map zoom. */
+const MAX_HOME_LOT_ACRES = 5;
 function ringPolyArea(rings){
   if(!rings||!rings.length) return Infinity;
   let total=0;
@@ -4709,7 +4713,11 @@ function pickParcelByAddress(features, searchCtx){
     const u=parcelUnit(a);
     const unitMatch = (wantUnit && u && u===wantUnit) ? 1 : 0;
     const unitMiss  = (wantUnit && u && u!==wantUnit) ? 1 : 0;
-    const score = unitMatch*10000 + overlap*100 - unitMiss*50;
+    // Nudge away from subdivision tracts / master parcels: if this polygon is too big to be a
+    // single home lot, dock its score so a properly-sized lot with an equal address match wins.
+    let tractPenalty=0;
+    try{ const _d=parcelDimensions(f.geometry); if(_d&&_d.acres>MAX_HOME_LOT_ACRES) tractPenalty=40; }catch(e){}
+    const score = unitMatch*10000 + overlap*100 - unitMiss*50 - tractPenalty;
     if(score>bestScore){ bestScore=score; best={feature:f, matchedAddr:txt,
       exact: (hn?houseNum(txt)===hn:true) && (!wantUnit || unitMatch===1) }; }
   }
@@ -5168,23 +5176,96 @@ function renderCapeCoralGeneratorRules(){
   return g;
 }
 
+/* Largest plausible single residential/home lot, in acres. Above this, the polygon is almost
+   certainly a SUBDIVISION TRACT, common area, or master condo parcel — not the individual house.
+   In those communities the cadastral feed returns the whole platted lot as one feature, so the
+   blue outline circles the entire block and (worse) fitBounds zooms the map way out, which in
+   turn suppressed the house-number labels (they only render at zoom ≥ 16). When that happens we
+   still draw the outline so the user sees what was returned, but we DON'T let it drive the zoom —
+   we keep a house-level view centered on the queried point so the labels stay legible.
+   (MAX_HOME_LOT_ACRES is declared up by pickSpecificParcel so the address-picker can use it too.) */
 function drawParcel(g, info){
   try{
     if(g&&g.rings){
+      // Real-world acreage (deg²→ft² at the parcel's latitude). Infinity if it can't be computed.
+      let acres=Infinity;
+      try{ const _d=parcelDimensions(g); if(_d&&_d.acres>0) acres=_d.acres; }catch(e){}
+      const oversized = acres>MAX_HOME_LOT_ACRES;
       const latlngs=g.rings.map(r=>r.map(p=>[p[1],p[0]]));
-      parcelLayer=L.polygon(latlngs,{renderer:canvasRenderer,color:'#39d3ff',weight:2,fillColor:'#39d3ff',fillOpacity:.12}).addTo(map);
+      // Shared tract → ORANGE dashed outline (context). Normal home lot → solid BLUE.
+      const col = oversized ? '#ff8c1a' : '#39d3ff';
+      parcelLayer=L.polygon(latlngs,{renderer:canvasRenderer,color:col,weight:2,
+        fillColor:col,fillOpacity:oversized?.05:.12,
+        dashArray:oversized?'6 5':null,opacity:oversized?.85:1}).addTo(map);
       // Hover popup: address / parcel ID / owner. Follows the cursor (sticky) while over the lot.
       const tip=parcelTooltipHTML(info);
       if(tip){
         parcelLayer.bindTooltip(tip,{sticky:true,direction:'top',className:'parcel-tip',opacity:1});
         if(!L.Browser.mobile){   // hover brighten is desktop-only; saves sticky-tracking work on touch
-          parcelLayer.on('mouseover',()=>parcelLayer.setStyle({fillOpacity:.28,weight:3}));
-          parcelLayer.on('mouseout', ()=>parcelLayer.setStyle({fillOpacity:.12,weight:2}));
+          parcelLayer.on('mouseover',()=>parcelLayer.setStyle({fillOpacity:oversized?.14:.28,weight:3}));
+          parcelLayer.on('mouseout', ()=>parcelLayer.setStyle({fillOpacity:oversized?.05:.12,weight:2}));
         }
       }
-      map.fitBounds(parcelLayer.getBounds(),{maxZoom:19,padding:[60,60]});
+      if(oversized){
+        // Don't zoom out to the whole tract — that hides the house and kills the number labels.
+        // Center on the queried point at a house-level zoom instead. marker holds the click point.
+        let center=null, clat=null, clng=null;
+        try{ if(marker){ const ll=marker.getLatLng(); center=ll; clat=ll.lat; clng=ll.lng; } }catch(e){}
+        if(!center){ try{ center=parcelLayer.getBounds().getCenter(); clat=center.lat; clng=center.lng; }catch(e){} }
+        if(center){ const z=Math.max(map.getZoom(), 18); map.setView(center, z); }
+        // Now find the INDIVIDUAL home parcel inside the shared tract and outline it in blue.
+        if(isFinite(clat)&&isFinite(clng)) drawHomeWithinTract(clat, clng, acres, info);
+      } else {
+        map.fitBounds(parcelLayer.getBounds(),{maxZoom:19,padding:[60,60]});
+      }
     }
   }catch(e){}
+}
+
+/* When the returned parcel is an oversized shared tract (orange), query the statewide cadastral
+   layer at the clicked point and find the SMALLER parcel that actually contains it — that's the
+   individual home lot. Draw that one in solid blue inside the orange tract. Best-effort: if no
+   smaller containing parcel exists (the tract really is the only record), we just leave the orange
+   outline as-is. */
+async function drawHomeWithinTract(lat, lng, tractAcres, info){
+  try{
+    if(homeParcelLayer){ map.removeLayer(homeParcelLayer); homeParcelLayer=null; }
+    // tight box around the click — enough to catch the containing lot without pulling the county
+    const d=0.0016;  // ~150 m
+    const env=`${lng-d},${lat-d},${lng+d},${lat+d}`;
+    const url=PARCEL_FS+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+      `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=*&returnGeometry=true&outSR=4326`+
+      `&resultRecordCount=200&f=json`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+    const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return;
+    const j=await r.json();
+    if(j.error || !j.features || !j.features.length) return;
+    // Among parcels that CONTAIN the clicked point, pick the smallest that's plausibly a home lot
+    // (smaller than the tract, and at/under the home-lot cap). That's the individual house.
+    let best=null, bestA=Infinity;
+    for(const f of j.features){
+      const rings=f.geometry&&f.geometry.rings; if(!rings||!rings.length) continue;
+      if(!pointInRing(lng,lat,rings[0])) continue;          // must contain the click
+      let a=Infinity; try{ const _d=parcelDimensions(f.geometry); if(_d&&_d.acres>0) a=_d.acres; }catch(e){}
+      if(a>=tractAcres) continue;                            // skip the tract itself / anything as big
+      if(a>MAX_HOME_LOT_ACRES) continue;                     // still too big to be one home
+      if(a<bestA){ bestA=a; best=f; }
+    }
+    if(!best) return;
+    const latlngs=best.geometry.rings.map(rr=>rr.map(p=>[p[1],p[0]]));
+    homeParcelLayer=L.polygon(latlngs,{renderer:canvasRenderer,color:'#39d3ff',weight:2.5,
+      fillColor:'#39d3ff',fillOpacity:.14,opacity:1}).addTo(map);
+    // give the blue home lot the same hover card as the main parcel, when we have one
+    const tip=parcelTooltipHTML(info);
+    if(tip){
+      homeParcelLayer.bindTooltip(tip,{sticky:true,direction:'top',className:'parcel-tip',opacity:1});
+      if(!L.Browser.mobile){
+        homeParcelLayer.on('mouseover',()=>homeParcelLayer.setStyle({fillOpacity:.28,weight:3}));
+        homeParcelLayer.on('mouseout', ()=>homeParcelLayer.setStyle({fillOpacity:.14,weight:2.5}));
+      }
+    }
+  }catch(e){ /* best-effort; never block the result */ }
 }
 
 /* ---------- Neighbor house-number labels (all counties) ----------
@@ -5341,6 +5422,7 @@ async function runLookup(lat,lng,searchCtx){
   if(marker) map.removeLayer(marker);
   marker=L.circleMarker([lat,lng],{renderer:canvasRenderer,radius:6,color:'#ffb000',weight:2,fillColor:'#ffb000',fillOpacity:.9}).addTo(map);
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
+  if(homeParcelLayer){ map.removeLayer(homeParcelLayer); homeParcelLayer=null; }
   clearNeighborNumbers(); _nbrCtx=null;
   saveLoc(lat,lng);
   document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
