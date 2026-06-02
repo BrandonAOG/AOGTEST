@@ -5355,6 +5355,59 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
       L.marker([L0.lat,L0.lng],{icon, interactive:false, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
     }
     if(labels.length){ nbrNumLayer.addTo(map); }
+    // GAP-FILL for inside-tract / lean-feed homes: villa & condo units inside a shared tract often
+    // carry NO address on the parcel layer, so PASS 2 skips them (you see numbers OUTSIDE the orange
+    // tract but not inside). Counties that publish an address-POINT layer (e.g. Collier) have those
+    // unit numbers. Pull them for the viewport and drop a label only where no parcel label already
+    // sits nearby — so this fills the holes without duplicating the outside numbers. The address-
+    // point layer is lightweight points (no polygon geometry), so a single outFields=* query is fine
+    // here — unlike the heavy parcel layer that needed a trimmed field list.
+    try{
+      const _county = (window.__lastCounty||'').toString();
+      const apUrl = _county ? ADDRPOINT_FEEDS[norm(_county)] : null;
+      if(apUrl){
+        const apEnv=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+        const apUrlFull=apUrl+`?geometry=${encodeURIComponent(apEnv)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+          `&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=800&f=json`;
+        const ac=new AbortController(); const at=setTimeout(()=>ac.abort(),12000);
+        let aj=null;
+        try{ const ar=await fetch(apUrlFull,{signal:ac.signal}); clearTimeout(at); if(ar.ok) aj=await ar.json(); }
+        catch(e){ clearTimeout(at); }
+        if(aj && !aj.error && aj.features && aj.features.length){
+          // "Near" threshold ≈ 12 m in degrees — if a parcel label is already within this of the
+          // point, the point is that same house; skip it. Otherwise it's an unlabeled inside-tract
+          // unit, so add it.
+          const NEAR=0.00011, NEAR2=NEAR*NEAR;
+          const ptSeen=new Set();
+          let added=0;
+          for(const f of aj.features){
+            if(added>=400) break;
+            const a=f.attributes||{};
+            const st=(a.STATUS||a.Status||'').toString().toUpperCase();
+            if(st && /(RETIRE|INACTIVE|INVALID|DELETE)/.test(st)) continue;
+            const g=f.geometry; const gx=g?(g.x!=null?g.x:g.X):null, gy=g?(g.y!=null?g.y:g.Y):null;
+            if(gx==null||gy==null) continue;
+            const F={}; for(const k in a){ F[k.toUpperCase()]=a[k]; }
+            let pnum = F.ADDRNUM||F.ADD_NUMBER||F.HOUSE_NUM||F.STNUM||F.STREET_NUM;
+            if(pnum==null||String(pnum).trim()===''){ const m=String(formatAddrPoint(a)).match(/^\s*(\d+)/); pnum=m?m[1]:null; }
+            const hn = pnum!=null ? houseNum(String(pnum)) : null;
+            if(!hn) continue;
+            // already have a parcel label for this spot? skip (avoids duplicating outside numbers).
+            let dup=false;
+            for(const L0 of labels){ const ddx=L0.lng-gx, ddy=L0.lat-gy; if(ddx*ddx+ddy*ddy < NEAR2){ dup=true; break; } }
+            if(dup) continue;
+            const key=hn+'@'+gx.toFixed(5)+','+gy.toFixed(5);
+            if(ptSeen.has(key)) continue; ptSeen.add(key);
+            // highlight if this is the subject number and we didn't already highlight a parcel label
+            const isSubj = (want && hn===want && subjIdx<0);
+            const icon=L.divIcon({ className:'', html:`<div class="nbr-num${isSubj?' subject':''}">${esc(hn)}</div>`, iconSize:null });
+            L.marker([gy,gx],{icon, interactive:false, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
+            added++;
+          }
+          if(added && !map.hasLayer(nbrNumLayer)) nbrNumLayer.addTo(map);
+        }
+      }
+    }catch(e){ /* gap-fill is best-effort; never block the result */ }
   }catch(e){ /* best-effort; never block the result */ }
 }
 // Keep the labels in sync as the user pans/zooms after a search (debounced, same as parcel lines).
