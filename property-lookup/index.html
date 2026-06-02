@@ -919,6 +919,14 @@ const norm = s => (s||"").toUpperCase().replace(/[^A-Z]/g,"");
    SWFL patterns verified by structure; others fall back to the PA home page. */
 function appraiserParcelLink(countyName, pid){
   const c=norm(countyName); const home=PA[c]||null;
+  // Glades outsources to qPublic/Schneider (closed API — parcel data can't be pulled in), but its
+  // record map IS linkable. Send the user straight to the Glades qPublic parcel map/search.
+  if(c==='GLADES'){
+    const kv=pid?String(pid).trim():'';
+    return kv
+      ? `https://qpublic.schneidercorp.com/Application.aspx?AppID=818&LayerID=14562&PageTypeID=4&KeyValue=${encodeURIComponent(kv)}`
+      : `https://qpublic.schneidercorp.com/Application.aspx?AppID=818&LayerID=14562&PageTypeID=2&PageID=6420`;  // search page
+  }
   if(!pid) return home;
   const digits=String(pid).replace(/[^0-9]/g,'');
   switch(c){
@@ -2373,9 +2381,16 @@ async function geocodeAll(q){
   let qq = /\b(fl|florida)\b/i.test(q) ? q : q+', Florida';
   const censusU=`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(qq)}&benchmark=Public_AR_Current&format=json`;
   const osmU=`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(qq)}`;
-  const [cRes,oRes]=await Promise.allSettled([
+  // Esri World Geocoder — strong on rural addresses the others miss (e.g. Glades/Moore Haven).
+  // Bias to Florida's center and request WGS84 directly. This is the same service many county
+  // GIS sites (incl. Glades') use for address search.
+  const esriU=`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates`+
+    `?SingleLine=${encodeURIComponent(qq)}&f=json&outFields=*&maxLocations=6&outSR=4326`+
+    `&searchExtent=${encodeURIComponent('-87.6,24.4,-80.0,31.0')}`;   // Florida bounding box
+  const [cRes,oRes,eRes]=await Promise.allSettled([
     fetch(censusU).then(r=>r.json()),
-    fetch(osmU).then(r=>r.json())
+    fetch(osmU).then(r=>r.json()),
+    fetch(esriU).then(r=>r.json())
   ]);
   const out=[];
   if(cRes.status==='fulfilled'){
@@ -2386,6 +2401,18 @@ async function geocodeAll(q){
     for(const m of (oRes.value||[])){
       if(out.some(o=>o.label===m.display_name)) continue;
       out.push({lat:+m.lat,lng:+m.lon,label:m.display_name,src:'OpenStreetMap'});
+    }
+  }
+  if(eRes.status==='fulfilled'){
+    const cands=(eRes.value&&eRes.value.candidates)||[];
+    for(const c of cands){
+      const loc=c.location; if(!loc||loc.y==null||loc.x==null) continue;
+      // Esri returns a score 0–100; rural/interpolated matches often land in the 60s–70s, so keep a
+      // lower bar than for dense areas — a roughly-right rural location beats a dead-end.
+      if(typeof c.score==='number' && c.score<55) continue;
+      const lbl=c.address||qq;
+      if(out.some(o=>o.label===lbl)) continue;
+      out.push({lat:+loc.y,lng:+loc.x,label:lbl,src:'Esri'});
     }
   }
   return out;
@@ -4772,7 +4799,66 @@ async function snapToParcelByAddress(q, lat, lng){
   return null;
 }
 
-/* ---------- Render ---------- */
+/* ---------- Statewide parcel-roll address resolver (no geocoder, no starting point) ----------
+   For rural counties (e.g. Glades/Moore Haven) the Census + OSM geocoders often have NO match for
+   a real address, so an address search dead-ends even though the parcel exists in the statewide
+   cadastral roll. This queries that roll DIRECTLY by house number across the whole state, then keeps
+   the candidate whose street name + (optional) city agree with what was typed. Returns
+   {lat,lng,label} or null. Covers all 67 counties as a last-resort geocoder. */
+async function resolveAddressStatewide(ctx){
+  if(!ctx || !ctx.hn) return null;
+  const hn=String(ctx.hn).trim();
+  const wantToks=new Set(streetTokens(ctx.raw||''));        // {INDIAN, HILLS, DR, ...}
+  const wantCore=streetCore(ctx.raw||'');                   // distinctive name only: [INDIAN, HILLS]
+  const wantCoreSet=new Set(wantCore);
+  // City token, if the user typed one (helps disambiguate a common house# + street statewide).
+  const cityM=(ctx.raw||'').match(/,\s*([A-Za-z .]+?)\s*(?:,|\bFL\b|\bflorida\b|\d{5}|$)/i);
+  const wantCity = cityM ? norm(cityM[1]) : null;
+  const esc1 = s => String(s).replace(/'/g,"''");
+  // Build a server-side WHERE that finds the RIGHT parcel directly, instead of pulling an arbitrary
+  // 300 same-house-number parcels statewide (which may not even include the rural one). Require the
+  // house number AND that the address contains each distinctive street-name token.
+  let where=`(PHY_ADDR1 LIKE '${esc1(hn)} %' OR PHY_ADDR1 = '${esc1(hn)}')`;
+  for(const tok of wantCore){ where += ` AND UPPER(PHY_ADDR1) LIKE '%${esc1(tok)}%'`; }
+  const runQuery=async(w)=>{
+    const params=`where=${encodeURIComponent(w)}`+
+      `&outFields=${encodeURIComponent('PHY_ADDR1,PHY_CITY,PHY_ZIPCD')}`+
+      `&returnGeometry=true&returnCentroid=true&outSR=4326&resultRecordCount=300&f=json`;
+    try{
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+      const r=await fetch(EP.parcel+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+      if(!r.ok) return null; const j=await r.json(); if(j.error) return null;
+      return (j.features)||[];
+    }catch(e){ return null; }
+  };
+  let feats=await runQuery(where);
+  // If the street-filtered query found nothing (street stored oddly), fall back to house-number only.
+  if(!feats || !feats.length){ feats=await runQuery(`(PHY_ADDR1 LIKE '${esc1(hn)} %' OR PHY_ADDR1 = '${esc1(hn)}')`); }
+  if(!feats || !feats.length) return null;
+  let best=null, bestScore=-1;
+  for(const f of feats){
+    const a=f.attributes||{};
+    if(houseNum(a.PHY_ADDR1)!==hn) continue;                // exact house number
+    const c=featCentroid(f); if(!c) continue;
+    const toks=new Set(streetTokens(a.PHY_ADDR1));
+    let overlap=0; wantCoreSet.forEach(t=>{ if(toks.has(t)) overlap++; });
+    // street name MUST overlap when we have one to compare (so 2014 Indian Hills ≠ 2014 Main St)
+    if(wantCoreSet.size && overlap===0) continue;
+    let score=overlap*1000;
+    if(wantCity && a.PHY_CITY && norm(a.PHY_CITY)===wantCity) score+=500;  // city agreement bonus
+    if(score>bestScore){ bestScore=score; best={lat:c[1],lng:c[0],
+      label:[a.PHY_ADDR1,a.PHY_CITY,a.PHY_ZIPCD].filter(Boolean).join(' ')}; }
+  }
+  // If nothing matched the street but there's exactly one parcel with this house number, use it.
+  if(!best){
+    const exact=feats.filter(f=>houseNum((f.attributes||{}).PHY_ADDR1)===hn);
+    if(exact.length===1){ const c=featCentroid(exact[0]); const a=exact[0].attributes||{};
+      if(c) best={lat:c[1],lng:c[0],label:[a.PHY_ADDR1,a.PHY_CITY,a.PHY_ZIPCD].filter(Boolean).join(' ')}; }
+  }
+  return best;
+}
+
+
 function setStatus(state, text){
   return `<div class="status"><span class="dot ${state}"></span><span>${esc(text)}</span></div>`;
 }
@@ -5881,6 +5967,10 @@ async function runLookup(lat,lng,searchCtx){
     html += `<div class="note">Parcel service did not respond (${esc(parcel.__err)}). Try again, or use the county appraiser link above.</div>`;
   } else {
     html += `<div class="note">No parcel found at this point. You may have clicked a road, water body, or just outside a parcel — nudge the marker onto the lot. (Coverage is statewide across all 67 counties.)</div>`;
+    // Some counties (e.g. Glades) publish parcel data only through a closed vendor (qPublic/Schneider)
+    // with no open feed, so the statewide roll may not carry it. Always offer the official record link.
+    const vurl = appraiserParcelLink(countyName, null);
+    if(vurl) html += `<a class="palink" href="${esc(vurl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Look up this address on the ${esc(titleCase(countyName||'county'))} County Property Appraiser</a>`;
   }
   html += `</div></div>`;
 
@@ -6523,7 +6613,14 @@ async function doSearch(){
 
   // FALLBACK: external geocoder (universal — all counties, partial addresses, place names, ZIPs).
   results.innerHTML=setStatus('busy','Geocoding address…');
-  const g=await geocodeBest(q);
+  let g=await geocodeBest(q);
+  // LAST-RESORT: geocoders (Census/OSM) often miss rural addresses (e.g. Glades/Moore Haven) that
+  // DO exist in the statewide parcel roll. Query the roll directly by house number + street.
+  if(!g && searchCtx.hn){
+    results.innerHTML=setStatus('busy','Searching county parcel roll…');
+    const sw=await resolveAddressStatewide(searchCtx).catch(()=>null);
+    if(sw && isFinite(sw.lat) && isFinite(sw.lng)) g={lat:sw.lat,lng:sw.lng,label:sw.label||q,src:'FL parcel roll'};
+  }
   if(!g){ results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
   addToHistory(g.label || q);
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
