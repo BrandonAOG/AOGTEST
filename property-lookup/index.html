@@ -5373,14 +5373,13 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
     if(map.getZoom() < 16) return;                       // too dense/zoomed-out to be legible
     const b=map.getBounds();
     const env=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
-    // Request only the two fields the labels need, both confirmed to exist on the statewide layer
-    // (PHY_ADDR1 = address, PARCEL_ID = id). A lean single query keeps the payload small and avoids
-    // both the timeout and the rate-limit-on-double-request that broke labels on the live web origin.
-    // (Guessing extra field names is what failed before: ArcGIS rejects the whole query if ANY
-    // requested field doesn't exist on the layer.)
+    // SPEED: ask the server for CENTROIDS only — not full polygon geometry. Downloading/parsing
+    // polygons for ~400 parcels was the main delay (~1.5s); centroids are tiny, so this returns in a
+    // few hundred ms. We only need a point to place each number; the centroid is plenty for a label.
+    // Two fields (PHY_ADDR1, PARCEL_ID) both confirmed to exist on the statewide layer.
     const url=PARCEL_FS+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
       `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=${encodeURIComponent('PHY_ADDR1,PARCEL_ID')}`+
-      `&returnGeometry=true&outSR=4326&resultRecordCount=400&f=json`;
+      `&returnGeometry=false&returnCentroid=true&outSR=4326&resultRecordCount=400&f=json`;
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
     const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
     if(!r.ok) return;
@@ -5401,10 +5400,13 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
       const txt=parcelAddrText(a);                        // auto-detects SITEADDR/PHY_ADDR1/SITUS/etc.
       const hn=houseNum(txt);
       if(!hn) continue;
-      const c=labelPoint(f); if(!c) continue;             // [x=lng, y=lat] — most-interior point of the lot
-      const key=hn+'@'+c[0].toFixed(5)+','+c[1].toFixed(5);
+      // label position: server-provided centroid (fast). Fall back to feature centroid if absent.
+      const ce=f.centroid;
+      let cx = ce ? (ce.x!=null?ce.x:ce.X) : null, cy = ce ? (ce.y!=null?ce.y:ce.Y) : null;
+      if(cx==null||cy==null){ const fc=featCentroid(f); if(!fc) continue; cx=fc[0]; cy=fc[1]; }
+      const key=hn+'@'+cx.toFixed(5)+','+cy.toFixed(5);
       if(seen.has(key)) continue; seen.add(key);
-      labels.push({ hn, lat:c[1], lng:c[0], feat:f });
+      labels.push({ hn, lat:cy, lng:cx, feat:f });
     }
     // --- Wrong-house correction (small bolt-on): decide which ONE label is the subject highlight.
     // This NEVER removes a label — it only chooses which existing label gets the "subject" style.
@@ -5421,14 +5423,13 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
       }
     }
     if(subjIdx<0 && want && haveAnchor){
-      let bestInside=false, bestD=Infinity;
+      // No polygon geometry now (centroid-only query for speed), so pick the nearest same-numbered
+      // parcel centroid to the anchor. Good enough for the highlight; the PID match above is exact.
+      let bestD=Infinity;
       for(let i=0;i<labels.length;i++){
         if(labels[i].hn!==want) continue;
-        const rings=(labels[i].feat.geometry&&labels[i].feat.geometry.rings)||null;
-        const inside = rings ? pointInRing(subjLng, subjLat, rings[0]) : false;
         const dd=(labels[i].lng-subjLng)*(labels[i].lng-subjLng)+(labels[i].lat-subjLat)*(labels[i].lat-subjLat);
-        if(inside && !bestInside){ bestInside=true; subjIdx=i; bestD=dd; }
-        else if(inside===bestInside && dd<bestD){ subjIdx=i; bestD=dd; }
+        if(dd<bestD){ bestD=dd; subjIdx=i; }
       }
     }
     if(subjIdx<0 && want){   // no anchor — first same-number match
@@ -5874,7 +5875,7 @@ async function runLookup(lat,lng,searchCtx){
         const _sLat = liveRes.__ngLat!=null?liveRes.__ngLat:lat, _sLng=liveRes.__ngLng!=null?liveRes.__ngLng:lng;
         const _sPid = det.pid?pick(_a,det.pid):null;
         _nbrCtx={ hn:_sHN, lat:_sLat, lng:_sLng, pid:(_sPid!=null?String(_sPid):null) };
-        setTimeout(()=>showNeighborNumbers(_sHN,_sLat,_sLng,(_sPid!=null?String(_sPid):null)), 350);
+        setTimeout(()=>showNeighborNumbers(_sHN,_sLat,_sLng,(_sPid!=null?String(_sPid):null)), 150);
       }catch(e){}
     }
     { const _a=liveRes.features[0].attributes; const _ra=pick(_a,'TOTALACRES')||pick(_a,'ACREAGE')||pick(_a,'GIS_ACRES')||null;
@@ -5957,7 +5958,7 @@ async function runLookup(lat,lng,searchCtx){
     try{
       const _sHN = houseNum(site||'') || (searchCtx&&searchCtx.hn) || null;
       _nbrCtx={ hn:_sHN, lat:lat, lng:lng, pid:(pid!=null?String(pid):null) };
-      setTimeout(()=>showNeighborNumbers(_sHN, lat, lng, (pid!=null?String(pid):null)), 350);
+      setTimeout(()=>showNeighborNumbers(_sHN, lat, lng, (pid!=null?String(pid):null)), 150);
     }catch(e){}
     html += renderLotDimensions(parcel.features[0].geometry, pick(a,'TOTALACRES'));
     try{ const _dim=parcelDimensions(parcel.features[0].geometry); if(_dim&&_dim.areaSqft>0) parcelLotSqft=_dim.areaSqft;
@@ -6648,16 +6649,35 @@ function renderSuggest(items){
 }
 function setSugMsg(msg){ sugEl.innerHTML=`<div class="sgmsg">${esc(msg)}</div>`; sugEl.classList.add('show'); sugItems=[]; sugActive=-1; }
 
-/* fetch up to ~5 candidate addresses; Census first (best for US street addresses), Nominatim as backup */
+/* fetch up to ~6 candidate addresses; Census first (best for US street addresses), then Esri
+   (strong on rural addresses the others miss, e.g. Glades/Moore Haven), Nominatim as backup */
 async function fetchSuggestions(q){
   let qq = /\b(fl|florida)\b/i.test(q) ? q : q+', Florida';
   const out=[];
-  try{
-    const u=`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(qq)}&benchmark=Public_AR_Current&format=json`;
-    const j=await (await fetch(u)).json();
-    const ms=(j&&j.result&&j.result.addressMatches)||[];
+  // run Census + Esri in parallel; Esri is what catches rural addresses the Census geocoder lacks
+  const censusU=`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(qq)}&benchmark=Public_AR_Current&format=json`;
+  const esriU=`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates`+
+    `?SingleLine=${encodeURIComponent(qq)}&f=json&outFields=*&maxLocations=6&outSR=4326`+
+    `&searchExtent=${encodeURIComponent('-87.6,24.4,-80.0,31.0')}`;
+  const [cR,eR]=await Promise.allSettled([
+    fetch(censusU).then(r=>r.json()),
+    fetch(esriU).then(r=>r.json())
+  ]);
+  if(cR.status==='fulfilled'){
+    const ms=(cR.value&&cR.value.result&&cR.value.result.addressMatches)||[];
     for(const m of ms.slice(0,5)) out.push({lat:m.coordinates.y,lng:m.coordinates.x,label:m.matchedAddress,src:'US Census'});
-  }catch(e){}
+  }
+  if(eR.status==='fulfilled'){
+    const cands=(eR.value&&eR.value.candidates)||[];
+    for(const c of cands){
+      if(out.length>=6) break;
+      const loc=c.location; if(!loc||loc.y==null||loc.x==null) continue;
+      if(typeof c.score==='number' && c.score<55) continue;
+      const lbl=c.address||qq;
+      if(out.some(o=>o.label===lbl)) continue;
+      out.push({lat:+loc.y,lng:+loc.x,label:lbl,src:'Esri'});
+    }
+  }
   if(out.length<5){
     try{
       const u=`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(qq)}`;
