@@ -4614,11 +4614,129 @@ function parcelAddrText(a){
    SEPARATE point layer. After we have the parcel polygon, query that layer for the address point that
    falls INSIDE the polygon (preferred) or nearest the click, and return a formatted address string.
    Field names are auto-detected so it tolerates schema variation. */
+/* ============================================================================
+   COUNTY ADDRESS-POINT FEEDS — add a county by pasting ONE line below.
+
+   HOW TO ADD A COUNTY:
+     1. Find the county's address-point layer in its ArcGIS REST Services
+        Directory (look for "Address Points" / "Site Address Points" /
+        "NG911 Address Points"). It must be a POINT layer.
+     2. Copy that layer's URL and append "/query" to the end.
+     3. Add a line here:  KEY: "<url>/query",
+        - KEY = the county name in ALL CAPS, letters only, no spaces/punctuation
+          (it's matched via norm(): "Miami-Dade" -> MIAMIDADE, "St. Johns" -> STJOHNS,
+           "Palm Beach" -> PALMBEACH, "Lee" -> LEE).
+     Field names (ADDRNUM, ST_NAME, FULLADDR, etc.) are auto-detected — you do
+     NOT need to configure them. The layer just has to be CORS-enabled (almost
+     all ArcGIS Online / Hosted feature services are).
+
+   Test a candidate URL fast in a browser by opening:
+     <url>/query?where=1=1&outFields=*&resultRecordCount=1&f=json
+   If you get JSON back with a "features" array, it's good.
+   ============================================================================ */
 const ADDRPOINT_FEEDS = {
   // Collier — Site Address Points (layer 3). Fields incl. ADDRNUM, UNITID, UNITTYPE, STATUS, and a
   // full-street/site field (FULLADDR/STUBADDRESS/ST_NAME). CORS-friendly (same org as parcels).
-  COLLIER: "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Site_Address_Points_b/FeatureServer/3/query"
+  COLLIER: "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Site_Address_Points_b/FeatureServer/3/query",
+
+  // ---- Paste new counties below this line (one per row) ----------------------
+  // CHARLOTTE:  "https://.../FeatureServer/0/query",
+  // SARASOTA:   "https://.../FeatureServer/0/query",
+  // HENDRY:     "https://.../FeatureServer/0/query",
+  // GLADES:     "https://.../FeatureServer/0/query",
 };
+
+/* ============================================================================
+   HOSTED ADDRESS-POINT FILE — for counties with NO live ArcGIS query endpoint.
+   Instead of a live server, the entire county's points live in ONE compact file
+   hosted anywhere CORS-friendly (Cloudflare Pages/R2, GitHub Pages, etc.). The
+   app fetches it ONCE, caches it in memory, then filters to the viewport on each
+   pan — no per-tile requests, no 100-file repo upload.
+
+   File format (compact, minified to keep it tiny):
+     { "fmt":"lee-addr-v3", "lat0":.., "lon0":.., "scale":100000,
+       "streets":["ALABASTER ST", ...],
+       "rows":[[ix,iy,"506",streetIndex], ...] }
+   where lon = lon0 + ix/scale, lat = lat0 + iy/scale, and the address is
+   addrnum + " " + streets[streetIndex].
+
+   Lee County has no public live address-point service (only a downloadable file
+   geodatabase), so Lee is served from this one hosted file.
+
+   To add a hosted-file county:
+     Add a row:  KEY: "https://your-host/the-file.json"  (or a repo-relative path)
+     KEY = county name, caps, letters only (matched via norm()).
+   ============================================================================ */
+const ADDRPOINT_FILES = {
+  // Lee's full address-point set, served as one compact file sitting next to this
+  // index.html in your repo (no external host, no account needed). If you ever move
+  // it to a CDN, just swap this for the full https:// URL.
+  LEE: "lee_compact_v3.json",
+  // Collier also served from a compact file (offline-capable). Collier additionally
+  // has a live feed in ADDRPOINT_FEEDS below, which acts as an automatic fallback if
+  // this file ever fails to load.
+  COLLIER: "collier_compact_v3.json"
+};
+// Cache the parsed file per URL so it's fetched + indexed only once per session.
+const _fileCache = new Map();
+// SPEED: instead of decoding every point into a feature object up front (slow for 300k–700k
+// points), keep the raw compact arrays and build a coarse spatial grid index keyed by
+// 0.02° cells. A viewport query then only touches the handful of cells it overlaps, and we
+// build address strings lazily for just those few hundred points — not the whole county.
+const _GRID = 0.02;
+function _cellKey(cx,cy){ return cx+'_'+cy; }
+async function loadHostedFileIndex(url){
+  if(_fileCache.has(url)) return _fileCache.get(url);
+  const p = fetch(url).then(r=> r.ok ? r.json() : null).then(j=>{
+    if(!j || !Array.isArray(j.rows)) return null;
+    const lat0=j.lat0||0, lon0=j.lon0||0, scale=j.scale||1, streets=j.streets||[];
+    const grid=new Map();
+    const rows=j.rows;
+    for(let i=0;i<rows.length;i++){
+      const r=rows[i];
+      const x=lon0 + r[0]/scale, y=lat0 + r[1]/scale;
+      const cx=Math.floor(x/_GRID), cy=Math.floor(y/_GRID);
+      const k=_cellKey(cx,cy);
+      let cell=grid.get(k); if(!cell){ cell=[]; grid.set(k,cell); }
+      // store decoded x,y + the row so we don't recompute coords on every query
+      cell.push([x,y,r[2]||'',r[3]]);
+    }
+    return { grid, streets };
+  }).catch(()=>null);
+  _fileCache.set(url, p);
+  return p;
+}
+// Return Esri-shaped features inside the given Leaflet bounds, building address strings
+// only for the points actually in view.
+async function queryHostedFile(url, b){
+  const idx=await loadHostedFileIndex(url);
+  if(!idx || !idx.grid) return null;   // null => load failed (lets caller fall back to live feed)
+  const W=b.getWest(),E=b.getEast(),S=b.getSouth(),N=b.getNorth();
+  const cx0=Math.floor(W/_GRID), cx1=Math.floor(E/_GRID);
+  const cy0=Math.floor(S/_GRID), cy1=Math.floor(N/_GRID);
+  const streets=idx.streets, out=[];
+  for(let cx=cx0;cx<=cx1;cx++){
+    for(let cy=cy0;cy<=cy1;cy++){
+      const cell=idx.grid.get(_cellKey(cx,cy));
+      if(!cell) continue;
+      for(let i=0;i<cell.length;i++){
+        const p=cell[i], x=p[0], y=p[1];
+        if(x>=W && x<=E && y>=S && y<=N){
+          const num=p[2], street=streets[p[3]]||'';
+          out.push({ attributes:{ ADDRNUM:num, FULLADDR:(num+' '+street).trim() }, geometry:{ x, y } });
+        }
+      }
+    }
+  }
+  return out;
+}
+// Kick the download+index off early (before zoom-in) so it's ready when labels are needed.
+function prefetchCountyFile(county){
+  try{
+    const url = county ? ADDRPOINT_FILES[norm(county)] : null;
+    if(url && url.indexOf('REPLACE-ME')<0) loadHostedFileIndex(url);
+  }catch(e){}
+}
 /* Build a readable address from an address-point's attributes, auto-detecting field names. */
 function formatAddrPoint(a){
   if(!a) return '';
@@ -5487,15 +5605,40 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
     // here — unlike the heavy parcel layer that needed a trimmed field list.
     try{
       const _county = (window.__lastCounty||'').toString();
-      const apUrl = _county ? ADDRPOINT_FEEDS[norm(_county)] : null;
-      if(apUrl){
-        const apEnv=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
-        const apUrlFull=apUrl+`?geometry=${encodeURIComponent(apEnv)}&geometryType=esriGeometryEnvelope&inSR=4326`+
-          `&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=800&f=json`;
-        const ac=new AbortController(); const at=setTimeout(()=>ac.abort(),12000);
+      const apUrl    = _county ? ADDRPOINT_FEEDS[norm(_county)] : null;
+      const fileUrl  = _county ? ADDRPOINT_FILES[norm(_county)] : null;
+      // Ignore an unconfigured placeholder URL so it never tries to fetch REPLACE-ME.
+      const fileCfg  = (fileUrl && fileUrl.indexOf('REPLACE-ME')<0) ? fileUrl : null;
+      if(apUrl || fileCfg){
         let aj=null;
-        try{ const ar=await fetch(apUrlFull,{signal:ac.signal}); clearTimeout(at); if(ar.ok) aj=await ar.json(); }
-        catch(e){ clearTimeout(at); }
+        if(fileCfg){
+          // HOSTED FILE path: query the spatial index for just this viewport's points.
+          // Fast: only nearby grid cells are scanned, and address strings are built lazily.
+          const inView = await queryHostedFile(fileCfg, b);
+          // queryHostedFile returns null only if the file failed to load — in that case, if the
+          // county also has a live feed, fall through to it. An empty (but successful) result is [].
+          if(inView===null && apUrl){
+            aj=null;
+          } else {
+            aj={ features: inView||[] };
+          }
+        }
+        if(!aj){
+          const apEnv=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+          // SPEED: request ONLY the fields formatAddrPoint()/the house-number logic actually read —
+          // not outFields=* — and cap the record count. outFields=* + 800 records was pulling every
+          // attribute column for hundreds of points each pan, which was the Collier-only delay.
+          const AP_FIELDS=['ADDRNUM','ADD_NUMBER','HOUSE_NUM','STNUM','STREET_NUM',
+                           'UNITID','UNIT','UNIT_NO','UNITTYPE','UNIT_TYPE','STATUS',
+                           'FULLADDR','FULL_ADDR','STUBADDRESS','SITEADDRESS','SITE_ADDR','FULLADDRESS','ADDRESS',
+                           'PREDIR','PRE_DIR','ST_PREDIR','ST_NAME','STREETNAME','STNAME','FULLNAME','STREET',
+                           'ST_TYPE','STREETTYPE','STTYPE','SUFFIX','POSTDIR','POST_DIR','ST_POSDIR'].join(',');
+          const apUrlFull=apUrl+`?geometry=${encodeURIComponent(apEnv)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+            `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent(AP_FIELDS)}&returnGeometry=true&outSR=4326&resultRecordCount=500&f=json`;
+          const ac=new AbortController(); const at=setTimeout(()=>ac.abort(),12000);
+          try{ const ar=await fetch(apUrlFull,{signal:ac.signal}); clearTimeout(at); if(ar.ok) aj=await ar.json(); }
+          catch(e){ clearTimeout(at); }
+        }
         if(aj && !aj.error && aj.features && aj.features.length){
           // "Near" threshold ≈ 12 m in degrees — if a parcel label is already within this of the
           // point, the point is that same house; skip it. Otherwise it's an unlabeled inside-tract
@@ -5507,7 +5650,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid){
           // the whole park in orange. Gather first, then highlight only the ONE nearest the anchor.
           const ptLabels=[];   // {hn, lat, lng, a}
           for(const f of aj.features){
-            if(ptLabels.length>=400) break;
+            if(ptLabels.length>=500) break;
             const a=f.attributes||{};
             const st=(a.STATUS||a.Status||'').toString().toUpperCase();
             if(st && /(RETIRE|INACTIVE|INVALID|DELETE)/.test(st)) continue;
@@ -5674,6 +5817,8 @@ async function runLookup(lat,lng,searchCtx){
   let countyName = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
   let cityName   = (!city.__err   && city.features   && city.features[0])   ? city.features[0].attributes.NAME   : null;
   window.__lastCounty = countyName || '';   // for the live-feed diagnostic
+  prefetchCountyFile(countyName);            // SPEED: start downloading+indexing address points now,
+                                             // so they're ready the moment the user zooms to label range.
   if(window.__exportData){ window.__exportData.county=countyName?titleCase(countyName):''; window.__exportData.municipality=cityName?titleCase(cityName):''; }
   const paUrl = countyName ? PA[norm(countyName)] : null;
 
