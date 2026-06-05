@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.0.10';
+var CACHE_NAME = 'aog-forms-v2.2.0';
 var DEV_MODE   = false;
 
 // Stores last known cache progress so late-loading pages can request it
@@ -20,18 +20,20 @@ var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE duri
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  'Property Lookup: fixed gas/electric territories not loading on mobile',
-  'Property Lookup: territory data now cached for offline use',
-  'Property Lookup: wider desktop panel, newspaper-style print',
-  'Major hub redesign — new dark industrial UI',
-  'Added 40 random animated background themes',
-  'Cards now fully transparent with no blur',
-  'All cards uniform size across every device & category',
-  'Full mobile & tablet responsive fixes across all themes',
-  'Added QC Checklist form',
-  'Added Service Work form',
-  'Added Site Plan / Annotator tool',
-  'Offline page updated to match new hub design',
+  '⚡ Faster loads — pages now open instantly from cache, then update in the background',
+  '📦 Optimized logo (506 KB → 6 KB) and removed a 486 KB embedded image from Gas Install',
+  '📡 All map & export libraries (Leaflet, XLSX, jsPDF, pdf.js, pdf-lib) now precached for full offline use',
+  '🗺️ Property Lookup replaces Sketch Pad (use Site plan annotator) — search for info on any FL address',
+  '⚠️ Property Lookup loads offline by design (no errors), but live searches require data/Wi-Fi',
+  '📋 Auto-pulls owner, parcel ID, just value, year built, living area & last sale from live county feeds',
+  '🌊 Live FEMA flood zone (NFHL) + county DFIRM cross-check — flags mismatches between maps',
+  '📐 Zoning district detected live — shows required setbacks for Collier, Lee, Charlotte, Sarasota & cities',
+  '⚡ Generator siting rules built in for Naples, Collier, Cape Coral, Sanibel, Punta Gorda & Sarasota',
+  '💨 Live ASCE 7-22 wind speed at the exact point — interpolated from Risk Cat II contour layer',
+  '🔌 Electric utility identified by territory polygon — FPL vs LCEC vs Duke vs TECO & more',
+  '🔥 Natural gas vs propane determined by LDC service territory — flags propane-only areas like Cape Coral',
+  '📄 PDF report + Excel export — imports owner, address & flood zone straight into the Estimate sheet',
+  '📡 Works offline — all tools cached by the AOG Hub service worker',
 ];
 // ============================================================
 
@@ -63,6 +65,13 @@ var PRECACHE_URLS = [
 // CDN assets that must be cached on install for 100% offline support
 var PRECACHE_CDN = [
   'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
 ];
 
 // Google Fonts CSS URLs — cached on install so fonts load offline
@@ -221,7 +230,7 @@ self.addEventListener('fetch', function(event) {
   var accept = request.headers.get('Accept') || '';
 
   if (accept.includes('text/html')) {
-    event.respondWith(networkFirst(request));
+    event.respondWith(staleWhileRevalidate(request));
     return;
   }
 
@@ -312,6 +321,14 @@ function staleWhileRevalidate(request) {
         return networkResponse;
       }).catch(function(err) {
         console.log('[SW] Revalidate failed:', err);
+        var accept = request.headers.get('Accept') || '';
+        // For navigations with no cache + no network, serve the offline page
+        if (accept.includes('text/html')) {
+          var offlineUrl = self.registration.scope + 'offline.html';
+          return caches.match(offlineUrl).then(function(r) {
+            return r || new Response('Service Unavailable', { status: 503 });
+          });
+        }
         // Return a valid empty response so respondWith never gets undefined
         return new Response('', { status: 503 });
       });
