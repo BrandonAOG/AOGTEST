@@ -434,7 +434,7 @@
   /* ---- DESKTOP PRINT BASE FONT ---- */
   --fs-print-phone-base:         13.08px; /* base html font-size for phone print             */
   --fs-print-ipad-base:          16.7px; /* base html font-size for iPad print              */
-  --fs-print-desktop-base:       15.08px; /* base html font-size for desktop print           */
+  --fs-print-desktop-base:       13.08px; /* base html font-size for desktop print           */
 
   /* ---- INPUT FIELD WIDTHS — PHONE ---- */
   --w-phone-gen-size:        15ch;  /* Generator size input (phone)                     */
@@ -1475,58 +1475,75 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 }
 
 /* ===== DESKTOP PRINT — all elements ===== */
-@media print and (min-width: 1361px) {
+@media print {
+  /* DESKTOP print overrides — re-keyed from the unreachable (min-width:1361px) media query
+     to html.desktop-print so they ACTUALLY apply during desktop printing. */
   /* Apply the desktop-print base font-size. Previously this block never set html font-size, so
      desktop print inherited the iPad base (--fs-print-ipad-base) and changing --fs-print-desktop-base
      did nothing. This line makes that variable actually take effect. */
-  html                   { font-size: var(--fs-print-desktop-base) !important; }
-  .company-name          { font-size: var(--fs-print-desktop-company-name) !important; }
-  .doc-title             { font-size: var(--fs-print-desktop-doc-title) !important; }
-  .section-header        { font-size: var(--fs-print-desktop-section-header) !important; padding: var(--pd-print-desktop-section-header) !important; }
-  .col-label             { font-size: var(--fs-print-desktop-col-label) !important; padding: var(--pd-print-desktop-col-label) !important; }
-  label                  { font-size: var(--fs-print-desktop-label) !important; }
-  .inline-label          { font-size: var(--fs-print-desktop-inline-label) !important; }
-  input[type="text"], input[type="email"], input[type="tel"],
-  input[type="number"]              { font-size: var(--fs-print-desktop-input) !important; padding: var(--pd-print-desktop-input) !important; }
-  input[type="date"]                { font-size: var(--fs-print-desktop-date) !important; padding: var(--pd-print-desktop-input) !important; }
-  textarea               { font-size: var(--fs-print-desktop-notes) !important; padding: var(--pd-print-desktop-textarea) !important; }
-  .yn-group .yn-label    { font-size: var(--fs-print-desktop-yn-label) !important; padding: var(--pd-print-desktop-yn-label) !important; }
-  .check-item            { padding: var(--pd-print-desktop-check-item) !important; min-height: var(--h-print-desktop-check-item) !important; height: var(--h-print-desktop-check-item) !important; }
-  .check-item span       { font-size: var(--fs-print-desktop-check-item) !important; }
-  input[type="text"], input[type="email"], input[type="tel"],
-  input[type="date"], input[type="number"] { min-height: var(--h-print-desktop-input) !important; height: var(--h-print-desktop-input) !important; }
-  .yn-group .yn-label    { min-height: var(--h-print-desktop-yn-label) !important; height: var(--h-print-desktop-yn-label) !important; line-height: var(--h-print-desktop-yn-label) !important; }
-  .field-row             { min-height: var(--h-print-desktop-field-row) !important; }
-  .inline-row            { min-height: var(--h-print-desktop-inline-row) !important; }
-  .gas-appliances-label  { font-size: var(--fs-print-desktop-gas-label) !important; }
-  .gas-appliances-box    { padding: var(--pd-print-desktop-gas-box) !important; }
-  .header                { padding: var(--pd-print-desktop-header) !important; }
-  .content               { padding: var(--pd-print-desktop-content) !important; padding-bottom: var(--pb-content-print-desktop) !important; }
-  .section-body          { padding: var(--pd-print-desktop-section-body) !important; }
-  .top-col               { padding: var(--pd-print-desktop-top-col) !important; }
-  .flood-item            { padding: var(--pd-print-desktop-flood-item) !important; }
-  .footer                { padding: var(--pd-print-desktop-footer) !important; }
-  .footer-text           { font-size: var(--fs-print-desktop-footer) !important; }
-  #ver-span              { font-size: var(--fs-print-desktop-ver-span) !important; }
-  #gen_notes   { min-height: var(--h-print-desktop-gen-notes) !important; height: var(--h-print-desktop-gen-notes) !important; max-height: var(--h-print-desktop-gen-notes) !important; }
-  #pad_notes   { min-height: var(--h-print-desktop-pad-notes) !important; height: var(--h-print-desktop-pad-notes) !important; max-height: var(--h-print-desktop-pad-notes) !important; }
-  #gas_notes   { min-height: var(--h-print-desktop-gas-notes) !important; height: var(--h-print-desktop-gas-notes) !important; max-height: var(--h-print-desktop-gas-notes) !important; }
-  #ready_notes { min-height: var(--h-print-desktop-ready-notes) !important; height: var(--h-print-desktop-ready-notes) !important; max-height: var(--h-print-desktop-ready-notes) !important; }
+  html.desktop-print { font-size: var(--fs-print-desktop-base) !important; }
+  html.desktop-print .company-name { font-size: var(--fs-print-desktop-company-name) !important; }
+  html.desktop-print .doc-title { font-size: var(--fs-print-desktop-doc-title) !important; }
+  html.desktop-print .section-header { font-size: var(--fs-print-desktop-section-header) !important; padding: var(--pd-print-desktop-section-header) !important; }
+  html.desktop-print .col-label { font-size: var(--fs-print-desktop-col-label) !important; padding: var(--pd-print-desktop-col-label) !important; }
+  html.desktop-print label { font-size: var(--fs-print-desktop-label) !important; }
+  html.desktop-print .inline-label { font-size: var(--fs-print-desktop-inline-label) !important; }
+  html.desktop-print input[type="text"], html.desktop-print input[type="email"], html.desktop-print input[type="tel"],
+  html.desktop-print input[type="number"] { font-size: var(--fs-print-desktop-input) !important; padding: var(--pd-print-desktop-input) !important; }
+  html.desktop-print input[type="date"] { font-size: var(--fs-print-desktop-date) !important; padding: var(--pd-print-desktop-input) !important; }
+  html.desktop-print textarea { font-size: var(--fs-print-desktop-notes) !important; padding: var(--pd-print-desktop-textarea) !important; }
+  html.desktop-print .yn-group .yn-label { font-size: var(--fs-print-desktop-yn-label) !important; padding: var(--pd-print-desktop-yn-label) !important; }
+  html.desktop-print .check-item { padding: var(--pd-print-desktop-check-item) !important; min-height: var(--h-print-desktop-check-item) !important; height: var(--h-print-desktop-check-item) !important; }
+  html.desktop-print .check-item span { font-size: var(--fs-print-desktop-check-item) !important; }
+  html.desktop-print input[type="text"], html.desktop-print input[type="email"], html.desktop-print input[type="tel"],
+  html.desktop-print input[type="date"], html.desktop-print input[type="number"] { min-height: var(--h-print-desktop-input) !important; height: var(--h-print-desktop-input) !important; }
+  html.desktop-print .yn-group .yn-label { min-height: var(--h-print-desktop-yn-label) !important; height: var(--h-print-desktop-yn-label) !important; line-height: var(--h-print-desktop-yn-label) !important; }
+  html.desktop-print .field-row { min-height: var(--h-print-desktop-field-row) !important; }
+  html.desktop-print .inline-row { min-height: var(--h-print-desktop-inline-row) !important; }
+  html.desktop-print .gas-appliances-label { font-size: var(--fs-print-desktop-gas-label) !important; }
+  html.desktop-print .gas-appliances-box { padding: var(--pd-print-desktop-gas-box) !important; }
+  html.desktop-print .header { padding: var(--pd-print-desktop-header) !important; }
+  html.desktop-print .content { padding: var(--pd-print-desktop-content) !important; padding-bottom: var(--pb-content-print-desktop) !important; }
+  html.desktop-print .section-body { padding: var(--pd-print-desktop-section-body) !important; }
+  html.desktop-print .top-col { padding: var(--pd-print-desktop-top-col) !important; }
+  html.desktop-print .flood-item { padding: var(--pd-print-desktop-flood-item) !important; }
+  html.desktop-print .footer { padding: var(--pd-print-desktop-footer) !important; }
+  html.desktop-print .footer-text { font-size: var(--fs-print-desktop-footer) !important; }
+  html.desktop-print #ver-span { font-size: var(--fs-print-desktop-ver-span) !important; }
+  html.desktop-print #gen_notes { min-height: var(--h-print-desktop-gen-notes) !important; height: var(--h-print-desktop-gen-notes) !important; max-height: var(--h-print-desktop-gen-notes) !important; }
+  html.desktop-print #pad_notes { min-height: var(--h-print-desktop-pad-notes) !important; height: var(--h-print-desktop-pad-notes) !important; max-height: var(--h-print-desktop-pad-notes) !important; }
+  html.desktop-print #gas_notes { min-height: var(--h-print-desktop-gas-notes) !important; height: var(--h-print-desktop-gas-notes) !important; max-height: var(--h-print-desktop-gas-notes) !important; }
+  html.desktop-print #ready_notes { min-height: var(--h-print-desktop-ready-notes) !important; height: var(--h-print-desktop-ready-notes) !important; max-height: var(--h-print-desktop-ready-notes) !important; }
   /* ---- misc overrides : desktop print ---- */
-  .logo-img { width: var(--logo-size-print-desktop) !important; height: var(--logo-size-print-desktop) !important; }
-  .grid-2 { gap: var(--grid23-gap-print-desktop) !important; }
-  .grid-3 { gap: var(--grid23-gap-print-desktop) !important; }
-  .grid-4 { gap: var(--grid4-gap-print-desktop) !important; }
-  .divider { margin: var(--divider-margin-print-desktop) !important; }
-  #gen_size { width: var(--w-print-desktop-gen-size) !important; min-width: var(--w-print-desktop-gen-size) !important; }
-  #num_panels { width: var(--w-print-desktop-num-panels) !important; min-width: var(--w-print-desktop-num-panels) !important; }
-  #num_ts { width: var(--w-print-desktop-num-ts) !important; min-width: var(--w-print-desktop-num-ts) !important; }
-  #ts_type_desc { width: var(--w-print-desktop-ts-type) !important; }
-  #ts_placement { width: var(--w-print-desktop-ts-placement) !important; min-width: var(--w-print-desktop-ts-placement) !important; }
-  #circuits_60a, #circuits_100a { width: var(--w-print-desktop-circuits) !important; min-width: var(--w-print-desktop-circuits) !important; }
-  #stand_height { width: var(--w-print-desktop-stand-height) !important; min-width: var(--w-print-desktop-stand-height) !important; }
-  #new_tank_size, #existing_tank_size { width: var(--w-print-desktop-tank-size) !important; min-width: var(--w-print-desktop-tank-size) !important; }
-  #install_days { width: var(--w-print-desktop-install-days) !important; }
+  html.desktop-print .logo-img { width: var(--logo-size-print-desktop) !important; height: var(--logo-size-print-desktop) !important; }
+  html.desktop-print .grid-2 { gap: var(--grid23-gap-print-desktop) !important; }
+  html.desktop-print .grid-3 { gap: var(--grid23-gap-print-desktop) !important; }
+  html.desktop-print .grid-4 { gap: var(--grid4-gap-print-desktop) !important; }
+  html.desktop-print .divider { margin: var(--divider-margin-print-desktop) !important; }
+  html.desktop-print #gen_size { width: var(--w-print-desktop-gen-size) !important; min-width: var(--w-print-desktop-gen-size) !important; }
+  html.desktop-print #num_panels { width: var(--w-print-desktop-num-panels) !important; min-width: var(--w-print-desktop-num-panels) !important; }
+  html.desktop-print #num_ts { width: var(--w-print-desktop-num-ts) !important; min-width: var(--w-print-desktop-num-ts) !important; }
+  html.desktop-print #ts_type_desc { width: var(--w-print-desktop-ts-type) !important; }
+  html.desktop-print #ts_placement { width: var(--w-print-desktop-ts-placement) !important; min-width: var(--w-print-desktop-ts-placement) !important; }
+  html.desktop-print #circuits_60a, html.desktop-print #circuits_100a { width: var(--w-print-desktop-circuits) !important; min-width: var(--w-print-desktop-circuits) !important; }
+  html.desktop-print #stand_height { width: var(--w-print-desktop-stand-height) !important; min-width: var(--w-print-desktop-stand-height) !important; }
+  html.desktop-print #new_tank_size, html.desktop-print #existing_tank_size { width: var(--w-print-desktop-tank-size) !important; min-width: var(--w-print-desktop-tank-size) !important; }
+  html.desktop-print #install_days { width: var(--w-print-desktop-install-days) !important; }
+
+/* ── DESKTOP "print like the screen" override ──
+   When printForm marks <html class="desktop-print"> (desktop browsers only), undo the fixed
+   1050px print width / zoom machinery so the page prints at its natural on-screen size and lets
+   the browser handle scaling. Native checkboxes/radios are left alone on this path (no span-replace),
+   so they print however the browser renders them. */
+  /* Desktop: full-page actual size. .page is a fixed-height flex column: .content flexes to fill
+     all space (sections spread evenly via space-between) and PUSHES the footer to the very bottom
+     edge, so there's no gap between the last section and the footer / page bottom. */
+  html.desktop-print { font-size: 16px !important; zoom: 1 !important; }
+  html.desktop-print body { width: 1050px !important; max-width: 1050px !important; margin: 0 auto !important; }
+  html.desktop-print .page { width: 1050px !important; max-width: 1050px !important; height: auto !important; min-height: 0 !important; overflow: visible !important; display: flex !important; flex-direction: column !important; }
+  html.desktop-print .content { flex: 1 1 auto !important; height: auto !important; min-height: 0 !important; display: flex !important; flex-direction: column !important; }
+  html.desktop-print .footer { flex: 0 0 auto !important; margin-top: 0 !important; }
+}
 </style>
 </head>
 
@@ -2434,6 +2451,7 @@ function printForm() {
     el = document.getElementById('safari-page-fix');  if (el) el.remove();
     el = document.getElementById('no-transitions');   if (el) el.remove();
     if (wasDark) document.body.classList.add('dark-mode');
+    document.documentElement.classList.remove('desktop-print');
     document.documentElement.style.colorScheme = _prevColorScheme || '';
     if (wasMobileSafariClass) document.body.classList.add('mobile-safari');
     _printSeasonalClasses.forEach(function(c) { document.body.classList.add(c); });
@@ -2561,12 +2579,13 @@ function printForm() {
   }
 
   // ══════════════════════════════════════════
-  // ── DESKTOP SAFARI / NON-SAFARI — print path ──
+  // ── DESKTOP browser — print path ──
   // ══════════════════════════════════════════
-  // Run the span-replace for ALL browsers here, not just Safari: native checkbox/radio
-  // controls print unreliably everywhere (often losing the amber fill and showing a bare
-  // accent-color tick), so drawing the filled boxes guarantees a consistent PDF.
-  doSpanReplace();
+  // Per request: desktop should just print like a normal web page — no span-replace, native
+  // checkbox/radio controls, browser-native sizing. Dark mode is still stripped above so it
+  // prints the light appearance. We mark <html> so a desktop-only print rule can neutralize the
+  // phone/iPad scaling machinery and let the page print at its on-screen size.
+  document.documentElement.classList.add('desktop-print');
   void document.body.offsetHeight;
   armRestoreAndPrint(false);
 
