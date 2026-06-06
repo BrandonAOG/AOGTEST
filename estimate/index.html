@@ -1524,7 +1524,18 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 <script>
 (function () {
   var ua = navigator.userAgent;
-  if (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) {
+  // Classic iOS/iPadOS Safari (UA still says iPhone/iPad/iPod).
+  var isClassicIOS = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
+  // iPadOS 13+ defaults to "desktop" Safari, whose UA reports as Macintosh with NO
+  // "iPad" token. The reliable tell is a touch-capable "Mac": real Macs report
+  // maxTouchPoints 0/1, iPads report >1. Treat these as mobile-safari so the print
+  // path runs the span-replace that draws the filled checkbox/radio boxes (otherwise
+  // the PDF falls back to native controls and the amber fill is lost).
+  var isIpadDesktopMode = /Macintosh/.test(ua) && /WebKit/.test(ua)
+                          && !/Chrome|Chromium|Edg|Firefox/.test(ua)
+                          && typeof navigator.maxTouchPoints === 'number'
+                          && navigator.maxTouchPoints > 1;
+  if (isClassicIOS || isIpadDesktopMode) {
     document.documentElement.classList.add('mobile-safari');
     if (document.body) { document.body.classList.add('mobile-safari'); }
     else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('mobile-safari'); }); }
@@ -2500,7 +2511,10 @@ function printForm() {
   // ══════════════════════════════════════════
   // ── DESKTOP SAFARI / NON-SAFARI — print path ──
   // ══════════════════════════════════════════
-  if (isAnySafari) { doSpanReplace(); }
+  // Run the span-replace for ALL browsers here, not just Safari: native checkbox/radio
+  // controls print unreliably everywhere (often losing the amber fill and showing a bare
+  // accent-color tick), so drawing the filled boxes guarantees a consistent PDF.
+  doSpanReplace();
   void document.body.offsetHeight;
   armRestoreAndPrint(false);
 
