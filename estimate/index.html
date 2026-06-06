@@ -432,9 +432,9 @@
   --check-group-gap-desktop:     4px;    /* gap between checkbox/radio pills (desktop)       */
 
   /* ---- DESKTOP PRINT BASE FONT ---- */
-  --fs-print-phone-base:         16.6px; /* base html font-size for phone print             */
+  --fs-print-phone-base:         13.08px; /* base html font-size for phone print             */
   --fs-print-ipad-base:          16.7px; /* base html font-size for iPad print              */
-  --fs-print-desktop-base:       16.08px; /* base html font-size for desktop print           */
+  --fs-print-desktop-base:       15.08px; /* base html font-size for desktop print           */
 
   /* ---- INPUT FIELD WIDTHS — PHONE ---- */
   --w-phone-gen-size:        15ch;  /* Generator size input (phone)                     */
@@ -1146,6 +1146,10 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .check-item span { color: #1F2937 !important; text-shadow: none !important; font-size: var(--fs-print-phone-check-item) !important; line-height: 1 !important; }
   .check-item:has(input:checked) { background: #fde68a !important; border-color: #D97706 !important; box-shadow: none !important; }
   .check-item:has(input:checked) span { color: #92400E !important; }
+  /* Force selected-item shading light even when printing from dark mode (dark rule has higher
+     specificity and would otherwise win if the .dark-mode class is still present at print time). */
+  body.dark-mode .check-item:has(input:checked) { background: #fde68a !important; border-color: #D97706 !important; box-shadow: none !important; }
+  body.dark-mode .check-item:has(input:checked) span { color: #92400E !important; text-shadow: none !important; }
   .divider { border-top: 1px solid #D97706 !important; background: #ffffff !important; margin: var(--divider-margin-print) !important; }
   .divider::before { background: #ffffff !important; color: #D97706 !important; }
   .gas-appliances-box { background: #ffffff !important; border-color: #D97706 !important; padding: var(--pd-print-phone-gas-box) !important; margin-bottom: 3px !important; }
@@ -1472,6 +1476,10 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 
 /* ===== DESKTOP PRINT — all elements ===== */
 @media print and (min-width: 1361px) {
+  /* Apply the desktop-print base font-size. Previously this block never set html font-size, so
+     desktop print inherited the iPad base (--fs-print-ipad-base) and changing --fs-print-desktop-base
+     did nothing. This line makes that variable actually take effect. */
+  html                   { font-size: var(--fs-print-desktop-base) !important; }
   .company-name          { font-size: var(--fs-print-desktop-company-name) !important; }
   .doc-title             { font-size: var(--fs-print-desktop-doc-title) !important; }
   .section-header        { font-size: var(--fs-print-desktop-section-header) !important; padding: var(--pd-print-desktop-section-header) !important; }
@@ -2392,6 +2400,11 @@ function printForm() {
     '    background:transparent!important;border:none!important;color:transparent!important;',
     '    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important; }',
     '  .check-item:has(input:checked) { background:#fde68a!important;border-color:#D97706!important;box-shadow:none!important; }',
+    '  /* Match dark-mode specificity: when printing from dark mode the .dark-mode class can still be',
+    '     present at print time, and body.dark-mode .check-item:has(...) (higher specificity) was winning,',
+    '     so the amber shading on selected radios/checkboxes did not print. These force it light too. */',
+    '  body.dark-mode .check-item:has(input:checked) { background:#fde68a!important;border-color:#D97706!important;box-shadow:none!important; }',
+    '  body.dark-mode .check-item:has(input:checked) span { color:#92400E!important;text-shadow:none!important; }',
     '  .footer-text { color:#9CA3AF!important; }',
     '  legend { font-weight:500!important;font-family:var(--font-display)!important;letter-spacing:1.5px!important;text-transform:uppercase!important;color:#6B7280!important; }',
     '  body.dark-mode legend { color:#1F2937!important; }',
