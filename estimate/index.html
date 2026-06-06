@@ -2630,6 +2630,13 @@ function capturePageToCanvas() {
       '  --icon-color-gps: #10B981 !important;',
       '}',
       '.icon-themed { color: #D97706 !important; }',
+      '/* ROOT-CAUSE FIX: .col-label is display:inline-flex on screen, and html2canvas drops the',
+      '   injected dot + icon inside inline-flex containers (the block-level .section-header works',
+      '   fine). Switch the pills to block-level flex with fit-content width for capture so they keep',
+      '   their compact pill shape but render their children reliably. */',
+      '.col-label { display: flex !important; width: -webkit-fit-content !important; width: fit-content !important; align-items: center !important; min-height: 26px !important; overflow: visible !important; }',
+      '.section-header { min-height: 26px !important; align-items: center !important; overflow: visible !important; }',
+      '.col-label canvas[data-capture-icon], .section-header canvas[data-capture-icon] { display: inline-block !important; flex-shrink: 0 !important; vertical-align: middle !important; }',
       '.doc-title { color: #D97706 !important; text-shadow: none !important; }',
       '.company-name { color: #D97706 !important; text-shadow: none !important; }',
       '.section-header { color: #D97706 !important; }',
@@ -2685,6 +2692,57 @@ function capturePageToCanvas() {
       injectedDots.push(dot);
     });
 
+    // ── Pre-rasterize the inline icon SVGs to <canvas> on the LIVE DOM before capture ──
+    // html2canvas 1.4.1 will not reliably paint complex inline <svg> (or SVG-via-<img>) — a
+    // long-standing, documented limitation — so the icons came out blank. The reliable fix
+    // (used widely): draw each SVG onto its own <canvas>, swap that canvas in for the SVG, let
+    // html2canvas render the canvas (which it handles dependably), then restore. We bake the
+    // amber color in first so there's no currentColor to resolve. Each draw is async (Image
+    // onload), so we collect promises and await them before triggering html2canvas.
+    var _iconSwaps = [];
+    var _iconPromises = [];
+    document.querySelectorAll('.icon-themed').forEach(function(svg) {
+      if (svg.tagName.toLowerCase() !== 'svg') return;
+      var rect = svg.getBoundingClientRect();
+      var attrW = parseFloat(svg.getAttribute('width'))  || 0;
+      var attrH = parseFloat(svg.getAttribute('height')) || 0;
+      // Prefer the declared width/height; fall back to the measured box; never below the
+      // declared size (the measured box can collapse small inside a tight flex pill at capture
+      // time, which is what was shrinking the icon to nothing).
+      var w = Math.max(1, Math.round(Math.max(attrW, rect.width  || 0) || attrW || 22));
+      var h = Math.max(1, Math.round(Math.max(attrH, rect.height || 0) || attrH || 22));
+      var s = svg.cloneNode(true);
+      s.setAttribute('width', w); s.setAttribute('height', h);
+      s.setAttribute('color', '#D97706');
+      if (!s.getAttribute('xmlns')) s.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      s.querySelectorAll('path, line, circle, rect, polyline, polygon, ellipse').forEach(function(p) {
+        var st = p.getAttribute('stroke');
+        if (st && st !== 'none') p.setAttribute('stroke', '#D97706');
+        var fl = p.getAttribute('fill');
+        if (fl && /currentcolor/i.test(fl)) p.setAttribute('fill', '#D97706');
+      });
+      var markup = new XMLSerializer().serializeToString(s);
+      var uri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup);
+      var dpr = 2;
+      var cv = document.createElement('canvas');
+      cv.width = w * dpr; cv.height = h * dpr;
+      cv.setAttribute('data-capture-icon', '1');
+      cv.style.cssText = 'width:' + w + 'px;height:' + h + 'px;flex-shrink:0;display:inline-block;vertical-align:middle;';
+      var p = new Promise(function(resolve) {
+        var im = new Image();
+        im.onload = function() {
+          try { cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); } catch (e) {}
+          resolve();
+        };
+        im.onerror = function() { resolve(); };
+        im.src = uri;
+      });
+      _iconPromises.push(p);
+      svg.style.display = 'none';
+      svg.parentNode.insertBefore(cv, svg);
+      _iconSwaps.push({ svg: svg, canvas: cv });
+    });
+
     var restored = false;
     var restore = function() {
       if (restored) return;
@@ -2692,6 +2750,12 @@ function capturePageToCanvas() {
       // Remove injected dots
       injectedDots.forEach(function(d) { if (d.parentNode) d.parentNode.removeChild(d); });
       injectedDots = [];
+      // Restore icon SVGs (remove the temp canvases, un-hide the originals)
+      _iconSwaps.forEach(function(sw) {
+        if (sw.canvas && sw.canvas.parentNode) sw.canvas.parentNode.removeChild(sw.canvas);
+        if (sw.svg) sw.svg.style.display = '';
+      });
+      _iconSwaps = [];
       // ── PATCH: Restore seasonal theme classes, dark-mode, and canvas ──
       seasonalClasses.forEach(function(c) { document.body.classList.add(c); });
       document.documentElement.classList.remove('dark-mode');
@@ -2708,11 +2772,12 @@ function capturePageToCanvas() {
       var fs = document.getElementById('capture-force-style'); if (fs) fs.remove();
     };
 
+    Promise.all(_iconPromises).then(function() {
     requestAnimationFrame(function() { requestAnimationFrame(function() {
       var CAPTURE_H = Math.max(page.scrollHeight, PAPER_H);
       try {
         html2canvas(page, {
-          scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false,
+          scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false, imageTimeout: 15000,
           width: CAPTURE_W, height: CAPTURE_H, windowWidth: CAPTURE_W, scrollX: 0, scrollY: 0,
           onclone: function(clonedDoc) {
             // Strip dark-mode and seasonal classes + their style tags from clone
@@ -2809,6 +2874,7 @@ function capturePageToCanvas() {
         reject(syncErr);
       }
     }); });
+    });
   });
 }
 
