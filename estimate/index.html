@@ -2463,6 +2463,7 @@ function printForm() {
   // ── Shared restore trigger setup ──
   function armRestoreAndPrint(isMobile) {
     var _triggered = false;
+    var _armTime = Date.now();
     function triggerRestore(delay) {
       if (_triggered) return;
       _triggered = true;
@@ -2477,6 +2478,10 @@ function printForm() {
     function _onAfterPrint() { if (!isMobile) triggerRestore(0); }
     window.addEventListener('afterprint', _onAfterPrint);
     function _onVisible() {
+      // Ignore visibility changes for the first 2s — interacting with the Scale control
+      // (and other in-sheet UI) on Safari can fire a spurious visible event that would
+      // otherwise restore the page mid-flow.
+      if (Date.now() - _armTime < 2000) return;
       if (document.visibilityState === 'visible') { triggerRestore(isMobile ? 400 : 300); }
     }
     document.addEventListener('visibilitychange', _onVisible);
