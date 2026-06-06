@@ -438,8 +438,8 @@
 
   /* ---- INPUT FIELD WIDTHS — PHONE ---- */
   --w-phone-gen-size:        15ch;  /* Generator size input (phone)                     */
-  --w-phone-num-panels:      8ch;   /* # Electrical Panels input (phone)                */
-  --w-phone-num-ts:          8ch;   /* # Transfer Switches input (phone)                */
+  --w-phone-num-panels:      3ch;   /* # Electrical Panels input (phone) — narrow, single digit */
+  --w-phone-num-ts:          3ch;   /* # Transfer Switches input (phone) — narrow, single digit */
   --w-phone-ts-type:         20ch;  /* Transfer switch specs input (phone)              */
   --w-phone-ts-placement:    25ch;  /* Transfer switch placement input (phone)          */
   --w-phone-circuits:        5ch;   /* 60A and 100A circuits inputs (phone)             */
@@ -449,8 +449,8 @@
 
   /* ---- INPUT FIELD WIDTHS — iPAD ---- */
   --w-ipad-gen-size:         15ch;
-  --w-ipad-num-panels:       8ch;
-  --w-ipad-num-ts:           8ch;
+  --w-ipad-num-panels:       3ch;
+  --w-ipad-num-ts:           3ch;
   --w-ipad-ts-type:          25ch;
   --w-ipad-ts-placement:     25ch;
   --w-ipad-circuits:         5ch;
@@ -862,6 +862,10 @@ input[type="text"], input[type="email"], input[type="tel"], input[type="date"], 
   min-height: var(--h-phone-input); height: var(--h-phone-input); -webkit-appearance: none; appearance: none;
   caret-color: var(--cyan); box-sizing: border-box;
 }
+/* Remove the up/down spinner arrows on number inputs (Chrome/Safari/Edge + Firefox). */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 input[type="text"]:-webkit-autofill, input[type="email"]:-webkit-autofill,
 input[type="tel"]:-webkit-autofill, input[type="number"]:-webkit-autofill {
   -webkit-box-shadow: 0 0 0px 1000px rgba(255,255,255,0.55) inset !important;
@@ -946,6 +950,10 @@ body.dark-mode .inline-label { color: #7DD3FC; }
     min-width: 60px;
     flex: 1 1 60px;
   }
+  /* The panel / transfer-switch COUNT boxes hold a single digit — keep them narrow
+     (~3ch) instead of stretching to fill the row like the other inline inputs. */
+  #num_panels { flex: 0 0 auto; width: var(--w-phone-num-panels); min-width: var(--w-phone-num-panels); }
+  #num_ts     { flex: 0 0 auto; width: var(--w-phone-num-ts);     min-width: var(--w-phone-num-ts); }
 }
 
 .divider { border: none; border-top: 1px solid rgba(217,119,6,0.15); margin: var(--divider-margin-screen); position: relative; background: var(--panel); transition: all 0.3s ease; }
