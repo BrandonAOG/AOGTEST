@@ -2463,7 +2463,6 @@ function printForm() {
   // ── Shared restore trigger setup ──
   function armRestoreAndPrint(isMobile) {
     var _triggered = false;
-    var _armTime = Date.now();
     function triggerRestore(delay) {
       if (_triggered) return;
       _triggered = true;
@@ -2477,12 +2476,21 @@ function printForm() {
     // restore when the user actually returns to the page (visibilitychange -> visible).
     function _onAfterPrint() { if (!isMobile) triggerRestore(0); }
     window.addEventListener('afterprint', _onAfterPrint);
+    // Require the page to stay visible for 2 continuous seconds before restoring.
+    // A brief flicker to visible (e.g. interacting with the Scale control in the print
+    // sheet) won't trigger restore — only a sustained return to the page does. If the
+    // page hides again before the 2s elapses, the pending restore is cancelled.
+    var _visibleTimer = null;
     function _onVisible() {
-      // Ignore visibility changes for the first 2s — interacting with the Scale control
-      // (and other in-sheet UI) on Safari can fire a spurious visible event that would
-      // otherwise restore the page mid-flow.
-      if (Date.now() - _armTime < 2000) return;
-      if (document.visibilityState === 'visible') { triggerRestore(isMobile ? 400 : 300); }
+      if (document.visibilityState === 'visible') {
+        if (_visibleTimer) return;
+        _visibleTimer = setTimeout(function() {
+          _visibleTimer = null;
+          triggerRestore(isMobile ? 400 : 300);
+        }, 2000);
+      } else {
+        if (_visibleTimer) { clearTimeout(_visibleTimer); _visibleTimer = null; }
+      }
     }
     document.addEventListener('visibilitychange', _onVisible);
     var _safetyTimer = setTimeout(function() { triggerRestore(0); }, 30000);
