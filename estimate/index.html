@@ -2471,15 +2471,14 @@ function printForm() {
       document.removeEventListener('visibilitychange', _onVisible);
       setTimeout(restore, delay);
     }
-    // On mobile (iOS Safari) the PDF is generated AFTER the preview, so restoring on
-    // afterprint tears down the print styles before Safari finishes the snapshot. Only
-    // restore when the user actually returns to the page (visibilitychange -> visible).
-    function _onAfterPrint() { if (!isMobile) triggerRestore(0); }
+    // afterprint restores: instantly on desktop, and on mobile after a delay long
+    // enough for Safari's PDF snapshot to complete (the PDF is generated after preview).
+    function _onAfterPrint() { triggerRestore(isMobile ? 1500 : 0); }
     window.addEventListener('afterprint', _onAfterPrint);
-    // Require the page to stay visible for 2 continuous seconds before restoring.
-    // A brief flicker to visible (e.g. interacting with the Scale control in the print
-    // sheet) won't trigger restore — only a sustained return to the page does. If the
-    // page hides again before the 2s elapses, the pending restore is cancelled.
+    // Secondary path: require the page to stay visible for 1 continuous second before
+    // restoring. A brief flicker to visible (e.g. interacting with the Scale control in
+    // the print sheet) won't trigger restore. If the page hides again before the 1s
+    // elapses, the pending restore is cancelled.
     var _visibleTimer = null;
     function _onVisible() {
       if (document.visibilityState === 'visible') {
