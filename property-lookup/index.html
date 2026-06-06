@@ -821,6 +821,7 @@
 <div class="action-bar" id="action-bar">
   <a class="ab-btn" href="../">🏠 HOME</a>
   <a class="ab-btn" id="printBtn" role="button" tabindex="0" title="Print this report (1 page)" aria-label="Print report" style="cursor:pointer;">📄 PDF</a>
+  <a class="ab-btn" id="mapShotBtn" role="button" tabindex="0" title="Save the current map view (with overlays) as a PNG image" aria-label="Save map screenshot" style="cursor:pointer;">📸 MAP PNG</a>
   <a class="ab-btn" id="excelBtn" role="button" tabindex="0" title="Export to Excel for the Estimate sheet" aria-label="Export to Excel" style="cursor:pointer;">📊 EXCEL</a>
   <button class="theme-toggle-btn" id="themeToggle" type="button" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
 </div>
@@ -952,6 +953,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script>
 /* ============================================================
    VERIFIED OFFICIAL ENDPOINTS (checked against live REST dirs)
@@ -9308,6 +9310,86 @@ window.Sheet=Sheet;
       }));
     });
   }
+})();
+
+
+/* ---------- Map screenshot: save the on-screen map (with overlays) as a PNG ----------
+   Uses html2canvas to rasterize the #map element exactly as shown — satellite/street
+   tiles plus every overlay (flood, parcels, zoning, marker). Tiles are served with CORS
+   headers (crossOrigin:true on the layers), so useCORS lets them render instead of going
+   blank. We briefly hide the page's own floating controls (basemap picker, legends,
+   readouts) so the image is a clean map, then restore them. html2canvas is precached by
+   the service worker, so this works offline once the page has loaded. */
+(function(){
+  const btn=document.getElementById('mapShotBtn');
+  if(!btn) return;
+
+  // Selectors for the page's own floating UI that sits over the map — hidden only
+  // during capture so they don't clutter the screenshot. The map LAYERS stay visible.
+  const UI_OVERLAYS = ['#coordReadout','#radarClock','#zoningLegend','.layerswitch',
+                       '#sheetTab','#coordReadout','.crosshair','.leaflet-control-container'];
+
+  function filenameStamp(){
+    const m=window.__printMeta||{};
+    const base = (m.addr ? String(m.addr).replace(/[^\w]+/g,'_').replace(/^_+|_+$/g,'') : 'map');
+    const d=new Date();
+    const ymd=d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2);
+    return ('AOG_'+base+'_'+ymd).slice(0,120)+'.png';
+  }
+
+  async function capture(){
+    if(typeof html2canvas==='undefined'){
+      alert('Screenshot tool is still loading — try again in a moment.');
+      return;
+    }
+    const mapEl=document.getElementById('map');
+    if(!mapEl) return;
+
+    const prevLabel=btn.textContent;
+    btn.textContent='📸 …';
+    btn.style.pointerEvents='none';
+
+    // Hide the page's floating controls during capture
+    const hidden=[];
+    UI_OVERLAYS.forEach(sel=>document.querySelectorAll(sel).forEach(el=>{
+      hidden.push([el, el.style.visibility]);
+      el.style.visibility='hidden';
+    }));
+
+    try{
+      const canvas=await html2canvas(mapEl,{
+        useCORS:true,            // allow the CORS-enabled map tiles to render
+        allowTaint:false,
+        backgroundColor:null,
+        logging:false,
+        scale:Math.min(window.devicePixelRatio||1, 2),  // crisp but capped so the PNG isn't huge
+        imageTimeout:15000
+      });
+
+      // Restore UI before saving so the screen looks normal again
+      hidden.forEach(([el,v])=>el.style.visibility=v);
+      hidden.length=0;
+
+      canvas.toBlob(function(blob){
+        if(!blob){ alert('Could not generate the image. Try again.'); return; }
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url; a.download=filenameStamp();
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      }, 'image/png');
+    }catch(err){
+      alert('Map screenshot failed: '+(err&&err.message?err.message:err));
+    }finally{
+      // Make sure controls are always restored even on error
+      hidden.forEach(([el,v])=>el.style.visibility=v);
+      btn.textContent=prevLabel;
+      btn.style.pointerEvents='';
+    }
+  }
+
+  btn.addEventListener('click', capture);
+  btn.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); capture(); } });
 })();
 
 
