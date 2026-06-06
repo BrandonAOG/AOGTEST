@@ -2318,6 +2318,11 @@ function printForm() {
   document.body.classList.forEach(function(c) { if (c.indexOf('seasonal-') === 0) _printSeasonalClasses.push(c); });
   _printSeasonalClasses.forEach(function(c) { document.body.classList.remove(c); });
   document.body.classList.remove('dark-mode');
+  // Force light color-scheme directly on <html> — when the OS is in dark mode, Safari's print
+  // pass can still render the page dark via color-scheme even after the .dark-mode class is gone.
+  // Inline on documentElement is the strongest signal; restored in restore().
+  var _prevColorScheme = document.documentElement.style.colorScheme;
+  document.documentElement.style.colorScheme = 'light';
   // Strip mobile-safari so iPad screen rules don't bleed into print rendering
   document.body.classList.remove('mobile-safari');
   var _printSeasonalCanvas = document.getElementById('seasonal-canvas');
@@ -2337,6 +2342,7 @@ function printForm() {
   printStyle.textContent = [
     ':root, body {',
     '  -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;',
+    '  color-scheme: light !important;',
     '  --cyan: #D97706 !important; --cyan-dim: #B45309 !important; --cyan-dark: #92400E !important;',
     '  --amber: #D97706 !important; --bg: #FFFFFF !important; --bg3: #F8F8F8 !important;',
     '  --panel: #FFFFFF !important; --text: #1F2937 !important; --text-muted: #6B7280 !important;',
@@ -2344,6 +2350,8 @@ function printForm() {
     '}',
     'input[type=radio],input[type=checkbox],.check-item input[type=radio],.check-item input[type=checkbox] { accent-color:#D97706!important; }',
     '@media print {',
+    '  html, body, * { color-scheme: light !important; }',
+    '  input[type=date] { color-scheme: light !important; }',
     '  *, *::before, *::after { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }',
     '  /* Race guard: on iOS the print snapshot can fire before the dark-mode class removal repaints,',
     '     leaving dark rules (higher specificity than the * reset below) winning. These body.dark-mode',
@@ -2413,6 +2421,7 @@ function printForm() {
     el = document.getElementById('safari-page-fix');  if (el) el.remove();
     el = document.getElementById('no-transitions');   if (el) el.remove();
     if (wasDark) document.body.classList.add('dark-mode');
+    document.documentElement.style.colorScheme = _prevColorScheme || '';
     if (wasMobileSafariClass) document.body.classList.add('mobile-safari');
     _printSeasonalClasses.forEach(function(c) { document.body.classList.add(c); });
     if (_printSeasonalCanvas) _printSeasonalCanvas.style.display = '';
