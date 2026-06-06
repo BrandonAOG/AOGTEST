@@ -1060,9 +1060,14 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .toolbar, .action-bar, #save-status, #theme-toggle-btn, #offline-banner, #address-suggestions, #gps-status, #gps-btn { display: none !important; }
   .header::after { display: none !important; }
   body::before, body::after, body[class*="seasonal-"]::before, body[class*="seasonal-"]::after { display: none !important; content: none !important; }
-  html { zoom: 0.758; margin: 0 !important; padding: 0 !important; }
+  /* Was 0.758 — nudged down slightly so the full page provably fits one 8.5x11 sheet. The content
+     sat a few px over one page at 0.758, spilling onto a near-blank page 2; zoom scales everything
+     proportionally so this trims the overflow without clipping the footer. Adjust this one number
+     if needed: lower = more margin (smaller content), higher = tighter. */
+  html { zoom: 0.745; margin: 0 !important; padding: 0 !important; }
   body { margin: 0 auto !important; padding: 0 !important; width: 1050px !important; max-width: none !important; background: #ffffff !important; background-image: none !important; color: #1F2937 !important; --icon-color-section: #D97706 !important; --cyan: #D97706 !important; }
-  .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; padding-top: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: visible !important; background: #ffffff !important; border: 1.5pt solid #D97706 !important; box-shadow: none !important; position: static !important; outline: none !important; }
+  /* Belt-and-suspenders: also hide any sub-pixel overflow so it can never paginate to page 2. */
+  .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; padding-top: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; background: #ffffff !important; border: 1.5pt solid #D97706 !important; box-shadow: none !important; position: static !important; outline: none !important; }
   .content { flex: 1 !important; min-height: 0 !important; overflow: visible !important; padding: var(--pd-print-phone-content) !important; padding-bottom: var(--pb-content-print-phone) !important; background: #ffffff !important; display: flex !important; flex-direction: column !important; gap: 0 !important; justify-content: space-between !important; height: 0 !important; }
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none !important; }
   .header { background: #ffffff !important; border-bottom: 1px solid #D97706 !important; padding: var(--pd-print-phone-header) !important; min-height: auto !important; height: auto !important; display: flex !important; align-items: center !important; justify-content: space-between !important; flex-shrink: 0 !important; }
