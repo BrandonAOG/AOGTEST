@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.2.0';
+var CACHE_NAME = 'aog-forms-v2.2.1';
 var DEV_MODE   = false;
 
 // Stores last known cache progress so late-loading pages can request it
