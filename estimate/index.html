@@ -463,7 +463,7 @@
   --w-desktop-num-panels:    8ch;
   --w-desktop-num-ts:        8ch;
   --w-desktop-ts-type:       20ch;
-  --w-desktop-ts-placement:  25ch;
+  --w-desktop-ts-placement:  40ch;  /* longer: fits e.g. "Install Back To Back With Panel" */
   --w-desktop-circuits:      5ch;
   --w-desktop-stand-height:  10ch;
   --w-desktop-tank-size:     10ch;
@@ -474,7 +474,7 @@
   --w-print-num-panels:      8ch;
   --w-print-num-ts:          8ch;
   --w-print-ts-type:         20ch;
-  --w-print-ts-placement:    25ch;
+  --w-print-ts-placement:    40ch;  /* longer: fits e.g. "Install Back To Back With Panel" (phone print) */
   --w-print-circuits:        5ch;
   --w-print-stand-height:    4ch;
   --w-print-tank-size:       10ch;
@@ -485,7 +485,7 @@
   --w-print-ipad-num-panels:     8ch;
   --w-print-ipad-num-ts:         8ch;
   --w-print-ipad-ts-type:        25ch;
-  --w-print-ipad-ts-placement:   25ch;
+  --w-print-ipad-ts-placement:   40ch;  /* longer: fits e.g. "Install Back To Back With Panel" */
   --w-print-ipad-circuits:       5ch;
   --w-print-ipad-stand-height:   4ch;
   --w-print-ipad-tank-size:      12ch;
@@ -496,7 +496,7 @@
   --w-print-desktop-num-panels:  8ch;
   --w-print-desktop-num-ts:      8ch;
   --w-print-desktop-ts-type:     20ch;
-  --w-print-desktop-ts-placement:25ch;
+  --w-print-desktop-ts-placement:40ch;  /* longer: fits e.g. "Install Back To Back With Panel" */
   --w-print-desktop-circuits:    5ch;
   --w-print-desktop-stand-height:10ch;
   --w-print-desktop-tank-size:   10ch;
@@ -1085,6 +1085,20 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .grid-4 .field-block, .grid-3 .field-block, .grid-2 .field-block { min-width: 0 !important; overflow: hidden !important; }
   .field-row { margin-bottom: 2px !important; flex-wrap: nowrap !important; min-height: var(--h-print-phone-field-row) !important; }
   .inline-row { margin-bottom: 2px !important; flex-wrap: wrap !important; min-height: var(--h-print-phone-inline-row) !important; }
+  /* FIX: on phone the @media(max-width:768px) rule sets inline-row inputs to flex:1 1 60px so they
+     fill the narrow screen. That rule is still active when printing from a phone, so on the 1050px
+     print page the inputs balloon into long blank underlines and shove the labels apart. Cancel the
+     flex-grow so each input keeps its intended fixed width (from its inline width var) instead of
+     stretching. We deliberately do NOT set an !important width here — that would override the
+     per-input inline width vars; killing flex-grow is enough to restore the designed sizing. */
+  .inline-row input[type="text"],
+  .inline-row input[type="number"] {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+  }
+  /* Transfer Switch Placement — wider on print so long entries like
+     "Install Back To Back With Panel" aren't cut off (this is the phone-print path). */
+  #ts_placement { width: var(--w-print-ts-placement) !important; min-width: var(--w-print-ts-placement) !important; flex: 0 0 auto !important; }
   label { color: #6B7280 !important; font-size: var(--fs-print-phone-label) !important; white-space: nowrap !important; }
   legend { font-size: var(--fs-print-phone-label) !important; color: #6B7280 !important; font-weight: 500 !important; font-family: var(--font-display) !important; letter-spacing: 1.5px !important; text-transform: uppercase !important; }
   .inline-label { color: #6B7280 !important; white-space: nowrap !important; font-size: var(--fs-print-phone-inline-label) !important; }
@@ -1344,6 +1358,9 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   .yn-group .yn-label    { min-height: var(--h-desktop-yn-label) !important; height: var(--h-desktop-yn-label) !important; line-height: var(--h-desktop-yn-label) !important; }
   .field-row             { min-height: var(--h-desktop-field-row) !important; }
   .inline-row            { min-height: var(--h-desktop-inline-row) !important; }
+  /* Transfer Switch Placement — wider on desktop screen so long entries like
+     "Install Back To Back With Panel" fit without truncating. */
+  #ts_placement          { width: var(--w-desktop-ts-placement) !important; min-width: var(--w-desktop-ts-placement) !important; flex: 0 0 auto !important; }
   .gas-appliances-label  { font-size: var(--fs-desktop-gas-label) !important; }
   .gas-appliances-box    { padding: var(--pd-desktop-gas-box) !important; }
   .footer-text           { font-size: var(--fs-desktop-footer) !important; }
