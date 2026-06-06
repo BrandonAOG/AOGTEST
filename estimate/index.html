@@ -432,7 +432,7 @@
   --check-group-gap-desktop:     4px;    /* gap between checkbox/radio pills (desktop)       */
 
   /* ---- DESKTOP PRINT BASE FONT ---- */
-  --fs-print-phone-base:         13.09px; /* base html font-size for phone print             */
+  --fs-print-phone-base:         13.08px; /* base html font-size for phone print             */
   --fs-print-ipad-base:          16.7px; /* base html font-size for iPad print              */
   --fs-print-desktop-base:       13.08px; /* base html font-size for desktop print           */
 
@@ -2373,8 +2373,16 @@ function printForm() {
     '  .yn-group .yn-label { color:#6B7280!important;background:white!important;text-shadow:none!important;box-shadow:none!important; }',
     '  .yn-group .yn-y:checked + .yn-label-y { background:#34d399!important;color:#064e3b!important;text-shadow:none!important;box-shadow:none!important; }',
     '  .yn-group .yn-n:checked + .yn-label-n { background:#fca5a5!important;color:#7f1d1d!important;text-shadow:none!important;box-shadow:none!important; }',
-    '  .check-item input[type=radio],.check-item input[type=checkbox] { accent-color:#D97706!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important; }',
-    '  body.dark-mode .check-item input[type=radio],body.dark-mode .check-item input[type=checkbox] { accent-color:#D97706!important; }',
+    '  /* iOS saved-PDF ignores accent-color overrides on native controls and uses the live (dark-mode',
+    '     green) accent. The span-replace draws amber boxes, but if its paint loses the print-timing race',
+    '     the native control shows through green. So in print we visually NEUTRALIZE the native control',
+    '     entirely (appearance:none, no accent, transparent) — the drawn .print-cb-box is what shows. If',
+    '     span-replace somehow did not run, you get a plain empty box, never a green dark-mode check. */',
+    '  .check-item input[type=radio],.check-item input[type=checkbox],',
+    '  body.dark-mode .check-item input[type=radio],body.dark-mode .check-item input[type=checkbox] {',
+    '    -webkit-appearance:none!important;appearance:none!important;accent-color:#D97706!important;',
+    '    background:transparent!important;border:none!important;color:transparent!important;',
+    '    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important; }',
     '  .check-item:has(input:checked) { background:#fde68a!important;border-color:#D97706!important;box-shadow:none!important; }',
     '  .footer-text { color:#9CA3AF!important; }',
     '  legend { font-weight:500!important;font-family:var(--font-display)!important;letter-spacing:1.5px!important;text-transform:uppercase!important;color:#6B7280!important; }',
