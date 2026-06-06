@@ -2471,10 +2471,13 @@ function printForm() {
       document.removeEventListener('visibilitychange', _onVisible);
       setTimeout(restore, delay);
     }
-    function _onAfterPrint() { triggerRestore(isMobile ? 1500 : 0); }
+    // On mobile (iOS Safari) the PDF is generated AFTER the preview, so restoring on
+    // afterprint tears down the print styles before Safari finishes the snapshot. Only
+    // restore when the user actually returns to the page (visibilitychange -> visible).
+    function _onAfterPrint() { if (!isMobile) triggerRestore(0); }
     window.addEventListener('afterprint', _onAfterPrint);
     function _onVisible() {
-      if (document.visibilityState === 'visible') { triggerRestore(isMobile ? 1500 : 300); }
+      if (document.visibilityState === 'visible') { triggerRestore(isMobile ? 400 : 300); }
     }
     document.addEventListener('visibilitychange', _onVisible);
     var _safetyTimer = setTimeout(function() { triggerRestore(0); }, 30000);
