@@ -2343,6 +2343,11 @@ function printForm() {
     '@media print {',
     '  *, *::before, *::after { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }',
     '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;border-color:rgba(217,119,6,0.4)!important;animation:none!important;animation-play-state:paused!important;transition:none!important; }',
+    '  /* The drawn checkbox/radio boxes must keep their amber fill — the universal white-background',
+    '     rule above would otherwise wipe it out, leaving only an outline + faint tick. */',
+    '  .print-cb-box.cb-checked { background:#D97706!important; border-color:#D97706!important; }',
+    '  .print-cb-box.cb-unchecked { background:#ffffff!important; border-color:#9CA3AF!important; }',
+    '  .print-cb-mark { background:transparent!important; border-color:#ffffff!important; }',
     '  svg, svg * { background:transparent!important; }',
     '  .doc-title,.company-name { color:#D97706!important;text-shadow:none!important; }',
     '  .doc-title::before,.doc-title::after,.company-name::before,.company-name::after,.header::after { content:none!important;display:none!important; }',
@@ -2424,12 +2429,16 @@ function printForm() {
       var origStyle = input.getAttribute('style') || '';
       input.style.cssText = 'opacity:0!important;position:absolute!important;width:0!important;height:0!important;';
       var box = document.createElement('span');
+      box.className = 'print-cb-box';
       if (isChecked) {
+        box.className = 'print-cb-box cb-checked';
         box.style.cssText = 'display:inline-flex!important;width:14px!important;height:14px!important;min-width:14px!important;min-height:14px!important;background:#D97706!important;border:2px solid #D97706!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;flex-shrink:0!important;vertical-align:middle!important;box-sizing:border-box!important;align-items:center!important;justify-content:center!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;';
         var mark = document.createElement('span');
-        mark.style.cssText = 'display:block!important;width:8px!important;height:4px!important;border-left:2.5px solid #ffffff!important;border-bottom:2.5px solid #ffffff!important;transform:rotate(-45deg)!important;margin-top:-2px!important;flex-shrink:0!important;';
+        mark.className = 'print-cb-mark';
+        mark.style.cssText = 'display:block!important;width:8px!important;height:4px!important;border-left:2.5px solid #ffffff!important;border-bottom:2.5px solid #ffffff!important;transform:rotate(-45deg)!important;margin-top:-2px!important;flex-shrink:0!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;';
         box.appendChild(mark);
       } else {
+        box.className = 'print-cb-box cb-unchecked';
         box.style.cssText = 'display:inline-block!important;width:13px!important;height:13px!important;min-width:13px!important;min-height:13px!important;background:#ffffff!important;border:1.5px solid #9CA3AF!important;border-radius:' + (isRadio ? '50%' : '2px') + '!important;flex-shrink:0!important;vertical-align:middle!important;box-sizing:border-box!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;';
       }
       input.parentNode.insertBefore(box, input);
