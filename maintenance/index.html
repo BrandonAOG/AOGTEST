@@ -693,6 +693,27 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   }
   *, *::before, *::after { animation: none !important; transition: none !important; color-scheme: light !important; }
 
+  /* ── CRITICAL: force LIGHT mode in print regardless of dark-mode class ──
+     The JS stamp() pass can miss some of the many dark-mode rules, leaving
+     dark styling in the PDF. This blanket block guarantees a light printout. */
+  body.dark-mode, html.dark-mode-pending body {
+    background: #ffffff !important; color: #1F2937 !important;
+    color-scheme: light !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  body.dark-mode *, html.dark-mode-pending body * {
+    background: #ffffff !important; background-color: #ffffff !important;
+    color: #1F2937 !important; -webkit-text-fill-color: #1F2937 !important;
+    border-color: rgba(217,119,6,0.4) !important; box-shadow: none !important; text-shadow: none !important;
+  }
+  body.dark-mode .page, html.dark-mode-pending .page { background: #ffffff !important; border: 1.5pt solid #D97706 !important; }
+  body.dark-mode .section-header, html.dark-mode-pending .section-header { background: #f5f5f5 !important; color: #D97706 !important; }
+  body.dark-mode .section-header::before, html.dark-mode-pending .section-header::before { background: #D97706 !important; }
+  body.dark-mode .company-name, html.dark-mode-pending .company-name { color: #D97706 !important; }
+  body.dark-mode table th, html.dark-mode-pending table th { background: #4B5563 !important; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
+  body.dark-mode table td.row-label, html.dark-mode-pending table td.row-label { background: #f0f0f0 !important; }
+  body.dark-mode .action-bar, body.dark-mode .theme-toggle-btn,
+  html.dark-mode-pending .action-bar, html.dark-mode-pending .theme-toggle-btn { display: none !important; }
+
   /* iOS */
   html.ios * { transform: none !important; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
   html.ios .page, html.ios body, html.ios html { display: block !important; min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
@@ -1412,7 +1433,11 @@ function openPrintPreview() {
   const isMobileSafari = document.body.classList.contains('mobile-safari');
   const isMobileChrome = document.body.classList.contains('mobile-chrome');
   const isNarrowMobile = isMobileSafari || isMobileChrome;
-  if (wasDark) document.body.classList.remove('dark-mode');
+  // On mobile Safari, REMOVING the dark class doesn't reliably repaint for the
+  // print snapshot — dark styling bleeds into the PDF. Keep the class on and let
+  // the @media print force-light block (keyed to body.dark-mode) strip it at
+  // actual print time, which iOS WebKit honors. Other browsers repaint fine.
+  if (wasDark && !isMobileSafari) document.body.classList.remove('dark-mode');
 
   // ── Force DESKTOP-WIDTH print on phones ───────────────────────────────
   // Phones print at a narrow viewport, so the desktop @media print block
