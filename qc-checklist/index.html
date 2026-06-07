@@ -1844,14 +1844,24 @@ function printForm() {
     var _wentHidden = false;
     document.addEventListener('visibilitychange', _visHandler);
 
-    // focus — fires on iPhone when returning from print dialog
-    function _focusHandler() { if (_wentHidden) _tryRestore(); }
+    // focus — fires on iPhone when returning from print dialog.
+    // iOS Safari's print sheet often overlays the page WITHOUT firing a
+    // 'hidden' visibilitychange, so don't gate on _wentHidden here —
+    // regaining focus is itself the signal the preview has closed.
+    // A short settle delay avoids firing during the sheet's own focus churn.
+    function _focusHandler() {
+      setTimeout(function() {
+        if (document.visibilityState === 'visible') _tryRestore();
+      }, 500);
+    }
     window.addEventListener('focus', _focusHandler);
 
     // pageshow — another Safari event that fires on return
     window.addEventListener('pageshow', function _psHandler() {
       window.removeEventListener('pageshow', _psHandler);
-      setTimeout(function() { _tryRestore(); }, 300);
+      setTimeout(function() {
+        if (document.visibilityState === 'visible') _tryRestore();
+      }, 500);
     });
 
     // Fallback — long delay so it can't strip print styles while the
