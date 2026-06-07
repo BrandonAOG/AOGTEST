@@ -963,11 +963,6 @@ body.dark-mode .action-bar {
 @media (max-width: 480px) { .action-bar { padding: 4px 4px; gap: 3px; } .action-bar .btn { padding: 6px 4px; font-size: 9px; } }
 @media (max-width: 360px) { .action-bar .btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; } }
 @media print { .action-bar { display: none !important; } }
-/* Debug panel: when enabled it stays visible in print so it lands in the PDF */
-@media print {
-  #debug-panel { position: static !important; max-height: none !important; display: var(--debug-print-display, none) !important;
-    background: #fff !important; color: #000 !important; border: 1px solid #000 !important; }
-}
 </style>
 </head>
 
@@ -978,7 +973,6 @@ body.dark-mode .action-bar {
   <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPHONE</button>
   <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 ANDROID</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
-  <button class="btn" onclick="toggleDebug()">🐞 DEBUG</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/>
@@ -1026,7 +1020,6 @@ body.dark-mode .action-bar {
 </script>
 
 <div class="page" id="page">
-<div id="debug-panel" style="position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#000;color:#0f0;font-family:monospace;font-size:11px;line-height:1.4;padding:8px;max-height:45vh;overflow:auto;white-space:pre-wrap;border-top:2px solid #0f0;display:none;"></div>
   <div class="header">
     <div class="header-logo" style="padding-left:30px;">
       <img src="../logo.png" alt="logo" width="40" height="40" class="logo-img">
@@ -1040,7 +1033,6 @@ body.dark-mode .action-bar {
     <button class="btn" onclick="saveForIPhone()">📱 iPhone</button>
     <button class="btn" onclick="saveForAndroid()">🤖 Android</button>
     <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
-  <button class="btn" onclick="toggleDebug()">🐞 DEBUG</button>
   </div>
 
   <div class="content">
@@ -1477,50 +1469,7 @@ function clearForm() {
   localStorage.removeItem(DRAFT_KEY);
 }
 
-// ── DEBUG PANEL ───────────────────────────────────────────────────────
-var _debugOn = false;
-function toggleDebug() {
-  _debugOn = !_debugOn;
-  var p = document.getElementById('debug-panel');
-  if (!p) return;
-  p.style.display = _debugOn ? 'block' : 'none';
-  // Also let it appear in the printed PDF so it can be captured/shared
-  document.documentElement.style.setProperty('--debug-print-display', _debugOn ? 'block' : 'none');
-  if (_debugOn) debugLog('-- debug on (will also show in PDF) --');
-}
-function debugLog(msg) {
-  var p = document.getElementById('debug-panel');
-  if (!p) return;
-  var t = new Date().toLocaleTimeString();
-  p.textContent += '\n[' + t + '] ' + msg;
-  p.scrollTop = p.scrollHeight;
-}
-function debugSnapshot(tag) {
-  var html = document.documentElement, body = document.body;
-  var page = document.querySelector('.page');
-  var vp = document.querySelector('meta[name="viewport"]');
-  var cs = page ? getComputedStyle(page) : null;
-  var fixEl = document.getElementById('safari-print-height-fix');
-  var lines = [
-    '=== ' + tag + ' ===',
-    'UA: ' + navigator.userAgent,
-    'classes(html): ' + html.className,
-    'classes(body): ' + body.className,
-    'dark-mode on body: ' + body.classList.contains('dark-mode'),
-    'viewport meta: ' + (vp ? vp.getAttribute('content') : 'none'),
-    'window.innerWidth: ' + window.innerWidth,
-    'html font-size: ' + getComputedStyle(html).fontSize,
-    'page width(computed): ' + (cs ? cs.width : 'n/a'),
-    'page padding(computed): ' + (cs ? cs.padding : 'n/a'),
-    'body bg(computed): ' + getComputedStyle(body).backgroundColor,
-    'force-width style injected: ' + (fixEl ? 'YES' : 'no'),
-    'matchMedia print matches: ' + (window.matchMedia ? window.matchMedia('print').matches : 'n/a')
-  ];
-  debugLog(lines.join('\n'));
-}
-
 function openPrintPreview() {
-  if (_debugOn) debugSnapshot('print START');
   const wasDark = document.body.classList.contains('dark-mode');
   const isMacOS = document.documentElement.classList.contains('macos');
   const isMobileSafari = document.body.classList.contains('mobile-safari');
@@ -1735,7 +1684,6 @@ function openPrintPreview() {
           void document.body.offsetHeight;
         }
         setTimeout(() => {
-          if (_debugOn) debugSnapshot('just BEFORE window.print()');
           window.print();
           const el = document.getElementById('safari-print-height-fix');
           if (el) el.remove();
