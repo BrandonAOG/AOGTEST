@@ -1739,7 +1739,15 @@ function printForm() {
     document.documentElement.style.colorScheme = '';
     document.body.style.colorScheme = '';
     if (_darkStyleEl) _darkStyleEl.disabled = false;
-    if (wasDark) { document.body.classList.add('dark-mode'); document.documentElement.setAttribute('data-theme','dark'); }
+    if (wasDark) {
+      document.body.classList.add('dark-mode'); document.documentElement.setAttribute('data-theme','dark');
+      // iOS Safari sometimes won't repaint dark mode after the print sheet
+      // closes. The draft auto-saves on every input/change, so a reload is
+      // safe and restores form data via restoreDraft() on load.
+      saveDraft();
+      window.location.reload();
+      return;
+    }
     else { document.body.classList.remove('dark-mode'); document.documentElement.setAttribute('data-theme','light'); }
     var ct = document.getElementById('doc-title-continued');
     if (ct) ct.style.removeProperty('display');
