@@ -1839,57 +1839,36 @@ function printForm() {
       window.print();
     });
 
-    // Detect when print dialog closes
+    // ── Restore triggers (unified pattern) ──
+    // Whichever fires first wins; _restored guard prevents double-restore.
+    var isMobile = isNarrowMobile;
     var _restored = false;
-    function _tryRestore() {
+    function _tryRestore(delay) {
       if (_restored) return;
       _restored = true;
-      document.removeEventListener('visibilitychange', _visHandler);
-      window.removeEventListener('focus', _focusHandler);
+      clearTimeout(_safety);
       window.removeEventListener('afterprint', _apHandler);
-      restore();
+      document.removeEventListener('visibilitychange', _visHandler);
+      setTimeout(restore, delay || 0);
     }
 
-    // afterprint — mobile Chrome fires this reliably when the dialog closes,
-    // and (unlike iOS Safari) has no "PDF generated after preview" quirk,
-    // so it can restore immediately. Harmless on Safari where it rarely fires.
-    function _apHandler() { _tryRestore(); }
-    if (isMobileChrome) window.addEventListener('afterprint', _apHandler);
+    // afterprint — the reliable signal on both iOS Safari and mobile Chrome.
+    // On mobile iOS fires it the instant the user taps Print/Save, BEFORE the
+    // PDF finishes rasterizing, so wait 2500ms before tearing down the print
+    // styles. Desktop can restore immediately.
+    function _apHandler() { _tryRestore(isMobile ? 2500 : 0); }
+    window.addEventListener('afterprint', _apHandler);
 
-    // visibilitychange — fires on most iOS versions when dialog closes
+    // visibilitychange — desktop only. On iOS it fires the moment the print
+    // sheet slides up (page goes hidden), which would strip styles mid-preview,
+    // so it is NOT armed on mobile.
     function _visHandler() {
-      if (document.hidden) { _wentHidden = true; }
-      else if (_wentHidden) { _tryRestore(); }
+      if (document.visibilityState === 'visible') { _tryRestore(300); }
     }
-    var _wentHidden = false;
-    document.addEventListener('visibilitychange', _visHandler);
+    if (!isMobile) document.addEventListener('visibilitychange', _visHandler);
 
-    // focus — fires on iPhone when returning from print dialog.
-    // iOS Safari's print sheet often overlays the page WITHOUT firing a
-    // 'hidden' visibilitychange, so don't gate on _wentHidden here —
-    // regaining focus is itself the signal the preview has closed.
-    // A short settle delay avoids firing during the sheet's own focus churn.
-    function _focusHandler() {
-      setTimeout(function() {
-        if (document.visibilityState === 'visible') _tryRestore();
-      }, 500);
-    }
-    window.addEventListener('focus', _focusHandler);
-
-    // pageshow — another Safari event that fires on return
-    window.addEventListener('pageshow', function _psHandler() {
-      window.removeEventListener('pageshow', _psHandler);
-      setTimeout(function() {
-        if (document.visibilityState === 'visible') _tryRestore();
-      }, 500);
-    });
-
-    // Fallback — long delay so it can't strip print styles while the
-    // user is still in Safari's print/PDF UI (tapping the preview to
-    // generate the PDF re-runs layout and needs the styles intact).
-    // The visibilitychange/focus/pageshow handlers do the real cleanup
-    // the moment the user actually leaves the dialog.
-    setTimeout(function() { _tryRestore(); }, 60000);
+    // Safety net — cleans up if neither trigger fires.
+    var _safety = setTimeout(function() { _tryRestore(0); }, 30000);
 
   } else {
     window.addEventListener('afterprint', restore);
