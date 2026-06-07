@@ -1891,9 +1891,22 @@ function printForm() {
         }
         window.addEventListener('pointerdown', _onInteract, true);
         window.addEventListener('touchstart', _onInteract, true);
-        // Backstop: if no interaction within 1.5s, restore anyway.
+        // Backstop: if no interaction, restore anyway — but only once the print
+        // sheet is genuinely gone. iOS can signal print-media-off while the sheet
+        // is still visually open, so verify _printMql.matches is false before
+        // reloading; if it's still on, wait and re-check rather than reloading
+        // into an open sheet.
         clearTimeout(_safety);
-        _safety = setTimeout(function() { _tryRestore(0); }, 1500);
+        function _backstop() {
+          if (_restored) return;
+          if (_printMql && _printMql.matches) {
+            // Sheet still open — check again shortly.
+            _safety = setTimeout(_backstop, 1000);
+          } else {
+            _tryRestore(0);
+          }
+        }
+        _safety = setTimeout(_backstop, 3000);
       } else {
         // Not the reload case — safe to tear down immediately.
         _tryRestore(isMobile ? 300 : 0);
