@@ -962,7 +962,12 @@ body.dark-mode .action-bar {
 .action-bar .btn { flex: 1; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; padding: 6px 8px; font-size: 10px; }
 @media (max-width: 480px) { .action-bar { padding: 4px 4px; gap: 3px; } .action-bar .btn { padding: 6px 4px; font-size: 9px; } }
 @media (max-width: 360px) { .action-bar .btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; } }
-@media print { .action-bar { display: none !important; } #debug-panel { display: none !important; } }
+@media print { .action-bar { display: none !important; } }
+/* Debug panel: when enabled it stays visible in print so it lands in the PDF */
+@media print {
+  #debug-panel { position: static !important; max-height: none !important; display: var(--debug-print-display, none) !important;
+    background: #fff !important; color: #000 !important; border: 1px solid #000 !important; }
+}
 </style>
 </head>
 
@@ -1479,7 +1484,9 @@ function toggleDebug() {
   var p = document.getElementById('debug-panel');
   if (!p) return;
   p.style.display = _debugOn ? 'block' : 'none';
-  if (_debugOn) debugLog('-- debug on --');
+  // Also let it appear in the printed PDF so it can be captured/shared
+  document.documentElement.style.setProperty('--debug-print-display', _debugOn ? 'block' : 'none');
+  if (_debugOn) debugLog('-- debug on (will also show in PDF) --');
 }
 function debugLog(msg) {
   var p = document.getElementById('debug-panel');
