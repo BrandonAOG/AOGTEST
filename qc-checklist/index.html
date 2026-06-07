@@ -1852,20 +1852,25 @@ function printForm() {
       setTimeout(restore, delay || 0);
     }
 
-    // afterprint — the reliable signal on both iOS Safari and mobile Chrome.
-    // On mobile iOS fires it the instant the user taps Print/Save, BEFORE the
-    // PDF finishes rasterizing, so wait 2500ms before tearing down the print
-    // styles. Desktop can restore immediately.
-    function _apHandler() { _tryRestore(isMobile ? 2500 : 0); }
+    // afterprint — DESKTOP ONLY. On iOS this fires the instant the print sheet
+    // OPENS (not when it closes), so restoring on it — especially since restore()
+    // does a page reload on Safari — would tear the page out from under the open
+    // sheet and dismiss it. Mobile waits for genuine return instead (below).
+    function _apHandler() { if (!isMobile) _tryRestore(0); }
     window.addEventListener('afterprint', _apHandler);
 
-    // visibilitychange — desktop only. On iOS it fires the moment the print
-    // sheet slides up (page goes hidden), which would strip styles mid-preview,
-    // so it is NOT armed on mobile.
+    // visibilitychange — the safe restore signal on mobile: the page must go
+    // hidden (sheet open) and then come back visible (sheet closed, user
+    // returned). Only then is it safe to reload. On desktop, afterprint above
+    // already handled it; this acts as a backstop.
+    var _wentHidden = false;
     function _visHandler() {
-      if (document.visibilityState === 'visible') { _tryRestore(300); }
+      if (document.visibilityState === 'hidden') { _wentHidden = true; }
+      else if (document.visibilityState === 'visible' && _wentHidden) {
+        _tryRestore(isMobile ? 300 : 0);
+      }
     }
-    if (!isMobile) document.addEventListener('visibilitychange', _visHandler);
+    document.addEventListener('visibilitychange', _visHandler);
 
     // Safety net — cleans up if neither trigger fires.
     var _safety = setTimeout(function() { _tryRestore(0); }, 30000);
