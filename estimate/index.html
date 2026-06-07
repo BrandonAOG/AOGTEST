@@ -408,7 +408,7 @@
   --pg-print-desktop-safari-body-height: 1340px;
   --pg-print-desktop-safari-page-height: 1340px;
   --pg-print-desktop-safari-side-margin: 0.15in;  /* left/right page margin only */
-  --pg-print-desktop-safari-top-margin : 0.1in;     /* top page margin (0 = flush to top) */
+  --pg-print-desktop-safari-top-margin : 0in;     /* top page margin (0 = flush to top) */
 
   /* ---- DESKTOP SAFARI : DATE FIELD WIDTHS ---- */
   --w-print-desktop-safari-today      : 300px;
@@ -2956,10 +2956,18 @@ function printForm() {
   // desktop Safari, so force light appearance via INLINE styles (priority 'important'),
   // which outrank every stylesheet rule. Originals are stashed and undone in restore().
   var _forcedLight = [];
+  var _forcedSeen = (typeof WeakSet !== 'undefined') ? new WeakSet() : null;
   function forceLight(el, props) {
     if (!el) return;
-    var prev = el.getAttribute('style') || '';
-    _forcedLight.push({ el: el, prev: prev });
+    // Capture the element's ORIGINAL inline style only the first time we touch it. Several
+    // elements get forceLight() called more than once (descendant loop + accent loops); without
+    // this guard the 2nd capture would save the already-forced style as "previous", so restore()
+    // couldn't fully revert (text/colours stayed in the print state). One snapshot per element.
+    var firstTouch = _forcedSeen ? !_forcedSeen.has(el) : (el.getAttribute('data-fl-saved') !== '1');
+    if (firstTouch) {
+      _forcedLight.push({ el: el, prev: el.getAttribute('style') || '' });
+      if (_forcedSeen) _forcedSeen.add(el); else el.setAttribute('data-fl-saved', '1');
+    }
     Object.keys(props).forEach(function(k) { el.style.setProperty(k, props[k], 'important'); });
   }
   (function applyNuclearLight() {
@@ -2998,8 +3006,12 @@ function printForm() {
   })();
   // expose for restore()
   window.__undoForcedLight = function() {
-    _forcedLight.forEach(function(r){ if (r.prev) r.el.setAttribute('style', r.prev); else r.el.removeAttribute('style'); });
+    _forcedLight.forEach(function(r){
+      if (r.prev) r.el.setAttribute('style', r.prev); else r.el.removeAttribute('style');
+      if (!_forcedSeen) r.el.removeAttribute('data-fl-saved');
+    });
     _forcedLight = [];
+    if (typeof WeakSet !== 'undefined') _forcedSeen = new WeakSet();
   };
 
   void document.body.offsetHeight;
