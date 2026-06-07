@@ -1640,6 +1640,8 @@ function printForm() {
   _debugT0 = performance.now();
 
   var isMobileSafari = document.body.classList.contains('mobile-safari');
+  var isMobileChrome = document.body.classList.contains('mobile-chrome');
+  var isNarrowMobile = isMobileSafari || isMobileChrome;
   var wasDark        = document.body.classList.contains('dark-mode');
 
 
@@ -1743,10 +1745,13 @@ function printForm() {
       document.body.classList.add('dark-mode'); document.documentElement.setAttribute('data-theme','dark');
       // iOS Safari sometimes won't repaint dark mode after the print sheet
       // closes. The draft auto-saves on every input/change, so a reload is
-      // safe and restores form data via restoreDraft() on load.
-      saveDraft();
-      window.location.reload();
-      return;
+      // safe and restores form data via restoreDraft() on load. Chrome
+      // repaints correctly, so only reload on Safari.
+      if (isMobileSafari) {
+        saveDraft();
+        window.location.reload();
+        return;
+      }
     }
     else { document.body.classList.remove('dark-mode'); document.documentElement.setAttribute('data-theme','light'); }
     var ct = document.getElementById('doc-title-continued');
@@ -1758,7 +1763,7 @@ function printForm() {
     applyMeterTab();
   }
 
-  if (isMobileSafari && vp) {
+  if (isNarrowMobile && vp) {
 
     // Build safari-page-fix style
     var fix = document.createElement('style');
@@ -1841,8 +1846,15 @@ function printForm() {
       _restored = true;
       document.removeEventListener('visibilitychange', _visHandler);
       window.removeEventListener('focus', _focusHandler);
+      window.removeEventListener('afterprint', _apHandler);
       restore();
     }
+
+    // afterprint — mobile Chrome fires this reliably when the dialog closes,
+    // and (unlike iOS Safari) has no "PDF generated after preview" quirk,
+    // so it can restore immediately. Harmless on Safari where it rarely fires.
+    function _apHandler() { _tryRestore(); }
+    if (isMobileChrome) window.addEventListener('afterprint', _apHandler);
 
     // visibilitychange — fires on most iOS versions when dialog closes
     function _visHandler() {
