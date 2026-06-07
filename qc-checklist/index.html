@@ -1839,40 +1839,48 @@ function printForm() {
       window.print();
     });
 
-    // ── Restore triggers (unified pattern) ──
+    // ── Restore triggers ──
     // Whichever fires first wins; _restored guard prevents double-restore.
     var isMobile = isNarrowMobile;
     var _restored = false;
+    var _armTime = Date.now();
     function _tryRestore(delay) {
       if (_restored) return;
       _restored = true;
       clearTimeout(_safety);
       window.removeEventListener('afterprint', _apHandler);
       document.removeEventListener('visibilitychange', _visHandler);
+      window.removeEventListener('focus', _returnHandler);
+      window.removeEventListener('pageshow', _returnHandler);
       setTimeout(restore, delay || 0);
     }
 
     // afterprint — DESKTOP ONLY. On iOS this fires the instant the print sheet
-    // OPENS (not when it closes), so restoring on it — especially since restore()
-    // does a page reload on Safari — would tear the page out from under the open
-    // sheet and dismiss it. Mobile waits for genuine return instead (below).
+    // OPENS (not when it closes), and since restore() reloads on Safari, acting
+    // on it would tear the page out from under the open sheet. Mobile waits for
+    // a genuine return signal instead (below).
     function _apHandler() { if (!isMobile) _tryRestore(0); }
     window.addEventListener('afterprint', _apHandler);
 
-    // visibilitychange — the safe restore signal on mobile: the page must go
-    // hidden (sheet open) and then come back visible (sheet closed, user
-    // returned). Only then is it safe to reload. On desktop, afterprint above
-    // already handled it; this acts as a backstop.
-    var _wentHidden = false;
-    function _visHandler() {
-      if (document.visibilityState === 'hidden') { _wentHidden = true; }
-      else if (document.visibilityState === 'visible' && _wentHidden) {
-        _tryRestore(isMobile ? 300 : 0);
-      }
+    // Return signals for mobile. iOS Safari is inconsistent about whether the
+    // print/share sheet reports the page as 'hidden', so we listen to several
+    // return events (visibilitychange->visible, focus, pageshow). To avoid
+    // firing while the sheet is still open, ignore any signal that arrives
+    // within the first 1.5s — the sheet can't be opened and dismissed faster
+    // than that. The first genuine return after that wins.
+    var MIN_OPEN_MS = 1500;
+    function _returnHandler() {
+      if (Date.now() - _armTime < MIN_OPEN_MS) return;
+      if (document.visibilityState === 'visible') { _tryRestore(isMobile ? 300 : 0); }
     }
+    function _visHandler() { _returnHandler(); }
     document.addEventListener('visibilitychange', _visHandler);
+    if (isMobile) {
+      window.addEventListener('focus', _returnHandler);
+      window.addEventListener('pageshow', _returnHandler);
+    }
 
-    // Safety net — cleans up if neither trigger fires.
+    // Safety net — cleans up if nothing else fires.
     var _safety = setTimeout(function() { _tryRestore(0); }, 30000);
 
   } else {
