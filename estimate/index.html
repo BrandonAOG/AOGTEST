@@ -2824,6 +2824,18 @@ function printForm() {
     });
     _printReplaced = [];
     if (typeof window.__undoForcedLight === 'function') { window.__undoForcedLight(); window.__undoForcedLight = null; }
+    // Guaranteed belt-and-suspenders cleanup: regardless of what the tracked undo did, strip the
+    // exact inline properties the print-forcing sets from <html>, <body>, #page and every element
+    // inside #page. This prevents a broken half-state (text reverted but backgrounds stuck white).
+    (function hardClearForcedInline(){
+      var FORCED = ['background','background-color','background-image','color','-webkit-text-fill-color',
+                    'box-shadow','text-shadow','border','border-color','stroke','fill',
+                    '-webkit-print-color-adjust','print-color-adjust'];
+      function strip(el){ if(!el) return; for(var i=0;i<FORCED.length;i++){ try{ el.style.removeProperty(FORCED[i]); }catch(e){} } }
+      strip(document.documentElement); strip(document.body);
+      var pg=document.getElementById('page'); strip(pg);
+      if(pg){ var all=pg.querySelectorAll('*'); for(var i=0;i<all.length;i++) strip(all[i]); }
+    })();
     var el;
     el = document.getElementById('force-print-light'); if (el) el.remove();
     el = document.getElementById('safari-page-fix');  if (el) el.remove();
@@ -2955,21 +2967,39 @@ function printForm() {
   // The @media print CSS was not reliably winning the cascade against the dark theme on
   // desktop Safari, so force light appearance via INLINE styles (priority 'important'),
   // which outrank every stylesheet rule. Originals are stashed and undone in restore().
-  var _forcedLight = [];
-  var _forcedSeen = (typeof WeakSet !== 'undefined') ? new WeakSet() : null;
+  // Map element -> { propName: originalInlineValue } captured the FIRST time each property is
+  // forced. Restoring per-property (not the whole style string) means repeated forceLight calls
+  // on the same element can't pollute the saved baseline, so restore() fully reverts every
+  // forced property (this is what was leaving text stuck dark-on-dark after printing).
+  var _forcedProps = [];  // [{ el, prop, orig }]
+  var _forcedKeys = (typeof Set !== 'undefined') ? new Set() : null;  // "uid|prop" seen guard
+  var _flUid = 0;
   function forceLight(el, props) {
     if (!el) return;
-    // Capture the element's ORIGINAL inline style only the first time we touch it. Several
-    // elements get forceLight() called more than once (descendant loop + accent loops); without
-    // this guard the 2nd capture would save the already-forced style as "previous", so restore()
-    // couldn't fully revert (text/colours stayed in the print state). One snapshot per element.
-    var firstTouch = _forcedSeen ? !_forcedSeen.has(el) : (el.getAttribute('data-fl-saved') !== '1');
-    if (firstTouch) {
-      _forcedLight.push({ el: el, prev: el.getAttribute('style') || '' });
-      if (_forcedSeen) _forcedSeen.add(el); else el.setAttribute('data-fl-saved', '1');
-    }
-    Object.keys(props).forEach(function(k) { el.style.setProperty(k, props[k], 'important'); });
+    if (el.__flUid == null) { el.__flUid = ++_flUid; }
+    Object.keys(props).forEach(function(k) {
+      var key = el.__flUid + '|' + k;
+      var seen = _forcedKeys ? _forcedKeys.has(key) : false;
+      if (!seen) {
+        if (_forcedKeys) _forcedKeys.add(key);
+        // original inline value of this specific property (empty string if not set inline)
+        _forcedProps.push({ el: el, prop: k, orig: el.style.getPropertyValue(k), prio: el.style.getPropertyPriority(k) });
+      }
+      el.style.setProperty(k, props[k], 'important');
+    });
   }
+  // Define the undo BEFORE applying any forces, so it always exists even if something in the
+  // forcing routine throws partway through. restore() relies on this to revert.
+  window.__undoForcedLight = function() {
+    _forcedProps.forEach(function(r){
+      try {
+        if (r.orig) r.el.style.setProperty(r.prop, r.orig, r.prio || '');
+        else r.el.style.removeProperty(r.prop);
+      } catch(e) {}
+    });
+    _forcedProps = [];
+    if (_forcedKeys) _forcedKeys.clear();
+  };
   (function applyNuclearLight() {
     var LIGHT_BG = '#ffffff', DARK_TXT = '#1F2937', AMBER = '#D97706';
     forceLight(document.documentElement, { 'background': LIGHT_BG, '-webkit-print-color-adjust': 'exact', 'print-color-adjust': 'exact' });
@@ -3004,15 +3034,6 @@ function printForm() {
       forceLight(el, { 'background': LIGHT_BG, 'color': DARK_TXT, '-webkit-text-fill-color': DARK_TXT, 'border-color': AMBER });
     });
   })();
-  // expose for restore()
-  window.__undoForcedLight = function() {
-    _forcedLight.forEach(function(r){
-      if (r.prev) r.el.setAttribute('style', r.prev); else r.el.removeAttribute('style');
-      if (!_forcedSeen) r.el.removeAttribute('data-fl-saved');
-    });
-    _forcedLight = [];
-    if (typeof WeakSet !== 'undefined') _forcedSeen = new WeakSet();
-  };
 
   void document.body.offsetHeight;
   armRestoreAndPrint(false, true);
