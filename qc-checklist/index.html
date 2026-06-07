@@ -1854,8 +1854,12 @@ function printForm() {
       setTimeout(function() { _tryRestore(); }, 300);
     });
 
-    // Fallback — shortened to 2s just in case nothing else fires
-    setTimeout(function() { _tryRestore(); }, 2000);
+    // Fallback — long delay so it can't strip print styles while the
+    // user is still in Safari's print/PDF UI (tapping the preview to
+    // generate the PDF re-runs layout and needs the styles intact).
+    // The visibilitychange/focus/pageshow handlers do the real cleanup
+    // the moment the user actually leaves the dialog.
+    setTimeout(function() { _tryRestore(); }, 60000);
 
   } else {
     window.addEventListener('afterprint', restore);
