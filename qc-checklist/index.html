@@ -1880,33 +1880,24 @@ function printForm() {
       setTimeout(restore, delay || 0);
     }
 
-    // On mobile Safari in dark mode, defer the actual restore (which reloads)
-    // until the user interacts with the page. Until then, leave styles as-is.
+    // On mobile Safari in dark mode, defer the reload until the user interacts
+    // with the page. A real tap/touch is the ONLY signal that cannot fire while
+    // the print sheet is covering the screen — matchMedia and timers both proved
+    // unreliable on iOS (they signal "print done" while the sheet is still open,
+    // which reloaded into the open sheet and closed it). So there is NO timed
+    // backstop here: we wait for a genuine interaction, however long that takes.
     function _armDeferredRestore() {
       if (isMobileSafari && wasDark) {
+        clearTimeout(_safety);
         function _onInteract() {
           window.removeEventListener('pointerdown', _onInteract, true);
           window.removeEventListener('touchstart', _onInteract, true);
+          window.removeEventListener('click', _onInteract, true);
           _tryRestore(0);
         }
         window.addEventListener('pointerdown', _onInteract, true);
         window.addEventListener('touchstart', _onInteract, true);
-        // Backstop: if no interaction, restore anyway — but only once the print
-        // sheet is genuinely gone. iOS can signal print-media-off while the sheet
-        // is still visually open, so verify _printMql.matches is false before
-        // reloading; if it's still on, wait and re-check rather than reloading
-        // into an open sheet.
-        clearTimeout(_safety);
-        function _backstop() {
-          if (_restored) return;
-          if (_printMql && _printMql.matches) {
-            // Sheet still open — check again shortly.
-            _safety = setTimeout(_backstop, 1000);
-          } else {
-            _tryRestore(0);
-          }
-        }
-        _safety = setTimeout(_backstop, 3000);
+        window.addEventListener('click', _onInteract, true);
       } else {
         // Not the reload case — safe to tear down immediately.
         _tryRestore(isMobile ? 300 : 0);
@@ -1928,8 +1919,12 @@ function printForm() {
     function _apHandler() { if (!isMobile && !_sawPrint) _tryRestore(0); }
     window.addEventListener('afterprint', _apHandler);
 
-    // Safety net — cleans up if nothing else fires.
-    var _safety = setTimeout(function() { _tryRestore(0); }, 30000);
+    // Safety net — cleans up if nothing else fires. NOT armed on the dark
+    // Safari path: there the reload must wait for a genuine interaction, and a
+    // timer could fire into a still-open print sheet (which closes it).
+    var _safety = (isMobileSafari && wasDark)
+      ? null
+      : setTimeout(function() { _tryRestore(0); }, 30000);
 
   } else {
     window.addEventListener('afterprint', restore);
