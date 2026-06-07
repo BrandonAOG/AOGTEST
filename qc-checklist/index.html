@@ -175,15 +175,15 @@
   --fs-print-macos-base:      16px;     /* base html font-size multiplier for macOS PDF (all rem units scale from this) */
 
   /* ── 1g. PDF — Desktop Chrome ── */
-  --fs-print-desktop-company:   1.2rem;  /* "Always On Generators" in desktop PDF        */
-  --fs-print-desktop-title:     1.1rem;  /* "Quality Control Checklist" in desktop PDF   */
-  --fs-print-desktop-info-label:0.8rem;   /* Customer Name / Date / Technician / Gas Crew labels in desktop PDF */
-  --fs-print-desktop-info-input:0.9rem;  /* text in Customer Name, Address, Date… fields in desktop PDF */
-  --fs-print-desktop-section:   0.8rem;  /* Transfer Switch / Meter / Generator… section bars in desktop PDF */
-  --fs-print-desktop-item:      0.8rem;  /* Check All Wire Connections, Vacuumed… item text in desktop PDF */
-  --fs-print-desktop-option:    0.8rem;  /* Good / Bad / Yes / No / Installed / Removed in desktop PDF */
-  --fs-print-desktop-footer:    0.5rem;  /* "Quality Control Checklist · Always On Generators · Confidential" in desktop PDF */
-  --fs-print-desktop-notes:     0.8rem;  /* notes text field next to checkboxes in desktop PDF */
+  --fs-print-desktop-company:   0.78rem;  /* "Always On Generators" in desktop PDF        */
+  --fs-print-desktop-title:     0.82rem;  /* "Quality Control Checklist" in desktop PDF   */
+  --fs-print-desktop-info-label:0.5rem;   /* Customer Name / Date / Technician / Gas Crew labels in desktop PDF */
+  --fs-print-desktop-info-input:0.75rem;  /* text in Customer Name, Address, Date… fields in desktop PDF */
+  --fs-print-desktop-section:   0.69rem;  /* Transfer Switch / Meter / Generator… section bars in desktop PDF */
+  --fs-print-desktop-item:      0.67rem;  /* Check All Wire Connections, Vacuumed… item text in desktop PDF */
+  --fs-print-desktop-option:    0.61rem;  /* Good / Bad / Yes / No / Installed / Removed in desktop PDF */
+  --fs-print-desktop-footer:    0.42rem;  /* "Quality Control Checklist · Always On Generators · Confidential" in desktop PDF */
+  --fs-print-desktop-notes:     0.75rem;  /* notes text field next to checkboxes in desktop PDF */
   --fs-print-desktop-summary:   8px;      /* Overall Job Status / Pass / Fail / Items Requiring Follow-Up in desktop PDF */
   --fs-print-desktop-base:      13px;     /* base html font-size multiplier for desktop PDF (all rem units scale from this) */
 
@@ -1519,6 +1519,10 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 // ── METER / METER MAIN TOGGLE ──
 var _meterTab = 'meter'; // 'meter' or 'meter-main'
 
+// Notes box: max characters that fit on one printed line (based on the
+// narrowest notes box on the page). More than this wraps to a 2nd row.
+var NOTES_1LINE_MAX = 75;
+
 function toggleMeterTab() {
   _meterTab = (_meterTab === 'meter') ? 'meter-main' : 'meter';
   applyMeterTab();
@@ -1870,25 +1874,11 @@ function printForm() {
       document.activeElement.blur();
     }
 
-    // Let a notes line use a 2nd row only if its text is too long for one
-    // line at the printed (820px) layout width. The injected sheet forces an
-    // 820px layout, but on-screen the field is narrower, so measure against an
-    // estimated print width instead of the live width for accuracy.
+    // A notes line gets a 2nd row only if its text exceeds the number of
+    // characters that fit on one printed line. Simple char count.
     document.querySelectorAll('.notes-line').forEach(function(el) {
       el.classList.remove('notes-2');
-      if (!el.value || !el.value.trim()) return;
-      var probe = document.createElement('div');
-      var cs = getComputedStyle(el);
-      probe.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;top:0;'
-        + 'white-space:normal;word-break:break-word;'
-        + 'width:560px;'  // approx printed notes width inside an 820px page
-        + 'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize
-        + ';line-height:1.2;';
-      probe.textContent = el.value;
-      document.body.appendChild(probe);
-      var oneLine = parseFloat(cs.fontSize) * 1.2;
-      if (probe.scrollHeight > oneLine * 1.6) el.classList.add('notes-2');
-      document.body.removeChild(probe);
+      if (el.value && el.value.length > NOTES_1LINE_MAX) el.classList.add('notes-2');
     });
 
     requestAnimationFrame(function() {
@@ -1967,19 +1957,12 @@ function printForm() {
       : setTimeout(function() { _tryRestore(0); }, 30000);
 
   } else {
-    // Desktop print: let a notes line use a 2nd row only if its text is too
-    // long for one line. Measure by temporarily allowing wrap and comparing
-    // scroll height to a single line, then tag the long ones with .notes-2.
+    // Desktop print: a notes line gets a 2nd row only if its text exceeds the
+    // number of characters that fit on one line (measured from the shortest
+    // notes box on the page). Simple char count — no fragile pixel measuring.
     document.querySelectorAll('.notes-line').forEach(function(el) {
       el.classList.remove('notes-2');
-      if (!el.value || !el.value.trim()) return;
-      var prevWS = el.style.whiteSpace, prevH = el.style.height;
-      el.style.whiteSpace = 'normal';
-      el.style.height = 'auto';
-      var oneLine = parseFloat(getComputedStyle(el).lineHeight) || 16;
-      if (el.scrollHeight > oneLine * 1.6) el.classList.add('notes-2');
-      el.style.whiteSpace = prevWS;
-      el.style.height = prevH;
+      if (el.value && el.value.length > NOTES_1LINE_MAX) el.classList.add('notes-2');
     });
     window.addEventListener('afterprint', restore);
     window.print();
