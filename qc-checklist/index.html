@@ -1821,6 +1821,7 @@ function printForm() {
       '  .opt input[value="bad"],.opt input[value="no"],.opt input[value="removed"],.opt input[value="not_done"] { accent-color:#DC2626!important; }',
       '  .footer-text    { font-size:var(--fs-print-desktop-footer)!important; }',
       '  .notes-line     { font-size:var(--fs-print-desktop-notes)!important; height:1.2em!important; min-height:0!important; max-height:1.4em!important; border:none!important; border-bottom:1px solid rgba(217,119,6,0.3)!important; border-radius:0!important; padding:0!important; margin-left:0!important; line-height:1.2!important; overflow:hidden!important; white-space:nowrap!important; resize:none!important; flex:1!important; flex-basis:auto!important; vertical-align:bottom!important; }',
+      '  .notes-line.notes-2 { height:2.4em!important; max-height:2.6em!important; white-space:normal!important; word-break:break-word!important; }',
       '  .page-num       { font-size:var(--fs-print-phone-footer)!important; }',
       '  #doc-title-continued { display:none!important; }',
       '  .summary-label   { font-size:var(--fs-print-desktop-summary)!important; color:#6B7280!important; }',
@@ -1865,6 +1866,27 @@ function printForm() {
     if (document.activeElement && document.activeElement.blur) {
       document.activeElement.blur();
     }
+
+    // Let a notes line use a 2nd row only if its text is too long for one
+    // line at the printed (820px) layout width. The injected sheet forces an
+    // 820px layout, but on-screen the field is narrower, so measure against an
+    // estimated print width instead of the live width for accuracy.
+    document.querySelectorAll('.notes-line').forEach(function(el) {
+      el.classList.remove('notes-2');
+      if (!el.value || !el.value.trim()) return;
+      var probe = document.createElement('div');
+      var cs = getComputedStyle(el);
+      probe.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;top:0;'
+        + 'white-space:normal;word-break:break-word;'
+        + 'width:560px;'  // approx printed notes width inside an 820px page
+        + 'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize
+        + ';line-height:1.2;';
+      probe.textContent = el.value;
+      document.body.appendChild(probe);
+      var oneLine = parseFloat(cs.fontSize) * 1.2;
+      if (probe.scrollHeight > oneLine * 1.6) el.classList.add('notes-2');
+      document.body.removeChild(probe);
+    });
 
     requestAnimationFrame(function() {
       window.print();
