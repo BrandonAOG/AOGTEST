@@ -1855,14 +1855,19 @@ function printForm() {
     });
 
     // ── Restore trigger ──
-    // The reliable cross-browser signal (incl. iOS Safari) is matchMedia('print'):
-    // its 'change' listener fires with matches=true when print media starts
-    // applying (sheet/preview opens) and matches=false when it stops (sheet
-    // closed / returned). Unlike the afterprint event, which iOS fires the
-    // instant the sheet OPENS, this fires when the sheet actually CLOSES — so
-    // restoring (and reloading on Safari) here won't kill the open sheet.
+    // ── Restore strategy ──
+    // restore() does two jobs: (1) cheap style teardown (remove print
+    // stylesheets) and (2) on Safari, a destructive page reload to repaint
+    // dark mode. We must NOT reload while the print sheet is open, and iOS
+    // gives no clean "sheet closed" event. So we split them:
+    //   • Style teardown happens on whatever print-end signal we can get.
+    //   • The dark-mode reload is deferred until the user's FIRST real
+    //     interaction with the page after printing — if they're touching the
+    //     page, the sheet is definitely gone. No timing races.
     var isMobile = isNarrowMobile;
     var _restored = false;
+    var _printMql = window.matchMedia ? window.matchMedia('print') : null;
+
     function _tryRestore(delay) {
       if (_restored) return;
       _restored = true;
@@ -1875,37 +1880,38 @@ function printForm() {
       setTimeout(restore, delay || 0);
     }
 
-    // matchMedia('print') — primary signal everywhere it's supported (WebKit/Blink).
-    var _printMql = window.matchMedia ? window.matchMedia('print') : null;
-    var _sawPrint = false;
-    var _printOnAt = 0;
-    function _mqlHandler(mql) {
-      if (mql.matches) {
-        _sawPrint = true;            // print media on — sheet/preview open
-        _printOnAt = Date.now();
-      } else if (_sawPrint) {
-        // On iOS the print media can briefly flicker off during sheet setup.
-        // If matches:false arrives within ~1.2s of matches:true, don't restore
-        // immediately — re-check shortly: if print media is genuinely off, the
-        // sheet really closed; if it's back on, it was just a flicker.
-        if (Date.now() - _printOnAt < 1200) {
-          setTimeout(function() {
-            if (!_restored && _printMql && !_printMql.matches) {
-              _tryRestore(isMobile ? 300 : 0);
-            }
-          }, 1300);
-          return;
+    // On mobile Safari in dark mode, defer the actual restore (which reloads)
+    // until the user interacts with the page. Until then, leave styles as-is.
+    function _armDeferredRestore() {
+      if (isMobileSafari && wasDark) {
+        function _onInteract() {
+          window.removeEventListener('pointerdown', _onInteract, true);
+          window.removeEventListener('touchstart', _onInteract, true);
+          _tryRestore(0);
         }
-        _tryRestore(isMobile ? 300 : 0); // print media off — done
+        window.addEventListener('pointerdown', _onInteract, true);
+        window.addEventListener('touchstart', _onInteract, true);
+        // Backstop: if no interaction within 30s, restore anyway.
+        clearTimeout(_safety);
+        _safety = setTimeout(function() { _tryRestore(0); }, 30000);
+      } else {
+        // Not the reload case — safe to tear down immediately.
+        _tryRestore(isMobile ? 300 : 0);
       }
+    }
+
+    // matchMedia('print') change -> matches:false means print media stopped.
+    var _sawPrint = false;
+    function _mqlHandler(mql) {
+      if (mql.matches) { _sawPrint = true; }
+      else if (_sawPrint) { _armDeferredRestore(); }
     }
     if (_printMql) {
       if (_printMql.addEventListener) _printMql.addEventListener('change', _mqlHandler);
       else if (_printMql.addListener) _printMql.addListener(_mqlHandler);
     }
 
-    // afterprint — fallback for engines without matchMedia('print') support
-    // (e.g. Firefox). On mobile it's unreliable, so only used on desktop.
+    // afterprint — fallback for engines without matchMedia('print') support.
     function _apHandler() { if (!isMobile && !_sawPrint) _tryRestore(0); }
     window.addEventListener('afterprint', _apHandler);
 
