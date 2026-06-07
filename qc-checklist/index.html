@@ -1521,7 +1521,9 @@ var _meterTab = 'meter'; // 'meter' or 'meter-main'
 
 // Notes box: max characters that fit on one printed line (based on the
 // narrowest notes box on the page). More than this wraps to a 2nd row.
-var NOTES_1LINE_MAX = 75;
+// Mobile prints at a wider effective layout, so it fits more per line.
+var NOTES_1LINE_MAX = 75;         // desktop print
+var NOTES_1LINE_MAX_MOBILE = 100; // mobile print
 
 function toggleMeterTab() {
   _meterTab = (_meterTab === 'meter') ? 'meter-main' : 'meter';
@@ -1878,7 +1880,7 @@ function printForm() {
     // characters that fit on one printed line. Simple char count.
     document.querySelectorAll('.notes-line').forEach(function(el) {
       el.classList.remove('notes-2');
-      if (el.value && el.value.length > NOTES_1LINE_MAX) el.classList.add('notes-2');
+      if (el.value && el.value.length > NOTES_1LINE_MAX_MOBILE) el.classList.add('notes-2');
     });
 
     requestAnimationFrame(function() {
