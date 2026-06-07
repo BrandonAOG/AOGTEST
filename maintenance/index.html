@@ -1409,7 +1409,33 @@ function clearForm() {
 function openPrintPreview() {
   const wasDark = document.body.classList.contains('dark-mode');
   const isMacOS = document.documentElement.classList.contains('macos');
+  const isMobileSafari = document.body.classList.contains('mobile-safari');
+  const isMobileChrome = document.body.classList.contains('mobile-chrome');
+  const isNarrowMobile = isMobileSafari || isMobileChrome;
   if (wasDark) document.body.classList.remove('dark-mode');
+
+  // ── Force DESKTOP-WIDTH print on phones ───────────────────────────────
+  // Phones print at a narrow viewport, so the desktop @media print block
+  // (min-width:768px) never matches and the PDF differs from desktop. Force
+  // the layout to 820px so that block applies and the PDF matches desktop.
+  // Android Chrome additionally needs the viewport meta overridden (it scales
+  // a forced-width layout down otherwise); iOS WebKit honors the CSS width.
+  var _vpMeta = document.querySelector('meta[name="viewport"]');
+  var _vpOrig = _vpMeta ? _vpMeta.getAttribute('content') : null;
+  if (isMobileChrome && _vpMeta) {
+    _vpMeta.setAttribute('content', 'width=820, initial-scale=1');
+  }
+  var _forceWidthCSS = isNarrowMobile ? [
+    '@media print {',
+    '  html { font-size:18px !important; }',
+    '  html, body { width:820px !important; max-width:820px !important; min-width:0 !important; }',
+    '  .form-page, .page, #page { zoom:1 !important; width:8.1in !important; max-width:8.1in !important;',
+    '    margin:0 auto !important; padding:0.15in !important; box-sizing:border-box !important; }',
+    '}'
+  ].join('\n') : '';
+  function _restoreViewport() {
+    if (_vpMeta && _vpOrig != null) _vpMeta.setAttribute('content', _vpOrig);
+  }
 
   // ── macOS Safari fast path ────────────────────────────────────────────
   // afterprint fires BEFORE the job reaches the printer on macOS Safari,
@@ -1421,12 +1447,14 @@ function openPrintPreview() {
     fixEl.id = 'safari-print-height-fix';
     fixEl.textContent = [
       '.page, #page { min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; margin-top: 0 !important; }',
-      'html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; }'
+      'html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; }',
+      _forceWidthCSS
     ].join('\n');
     document.head.appendChild(fixEl);
 
     function macRestore() {
       if (wasDark) document.body.classList.add('dark-mode');
+      _restoreViewport();
       const el = document.getElementById('safari-print-height-fix');
       if (el) el.remove();
       window.removeEventListener('afterprint', macRestore);
@@ -1539,6 +1567,7 @@ function openPrintPreview() {
     if (wasDark) document.body.classList.add('dark-mode');
     document.body.style.maxWidth = origMaxWidth;
     document.body.style.width    = origWidth;
+    _restoreViewport();
     const fixEl = document.getElementById('safari-print-height-fix');
     if (fixEl) fixEl.remove();
     window.removeEventListener('afterprint', restore);
@@ -1554,7 +1583,8 @@ function openPrintPreview() {
   _printStyleEl.id = 'safari-print-height-fix';
   _printStyleEl.textContent = [
     '.page, #page { min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; margin-top: 0 !important; }',
-    'html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; }'
+    'html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; }',
+    _forceWidthCSS
   ].join('\n');
   document.head.appendChild(_printStyleEl);
 
