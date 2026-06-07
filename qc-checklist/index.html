@@ -172,14 +172,14 @@
   --fs-print-macos-base:      16px;     /* base html font-size multiplier for macOS PDF (all rem units scale from this) */
 
   /* ── 1g. PDF — Desktop Chrome ── */
-  --fs-print-desktop-company:   1.1rem;  /* "Always On Generators" in desktop PDF        */
-  --fs-print-desktop-title:     1rem;  /* "Quality Control Checklist" in desktop PDF   */
-  --fs-print-desktop-info-label:0.8rem;   /* Customer Name / Date / Technician / Gas Crew labels in desktop PDF */
+  --fs-print-desktop-company:   0.78rem;  /* "Always On Generators" in desktop PDF        */
+  --fs-print-desktop-title:     0.82rem;  /* "Quality Control Checklist" in desktop PDF   */
+  --fs-print-desktop-info-label:0.5rem;   /* Customer Name / Date / Technician / Gas Crew labels in desktop PDF */
   --fs-print-desktop-info-input:0.75rem;  /* text in Customer Name, Address, Date… fields in desktop PDF */
-  --fs-print-desktop-section:   0.8rem;  /* Transfer Switch / Meter / Generator… section bars in desktop PDF */
-  --fs-print-desktop-item:      0.75rem;  /* Check All Wire Connections, Vacuumed… item text in desktop PDF */
-  --fs-print-desktop-option:    0.75rem;  /* Good / Bad / Yes / No / Installed / Removed in desktop PDF */
-  --fs-print-desktop-footer:    0.65rem;  /* "Quality Control Checklist · Always On Generators · Confidential" in desktop PDF */
+  --fs-print-desktop-section:   0.69rem;  /* Transfer Switch / Meter / Generator… section bars in desktop PDF */
+  --fs-print-desktop-item:      0.67rem;  /* Check All Wire Connections, Vacuumed… item text in desktop PDF */
+  --fs-print-desktop-option:    0.61rem;  /* Good / Bad / Yes / No / Installed / Removed in desktop PDF */
+  --fs-print-desktop-footer:    0.42rem;  /* "Quality Control Checklist · Always On Generators · Confidential" in desktop PDF */
   --fs-print-desktop-notes:     0.75rem;  /* notes text field next to checkboxes in desktop PDF */
   --fs-print-desktop-summary:   8px;      /* Overall Job Status / Pass / Fail / Items Requiring Follow-Up in desktop PDF */
   --fs-print-desktop-base:      13px;     /* base html font-size multiplier for desktop PDF (all rem units scale from this) */
@@ -920,6 +920,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   .opt input[value="not_done"]  { accent-color: #DC2626 !important; }
   .footer-text   { font-size: var(--fs-print-phone-footer) !important; }
   .notes-line    { font-size: var(--fs-print-desktop-notes) !important; height: 1.2em !important; min-height: 0 !important; max-height: 1.4em !important; line-height: 1.2 !important; overflow: hidden !important; white-space: nowrap !important; resize: none !important; padding: 0 !important; margin-left: 0 !important; border: none !important; border-bottom: 1px solid rgba(217,119,6,0.3) !important; border-radius: 0 !important; }
+  .notes-line.notes-2 { height: 2.4em !important; max-height: 2.6em !important; white-space: normal !important; word-break: break-word !important; }
   .page-num      { font-size: var(--fs-print-phone-footer) !important; }
   .page-footer   { margin-top: 4px !important; padding: var(--pd-print-desktop-footer) !important; }
 }
@@ -998,6 +999,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   .check-item     { min-height: var(--h-print-desktop-item) !important; }
   .footer-text    { font-size: var(--fs-print-desktop-footer) !important; }
   .notes-line     { font-size: var(--fs-print-desktop-notes) !important; height: 1.2em !important; min-height: 0 !important; max-height: 1.4em !important; line-height: 1.2 !important; overflow: hidden !important; white-space: nowrap !important; resize: none !important; padding: 0 !important; margin-left: 0 !important; border: none !important; border-bottom: 1px solid rgba(217,119,6,0.3) !important; border-radius: 0 !important; }
+  .notes-line.notes-2 { height: 2.4em !important; max-height: 2.6em !important; white-space: normal !important; word-break: break-word !important; }
   .section        { margin-bottom: var(--gap-print-desktop-sections) !important; }
   .page           { padding: var(--pd-print-desktop-page) !important; }
 }
@@ -1745,6 +1747,7 @@ function printForm() {
   // ── RESTORE function (defined before use) ──
   function restore() {
     document.title = prevTitle;
+    document.querySelectorAll('.notes-line.notes-2').forEach(function(el){ el.classList.remove('notes-2'); });
     // Restore viewport if it was overridden for mobile Chrome print.
     if (vp && origVP != null) vp.setAttribute('content', origVP);
     var f  = document.getElementById('safari-print-fix');  if(f)  f.remove();
@@ -1939,6 +1942,20 @@ function printForm() {
       : setTimeout(function() { _tryRestore(0); }, 30000);
 
   } else {
+    // Desktop print: let a notes line use a 2nd row only if its text is too
+    // long for one line. Measure by temporarily allowing wrap and comparing
+    // scroll height to a single line, then tag the long ones with .notes-2.
+    document.querySelectorAll('.notes-line').forEach(function(el) {
+      el.classList.remove('notes-2');
+      if (!el.value || !el.value.trim()) return;
+      var prevWS = el.style.whiteSpace, prevH = el.style.height;
+      el.style.whiteSpace = 'normal';
+      el.style.height = 'auto';
+      var oneLine = parseFloat(getComputedStyle(el).lineHeight) || 16;
+      if (el.scrollHeight > oneLine * 1.6) el.classList.add('notes-2');
+      el.style.whiteSpace = prevWS;
+      el.style.height = prevH;
+    });
     window.addEventListener('afterprint', restore);
     window.print();
   }
