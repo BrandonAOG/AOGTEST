@@ -1012,15 +1012,17 @@ body.dark-mode .action-bar {
 (function () {
   var ua = navigator.userAgent;
   var html = document.documentElement;
-  var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad
-  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua) && !isCriOS; // Safari on iOS only
+  var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
+  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
   var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
-  var isMobileChrome = isCriOS || (isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua));
+  // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
+  // NO viewport override). Only ANDROID Chrome gets the viewport-override path.
+  var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
+  var isMobileChrome = isAndroidChrome;
 
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
-  if (isCriOS)        html.classList.add('ios');
   if (isMacOS)        html.classList.add('macos');
   if (isWindows)      html.classList.add('windows');
   if (isAndroid)      html.classList.add('android');
@@ -1028,7 +1030,6 @@ body.dark-mode .action-bar {
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
-    if (isCriOS)        document.body.classList.add('ios');
     if (isMacOS)        document.body.classList.add('macos');
     if (isWindows)      document.body.classList.add('windows');
     if (isAndroid)      document.body.classList.add('android');
@@ -1770,11 +1771,16 @@ function openPrintPreview() {
         // snapshot until the user taps Scale, which forces a relayout. Mimic
         // that relayout here so the preview shows light immediately.
         if (isMobileSafari) {
-          var pg = document.querySelector('.page') || document.body;
-          var prev = pg.style.transform;
-          pg.style.transform = 'translateZ(0)';
-          void pg.offsetHeight;
-          pg.style.transform = prev;
+          // Force iOS to recompute pagination from the forced 820px layout
+          // BEFORE the preview snapshot, so it fits one page without the user
+          // having to scale. A transform toggle alone isn't enough; briefly
+          // nudging the html width forces a full relayout that sticks.
+          var de = document.documentElement;
+          de.style.width = '821px';
+          void de.offsetHeight;
+          de.style.width = '820px';
+          void de.offsetHeight;
+          de.style.width = '';
           void document.body.offsetHeight;
         }
         setTimeout(() => {
