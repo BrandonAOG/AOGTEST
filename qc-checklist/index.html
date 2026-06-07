@@ -657,27 +657,29 @@ body.offline { padding-top: 0; }
 .opt input[value="not_done"]:checked::after {
   transform: translate(-50%, -50%) rotate(-45deg);
 }
+/* ── NOTES BOX (own rule): starts at 1 row, auto-grows via JS ── */
 .notes-line {
   flex: 1; border: none; border-bottom: 1px solid rgba(217,119,6,0.3);
-  background: transparent; min-height: 14px;
+  background: transparent;
   min-width: 60px; font-size: var(--fs-phone-notes);
   resize: none; line-height: 1.3; font-family: inherit; color: inherit;
   padding: 0; overflow: hidden;
-  height: calc(var(--fs-phone-notes) * 1.3 + 2px); /* 1 line by default */
-  white-space: nowrap;
+  white-space: normal; word-break: break-word;
+  height: calc(var(--fs-phone-notes) * 1.3 + 2px); /* 1 row start */
+  min-height: calc(var(--fs-phone-notes) * 1.3 + 2px);
+  box-sizing: border-box;
 }
-/* On small screens: notes-line drops to its own full-width row, 2 lines tall */
+/* On small screens: notes-line drops to its own full-width row, starts at 2 rows */
 @media screen and (max-width: 600px) {
   .notes-line {
     flex-basis: 100%;
     margin-left: 18px; /* align with label, past the item-num */
     min-width: 0;
-    height: calc(var(--fs-phone-notes) * 1.3 * 2 + 4px); /* 2 rows */
-    white-space: normal;
     border: 1px solid rgba(217,119,6,0.3);
     border-radius: 4px;
     padding: 2px 4px;
-    overflow: auto;
+    height: calc(var(--fs-phone-notes) * 1.3 * 2 + 4px);     /* 2 rows start */
+    min-height: calc(var(--fs-phone-notes) * 1.3 * 2 + 4px);
   }
   .check-item { align-items: flex-start; }
   .item-num { padding-top: 3px; }
@@ -1615,26 +1617,42 @@ setInterval(saveDraft, 30000);
 document.addEventListener('change', saveDraft);
 document.addEventListener('input', saveDraft);
 
-// ── AUTO-GROW notes textareas (mobile screen only, cap then scroll) ──
+// ── AUTO-GROW notes textareas on screen (cap then scroll) ──
 var NOTES_MAX_ROWS = 5;
 function autoGrowNote(el) {
-  // Only on the mobile layout (matches the <=600px CSS that makes notes 2 rows)
-  if (window.matchMedia('(max-width: 600px)').matches) {
-    el.style.height = 'auto';
-    var line = parseFloat(getComputedStyle(el).lineHeight) || 16;
-    var max  = line * NOTES_MAX_ROWS + 8; // +padding allowance
-    var want = el.scrollHeight;
-    if (want > max) { el.style.height = max + 'px'; el.style.overflowY = 'auto'; }
-    else            { el.style.height = want + 'px'; el.style.overflowY = 'hidden'; }
-  } else {
-    // Larger screens: clear any inline height so CSS controls it
-    el.style.height = '';
-    el.style.overflowY = '';
-  }
+  // Allow wrapping while measuring/growing.
+  el.style.whiteSpace = 'normal';
+  // Force rows=1 before measuring — the rows="2" attribute otherwise makes an
+  // empty textarea report a 2-row scrollHeight, inflating the desktop start.
+  el.rows = 1;
+  el.style.height = 'auto';
+  var line = parseFloat(getComputedStyle(el).lineHeight) || 16;
+  var isMobileScreen = window.matchMedia('(max-width: 600px)').matches;
+  var minRows = isMobileScreen ? 2 : 1;   // mobile starts at 2 rows, desktop at 1
+  var pad = isMobileScreen ? 6 : 2;
+  var floor = line * minRows + pad;
+  var max  = line * NOTES_MAX_ROWS + 8;
+  var want = Math.max(el.scrollHeight, floor);
+  if (want > max) { el.style.height = max + 'px'; el.style.overflowY = 'auto'; }
+  else            { el.style.height = want + 'px'; el.style.overflowY = 'hidden'; }
 }
 function autoGrowAllNotes() {
   document.querySelectorAll('.notes-line').forEach(autoGrowNote);
 }
+// Notes are single-line content: block Enter and strip any pasted newlines.
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.target && e.target.classList && e.target.classList.contains('notes-line')) {
+    e.preventDefault();
+  }
+});
+document.addEventListener('input', function(e) {
+  var el = e.target;
+  if (el && el.classList && el.classList.contains('notes-line') && el.value.indexOf('\n') !== -1) {
+    var pos = el.selectionStart;
+    el.value = el.value.replace(/[\r\n]+/g, ' ');
+    try { el.setSelectionRange(pos, pos); } catch(_) {}
+  }
+});
 document.addEventListener('input', function(e) {
   if (e.target && e.target.classList && e.target.classList.contains('notes-line')) autoGrowNote(e.target);
 });
@@ -1786,7 +1804,7 @@ function printForm() {
   // ── RESTORE function (defined before use) ──
   function restore() {
     document.title = prevTitle;
-    document.querySelectorAll('.notes-line.notes-2').forEach(function(el){ el.classList.remove('notes-2'); });
+    document.querySelectorAll('.notes-line').forEach(function(el){ el.classList.remove('notes-2'); el.setAttribute('wrap','soft'); });
     // Restore viewport if it was overridden for mobile Chrome print.
     if (vp && origVP != null) vp.setAttribute('content', origVP);
     var f  = document.getElementById('safari-print-fix');  if(f)  f.remove();
@@ -1908,9 +1926,14 @@ function printForm() {
 
     // A notes line gets a 2nd row only if its text exceeds the number of
     // characters that fit on one printed line. Simple char count.
+    // Also toggle the textarea wrap attribute: Safari ignores white-space:nowrap
+    // on a textarea and soft-wraps at the box width, so 1-row notes need
+    // wrap="off" to stay a true single line; 2-row notes use wrap="soft".
     document.querySelectorAll('.notes-line').forEach(function(el) {
       el.classList.remove('notes-2');
-      if (el.value && el.value.length > NOTES_1LINE_MAX_MOBILE) el.classList.add('notes-2');
+      var two = el.value && el.value.length > NOTES_1LINE_MAX_MOBILE;
+      if (two) el.classList.add('notes-2');
+      el.setAttribute('wrap', two ? 'soft' : 'off');
     });
 
     requestAnimationFrame(function() {
@@ -1994,7 +2017,9 @@ function printForm() {
     // notes box on the page). Simple char count — no fragile pixel measuring.
     document.querySelectorAll('.notes-line').forEach(function(el) {
       el.classList.remove('notes-2');
-      if (el.value && el.value.length > NOTES_1LINE_MAX) el.classList.add('notes-2');
+      var two = el.value && el.value.length > NOTES_1LINE_MAX;
+      if (two) el.classList.add('notes-2');
+      el.setAttribute('wrap', two ? 'soft' : 'off');
     });
     window.addEventListener('afterprint', restore);
     window.print();
