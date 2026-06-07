@@ -1597,6 +1597,22 @@ function openPrintPreview() {
     if (fixEl) fixEl.remove();
     window.removeEventListener('afterprint', restore);
     if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
+    // Mobile Safari: iOS may not repaint cleanly after the print sheet closes,
+    // leaving the screen looking half-stripped. Reload to restore a clean dark
+    // view — deferred to the first real interaction so it can't tear down the
+    // still-open print sheet. Draft autosaves, so a reload loses nothing.
+    if (isMobileSafari && wasDark) {
+      saveDraft();
+      function _reloadOnInteract() {
+        window.removeEventListener('pointerdown', _reloadOnInteract, true);
+        window.removeEventListener('touchstart', _reloadOnInteract, true);
+        window.removeEventListener('click', _reloadOnInteract, true);
+        window.location.reload();
+      }
+      window.addEventListener('pointerdown', _reloadOnInteract, true);
+      window.addEventListener('touchstart', _reloadOnInteract, true);
+      window.addEventListener('click', _reloadOnInteract, true);
+    }
   }
 
   window.addEventListener('afterprint', restore);
