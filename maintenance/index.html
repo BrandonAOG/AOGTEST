@@ -1526,11 +1526,11 @@ function openPrintPreview() {
   const isMobileSafari = document.body.classList.contains('mobile-safari');
   const isMobileChrome = document.body.classList.contains('mobile-chrome');
   const isNarrowMobile = isMobileSafari || isMobileChrome;
-  // On mobile Safari, REMOVING the dark class doesn't reliably repaint for the
-  // print snapshot — dark styling bleeds into the PDF. Keep the class on and let
-  // the @media print force-light block (keyed to body.dark-mode) strip it at
-  // actual print time, which iOS WebKit honors. Other browsers repaint fine.
-  if (wasDark && !isMobileSafari) document.body.classList.remove('dark-mode');
+  // Remove the dark class before printing on ALL browsers — including mobile
+  // Safari — so the print PREVIEW renders light, not just the final PDF.
+  // (Debug confirmed the body bg goes white before print, so this is safe and
+  // avoids the dark-looking preview that confuses users.)
+  if (wasDark) document.body.classList.remove('dark-mode');
 
   // ── Force DESKTOP-WIDTH print on phones so the PDF matches desktop ──
   var _vpMeta = document.querySelector('meta[name="viewport"]');
