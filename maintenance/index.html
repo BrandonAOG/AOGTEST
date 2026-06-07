@@ -587,6 +587,11 @@ body.dark-mode .check-item:has(input:checked) span { color: #D97706; font-weight
 }
 .test-item { display: flex; align-items: center; gap: 8px; }
 .test-item label { min-width: 75px; white-space: nowrap; }
+/* Keep the Y/N group its natural (compact) width here so it matches the
+   yn-groups used elsewhere, instead of spreading across the grid cell. */
+.test-item .yn-group { flex: 0 0 auto; width: auto; margin-right: auto; }
+/* Force the Y/N buttons here to the same compact size as other sections */
+.test-item .yn-group .yn-label { padding: 0 8px !important; min-width: 0 !important; width: auto !important; flex: 0 0 auto !important; }
 @media (max-width: 768px) { .test-grid { grid-template-columns: 1fr; gap: 10px; } }
 
 /* ── Y/N TOGGLE ── */
@@ -676,7 +681,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    PRINT STYLES
    ══════════════════════════════════════════════════════════════ */
 @media print {
-  @page { size: 8.5in 11in; margin: 0 !important; }
+  @page { size: 8.5in 11in; margin: 0.1in 0.1in !important; }
 
   html {
     height: auto !important; margin: 0 !important; padding: 0 !important;
@@ -718,12 +723,9 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ios * { transform: none !important; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
   html.ios .page, html.ios body, html.ios html { display: block !important; min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
 
-  /* ── macOS Safari tuning ──
-     zoom:   shrinks/grows entire page  (0.93 = 93%)
-     margin: on .page — NOT body — to stay centered after zoom
-     padding-bottom: keeps the bottom border inside the printable area */
+  /* ── macOS Safari tuning (zoom removed — native print decides scaling) ── */
   html.macos { font-size: 17px !important; }
-  html.macos body { zoom: 0.93 !important; margin: 0 !important; }
+  html.macos body { margin: 0 !important; }
   html.macos .page {
     border: 1.5px solid #D97706 !important;
     padding: 24px !important;
@@ -873,9 +875,12 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.dark-mode .check-item { background: white !important; }
 }
 
-/* ── Mobile Safari print fix ── */
+/* ── Mobile Safari print fix ──
+   zoom-based scaling removed: print now forces a true desktop-width (820px)
+   layout, so the page must NOT be re-zoomed (that's what made the output
+   change with screen scale). */
 @media print {
-  body.mobile-safari .page { zoom: 0.830; padding: 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
+  body.mobile-safari .page { padding: 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
   body.mobile-safari .two-column { grid-template-columns: 1fr 1fr !important; }
   body.mobile-safari .field-row-nowrap { flex-wrap: nowrap !important; }
   body.mobile-safari #name { flex: 0 1 50% !important; min-width: 0 !important; }
@@ -886,7 +891,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 
 /* ── Mobile Chrome print fix (Android Chrome + Chrome on iOS) ── */
 @media print {
-  body.mobile-chrome .page { zoom: 0.99; padding: 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
+  body.mobile-chrome .page { padding: 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
   body.mobile-chrome .two-column { grid-template-columns: 1fr 1fr !important; }
   body.mobile-chrome .field-row-nowrap { flex-wrap: nowrap !important; }
   body.mobile-chrome #name { flex: 0 1 50% !important; min-width: 0 !important; }
@@ -1439,25 +1444,12 @@ function openPrintPreview() {
   // actual print time, which iOS WebKit honors. Other browsers repaint fine.
   if (wasDark && !isMobileSafari) document.body.classList.remove('dark-mode');
 
-  // ── Force DESKTOP-WIDTH print on phones ───────────────────────────────
-  // Phones print at a narrow viewport, so the desktop @media print block
-  // (min-width:768px) never matches and the PDF differs from desktop. Force
-  // the layout to 820px so that block applies and the PDF matches desktop.
-  // Android Chrome additionally needs the viewport meta overridden (it scales
-  // a forced-width layout down otherwise); iOS WebKit honors the CSS width.
+  // ── Native print: no forced width, no viewport override, no zoom ──
+  // Let the browser's own print engine decide scaling. We only keep the
+  // viewport helpers as no-ops so the rest of the print flow stays intact.
   var _vpMeta = document.querySelector('meta[name="viewport"]');
   var _vpOrig = _vpMeta ? _vpMeta.getAttribute('content') : null;
-  if (isMobileChrome && _vpMeta) {
-    _vpMeta.setAttribute('content', 'width=820, initial-scale=1');
-  }
-  var _forceWidthCSS = isNarrowMobile ? [
-    '@media print {',
-    '  html { font-size:18px !important; }',
-    '  html, body { width:820px !important; max-width:820px !important; min-width:0 !important; }',
-    '  .form-page, .page, #page { zoom:1 !important; width:8.1in !important; max-width:8.1in !important;',
-    '    margin:0 auto !important; padding:0.15in !important; box-sizing:border-box !important; }',
-    '}'
-  ].join('\n') : '';
+  var _forceWidthCSS = '';
   function _restoreViewport() {
     if (_vpMeta && _vpOrig != null) _vpMeta.setAttribute('content', _vpOrig);
   }
