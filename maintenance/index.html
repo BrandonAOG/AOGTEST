@@ -499,6 +499,12 @@ body.dark-mode select:focus {
 input.short { width: 48px; min-width: 48px; flex-shrink: 0; }
 input.med   { width: 80px; flex: 0 0 auto; }
 input.long  { flex: 1; min-width: 70px; }
+/* Exercise Schedule: ~10 characters wide on screen */
+@media screen { #exercisetime { width: 15ch !important; min-width: 15ch !important; flex: 0 0 auto !important; } }
+/* Name/Job/Date row: Name fills half the page, Job# and Date split the rest */
+#name-job-date-row #name   { flex: 2 1 0 !important; width: auto !important; min-width: 0 !important; }
+#name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
+#name-job-date-row #date   { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
 
 textarea {
   width: 100%;
@@ -681,7 +687,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    PRINT STYLES
    ══════════════════════════════════════════════════════════════ */
 @media print {
-  @page { size: 8.5in 11in; margin: 0.1in 0.1in !important; }
+  @page { size: 8.5in 11in; margin: 0.12in 0.15in !important; }
 
   html {
     height: auto !important; margin: 0 !important; padding: 0 !important;
@@ -755,7 +761,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.macos body { margin: 0 !important; }
   html.macos .page {
     border: 1.5px solid #D97706 !important;
-    padding: 4px 24px 2px 24px !important;   /* 4px top, 2px bottom */
+    padding: 4px 24px 0.5px 24px !important;   /* 4px top, 0.5px bottom */
     margin: 0.2in auto 0 !important;
     max-width: 95% !important;
   }
@@ -763,28 +769,28 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.macos .doc-title     { font-size: 1.05rem !important; }
   html.macos .logo-img      { width: 46px !important; height: 46px !important; }
   html.macos .header        { margin-bottom: 4px !important; padding: 0 10px 5px 10px !important; }
-  html.macos .section-header { font-size: 0.52rem !important; letter-spacing: 0.3px !important; }
+  html.macos .section-header { font-size: 0.576rem !important; letter-spacing: 0.3px !important; }
   html.macos .section       { margin-bottom: 3px !important; }
-  html.macos .field-row     { font-size: 0.57rem !important; gap: 3px !important; line-height: 1.4 !important; }
-  html.macos .field-row label { font-size: 0.7rem !important; }
-  html.macos label          { font-size: 0.65rem !important; }
+  html.macos .field-row     { font-size: 0.626rem !important; gap: 3px !important; line-height: 1.4 !important; }
+  html.macos .field-row label { font-size: 0.756rem !important; }
+  html.macos label          { font-size: 0.706rem !important; }
   html.macos input[type="text"],
   html.macos input[type="date"],
   html.macos input[type="number"],
   html.macos textarea,
-  html.macos select         { font-size: 0.57rem !important; min-height: 16px !important; }
+  html.macos select         { font-size: 0.626rem !important; min-height: 16px !important; }
   html.macos #batnotes,
   html.macos #gennotes      { min-height: 62px !important; height: 62px !important; }
   html.macos #oilnotes,
   html.macos #gasnotes,
   html.macos #tsnotes       { min-height: 30px !important; height: 30px !important; }
-  html.macos .check-item span { font-size: 0.55rem !important; }
+  html.macos .check-item span { font-size: 0.606rem !important; }
   html.macos .check-item input[type="checkbox"],
   html.macos .check-item input[type="radio"] { width: 10px !important; height: 10px !important; }
   html.macos .yn-group      { height: 18px !important; }
-  html.macos .yn-group .yn-label { font-size: 0.55rem !important; padding: 0 5px !important; }
+  html.macos .yn-group .yn-label { font-size: 0.606rem !important; padding: 0 5px !important; }
   html.macos .two-column    { gap: 3px !important; }
-  html.macos .footer        { margin-top: 4px !important; padding: 4px 2px !important; }
+  html.macos .footer        { margin-top: 0 !important; padding: 4px 2px 1px 2px !important; }
   html.macos .footer-text,
   html.macos .footer span   { font-size: 0.48rem !important; }
 
@@ -805,12 +811,12 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
     overflow: visible !important;
     flex-direction: unset !important; flex-shrink: unset !important; flex: none !important;
     box-sizing: border-box !important;
-    margin: 0 !important; padding: 4px 24px 2px 24px !important;
+    margin: 0 !important; padding: 4px 24px 0.5px 24px !important;
     border: 1.5px solid #D97706 !important; box-shadow: none !important;
   }
   .page * { flex-shrink: unset !important; }
   .content { display: block !important; flex: none !important; flex-grow: unset !important; }
-  .footer { display: block !important; flex: none !important; margin-top: 8px !important; margin-bottom: 0 !important; }
+  .footer { display: block !important; flex: none !important; margin-top: 0 !important; margin-bottom: 0 !important; }
   html, body { display: block !important; height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; }
 
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: block !important; border-color: #D97706 !important; }
@@ -818,17 +824,20 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   .header { display: flex !important; margin-bottom: 4px !important; padding: 0 10px 5px 10px !important; border-bottom: 0.5px solid #D97706 !important; background: white !important; min-height: auto !important; }
   .header::after { display: none !important; }
   .logo-img { width: 46px !important; height: 46px !important; }
+  /* Hide the date field's calendar picker icon in print */
+  input[type="date"]::-webkit-calendar-picker-indicator { display: none !important; opacity: 0 !important; -webkit-appearance: none !important; }
+  input[type="date"] { -webkit-appearance: none !important; appearance: none !important; }
   .company-name { color: #D97706 !important; text-shadow: none !important; font-size: 1.05rem !important; letter-spacing: 1px !important; }
   .doc-title { color: #D97706 !important; text-shadow: none !important; font-size: 1.05rem !important; letter-spacing: 1.5px !important; }
 
   .toolbar, .action-bar, #action-bar, #save-status, button, .theme-toggle-btn, .home-btn { display: none !important; }
   #save-status { position: static !important; height: 0 !important; padding: 0 !important; overflow: hidden !important; }
 
-  .content { display: block !important; overflow: visible !important; padding: 3px 0 !important; margin: 0 !important; }
+  .content { display: block !important; overflow: visible !important; padding: 3px 0 0 0 !important; margin: 0 !important; }
 
   .footer {
     display: flex !important; justify-content: space-between !important; align-items: center !important;
-    margin-top: 4px !important; margin-bottom: 0 !important; padding: 4px 2px !important;
+    margin-top: 0 !important; margin-bottom: 0 !important; padding: 4px 2px 1px 2px !important;
     border-top: 1px solid #D97706 !important; background: white !important;
     min-height: auto !important; height: auto !important;
     box-sizing: border-box !important; width: 100% !important; flex: none !important;
@@ -839,21 +848,21 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 
   .section { background: white !important; border: 0.5px solid #D97706 !important; margin-bottom: 3px !important; padding: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important; box-shadow: none !important; display: block !important; }
   .section::before { background: none !important; }
-  .section-header { background: #f5f5f5 !important; color: #D97706 !important; border-bottom: 0.5px solid #D97706 !important; text-shadow: none !important; padding: 3px 7px !important; font-size: 0.6rem !important; min-height: auto !important; display: flex !important; }
+  .section-header { background: #f5f5f5 !important; color: #D97706 !important; border-bottom: 0.5px solid #D97706 !important; text-shadow: none !important; padding: 3px 7px !important; font-size: 0.656rem !important; min-height: auto !important; display: flex !important; }
   .section-header::before { width: 3px !important; height: 3px !important; background: #D97706 !important; box-shadow: none !important; animation: none !important; }
   .section-body { padding: 3px 6px !important; background: white !important; display: block !important; }
 
   .field-row { display: flex !important; margin-bottom: 2px !important; gap: 3px !important; flex-wrap: wrap !important; }
-  label { color: #6B7280 !important; font-size: 0.57rem !important; letter-spacing: 0.3px !important; }
+  label { color: #6B7280 !important; font-size: 0.626rem !important; letter-spacing: 0.3px !important; }
 
   input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea, select {
     background: white !important; border-bottom: 0.5px solid #D97706 !important;
     border-top: none !important; border-left: none !important; border-right: none !important;
     color: #1F2937 !important; min-height: 16px !important; padding: 0 2px !important;
-    font-size: 0.7rem !important; box-shadow: none !important;
+    font-size: 0.756rem !important; box-shadow: none !important;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  textarea { height: auto !important; min-height: 40px !important; background: white !important; border: 0.5px solid #D97706 !important; font-size: 0.65rem !important; padding: 1px 3px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  textarea { height: auto !important; min-height: 40px !important; background: white !important; border: 0.5px solid #D97706 !important; font-size: 0.706rem !important; padding: 1px 3px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   #batnotes, #gennotes { min-height: 62px !important; height: 62px !important; }
   #oilnotes { min-height: 30px !important; height: 30px !important; }
@@ -862,15 +871,15 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 
   .check-group { display: flex !important; flex-wrap: wrap !important; gap: 2px !important; }
   .check-item { display: flex !important; min-height: auto !important; padding: 1px 5px 1px 3px !important; }
-  .check-item span { font-size: 0.55rem !important; }
+  .check-item span { font-size: 0.606rem !important; }
   .check-item input[type="checkbox"], .check-item input[type="radio"] { width: 10px !important; height: 10px !important; min-height: 10px !important; min-width: 10px !important; }
 
   .test-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 3px !important; margin-top: 3px !important; }
   .test-item { display: flex !important; align-items: center !important; gap: 4px !important; }
-  .test-item label { min-width: 52px !important; font-size: 0.55rem !important; }
+  .test-item label { min-width: 52px !important; font-size: 0.606rem !important; }
 
   .yn-group { border: 0.5px solid #D97706 !important; background: white !important; height: 18px !important; display: inline-flex !important; }
-  .yn-group .yn-label { min-height: 18px !important; padding: 0 5px !important; color: #6B7280 !important; border-right: 0.5px solid #D97706 !important; font-size: 0.55rem !important; background: white !important; display: flex !important; align-items: center !important; }
+  .yn-group .yn-label { min-height: 18px !important; padding: 0 5px !important; color: #6B7280 !important; border-right: 0.5px solid #D97706 !important; font-size: 0.606rem !important; background: white !important; display: flex !important; align-items: center !important; }
   .yn-group .yn-label:last-child { border-right: none !important; }
   .yn-group .yn-y:checked + .yn-label-y { background: #059669 !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .yn-group .yn-n:checked + .yn-label-n { background: #DC2626 !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -906,7 +915,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    layout, so the page must NOT be re-zoomed (that's what made the output
    change with screen scale). */
 @media print {
-  body.mobile-safari .page { padding: 4px 18px 2px 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
+  body.mobile-safari .page { padding: 4px 18px 0.5px 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
   body.mobile-safari .two-column { grid-template-columns: 1fr 1fr !important; }
   body.mobile-safari .field-row-nowrap { flex-wrap: nowrap !important; }
   body.mobile-safari #name { flex: 0 1 50% !important; min-width: 0 !important; }
@@ -917,7 +926,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 
 /* ── Mobile Chrome print fix (Android Chrome + Chrome on iOS) ── */
 @media print {
-  body.mobile-chrome .page { padding: 4px 18px 2px 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
+  body.mobile-chrome .page { padding: 4px 18px 0.5px 18px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
   body.mobile-chrome .two-column { grid-template-columns: 1fr 1fr !important; }
   body.mobile-chrome .field-row-nowrap { flex-wrap: nowrap !important; }
   body.mobile-chrome #name { flex: 0 1 50% !important; min-width: 0 !important; }
@@ -1032,7 +1041,7 @@ body.dark-mode .action-bar {
     <div class="section">
       <div class="section-header">Customer & Job Info</div>
       <div class="section-body">
-        <div class="field-row field-row-nowrap">
+        <div class="field-row field-row-nowrap" id="name-job-date-row">
           <label for="name">Name</label>
           <input type="text" id="name" class="long" placeholder="Name">
           <label for="number">Job #</label>
@@ -1123,7 +1132,9 @@ body.dark-mode .action-bar {
               <label class="check-item"><input type="radio" name="startup" value="norm"><span>Normal</span></label>
               <label class="check-item"><input type="radio" name="startup" value="abn"><span>Abnormal</span></label>
             </div>
-            <label for="genvolt" style="margin-left:12px;">Voltage</label>
+          </div>
+          <div class="field-row">
+            <label for="genvolt">Voltage</label>
             <input type="text" id="genvolt" class="short" placeholder="120/240">
           </div>
           <div class="field-row">
@@ -1175,7 +1186,7 @@ body.dark-mode .action-bar {
           </div>
           <div class="field-row">
             <label for="exercisetime">Exercise Schedule</label>
-            <input type="text" id="exercisetime" class="med" placeholder="e.g., Tues 11:00am">
+            <input type="text" id="exercisetime" size="10" class="med" placeholder="e.g., Tues 11:00am">
           </div>
           <textarea id="gennotes" placeholder="Generator notes..." style="height:60px;"></textarea>
         </div>
