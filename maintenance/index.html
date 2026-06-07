@@ -1470,12 +1470,20 @@ function openPrintPreview() {
   // actual print time, which iOS WebKit honors. Other browsers repaint fine.
   if (wasDark && !isMobileSafari) document.body.classList.remove('dark-mode');
 
-  // ── Native print: no forced width, no viewport override, no zoom ──
-  // Let the browser's own print engine decide scaling. We only keep the
-  // viewport helpers as no-ops so the rest of the print flow stays intact.
+  // ── Force DESKTOP-WIDTH print on phones so the PDF matches desktop ──
   var _vpMeta = document.querySelector('meta[name="viewport"]');
   var _vpOrig = _vpMeta ? _vpMeta.getAttribute('content') : null;
-  var _forceWidthCSS = '';
+  if (isMobileChrome && _vpMeta) {
+    _vpMeta.setAttribute('content', 'width=820, initial-scale=1');
+  }
+  var _forceWidthCSS = isNarrowMobile ? [
+    '@media print {',
+    '  html { font-size:18px !important; }',
+    '  html, body { width:8.5in !important; max-width:8.5in !important; min-width:0 !important; }',
+    '  .form-page, .page, #page { zoom:1 !important; width:100% !important; max-width:100% !important;',
+    '    margin:0 auto !important; padding:4px 18px 2px 18px !important; box-sizing:border-box !important; }',
+    '}'
+  ].join('\n') : '';
   function _restoreViewport() {
     if (_vpMeta && _vpOrig != null) _vpMeta.setAttribute('content', _vpOrig);
   }
@@ -1653,6 +1661,17 @@ function openPrintPreview() {
       setTimeout(() => {
         forceLightMode();
         void document.body.offsetHeight;
+        // iOS Safari sometimes renders the print PREVIEW from a stale (dark)
+        // snapshot until the user taps Scale, which forces a relayout. Mimic
+        // that relayout here so the preview shows light immediately.
+        if (isMobileSafari) {
+          var pg = document.querySelector('.page') || document.body;
+          var prev = pg.style.transform;
+          pg.style.transform = 'translateZ(0)';
+          void pg.offsetHeight;
+          pg.style.transform = prev;
+          void document.body.offsetHeight;
+        }
         setTimeout(() => {
           window.print();
           const el = document.getElementById('safari-print-height-fix');
