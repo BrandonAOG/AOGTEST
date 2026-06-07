@@ -1696,12 +1696,18 @@ function openPrintPreview() {
     if (fixEl) fixEl.remove();
     window.removeEventListener('afterprint', restore);
     if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
-    // Mobile Safari: iOS may not repaint cleanly after the print sheet closes,
-    // leaving the screen looking half-stripped. Reload to restore a clean dark
-    // view — deferred to the first real interaction so it can't tear down the
-    // still-open print sheet. Draft autosaves, so a reload loses nothing.
-    if (isMobileSafari && wasDark) {
-      saveDraft();
+  }
+
+  // Mobile Safari: the preview re-evaluates print media as the user scales, so
+  // any mid-preview teardown collapses the layout (440px) and flickers dark.
+  // Instead we leave ALL print styles in place and simply reload on the first
+  // interaction AFTER the user leaves the preview — the reload resets the page
+  // to a clean state. Draft autosaves, so nothing is lost.
+  if (isMobileSafari) {
+    saveDraft();
+    var _armed = false;
+    function _armReload() {
+      if (_armed) return; _armed = true;
       function _reloadOnInteract() {
         window.removeEventListener('pointerdown', _reloadOnInteract, true);
         window.removeEventListener('touchstart', _reloadOnInteract, true);
@@ -1712,11 +1718,21 @@ function openPrintPreview() {
       window.addEventListener('touchstart', _reloadOnInteract, true);
       window.addEventListener('click', _reloadOnInteract, true);
     }
+    // Arm the reload once the print sheet has actually been dismissed.
+    window.addEventListener('afterprint', _armReload);
+    if (window.matchMedia) {
+      var _m = window.matchMedia('print');
+      if (_m.addEventListener) _m.addEventListener('change', function(e){ if (!e.matches) setTimeout(_armReload, 400); });
+    }
   }
 
-  window.addEventListener('afterprint', restore);
+  if (!isMobileSafari) window.addEventListener('afterprint', restore);
   const mql = window.matchMedia ? window.matchMedia('print') : null;
-  function onMqlChange(e) { if (!e.matches) restore(); }
+  // On mobile Safari the print-media state flickers false/true while the user
+  // adjusts Scale, so restoring on matches=false would tear down the preview
+  // mid-scale. Skip media-driven restore there; the deferred-interaction
+  // reload (below) restores after the user actually leaves the preview.
+  function onMqlChange(e) { if (!e.matches && !isMobileSafari) restore(); }
   if (mql && mql.addEventListener) mql.addEventListener('change', onMqlChange);
 
   const _printStyleEl = document.createElement('style');
@@ -1748,8 +1764,15 @@ function openPrintPreview() {
         setTimeout(() => {
           if (_debugOn) debugSnapshot('just BEFORE window.print()');
           window.print();
-          const el = document.getElementById('safari-print-height-fix');
-          if (el) el.remove();
+          // Keep the force-width/light styles in place on mobile Safari — the
+          // preview stays open and re-evaluates print media as the user scales,
+          // so removing the style now collapses it back to 440px. Teardown
+          // happens later via the deferred-interaction restore. Other browsers
+          // finish synchronously and can clean up immediately.
+          if (!isMobileSafari) {
+            const el = document.getElementById('safari-print-height-fix');
+            if (el) el.remove();
+          }
         }, 600);
       }, 600);
     });
