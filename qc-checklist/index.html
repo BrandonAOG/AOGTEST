@@ -1792,6 +1792,46 @@ function capturePageToCanvas(pageEl) {
         _noteProxies = [];
       }
 
+      // html2canvas won't render checkbox accent-color / checked state, so we
+      // overlay a colored div square for each option box during capture.
+      var _boxProxies = [];
+      function buildBoxProxies() {
+        page.querySelectorAll('.opt input[type="checkbox"], .opt input[type="radio"]').forEach(function(el){
+          var cs = getComputedStyle(el);
+          var size = parseFloat(cs.width) || 14;
+          var v = (el.getAttribute('value') || '').toLowerCase();
+          var isGood = (v === 'good' || v === 'yes' || v === 'installed' || v === 'complete');
+          var isBad  = (v === 'bad'  || v === 'no'  || v === 'removed'   || v === 'not_done');
+          var fill = isGood ? '#059669' : (isBad ? '#DC2626' : '#0891b2');
+          var box = document.createElement('span');
+          box.className = 'box-proxy';
+          var base = 'display:inline-block;box-sizing:border-box;flex-shrink:0;' +
+                     'width:' + size + 'px;height:' + size + 'px;border-radius:2px;' +
+                     'vertical-align:middle;position:relative;margin:' + cs.margin + ';';
+          if (el.checked) {
+            box.style.cssText = base + 'background:' + fill + ';border:1.5px solid ' + fill + ';';
+            var chk = document.createElement('span');
+            // white checkmark
+            chk.style.cssText = 'position:absolute;left:50%;top:48%;width:' + (size*0.28) +
+              'px;height:' + (size*0.55) + 'px;border:solid #fff;border-width:0 2px 2px 0;' +
+              'transform:translate(-50%,-55%) rotate(45deg);';
+            box.appendChild(chk);
+          } else {
+            box.style.cssText = base + 'background:#fff;border:1.5px solid #9CA3AF;';
+          }
+          el.style.display = 'none';
+          el.parentNode.insertBefore(box, el.nextSibling);
+          _boxProxies.push({ input: el, box: box });
+        });
+      }
+      function removeBoxProxies() {
+        _boxProxies.forEach(function(p){
+          if (p.box && p.box.parentNode) p.box.parentNode.removeChild(p.box);
+          p.input.style.display = '';
+        });
+        _boxProxies = [];
+      }
+
       function restoreCapture() {
         page.style.width     = prevWidth;
         page.style.maxWidth  = prevMaxWidth;
@@ -1800,6 +1840,7 @@ function capturePageToCanvas(pageEl) {
         const fs = document.getElementById('capture-force-style');
         if (fs) fs.remove();
         removeNoteProxies();
+        removeBoxProxies();
         if (logoImg && logoOrigSrc) { logoImg.src = logoOrigSrc; logoImg.style.visibility = ''; }
       }
 
@@ -1807,6 +1848,7 @@ function capturePageToCanvas(pageEl) {
         requestAnimationFrame(() => {
           // Swap textareas for wrapping divs (built after force-style applies).
           buildNoteProxies();
+          buildBoxProxies();
           // offsetHeight includes the border (scrollHeight can clip it); +2px safety.
           const capH = page.offsetHeight + 2;
           html2canvas(page, {
