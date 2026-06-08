@@ -1535,9 +1535,11 @@ function openPrintPreview() {
   var isNarrowMobile = isMobileSafari || isMobileChrome;
   var wasDark        = document.body.classList.contains('dark-mode');
 
-  // ── Set document title for PDF filename ──
+  // ── Set document title for PDF filename (name + address + report) ──
   var prevTitle = document.title;
-  var cName = (document.getElementById('name') ? document.getElementById('name').value : '' || '').trim();
+  var _nm = (document.getElementById('name')    && document.getElementById('name').value    || '').trim();
+  var _ad = (document.getElementById('address') && document.getElementById('address').value || '').trim();
+  var cName = [_nm, _ad].filter(Boolean).join(' ');
   document.title = (cName ? cName + ' - ' : '') + 'Maintenance Report';
 
   // ── Strip dark mode ──
@@ -1726,7 +1728,10 @@ function capturePageToCanvas() {
     const logoImg     = page.querySelector('.logo-img');
     const logoOrigSrc = logoImg ? logoImg.getAttribute('src') : null;
 
-    const CAPTURE_WIDTH = 1050;
+    // Render at the desktop layout width; the letter canvas is 1632px wide, so
+    // drawing this up to it magnifies the whole page (text included) ~2x
+    // uniformly — bigger text with the layout fully intact.
+    const CAPTURE_WIDTH = 820;
     const PAPER_RATIO   = 11 / 8.5;
 
     function doCapture() {
@@ -1904,7 +1909,9 @@ function saveForIPhone() {
 
   const img = document.createElement('img');
   img.style.cssText = 'width:100%;display:block;border:none;';
-  img.alt = 'AOG Maintenance Report';
+  var _nmI = (document.getElementById('name')    && document.getElementById('name').value    || '').trim();
+  var _adI = (document.getElementById('address') && document.getElementById('address').value || '').trim();
+  img.alt = [_nmI, _adI, 'Maintenance Report'].filter(Boolean).join(' ');
 
   overlay.appendChild(closeBtn);
   overlay.appendChild(lbl);
@@ -1946,8 +1953,12 @@ function saveForAndroid() {
   setTimeout(() => {
     capturePageToCanvas().then(canvas => {
       try {
+        const _nm = (document.getElementById('name')    && document.getElementById('name').value    || '').trim();
+        const _ad = (document.getElementById('address') && document.getElementById('address').value || '').trim();
+        const _base = [_nm, _ad, 'Maintenance Report'].filter(Boolean).join(' ')
+                        .replace(/[\/\\:*?"<>|]+/g, '').replace(/\s+/g, '_').slice(0, 120);
         const link = document.createElement('a');
-        link.download = 'AOG_Maintenance_Report.jpg';
+        link.download = (_base || 'AOG_Maintenance_Report') + '.jpg';
         link.href = canvas.toDataURL('image/jpeg', 0.92);
         document.body.appendChild(link);
         link.click();
