@@ -1851,9 +1851,9 @@ function capturePageToCanvas() {
             // than a full letter page. This trims the empty space under a short
             // form instead of always padding to full 11in.
             const fullContentH = scaledH + MARGIN * 2;
-            // Trim empty space under a short form, but never shorter than the
-            // width (would flip to landscape) and never taller than a page.
-            const canvasH = Math.max(LETTER_W, Math.min(fullContentH, LETTER_H));
+            // Size strictly to content (+margins), capped at one letter page.
+            // No square floor — that was padding short forms with white space.
+            const canvasH = Math.min(fullContentH, LETTER_H);
             const drawH   = Math.min(scaledH, canvasH - MARGIN * 2);
             const letterCanvas = document.createElement('canvas');
             letterCanvas.width  = LETTER_W;
