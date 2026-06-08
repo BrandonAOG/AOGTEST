@@ -1530,270 +1530,189 @@ function clearForm() {
 }
 
 function openPrintPreview() {
-  const wasDark = document.body.classList.contains('dark-mode');
-  const isMacOS = document.documentElement.classList.contains('macos');
-  const isMobileSafari = document.body.classList.contains('mobile-safari');
-  const isMobileChrome = document.body.classList.contains('mobile-chrome');
-  const isNarrowMobile = isMobileSafari || isMobileChrome;
-  // Remove the dark class before printing on ALL browsers — including mobile
-  // Safari — so the print PREVIEW renders light, not just the final PDF.
-  // (Debug confirmed the body bg goes white before print, so this is safe and
-  // avoids the dark-looking preview that confuses users.)
-  if (wasDark) document.body.classList.remove('dark-mode');
+  var isMobileSafari = document.body.classList.contains('mobile-safari');
+  var isMobileChrome = document.body.classList.contains('mobile-chrome');
+  var isNarrowMobile = isMobileSafari || isMobileChrome;
+  var wasDark        = document.body.classList.contains('dark-mode');
 
-  // ── Force DESKTOP-WIDTH print on phones so the PDF matches desktop ──
-  var _vpMeta = document.querySelector('meta[name="viewport"]');
-  var _vpOrig = _vpMeta ? _vpMeta.getAttribute('content') : null;
-  // Mobile Chrome scales a forced-width layout down, so it needs the viewport
-  // meta overridden to lay out at desktop width. Safari honors the CSS width
-  // (below) on its own and is LEFT ALONE here — overriding Safari's viewport
-  // makes the print preview shift around when the user adjusts Scale.
-  if (isMobileChrome && _vpMeta) {
-    _vpMeta.setAttribute('content', 'width=820, initial-scale=1');
-  }
-  var _forceWidthCSS = isNarrowMobile ? [
-    (isMobileSafari ? '@page { margin: 0 !important; }' : ''),
-    '@media print {',
-    '  html { width:820px !important; font-size:18px !important; }',
-    '  body { width:820px !important; max-width:820px !important; min-width:0 !important; transform-origin:top left !important; }',
-    '  .form-page, .page, #page { zoom:1 !important; width:100% !important; max-width:100% !important;',
-    '    margin:0 auto !important; padding:4px 18px 2px 18px !important; box-sizing:border-box !important;',
-    '    page-break-inside:avoid !important; break-inside:avoid !important; position:static !important; overflow:visible !important; }',
-    // Keep each section intact on a page so iOS pagination is deterministic
-    // (prevents the Other section flickering between page 1 and 2 in preview).
-    '  .section { page-break-inside:avoid !important; break-inside:avoid !important; }',
-    '  .footer { page-break-inside:avoid !important; break-inside:avoid !important; }',
-    '}'
-  ].join('\n') : '';
-  function _restoreViewport() {
-    if (_vpMeta && _vpOrig != null) _vpMeta.setAttribute('content', _vpOrig);
-  }
+  // ── Set document title for PDF filename ──
+  var prevTitle = document.title;
+  var cName = (document.getElementById('name') ? document.getElementById('name').value : '' || '').trim();
+  document.title = (cName ? cName + ' - ' : '') + 'Maintenance Report';
 
-  // ── macOS Safari fast path ────────────────────────────────────────────
-  // afterprint fires BEFORE the job reaches the printer on macOS Safari,
-  // so JS stamp + restore causes the actual printout to differ from the
-  // preview. Solution: skip all JS stamping and let the CSS @media print
-  // html.macos rules handle everything. No stamps = no restore race.
-  if (isMacOS) {
-    const fixEl = document.createElement('style');
-    fixEl.id = 'safari-print-height-fix';
-    fixEl.textContent = [
-      '.page, #page { min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; margin-top: 0 !important; }',
-      'html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; }',
-      _forceWidthCSS
+  // ── Strip dark mode ──
+  document.body.classList.remove('dark-mode');
+  document.documentElement.classList.remove('dark-mode-pending');
+  document.documentElement.style.colorScheme = 'light';
+  document.body.style.colorScheme = 'light';
+  var _darkStyleEl = document.getElementById('dark-mode-style');
+  if (_darkStyleEl) _darkStyleEl.disabled = true;
+
+  // ── Inline-style key elements ──
+  var compName  = document.querySelector('.company-name');
+  var docTitle  = document.querySelector('.doc-title');
+  var footerEls = document.querySelectorAll('.footer-text, .footer span');
+  if (compName) compName.setAttribute('style', 'color:#D97706!important;text-shadow:none!important;');
+  if (docTitle) docTitle.setAttribute('style', 'color:#D97706!important;text-shadow:none!important;');
+  footerEls.forEach(function(el){ el.setAttribute('style','color:#9CA3AF!important;text-shadow:none!important;'); });
+
+  // ── Inject force-print-light (only needed in dark mode) ──
+  if (wasDark) {
+    var printStyle = document.createElement('style');
+    printStyle.id  = 'force-print-light';
+    printStyle.textContent = [
+      ':root, html, body { color-scheme: light !important; }',
+      'body { --cyan:#D97706!important; --bg:#FFFFFF!important; --panel:#FFFFFF!important; --text:#1F2937!important; --text-muted:#6B7280!important; --text-dim:#9CA3AF!important; }',
+      ':root { --cyan:#D97706!important; }',
+      '*, *::before, *::after { animation:none!important; transition:none!important; }',
+      '@media print {',
+      '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;animation:none!important;transition:none!important; }',
+      '  .section-header, .section-header * { color:#D97706!important; background:#f5f5f5!important; }',
+      '  .section-header::before { background:#D97706!important; }',
+      '  html,body { background:white!important; }',
+      '  .page { border:1.5pt solid #D97706!important;background:white!important; }',
+      '  .company-name { color:#D97706!important; }',
+      '  .doc-title { color:#D97706!important; }',
+      '  input, textarea, select { background:white!important;color:#1F2937!important; }',
+      '  .footer-text, .footer span { color:#9CA3AF!important; }',
+      '  .action-bar, #save-status, #offline-banner { display:none!important; }',
+      '}'
     ].join('\n');
-    document.head.appendChild(fixEl);
-
-    function macRestore() {
-      if (wasDark) document.body.classList.add('dark-mode');
-      _restoreViewport();
-      const el = document.getElementById('safari-print-height-fix');
-      if (el) el.remove();
-      window.removeEventListener('afterprint', macRestore);
-    }
-    window.addEventListener('afterprint', macRestore);
-
-    void document.body.offsetHeight;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setTimeout(() => { window.print(); }, 400);
-      });
-    });
-    return;
+    document.head.appendChild(printStyle);
   }
 
-  // ── All other browsers: JS stamp approach ─────────────────────────────
-  const origMaxWidth = document.body.style.maxWidth;
-  const origWidth    = document.body.style.width;
-  document.body.style.maxWidth = '100%';
-  document.body.style.width    = '100%';
+  var vp = document.querySelector('meta[name="viewport"]');
+  var origVP = vp ? vp.getAttribute('content') : null;
 
-  const _saved = [];
-  function stamp(el, props) {
-    _saved.push([el, el.getAttribute('style') || null]);
-    for (const [k, v] of Object.entries(props)) el.style.setProperty(k, v, 'important');
-  }
-
-  function forceLightMode() {
-    stamp(document.documentElement, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
-    stamp(document.body,            { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' });
-
-    document.querySelectorAll('.action-bar, .toolbar, #action-bar, #save-status').forEach(el => stamp(el, {
-      display: 'none', position: 'static', height: '0', 'min-height': '0',
-      padding: '0', margin: '0', border: 'none', 'box-shadow': 'none',
-      overflow: 'hidden', background: 'transparent', 'background-color': 'transparent'
-    }));
-
-    document.querySelectorAll('.page, #page').forEach(el => stamp(el, {
-      background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light',
-      'min-height': '0', height: 'auto', 'max-height': 'none',
-      overflow: 'visible', display: 'block',
-      flex: 'none', 'flex-direction': 'unset', 'flex-shrink': 'unset',
-      'margin-top': '0'
-    }));
-
-    document.querySelectorAll('.content').forEach(el => stamp(el, {
-      display: 'block', flex: 'none', 'flex-grow': 'unset'
-    }));
-
-    document.querySelectorAll('.footer').forEach(el => stamp(el, {
-      display: 'flex', 'justify-content': 'space-between', 'align-items': 'center',
-      flex: 'none', 'margin-top': '8px', 'margin-bottom': '0', width: '100%'
-    }));
-
-    stamp(document.documentElement, {
-      height: 'auto', 'min-height': '0', 'max-height': 'none',
-      overflow: 'visible', padding: '0', margin: '0'
-    });
-
-    stamp(document.body, {
-      height: 'auto', 'min-height': '0', 'max-height': 'none',
-      overflow: 'visible', padding: '0', margin: '0'
-    });
-
-    document.querySelectorAll('.section, .section-header, .form-row, .form-group, .header, .content').forEach(el =>
-      stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' })
-    );
-
-    document.querySelectorAll('.footer').forEach(el =>
-      stamp(el, { background: '#ffffff', 'background-color': '#ffffff', 'color-scheme': 'light' })
-    );
-
-    document.querySelectorAll(
-      'input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea, select'
-    ).forEach(el => stamp(el, {
-      background: '#ffffff', 'background-color': '#ffffff',
-      color: '#1F2937', '-webkit-text-fill-color': '#1F2937',
-      'box-shadow': 'none', '-webkit-appearance': 'none', 'color-scheme': 'light'
-    }));
-
-    document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => {
-      _saved.push([el, el.getAttribute('style') || null]);
-      el.style.setProperty('color-scheme', 'light', 'important');
-    });
-
-    document.querySelectorAll('table th').forEach(el => stamp(el, {
-      background: '#4B5563', 'background-color': '#4B5563',
-      color: '#ffffff', '-webkit-text-fill-color': '#ffffff', 'color-scheme': 'light'
-    }));
-    document.querySelectorAll('table td').forEach(el => {
-      const bg = el.classList.contains('row-label') ? '#f0f0f0' : '#ffffff';
-      stamp(el, { background: bg, 'background-color': bg,
-        color: '#1F2937', '-webkit-text-fill-color': '#1F2937', 'color-scheme': 'light' });
-    });
-  }
-
-  function restoreAll() {
-    _saved.slice().reverse().forEach(([el, orig]) => {
-      if (orig !== null) el.setAttribute('style', orig);
-      else el.removeAttribute('style');
-    });
-    _saved.length = 0;
-  }
-
-  let restored = false;
+  // ── RESTORE function (defined before use) ──
   function restore() {
-    if (restored) return;
-    restored = true;
-    restoreAll();
-    if (wasDark) document.body.classList.add('dark-mode');
-    document.body.style.maxWidth = origMaxWidth;
-    document.body.style.width    = origWidth;
-    _restoreViewport();
-    const fixEl = document.getElementById('safari-print-height-fix');
-    if (fixEl) fixEl.remove();
-    window.removeEventListener('afterprint', restore);
-    if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
-  }
-
-  // Mobile Safari: the preview re-evaluates print media as the user scales, so
-  // any mid-preview teardown collapses the layout (440px) and flickers dark.
-  // Instead we leave ALL print styles in place and simply reload on the first
-  // interaction AFTER the user leaves the preview — the reload resets the page
-  // to a clean state. Draft autosaves, so nothing is lost.
-  if (isMobileSafari) {
-    saveDraft();
-    var _armed = false;
-    function _armReload() {
-      if (_armed) return; _armed = true;
-      function _reloadOnInteract() {
-        window.removeEventListener('pointerdown', _reloadOnInteract, true);
-        window.removeEventListener('touchstart', _reloadOnInteract, true);
-        window.removeEventListener('click', _reloadOnInteract, true);
+    document.title = prevTitle;
+    if (vp && origVP != null) vp.setAttribute('content', origVP);
+    var f  = document.getElementById('safari-print-fix');  if(f)  f.remove();
+    var pl = document.getElementById('force-print-light'); if(pl) pl.remove();
+    document.documentElement.style.colorScheme = '';
+    document.body.style.colorScheme = '';
+    if (_darkStyleEl) _darkStyleEl.disabled = false;
+    if (wasDark) {
+      document.body.classList.add('dark-mode'); document.documentElement.setAttribute('data-theme','dark');
+      // iOS Safari sometimes won't repaint dark mode after the print sheet
+      // closes. Draft auto-saves, so a reload is safe. Chrome repaints fine.
+      if (isMobileSafari) {
+        if (typeof saveDraft === 'function') saveDraft();
         window.location.reload();
+        return;
       }
-      window.addEventListener('pointerdown', _reloadOnInteract, true);
-      window.addEventListener('touchstart', _reloadOnInteract, true);
-      window.addEventListener('click', _reloadOnInteract, true);
     }
-    // Arm the reload once the print sheet has actually been dismissed.
-    window.addEventListener('afterprint', _armReload);
-    if (window.matchMedia) {
-      var _m = window.matchMedia('print');
-      if (_m.addEventListener) _m.addEventListener('change', function(e){ if (!e.matches) setTimeout(_armReload, 400); });
-    }
+    else { document.body.classList.remove('dark-mode'); document.documentElement.setAttribute('data-theme','light'); }
+    if (compName) compName.removeAttribute('style');
+    if (docTitle) docTitle.removeAttribute('style');
+    footerEls.forEach(function(el){ el.removeAttribute('style'); });
   }
 
-  if (!isMobileSafari) window.addEventListener('afterprint', restore);
-  const mql = window.matchMedia ? window.matchMedia('print') : null;
-  // On mobile Safari the print-media state flickers false/true while the user
-  // adjusts Scale, so restoring on matches=false would tear down the preview
-  // mid-scale. Skip media-driven restore there; the deferred-interaction
-  // reload (below) restores after the user actually leaves the preview.
-  function onMqlChange(e) { if (!e.matches && !isMobileSafari) restore(); }
-  if (mql && mql.addEventListener) mql.addEventListener('change', onMqlChange);
+  if (isNarrowMobile && vp) {
+    // Build safari-print-fix: force desktop-width layout + apply mobile print sizing.
+    var fix = document.createElement('style');
+    fix.id = 'safari-print-fix';
+    fix.textContent = [
+      (isMobileSafari ? '@page { margin: 0 !important; }' : ''),
+      '@media print {',
+      '  * { animation:none!important; transition:none!important; }',
+      '  html, body { height:auto!important; }',
+      '  html { width:820px!important; font-size:18px!important; }',
+      '  body { width:820px!important; max-width:820px!important; min-width:0!important; transform-origin:top left!important; }',
+      '  .page, #page { display:block!important; width:100%!important; max-width:100%!important;',
+      '    padding:4px 18px 2px 18px!important; margin:0 auto!important; box-sizing:border-box!important;',
+      '    page-break-inside:avoid!important; break-inside:avoid!important;',
+      '    position:static!important; overflow:visible!important;',
+      '    min-height:0!important; height:auto!important; max-height:none!important; }',
+      '  .section { page-break-inside:avoid!important; break-inside:avoid!important; }',
+      '  .footer { page-break-inside:avoid!important; break-inside:avoid!important; margin-top:0!important; }',
+      '}'
+    ].join('\n');
 
-  const _printStyleEl = document.createElement('style');
-  _printStyleEl.id = 'safari-print-height-fix';
-  _printStyleEl.textContent = [
-    '.page, #page { min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; margin-top: 0 !important; }',
-    'html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; }',
-    _forceWidthCSS
-  ].join('\n');
-  document.head.appendChild(_printStyleEl);
+    void document.getElementById('page').getBoundingClientRect();
 
-  void document.body.offsetHeight;
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        forceLightMode();
-        void document.body.offsetHeight;
-        // iOS Safari sometimes renders the print PREVIEW from a stale (dark)
-        // snapshot until the user taps Scale, which forces a relayout. Mimic
-        // that relayout here so the preview shows light immediately.
-        if (isMobileSafari) {
-          // Force iOS to recompute pagination from the forced 820px layout
-          // BEFORE the preview snapshot, so it fits one page without the user
-          // having to scale. A transform toggle alone isn't enough; briefly
-          // nudging the html width forces a full relayout that sticks.
-          var de = document.documentElement;
-          de.style.width = '821px';
-          void de.offsetHeight;
-          de.style.width = '820px';
-          void de.offsetHeight;
-          de.style.width = '';
-          void document.body.offsetHeight;
-        }
-        // Force a synchronous layout flush so iOS finalizes pagination from the
-        // 820px print layout BEFORE the print sheet opens (QC does this).
-        var _pg = document.getElementById('page');
-        if (_pg) void _pg.getBoundingClientRect();
-        void document.body.getBoundingClientRect();
-        setTimeout(() => {
-          window.print();
-          // Keep the force-width/light styles in place on mobile Safari — the
-          // preview stays open and re-evaluates print media as the user scales,
-          // so removing the style now collapses it back to 440px. Teardown
-          // happens later via the deferred-interaction restore. Other browsers
-          // finish synchronously and can clean up immediately.
-          if (!isMobileSafari) {
-            const el = document.getElementById('safari-print-height-fix');
-            if (el) el.remove();
-          }
-        }, 1500);
-      }, 600);
+    document.head.appendChild(fix);
+
+    // Mobile Chrome scales a forced-width layout DOWN to fit the paper, so
+    // html{width:820px} alone doesn't give a true desktop layout. Overriding
+    // the viewport meta to a fixed 820px makes Chrome lay the page out at
+    // desktop width for real. (Safari honors the width without this and is
+    // left alone to avoid disturbing its print-sheet behavior.)
+    if (isMobileChrome && vp) {
+      vp.setAttribute('content', 'width=820, initial-scale=1');
+    }
+
+    // Blur any focused field and dismiss the keyboard before printing — on iOS
+    // Safari, calling window.print() while a textarea is focused can cause the
+    // print sheet to immediately close.
+    if (document.activeElement && document.activeElement.blur) {
+      document.activeElement.blur();
+    }
+
+    requestAnimationFrame(function() {
+      window.print();
     });
-  });
+
+    // ── Restore strategy (matches QC) ──
+    var isMobile = isNarrowMobile;
+    var _restored = false;
+    var _printMql = window.matchMedia ? window.matchMedia('print') : null;
+
+    function _tryRestore(delay) {
+      if (_restored) return;
+      _restored = true;
+      clearTimeout(_safety);
+      window.removeEventListener('afterprint', _apHandler);
+      if (_printMql) {
+        if (_printMql.removeEventListener) _printMql.removeEventListener('change', _mqlHandler);
+        else if (_printMql.removeListener) _printMql.removeListener(_mqlHandler);
+      }
+      setTimeout(restore, delay || 0);
+    }
+
+    // On mobile Safari in dark mode, defer the reload until the user interacts
+    // with the page. A real tap/touch is the ONLY signal that cannot fire while
+    // the print sheet covers the screen.
+    function _armDeferredRestore() {
+      if (isMobileSafari && wasDark) {
+        clearTimeout(_safety);
+        function _onInteract() {
+          window.removeEventListener('pointerdown', _onInteract, true);
+          window.removeEventListener('touchstart', _onInteract, true);
+          window.removeEventListener('click', _onInteract, true);
+          _tryRestore(0);
+        }
+        window.addEventListener('pointerdown', _onInteract, true);
+        window.addEventListener('touchstart', _onInteract, true);
+        window.addEventListener('click', _onInteract, true);
+      } else {
+        _tryRestore(isMobile ? 300 : 0);
+      }
+    }
+
+    var _sawPrint = false;
+    function _mqlHandler(mql) {
+      if (mql.matches) { _sawPrint = true; }
+      else if (_sawPrint) { _armDeferredRestore(); }
+    }
+    if (_printMql) {
+      if (_printMql.addEventListener) _printMql.addEventListener('change', _mqlHandler);
+      else if (_printMql.addListener) _printMql.addListener(_mqlHandler);
+    }
+
+    function _apHandler() { if (!isMobile && !_sawPrint) _tryRestore(0); }
+    window.addEventListener('afterprint', _apHandler);
+
+    var _safety = (isMobileSafari && wasDark)
+      ? null
+      : setTimeout(function() { _tryRestore(0); }, 30000);
+
+  } else {
+    // Desktop print.
+    window.addEventListener('afterprint', restore);
+    window.print();
+  }
 }
 
 function setStatus(msg) {
