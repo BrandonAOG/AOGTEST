@@ -1021,7 +1021,9 @@ body.dark-mode .action-bar {
 .action-bar .btn { flex: 1; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; padding: 6px 8px; font-size: 10px; }
 @media (max-width: 480px) { .action-bar { padding: 4px 4px; gap: 3px; } .action-bar .btn { padding: 6px 4px; font-size: 9px; } }
 @media (max-width: 360px) { .action-bar .btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; } }
-@media print { .action-bar { display: none !important; } }
+@media print { .action-bar { display: none !important; }
+  #flk-debug { position: static !important; max-height: none !important; background: #fff !important; color: #000 !important; border: 1px solid #000 !important; }
+}
 </style>
 </head>
 
@@ -1032,6 +1034,7 @@ body.dark-mode .action-bar {
   <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPHONE</button>
   <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 ANDROID</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
+  <button class="btn" onclick="toggleFlkDebug()">🐞 DBG</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/>
@@ -1080,6 +1083,7 @@ body.dark-mode .action-bar {
 </script>
 
 <div class="page" id="page">
+<div id="flk-debug" style="position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#000;color:#0f0;font-family:monospace;font-size:10px;line-height:1.35;padding:8px;max-height:55vh;overflow:auto;white-space:pre-wrap;border-top:2px solid #0f0;display:none;"></div>
   <div class="header">
     <div class="header-logo" style="padding-left:30px;">
       <img src="../logo.png" alt="logo" width="40" height="40" class="logo-img">
@@ -1093,6 +1097,7 @@ body.dark-mode .action-bar {
     <button class="btn" onclick="saveForIPhone()">📱 iPhone</button>
     <button class="btn" onclick="saveForAndroid()">🤖 Android</button>
     <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
+  <button class="btn" onclick="toggleFlkDebug()">🐞 DBG</button>
   </div>
 
   <div class="content">
@@ -1529,7 +1534,42 @@ function clearForm() {
   localStorage.removeItem(DRAFT_KEY);
 }
 
+// ── FLICKER DEBUG ──
+var _flkOn = false;
+function toggleFlkDebug() {
+  _flkOn = !_flkOn;
+  var p = document.getElementById('flk-debug');
+  if (p) p.style.display = _flkOn ? 'block' : 'none';
+  if (_flkOn) {
+    flkLog('-- debug on; tap PDF, drag Scale a few times --');
+    if (window.matchMedia) {
+      var mq = window.matchMedia('print');
+      var h = function(e){ flkSnap('media=' + e.matches); };
+      if (mq.addEventListener) mq.addEventListener('change', h);
+    }
+  }
+}
+function flkLog(m){ var p=document.getElementById('flk-debug'); if(!p)return; p.textContent += '\n'+m; p.scrollTop=p.scrollHeight; }
+function flkSnap(tag){
+  if(!_flkOn) return;
+  var page=document.getElementById('page'), de=document.documentElement;
+  flkLog('['+new Date().toLocaleTimeString().split(' ')[0]+'] '+tag+' htmlW='+getComputedStyle(de).width+' pageH='+(page?page.offsetHeight:'?')+' fs='+getComputedStyle(de).fontSize);
+  // Per-section heights to find which grows
+  var secs = page.querySelectorAll('.section');
+  secs.forEach(function(s){
+    var hd = s.querySelector('.section-header');
+    var name = hd ? hd.textContent.trim().slice(0,12) : '?';
+    flkLog('   ['+name+'] h='+s.offsetHeight);
+  });
+  // Notes computed heights
+  ['batnotes','gennotes','oilnotes','gasnotes','tsnotes'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) flkLog('   note#'+id+' h='+el.offsetHeight+' sh='+el.scrollHeight);
+  });
+}
+
 function openPrintPreview() {
+  if (_flkOn) flkSnap('START');
   const wasDark = document.body.classList.contains('dark-mode');
   const isMacOS = document.documentElement.classList.contains('macos');
   const isMobileSafari = document.body.classList.contains('mobile-safari');
