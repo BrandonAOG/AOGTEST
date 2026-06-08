@@ -1728,10 +1728,12 @@ function capturePageToCanvas() {
     const logoImg     = page.querySelector('.logo-img');
     const logoOrigSrc = logoImg ? logoImg.getAttribute('src') : null;
 
-    // Render at the desktop layout width; the letter canvas is 1632px wide, so
-    // drawing this up to it magnifies the whole page (text included) ~2x
-    // uniformly — bigger text with the layout fully intact.
-    const CAPTURE_WIDTH = 1100;
+    // Desktop captures at the original 820px layout width. Mobile stretches a
+    // bit wider so the layout has room, and bumps the root font (below, in the
+    // force-style) so the content isn't too small in the mobile image.
+    var _isMobileCap = document.body.classList.contains('mobile-safari') ||
+                       document.body.classList.contains('mobile-chrome');
+    const CAPTURE_WIDTH = _isMobileCap ? 1180 : 820;
     const PAPER_RATIO   = 11 / 8.5;
     const CAPTURE_PAGE_H = Math.round(CAPTURE_WIDTH * PAPER_RATIO); // full sheet height at this width
 
@@ -1756,6 +1758,9 @@ function capturePageToCanvas() {
       forceStyle.id = 'capture-force-style';
       forceStyle.textContent = [
         '.two-column { display: grid !important; grid-template-columns: 1fr 1fr !important; }',
+        // Mobile renders the form smaller; bump the root font so the content
+        // reads at a comfortable size in the mobile capture (desktop unaffected).
+        (_isMobileCap ? 'html { font-size: 21px !important; }' : ''),
         // Footer must follow content during capture, not pin/overlap it.
         '#page { display: block !important; }',
         '.footer { margin-top: 0 !important; position: static !important; }',
@@ -1909,7 +1914,7 @@ function capturePageToCanvas() {
             // (~0.35in) so the page's side borders survive printing; top/bottom
             // use 0.2in.
             const LETTER_W = 1632;
-            const MARGIN_X = Math.round(LETTER_W * 0.35 / 8.5); // sides ~67px
+            const MARGIN_X = Math.round(LETTER_W * 0.25 / 8.5); // sides ~48px
             const MARGIN_Y = Math.round(LETTER_W * 0.25 / 8.5); // top/bottom ~48px
             const drawW    = LETTER_W - MARGIN_X * 2;
             const scale    = drawW / srcCanvas.width;
