@@ -585,7 +585,7 @@ input[type="date"].info-input::-webkit-datetime-edit { text-align: left !importa
   .info-row .info-input { flex: 1 1 calc(100% - 105px); min-width: 0; box-sizing: border-box; }
   /* Customer Name is the longest label — give it more room */
   #name-date-row .info-label:first-of-type { flex: 0 0 136px; width: 130px; }
-  #name-date-row .info-label:first-of-type + .info-input { flex: 1 1 calc(100% - 144px); }
+  #name-date-row .info-label:first-of-type + .info-input { flex: 1 1 calc(100% - 146px); }
   /* Mobile only: show Gas Crew above Technician (HTML order unchanged for print) */
   #tech-crew-row { flex-direction: row; }
   #tech-crew-row > .info-label:nth-of-type(2) { order: 1; }  /* Gas Crew label */
@@ -1733,6 +1733,9 @@ function capturePageToCanvas(pageEl) {
       const forceStyle = document.createElement('style');
       forceStyle.id = 'capture-force-style';
       forceStyle.textContent = [
+        // Capture renders the phone layout; bump the root font so all rem-based
+        // text is larger and easy to read in the image.
+        'html { font-size: 20px !important; }',
         '.action-bar, #action-bar, #save-status, #offline-banner {',
         '  display: none !important; position: static !important;',
         '  height: 0 !important; padding: 0 !important; overflow: hidden !important;',
@@ -2125,7 +2128,7 @@ function printForm() {
       '  * { animation:none!important; transition:none!important; }',
       '  html, body { height:auto!important; }',
       '  .wrapper { display:block!important; padding:0!important; gap:0!important; }',
-      '  html { width:820px!important; font-size:var(--fs-print-desktop-base)!important; }',
+      '  html { width:820px!important; font-size:15px!important; }',
       '  body { width:820px!important; transform-origin:top left!important; }',
       '  .page { display:block!important; width:100%!important; max-width:none!important;',
       '    page-break-after:always!important; break-after:page!important;',
