@@ -1761,9 +1761,12 @@ function capturePageToCanvas() {
         // Mobile renders the form smaller; bump the root font so the content
         // reads at a comfortable size. Desktop gets a slight +1.5px bump too.
         (_isMobileCap ? 'html { font-size: 23px !important; }' : 'html { font-size: 19px !important; }'),
-        // Footer must follow content during capture, not pin/overlap it.
-        '#page { display: block !important; }',
-        '.footer { margin-top: 0 !important; position: static !important; }',
+        // Footer must follow content during capture, not pin/overlap it, and
+        // stay visible (it was dropping out of the capture entirely).
+        '#page { display: block !important; overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; }',
+        '.content { display: block !important; overflow: visible !important; height: auto !important; }',
+        '.footer { margin-top: 0 !important; position: static !important; display: flex !important; visibility: visible !important; opacity: 1 !important; padding: 8px 10px 4px 10px !important; }',
+        '.footer-text, .footer span { color: #6B7280 !important; visibility: visible !important; opacity: 1 !important; }',
         '.toolbar, .action-bar, #action-bar, #save-status {',
         '  display: none !important; position: static !important;',
         '  height: 0 !important; padding: 0 !important; overflow: hidden !important;',
@@ -1894,6 +1897,17 @@ function capturePageToCanvas() {
         requestAnimationFrame(() => {
           buildNoteProxies();
           buildBoxProxies();
+          // Force a reflow so the force-style layout (incl. the now-static
+          // footer) is fully applied, THEN measure — reading the height inline
+          // earlier captured the pre-reflow height and cut off the footer.
+          void page.offsetHeight;
+          // Measure capture height from the footer's actual bottom edge (the
+          // page can settle taller than offset/scrollHeight reported earlier,
+          // clipping the footer). Use the furthest-down content edge + pad.
+          var _pr = page.getBoundingClientRect();
+          var _ftEl = page.querySelector('.footer');
+          var _ftBottom = _ftEl ? (_ftEl.getBoundingClientRect().bottom - _pr.top) : 0;
+          var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom)) + 24;
           html2canvas(page, {
             scale: 2,
             useCORS: true,
@@ -1901,7 +1915,7 @@ function capturePageToCanvas() {
             backgroundColor: '#ffffff',
             logging: false,
             width:       CAPTURE_WIDTH,
-            height:      page.offsetHeight,
+            height:      _capH,
             windowWidth: CAPTURE_WIDTH,
             scrollX: 0,
             scrollY: 0,
@@ -1913,24 +1927,31 @@ function capturePageToCanvas() {
               el.classList.contains('theme-toggle-btn')
           }).then(srcCanvas => {
             restoreCapture();
-            // Build the output at the captured aspect ratio so tall forms get a
-            // taller image (never clipped/squished). Sides use a larger margin
-            // (~0.35in) so the page's side borders survive printing; top/bottom
-            // use 0.2in.
+            // Pad to a TRUE 8.5x11 letter canvas so the image is always portrait
+            // and prints to the page with no fit-to-page over-scaling/clipping.
+            // Content is scaled to fit within the margins (by width, or by height
+            // if the form is taller than a page) and placed at the top; any
+            // leftover space is white at the bottom.
             const LETTER_W = 1632;
-            const MARGIN_X = Math.round(LETTER_W * 0.15 / 8.5); // sides ~29px
-            const MARGIN_Y = Math.round(LETTER_W * 0.15 / 8.5); // top/bottom ~29px
-            const drawW    = LETTER_W - MARGIN_X * 2;
-            const scale    = drawW / srcCanvas.width;
-            const drawH    = Math.round(srcCanvas.height * scale);
-            const canvasH  = drawH + MARGIN_Y * 2;
+            const LETTER_H = Math.round(LETTER_W * 11 / 8.5); // 2112
+            const MARGIN_X = Math.round(LETTER_W * 0.1 / 8.5); // sides ~19px
+            const MARGIN_Y = Math.round(LETTER_W * 0.1 / 8.5); // top/bottom ~19px
+            const availW   = LETTER_W - MARGIN_X * 2;
+            const availH   = LETTER_H - MARGIN_Y * 2;
+            // Scale to fit width; if that makes it taller than the page, fit height.
+            let scale = availW / srcCanvas.width;
+            if (srcCanvas.height * scale > availH) scale = availH / srcCanvas.height;
+            const drawW = Math.round(srcCanvas.width  * scale);
+            const drawH = Math.round(srcCanvas.height * scale);
             const letterCanvas = document.createElement('canvas');
             letterCanvas.width  = LETTER_W;
-            letterCanvas.height = canvasH;
+            letterCanvas.height = LETTER_H;
             const ctx = letterCanvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, LETTER_W, canvasH);
-            ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, MARGIN_X, MARGIN_Y, drawW, drawH);
+            ctx.fillRect(0, 0, LETTER_W, LETTER_H);
+            // Center horizontally within margins, anchor to top margin.
+            const dx = Math.round((LETTER_W - drawW) / 2);
+            ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, dx, MARGIN_Y, drawW, drawH);
             resolve(letterCanvas);
           }).catch(err => {
             restoreCapture();
