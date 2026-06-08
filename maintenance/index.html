@@ -1733,15 +1733,22 @@ function capturePageToCanvas() {
     // uniformly — bigger text with the layout fully intact.
     const CAPTURE_WIDTH = 820;
     const PAPER_RATIO   = 11 / 8.5;
+    const CAPTURE_PAGE_H = Math.round(CAPTURE_WIDTH * PAPER_RATIO); // full 8.5x11 height (~1061px)
 
     function doCapture() {
       const prevWidth     = page.style.width;
       const prevMaxWidth  = page.style.maxWidth;
+      const prevHeight    = page.style.height;
+      const prevMinHeight = page.style.minHeight;
       const prevMarginTop = page.style.marginTop;
       const prevBodyPad   = document.body.style.padding;
 
       page.style.width     = CAPTURE_WIDTH + 'px';
       page.style.maxWidth  = CAPTURE_WIDTH + 'px';
+      // Grow the page to a full 8.5x11 sheet so the capture is always a proper
+      // portrait letter page (no trailing white space, no cropping needed).
+      page.style.height    = CAPTURE_PAGE_H + 'px';
+      page.style.minHeight = CAPTURE_PAGE_H + 'px';
       page.style.marginTop = '0';
       document.body.style.padding = '0';
 
@@ -1805,6 +1812,8 @@ function capturePageToCanvas() {
       function restoreCapture() {
         page.style.width     = prevWidth;
         page.style.maxWidth  = prevMaxWidth;
+        page.style.height    = prevHeight;
+        page.style.minHeight = prevMinHeight;
         page.style.marginTop = prevMarginTop;
         document.body.style.padding = prevBodyPad;
         const fs = document.getElementById('capture-force-style');
@@ -1828,7 +1837,7 @@ function capturePageToCanvas() {
             backgroundColor: '#ffffff',
             logging: false,
             width:       CAPTURE_WIDTH,
-            height:      page.offsetHeight + 2,
+            height:      CAPTURE_PAGE_H,
             windowWidth: CAPTURE_WIDTH,
             scrollX: 0,
             scrollY: 0,
@@ -1840,58 +1849,21 @@ function capturePageToCanvas() {
               el.classList.contains('theme-toggle-btn')
           }).then(srcCanvas => {
             restoreCapture();
+            // The page was grown to a full 8.5x11 sheet, so the source is
+            // already a letter page. Draw it inset by a uniform 0.15in margin
+            // onto a full letter canvas — always a clean portrait page.
             const LETTER_W = 1632;
             const LETTER_H = Math.round(LETTER_W * PAPER_RATIO);
-            const MARGIN   = Math.round(LETTER_W * 0.15 / 8.5); // 0.15in in px (~29px)
-            // Scale the page to fit within the side margins.
-            const drawW   = LETTER_W - MARGIN * 2;
-            const scale   = drawW / srcCanvas.width;
-            const scaledH = Math.round(srcCanvas.height * scale);
-            // Canvas height = content + top/bottom margins, but never taller
-            // than a full letter page. This trims the empty space under a short
-            // form instead of always padding to full 11in.
-            const fullContentH = scaledH + MARGIN * 2;
-            // Size strictly to content (+margins), capped at one letter page.
-            // No square floor — that was padding short forms with white space.
-            const canvasH = Math.min(fullContentH, LETTER_H);
-            const drawH   = Math.min(scaledH, canvasH - MARGIN * 2);
+            const MARGIN   = Math.round(LETTER_W * 0.15 / 8.5); // ~29px
+            const drawW    = LETTER_W - MARGIN * 2;
+            const drawH    = LETTER_H - MARGIN * 2;
             const letterCanvas = document.createElement('canvas');
             letterCanvas.width  = LETTER_W;
-            letterCanvas.height = canvasH;
+            letterCanvas.height = LETTER_H;
             const ctx = letterCanvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, LETTER_W, canvasH);
+            ctx.fillRect(0, 0, LETTER_W, LETTER_H);
             ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, MARGIN, MARGIN, drawW, drawH);
-
-            // Crop trailing white space: scan from the bottom up for the last
-            // row containing a non-white pixel, then trim to there + margin.
-            try {
-              const data = ctx.getImageData(0, 0, LETTER_W, canvasH).data;
-              let lastContentRow = MARGIN;
-              for (let y = canvasH - 1; y >= 0; y--) {
-                let rowHasContent = false;
-                for (let x = 0; x < LETTER_W; x += 4) { // sample every 4px across
-                  const idx = (y * LETTER_W + x) * 4;
-                  // non-white if any channel is below ~248
-                  if (data[idx] < 248 || data[idx+1] < 248 || data[idx+2] < 248) {
-                    rowHasContent = true; break;
-                  }
-                }
-                if (rowHasContent) { lastContentRow = y; break; }
-              }
-              const croppedH = Math.min(canvasH, lastContentRow + MARGIN + 2);
-              if (croppedH > MARGIN * 2 && croppedH < canvasH) {
-                const cropCanvas = document.createElement('canvas');
-                cropCanvas.width  = LETTER_W;
-                cropCanvas.height = croppedH;
-                const cctx = cropCanvas.getContext('2d');
-                cctx.fillStyle = '#ffffff';
-                cctx.fillRect(0, 0, LETTER_W, croppedH);
-                cctx.drawImage(letterCanvas, 0, 0, LETTER_W, croppedH, 0, 0, LETTER_W, croppedH);
-                resolve(cropCanvas);
-                return;
-              }
-            } catch (e) { /* getImageData can fail if tainted; fall back uncropped */ }
             resolve(letterCanvas);
           }).catch(err => {
             restoreCapture();
