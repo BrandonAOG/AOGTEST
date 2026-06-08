@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="../manifest.json">
 <script src="../update-banner.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <meta name="theme-color" content="#FBBF24">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -572,8 +573,8 @@ input[type="date"].info-input::-webkit-datetime-edit { text-align: left !importa
   .info-row .info-label { flex: 0 0 95px; width: 95px; margin-left: 0 !important; text-align: left; box-sizing: border-box; }
   .info-row .info-input { flex: 1 1 calc(100% - 105px); min-width: 0; box-sizing: border-box; }
   /* Customer Name is the longest label — give it more room */
-  #name-date-row .info-label:first-of-type { flex: 0 0 137px; width: 130px; }
-  #name-date-row .info-label:first-of-type + .info-input { flex: 1 1 calc(100% - 148px); }
+  #name-date-row .info-label:first-of-type { flex: 0 0 130px; width: 130px; }
+  #name-date-row .info-label:first-of-type + .info-input { flex: 1 1 calc(100% - 140px); }
   /* Mobile only: show Gas Crew above Technician (HTML order unchanged for print) */
   #tech-crew-row { flex-direction: row; }
   #tech-crew-row > .info-label:nth-of-type(2) { order: 1; }  /* Gas Crew label */
@@ -905,7 +906,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   @page { size: 8.5in 11in; margin: 0.18in 0.18in 0.12in 0.18in; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; transition: none !important; }
   body { background: #fff !important; }
-  .action-bar, #save-status, #offline-banner { display: none !important; }
+  .action-bar, #save-status, #offline-banner, .tap-hint { display: none !important; }
   .meter-toggle-header span:last-child { display: none !important; }
   .wrapper { padding-top: 0 !important; gap: 0 !important; background: #fff !important; display: block !important; }
   .page {
@@ -1040,6 +1041,8 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 <div class="action-bar" id="action-bar">
   <a class="ab-btn" href="../">🏠 HOME</a>
   <a class="ab-btn" onclick="printForm()" style="cursor:pointer;">📄 PDF</a>
+  <a class="ab-btn" id="btn-iphone" onclick="saveForIPhone()" style="cursor:pointer;">📱 iPHONE</a>
+  <a class="ab-btn" id="btn-android" onclick="saveForAndroid()" style="cursor:pointer;">🤖 ANDROID</a>
   <a class="ab-btn" onclick="clearForm()" style="cursor:pointer;">🗑 CLEAR</a>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode" onclick="toggleTheme()">
     <svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1148,7 +1151,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     <div class="section" id="meter-section">
       <div class="section-header meter-toggle-header" onclick="toggleMeterTab()" style="cursor:pointer; user-select:none; -webkit-user-select:none;">
         <span id="meter-tab-label">Meter</span>
-        <span style="margin-left:auto; font-size:0.6em; opacity:0.7; letter-spacing:1px;">TAP TO SWITCH ⇄</span>
+        <span class="tap-hint" style="margin-left:auto; font-size:0.6em; opacity:0.7; letter-spacing:1px;">TAP TO SWITCH ⇄</span>
       </div>
 
       <!-- METER items -->
@@ -1695,6 +1698,248 @@ function clearForm() {
 
 // ── PRINT ──
 function setStatus(msg) { var el=document.getElementById('save-status'); if(el){el.textContent=msg;el.style.display=msg?'block':'none';} }
+
+// ── IMAGE CAPTURE (renders a .page element to a letter-sized canvas) ──
+function capturePageToCanvas(pageEl) {
+  return new Promise((resolve, reject) => {
+    const page        = pageEl;
+    const logoImg     = page.querySelector('.logo-img');
+    const logoOrigSrc = logoImg ? logoImg.getAttribute('src') : null;
+    const CAPTURE_WIDTH = 1050;
+    const PAPER_RATIO   = 11 / 8.5;
+
+    function doCapture() {
+      const prevWidth     = page.style.width;
+      const prevMaxWidth  = page.style.maxWidth;
+      const prevMarginTop = page.style.marginTop;
+      const prevBodyPad   = document.body.style.padding;
+
+      page.style.width     = CAPTURE_WIDTH + 'px';
+      page.style.maxWidth  = CAPTURE_WIDTH + 'px';
+      page.style.marginTop = '0';
+      document.body.style.padding = '0';
+
+      const forceStyle = document.createElement('style');
+      forceStyle.id = 'capture-force-style';
+      forceStyle.textContent = [
+        '.action-bar, #action-bar, #save-status, #offline-banner {',
+        '  display: none !important; position: static !important;',
+        '  height: 0 !important; padding: 0 !important; overflow: hidden !important;',
+        '}',
+        '.theme-toggle-btn { display: none !important; }',
+        '.tap-hint { display: none !important; }',
+        // Inline notes clip their bottom in capture (overflow:hidden + tight
+        // height). Let them wrap and grow exactly like on screen.
+        '.notes-line {',
+        '  overflow: visible !important; line-height: 1.4 !important;',
+        '  max-height: none !important;',
+        '  white-space: pre-wrap !important; word-break: break-word !important;',
+        '  overflow-wrap: anywhere !important;',
+        '  flex: 1 1 0 !important; width: 0 !important; min-width: 0 !important;',
+        '}',
+        // html2canvas renders input text high in the box. Push the header
+        // info fields' text DOWN onto their underline.
+        '.info-input {',
+        '  line-height: 1 !important; vertical-align: bottom !important;',
+        '  padding-top: 6px !important; padding-bottom: 0 !important;',
+        '}'
+      ].join('\n');
+      document.head.appendChild(forceStyle);
+      // Allow wrapping (a prior print may have left wrap="off").
+      page.querySelectorAll('.notes-line').forEach(function(el){ el.setAttribute('wrap','soft'); });
+
+      // html2canvas does NOT reliably wrap <textarea> text — it often paints
+      // the value on one straight line. So for capture we overlay a <div> with
+      // the same text (divs wrap correctly), hide the textarea, then restore.
+      var _noteProxies = [];
+      function buildNoteProxies() {
+        page.querySelectorAll('.notes-line').forEach(function(el){
+          var cs = getComputedStyle(el);
+          var div = document.createElement('div');
+          div.className = 'notes-proxy';
+          div.textContent = el.value || '';
+          div.style.cssText =
+            'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';' +
+            'color:' + cs.color + ';line-height:1.4;' +
+            'white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;' +
+            'border-bottom:' + cs.borderBottomWidth + ' solid ' + cs.borderBottomColor + ';' +
+            'flex:1 1 0;min-width:0;padding:0;margin:0;box-sizing:border-box;' +
+            'min-height:' + cs.fontSize.replace('px','') * 1.4 + 'px;';
+          el.style.display = 'none';
+          el.parentNode.insertBefore(div, el.nextSibling);
+          _noteProxies.push({ ta: el, div: div });
+        });
+      }
+      function removeNoteProxies() {
+        _noteProxies.forEach(function(p){
+          if (p.div && p.div.parentNode) p.div.parentNode.removeChild(p.div);
+          p.ta.style.display = '';
+        });
+        _noteProxies = [];
+      }
+
+      function restoreCapture() {
+        page.style.width     = prevWidth;
+        page.style.maxWidth  = prevMaxWidth;
+        page.style.marginTop = prevMarginTop;
+        document.body.style.padding = prevBodyPad;
+        const fs = document.getElementById('capture-force-style');
+        if (fs) fs.remove();
+        removeNoteProxies();
+        if (logoImg && logoOrigSrc) { logoImg.src = logoOrigSrc; logoImg.style.visibility = ''; }
+      }
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Swap textareas for wrapping divs (built after force-style applies).
+          buildNoteProxies();
+          // offsetHeight includes the border (scrollHeight can clip it); +2px safety.
+          const capH = page.offsetHeight + 2;
+          html2canvas(page, {
+            scale: 2, useCORS: true, allowTaint: true,
+            backgroundColor: '#ffffff', logging: false,
+            width: CAPTURE_WIDTH, height: capH,
+            windowWidth: CAPTURE_WIDTH, scrollX: 0, scrollY: 0,
+            ignoreElements: el =>
+              el.classList.contains('action-bar') ||
+              el.id === 'action-bar' || el.id === 'save-status' ||
+              el.id === 'offline-banner' ||
+              el.classList.contains('theme-toggle-btn')
+          }).then(srcCanvas => {
+            restoreCapture();
+            // Frame onto a true 8.5x11 (letter) canvas. Scale to fit width;
+            // if the content is shorter than a full page, it sits at the top
+            // on a white sheet — the page's own border stays fully visible.
+            const LETTER_W = 1632;
+            const LETTER_H = Math.round(LETTER_W * PAPER_RATIO); // 8.5:11
+            const MARGIN   = Math.round(LETTER_W * 0.1 / 8.5);   // 0.1in margin in px (~19px)
+            const letterCanvas = document.createElement('canvas');
+            letterCanvas.width  = LETTER_W;
+            letterCanvas.height = LETTER_H;
+            const ctx = letterCanvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, LETTER_W, LETTER_H);
+            // Inset the page by MARGIN on top and both sides so there is a
+            // 0.1in white margin around the page border in the image.
+            const drawW   = LETTER_W - MARGIN * 2;
+            const scale   = drawW / srcCanvas.width;
+            const scaledH = Math.round(srcCanvas.height * scale);
+            const maxH    = LETTER_H - MARGIN * 2;
+            const drawH   = Math.min(scaledH, maxH);
+            ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, MARGIN, MARGIN, drawW, drawH);
+            resolve(letterCanvas);
+          }).catch(err => { restoreCapture(); reject(err); });
+        });
+      });
+    }
+
+    if (logoImg && logoOrigSrc) {
+      fetch(logoOrigSrc).then(r => r.blob()).then(blob => new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result); fr.onerror = rej;
+        fr.readAsDataURL(blob);
+      })).then(dataUrl => { logoImg.src = dataUrl; setTimeout(doCapture, 150); })
+      .catch(() => { logoImg.style.visibility = 'hidden'; doCapture(); });
+    } else { doCapture(); }
+  });
+}
+
+// Capture both QC pages in sequence, returning an array of canvases.
+function captureAllPages() {
+  var ids = ['page1', 'page2'];
+  return ids.reduce((chain, id) => chain.then(acc => {
+    var el = document.getElementById(id);
+    if (!el) return acc;
+    return capturePageToCanvas(el).then(c => { acc.push(c); return acc; });
+  }), Promise.resolve([]));
+}
+
+function saveForIPhone() {
+  setStatus('Rendering... please wait');
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:999999;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch;box-sizing:border-box;';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.style.cssText = 'position:sticky;top:60px;background:#DC2626;color:#fff;border:none;border-radius:6px;padding:12px 28px;font-size:15px;cursor:pointer;font-weight:bold;z-index:1000000;align-self:center;margin-top:60px;margin-bottom:12px;';
+  closeBtn.textContent = 'X Close';
+
+  const lbl = document.createElement('div');
+  lbl.style.cssText = 'color:#ccc;font-size:13px;margin:8px 0;text-align:center;line-height:1.6;padding:0 12px;flex-shrink:0;';
+  lbl.textContent = 'Rendering your form...';
+
+  overlay.appendChild(closeBtn);
+  overlay.appendChild(lbl);
+  document.body.appendChild(overlay);
+
+  closeBtn.onclick = () => {
+    document.body.removeChild(overlay);
+    if (wasDark) document.body.classList.add('dark-mode');
+    setStatus('');
+  };
+
+  setTimeout(() => {
+    captureAllPages().then(canvases => {
+      try {
+        canvases.forEach((canvas, i) => {
+          const pageLbl = document.createElement('div');
+          pageLbl.style.cssText = 'color:#4ade80;font-size:13px;margin:14px 0 6px;text-align:center;font-weight:bold;';
+          pageLbl.textContent = 'Page ' + (i + 1) + ' — long-press to save';
+          const img = document.createElement('img');
+          img.style.cssText = 'width:100%;display:block;border:none;margin-bottom:10px;';
+          img.alt = 'AOG QC Checklist Page ' + (i + 1);
+          img.src = canvas.toDataURL('image/jpeg', 0.92);
+          overlay.appendChild(pageLbl);
+          overlay.appendChild(img);
+        });
+        lbl.innerHTML = '<b>Long-press each image</b><br>then tap "Add to Photos"';
+        lbl.style.color = '#4ade80';
+        setStatus('Ready - long-press images to save.');
+      } catch (e) {
+        lbl.textContent = 'Security error rendering image. Try the PDF button instead.';
+        lbl.style.color = '#f87171';
+        setStatus('Render failed.');
+      }
+      if (wasDark) document.body.classList.add('dark-mode');
+    }).catch(() => {
+      lbl.textContent = 'Render failed. Try the PDF button instead.';
+      lbl.style.color = '#f87171';
+      setStatus('Render failed.');
+      if (wasDark) document.body.classList.add('dark-mode');
+    });
+  }, 250);
+}
+
+function saveForAndroid() {
+  setStatus('Rendering... please wait');
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+  setTimeout(() => {
+    captureAllPages().then(canvases => {
+      try {
+        canvases.forEach((canvas, i) => {
+          const link = document.createElement('a');
+          link.download = 'AOG_QC_Checklist_Page' + (i + 1) + '.jpg';
+          link.href = canvas.toDataURL('image/jpeg', 0.92);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        });
+        setStatus('Saved to Downloads folder.');
+        setTimeout(() => setStatus(''), 4000);
+      } catch (e) {
+        setStatus('Security error. Try PDF instead.');
+      }
+      if (wasDark) document.body.classList.add('dark-mode');
+    }).catch(() => {
+      setStatus('Render failed. Try PDF instead.');
+      if (wasDark) document.body.classList.add('dark-mode');
+    });
+  }, 250);
+}
+
 
 // ── BEFORE/AFTER PRINT (Chrome needs these) ──
 window.addEventListener('beforeprint', function() {
