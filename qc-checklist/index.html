@@ -1952,13 +1952,16 @@ function saveForIPhone() {
   setTimeout(() => {
     captureAllPages().then(canvases => {
       try {
+        var _nm = (document.getElementById('cust_name') && document.getElementById('cust_name').value || '').trim();
+        var _ad = (document.getElementById('cust_addr') && document.getElementById('cust_addr').value || '').trim();
+        var _base = [_nm, _ad, 'QC Checklist'].filter(Boolean).join(' ');
         canvases.forEach((canvas, i) => {
           const pageLbl = document.createElement('div');
           pageLbl.style.cssText = 'color:#4ade80;font-size:13px;margin:14px 0 6px;text-align:center;font-weight:bold;';
           pageLbl.textContent = 'Page ' + (i + 1) + ' — long-press to save';
           const img = document.createElement('img');
           img.style.cssText = 'width:100%;display:block;border:none;margin-bottom:10px;';
-          img.alt = 'AOG QC Checklist Page ' + (i + 1);
+          img.alt = _base + ' Page ' + (i + 1);
           img.src = canvas.toDataURL('image/jpeg', 0.92);
           overlay.appendChild(pageLbl);
           overlay.appendChild(img);
@@ -1988,9 +1991,13 @@ function saveForAndroid() {
   setTimeout(() => {
     captureAllPages().then(canvases => {
       try {
+        var _nmA = (document.getElementById('cust_name') && document.getElementById('cust_name').value || '').trim();
+        var _adA = (document.getElementById('cust_addr') && document.getElementById('cust_addr').value || '').trim();
+        var _baseA = ([_nmA, _adA, 'QC Checklist'].filter(Boolean).join(' ') || 'AOG_QC_Checklist')
+                       .replace(/[\/\\:*?"<>|]+/g, '').replace(/\s+/g, '_').slice(0, 110);
         canvases.forEach((canvas, i) => {
           const link = document.createElement('a');
-          link.download = 'AOG_QC_Checklist_Page' + (i + 1) + '.jpg';
+          link.download = _baseA + '_Page' + (i + 1) + '.jpg';
           link.href = canvas.toDataURL('image/jpeg', 0.92);
           document.body.appendChild(link);
           link.click();
@@ -2049,9 +2056,11 @@ function printForm() {
   var wasDark        = document.body.classList.contains('dark-mode');
 
 
-  // ── Set document title for PDF filename ──
+  // ── Set document title for PDF filename (name + address + title) ──
   var prevTitle = document.title;
-  var cName = (document.getElementById('cust_name').value||'').trim();
+  var _nm = (document.getElementById('cust_name') && document.getElementById('cust_name').value || '').trim();
+  var _ad = (document.getElementById('cust_addr') && document.getElementById('cust_addr').value || '').trim();
+  var cName = [_nm, _ad].filter(Boolean).join(' ');
   document.title = (cName ? cName + ' - ' : '') + 'QC Checklist';
 
   // ── Strip dark mode ──
