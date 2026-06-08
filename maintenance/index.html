@@ -326,6 +326,28 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
 }
 @media (max-width: 480px) { .content { padding: 6px 4px; } }
 
+/* Mobile: Customer & Job Info — each label+input pair on its own line */
+@media screen and (max-width: 600px) {
+  #cust-info-body .field-row,
+  #cust-info-body .field-row-nowrap {
+    flex-wrap: wrap !important; row-gap: 4px !important; column-gap: 6px !important;
+  }
+  #cust-info-body .field-row label {
+    flex: 0 0 70px !important; width: 70px !important; text-align: left !important; margin: 0 !important;
+  }
+  #cust-info-body .field-row input,
+  #cust-info-body .field-row select {
+    flex: 1 1 calc(100% - 80px) !important; width: auto !important;
+    min-width: 0 !important; max-width: none !important;
+  }
+  /* Override the inline widths on Tech/Model/Serial/Hrs and the date cap */
+  #cust-info-body #tech, #cust-info-body #model, #cust-info-body #serial,
+  #cust-info-body #hours, #cust-info-body #date, #cust-info-body #name,
+  #cust-info-body #number {
+    width: auto !important; max-width: none !important; flex: 1 1 calc(100% - 80px) !important;
+  }
+}
+
 /* ── SECTIONS ── */
 .section {
   border: 1px solid var(--border);
@@ -1073,7 +1095,7 @@ body.dark-mode .action-bar {
     <!-- Customer & Job Info -->
     <div class="section">
       <div class="section-header">Customer & Job Info</div>
-      <div class="section-body">
+      <div class="section-body" id="cust-info-body">
         <div class="field-row field-row-nowrap" id="name-job-date-row">
           <label for="name">Name</label>
           <input type="text" id="name" class="long" placeholder="Name">
