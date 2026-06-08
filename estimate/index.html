@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scatextarea { ... min-height: 44px; height: 44px; ... }le=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Generator Installation Estimate</title>
@@ -682,7 +682,7 @@
   --pb-content-print-desktop:   4px;  /* print desktop                                       */
 
   /* ---- ACTION BAR CLEARANCE ---- */
-  --action-bar-clearance-phone:   50px;  /* pushes page down so header clears the fixed action bar (phone) */
+  --action-bar-clearance-phone:   calc(50px + env(safe-area-inset-top, 0px));  /* pushes page down so header clears the fixed action bar (phone), incl. notch inset */
   --action-bar-clearance-ipad:    50px;  /* (iPad)                                                         */
   --action-bar-clearance-desktop: 50px;  /* (desktop)                                                      */
 
@@ -1349,6 +1349,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   padding: 4px 8px;
   padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border-bright);
   transition: background-color 0.3s ease; box-sizing: border-box;
@@ -1362,7 +1363,7 @@ body.dark-mode .action-bar {
   padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
   border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.05);
   border-radius: 0; cursor: pointer; color: var(--cyan); text-transform: uppercase;
-  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 0 0 auto; min-width: 0;
   text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
   clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
@@ -1378,12 +1379,9 @@ body.dark-mode .action-bar .ab-btn { color: #00FFC8; border-color: rgba(0,255,20
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
 body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.2); color: #00FFC8; }
+.action-bar::-webkit-scrollbar { display: none; }
 @media (max-width: 480px) {
   .action-bar { padding: 4px 4px; gap: 3px; }
-  .action-bar .ab-btn { padding: 6px 4px; font-size: 9px; }
-}
-@media (max-width: 360px) {
-  .action-bar .ab-btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; }
 }
 
 /* ===== iPAD SCREEN — all elements ===== */
