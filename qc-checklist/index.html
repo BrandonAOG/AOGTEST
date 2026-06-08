@@ -584,8 +584,8 @@ input[type="date"].info-input::-webkit-datetime-edit { text-align: left !importa
   .info-row .info-label { flex: 0 0 95px; width: 95px; margin-left: 0 !important; text-align: left; box-sizing: border-box; }
   .info-row .info-input { flex: 1 1 calc(100% - 105px); min-width: 0; box-sizing: border-box; }
   /* Customer Name is the longest label — give it more room */
-  #name-date-row .info-label:first-of-type { flex: 0 0 136px; width: 130px; }
-  #name-date-row .info-label:first-of-type + .info-input { flex: 1 1 calc(100% - 146px); }
+  #name-date-row .info-label:first-of-type { flex: 0 0 130px; width: 130px; }
+  #name-date-row .info-label:first-of-type + .info-input { flex: 1 1 calc(100% - 140px); }
   /* Mobile only: show Gas Crew above Technician (HTML order unchanged for print) */
   #tech-crew-row { flex-direction: row; }
   #tech-crew-row > .info-label:nth-of-type(2) { order: 1; }  /* Gas Crew label */
@@ -1742,6 +1742,9 @@ function capturePageToCanvas(pageEl) {
         '}',
         '.theme-toggle-btn { display: none !important; }',
         '.tap-hint { display: none !important; }',
+        // Hide placeholder hint text in the captured image.
+        'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; }',
+        'input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }',
         // Inline notes clip their bottom in capture (overflow:hidden + tight
         // height). Let them wrap and grow exactly like on screen.
         '.notes-line {',
@@ -1766,6 +1769,7 @@ function capturePageToCanvas(pageEl) {
       // the value on one straight line. So for capture we overlay a <div> with
       // the same text (divs wrap correctly), hide the textarea, then restore.
       var _noteProxies = [];
+      var _phSaved = [];
       function buildNoteProxies() {
         page.querySelectorAll('.notes-line').forEach(function(el){
           var cs = getComputedStyle(el);
@@ -1841,6 +1845,8 @@ function capturePageToCanvas(pageEl) {
         if (fs) fs.remove();
         removeNoteProxies();
         removeBoxProxies();
+        _phSaved.forEach(function(p){ if (p[1] != null) p[0].setAttribute('placeholder', p[1]); });
+        _phSaved = [];
         if (logoImg && logoOrigSrc) { logoImg.src = logoOrigSrc; logoImg.style.visibility = ''; }
       }
 
@@ -1849,6 +1855,13 @@ function capturePageToCanvas(pageEl) {
           // Swap textareas for wrapping divs (built after force-style applies).
           buildNoteProxies();
           buildBoxProxies();
+          // Remove placeholder text during capture (html2canvas can paint it
+          // even with ::placeholder transparent). Saved and restored after.
+          _phSaved = [];
+          page.querySelectorAll('[placeholder]').forEach(function(el){
+            _phSaved.push([el, el.getAttribute('placeholder')]);
+            el.setAttribute('placeholder', '');
+          });
           // offsetHeight includes the border (scrollHeight can clip it); +2px safety.
           const capH = page.offsetHeight + 2;
           html2canvas(page, {
