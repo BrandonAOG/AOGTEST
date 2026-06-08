@@ -889,6 +889,18 @@ body.dark-mode .toolbar {
   border-bottom-color: rgba(0,255,200,0.1);
 }
 
+/* Narrow phones: scroll the toolbar left/right instead of shrinking buttons */
+@media screen and (max-width: 600px) {
+  .toolbar {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none;
+  }
+  .toolbar::-webkit-scrollbar { display: none; }
+  .toolbar > * { flex: 0 0 auto !important; }
+}
+
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   padding: 5px 10px; border: 1px solid rgba(217,119,6,0.4);
@@ -936,16 +948,6 @@ body.dark-mode .section-header::before { background: #00FFC8; box-shadow: 0 0 8p
 
 .section-body { padding: var(--pd-phone-section-body); transition: all 0.3s ease; }
 @media (max-width: 480px) { .section-body { padding: 8px 8px; } }
-/* Precast Pad: control the gap between the notes box and the section bottom border on screen
-   (mobile Chrome showed a large gap). --mb-pad-notes-phone sets the gap; section-body bottom
-   padding is collapsed so the gap is driven entirely by that variable. SCREEN ONLY — the print
-   path has its own (flush) handling, and these higher-specificity rules would otherwise leak
-   into the PDF and reintroduce a gap below the box. */
-@media screen {
-  #precast-pad-row .section-body { padding-bottom: 0 !important; }
-  #precast-pad-row #pad_notes { margin-bottom: var(--mb-pad-notes-phone) !important; }
-  #precast-pad-row .field-block:has(#pad_notes) { margin-bottom: 0 !important; }
-}
 
 .top-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); margin-bottom: var(--mb-section-phone); background: rgba(255,255,255,0.55); position: relative; transition: all 0.3s ease; }
 body.dark-mode .top-grid { background: linear-gradient(135deg, rgba(26,40,71,0.6) 0%, rgba(15,21,53,0.8) 100%); border-color: rgba(0,255,200,0.15); }
@@ -3191,6 +3193,12 @@ function capturePageToCanvas() {
       '.grid-3 { grid-template-columns: 1fr 1fr 1fr !important; }',
       '.grid-4 { grid-template-columns: repeat(4, 1fr) !important; }',
       '.logo-img { width: 48px !important; height: 48px !important; object-fit: contain !important; display: block !important; }',
+      // Tighten the space between the top page border and the header.
+      '#page { padding-top: 0 !important; }',
+      '.content { padding-top: 0 !important; }',
+      '.header { min-height: 0 !important; padding-top: 2px !important; padding-bottom: 4px !important; margin-top: 0 !important; }',
+      '.company-name { font-size: 0.85rem !important; line-height: 1.05 !important; }',
+      '.doc-title { font-size: 0.95rem !important; }',
       '.section-header::before, .col-label::before { display: none !important; content: none !important; }',
       '#transfer-switch-row .section-body { padding-bottom: 0px !important; }',
       '#transfer-switch-row .inline-row:last-child { min-height: 0 !important; height: auto !important; max-height: fit-content !important; margin-bottom: 0 !important; padding-bottom: 0 !important; flex-wrap: nowrap !important; overflow: hidden !important; }',
@@ -3305,6 +3313,15 @@ function capturePageToCanvas() {
           scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false, imageTimeout: 15000,
           width: CAPTURE_W, height: CAPTURE_H, windowWidth: CAPTURE_W, scrollX: 0, scrollY: 0,
           onclone: function(clonedDoc) {
+            // Hide placeholder hint text in the captured image (clone only —
+            // live DOM untouched). Strip the attribute AND force transparent.
+            clonedDoc.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(function(el){
+              el.setAttribute('placeholder', '');
+            });
+            var _phStyle = clonedDoc.createElement('style');
+            _phStyle.textContent = 'input::placeholder,textarea::placeholder{color:transparent!important;opacity:0!important;}' +
+              'input::-webkit-input-placeholder,textarea::-webkit-input-placeholder{color:transparent!important;opacity:0!important;}';
+            clonedDoc.head.appendChild(_phStyle);
             // Strip dark-mode and seasonal classes + their style tags from clone
             var cb = clonedDoc.body;
             cb.classList.remove('dark-mode');
@@ -3389,7 +3406,7 @@ function capturePageToCanvas() {
           }
         }).then(function(canvas) {
           restore();
-          resolve(cropCanvasToContent(canvas));
+          resolve(addCaptureMargin(cropCanvasToContent(canvas)));
         }).catch(function(err) {
           restore();
           reject(err);
@@ -3401,6 +3418,22 @@ function capturePageToCanvas() {
     }); });
     });
   });
+}
+
+// Wrap a captured canvas in a uniform 0.15in white margin on all sides.
+// 0.15in relative to an 8.5in-wide page = canvas.width * 0.15/8.5 px.
+function addCaptureMargin(canvas) {
+  try {
+    var m = Math.round(canvas.width * 0.15 / 8.5);
+    var out = document.createElement('canvas');
+    out.width  = canvas.width  + m * 2;
+    out.height = canvas.height + m * 2;
+    var ctx = out.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(canvas, m, m);
+    return out;
+  } catch (e) { return canvas; }
 }
 
 // ── iPHONE SAVE ──
