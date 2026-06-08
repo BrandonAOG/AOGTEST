@@ -1759,8 +1759,8 @@ function capturePageToCanvas() {
       forceStyle.textContent = [
         '.two-column { display: grid !important; grid-template-columns: 1fr 1fr !important; }',
         // Mobile renders the form smaller; bump the root font so the content
-        // reads at a comfortable size in the mobile capture (desktop unaffected).
-        (_isMobileCap ? 'html { font-size: 23px !important; }' : ''),
+        // reads at a comfortable size. Desktop gets a slight +1.5px bump too.
+        (_isMobileCap ? 'html { font-size: 23px !important; }' : 'html { font-size: 19px !important; }'),
         // Footer must follow content during capture, not pin/overlap it.
         '#page { display: block !important; }',
         '.footer { margin-top: 0 !important; position: static !important; }',
@@ -1772,13 +1772,15 @@ function capturePageToCanvas() {
         // Hide placeholder hint text in the captured image.
         'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; }',
         'input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }',
-        // html2canvas renders input text high in the box; nudge it down onto
-        // the line but keep enough line-height so descenders aren't clipped.
+        // html2canvas renders input text high in the box; give the box enough
+        // height and line-height (and visible overflow) so nothing clips.
         'input[type="text"], input[type="date"], input[type="number"] {',
-        '  line-height: 1.3 !important; vertical-align: middle !important;',
-        '  padding-top: 3px !important; padding-bottom: 2px !important;',
-        '  height: auto !important; min-height: 0 !important;',
-        '}'
+        '  line-height: 1.5 !important; vertical-align: middle !important;',
+        '  padding-top: 2px !important; padding-bottom: 3px !important;',
+        '  height: auto !important; min-height: 1.6em !important; overflow: visible !important;',
+        '}',
+        // Bump just the input text up slightly so values read a touch larger.
+        (_isMobileCap ? '' : 'input[type="text"], input[type="date"], input[type="number"] { font-size: calc(0.78rem + 0.5px) !important; }')
       ].join('\n');
       document.head.appendChild(forceStyle);
       // Strip placeholder attributes during capture (html2canvas can paint them
