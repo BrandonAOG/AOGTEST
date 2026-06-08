@@ -1774,6 +1774,11 @@ function openPrintPreview() {
           de.style.width = '';
           void document.body.offsetHeight;
         }
+        // Force a synchronous layout flush so iOS finalizes pagination from the
+        // 820px print layout BEFORE the print sheet opens (QC does this).
+        var _pg = document.getElementById('page');
+        if (_pg) void _pg.getBoundingClientRect();
+        void document.body.getBoundingClientRect();
         setTimeout(() => {
           window.print();
           // Keep the force-width/light styles in place on mobile Safari — the
@@ -1785,7 +1790,7 @@ function openPrintPreview() {
             const el = document.getElementById('safari-print-height-fix');
             if (el) el.remove();
           }
-        }, 600);
+        }, 1500);
       }, 600);
     });
   });
