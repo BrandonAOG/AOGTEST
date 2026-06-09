@@ -2885,9 +2885,50 @@ async function fetchCone(){
   if(coneCache && (Date.now()-coneFetchedAt) < 12*60*1000) return coneCache;
   const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
   const [cone,track,pts]=await Promise.all([ get(NHC_BASE+'/7'+NHC_Q), get(NHC_BASE+'/6'+NHC_Q), get(NHC_BASE+'/5'+NHC_Q) ]);
-  coneCache={cone,track,pts}; coneFetchedAt=Date.now(); return coneCache;
+  coneCache=filterAtlantic({cone,track,pts}); coneFetchedAt=Date.now(); return coneCache;
 }
 function coneStormCount(data){ return (data && data.cone && data.cone.features) ? data.cone.features.length : 0; }
+
+/* ---- Restrict to the ATLANTIC basin + GULF OF MEXICO only ----
+   The NHC summary service returns systems from every basin (Atlantic, Eastern
+   Pacific, Central Pacific). For our Florida service area we only care about
+   Atlantic + Gulf storms — a system off Baja or Hawaii should not light the
+   button or zoom the map away. We filter by geography rather than a basin field
+   name (which varies), keeping only features whose coordinates fall in the
+   Atlantic/Gulf box: longitude -100°W → -10°E, latitude 0° → 65°N. -100°W is the
+   standard NHC dividing line between the Atlantic and Eastern Pacific basins. */
+const ATL_BOX = { wLng:-100, eLng:-10, sLat:0, nLat:65 };
+function _lngLatInAtl(lng,lat){
+  return (typeof lng==='number' && typeof lat==='number' &&
+          lng>=ATL_BOX.wLng && lng<=ATL_BOX.eLng &&
+          lat>=ATL_BOX.sLat && lat<=ATL_BOX.nLat);
+}
+// Does any coordinate in a GeoJSON geometry fall inside the Atlantic/Gulf box?
+function _geomTouchesAtl(geom){
+  if(!geom || !geom.coordinates) return false;
+  let hit=false;
+  (function walk(c){
+    if(hit || !Array.isArray(c)) return;
+    if(typeof c[0]==='number' && typeof c[1]==='number'){
+      if(_lngLatInAtl(c[0],c[1])) hit=true;
+      return;
+    }
+    for(let i=0;i<c.length && !hit;i++) walk(c[i]);
+  })(geom.coordinates);
+  return hit;
+}
+// Return a copy of the {cone,track,pts} bundle with only Atlantic/Gulf features.
+function filterAtlantic(data){
+  if(!data) return data;
+  const keep=fc=>{
+    if(!fc || !fc.features) return fc;
+    return Object.assign({}, fc, {
+      features: fc.features.filter(f=>_geomTouchesAtl(f && f.geometry))
+    });
+  };
+  return { cone:keep(data.cone), track:keep(data.track), pts:keep(data.pts) };
+}
+
 function stormLabel(props){
   props=props||{};
   const name=props.STORMNAME||props.stormname||props.STORMNME||props.TCNAME||props.STORMTYPE||'Tropical system';
@@ -3361,6 +3402,27 @@ function featCentroid(f){
   let best=null,ba=-1;
   for(const r of rings){ let a=0; for(let i=0,n=r.length,j=n-1;i<n;j=i++){ a+=r[j][0]*r[i][1]-r[i][0]*r[j][1]; } a=Math.abs(a); if(a>ba){ba=a;best=r;} }
   return best?ringCentroid(best):null;
+}
+/* Pick the hosted-file address point that belongs to a SPECIFIC parcel.
+   The county sqft file is keyed by address points; selecting merely the point nearest the
+   geocoded click is unsafe, because the geocoder routinely drifts a lot or two off (the same
+   off-by-one that re-anchors the roll). When that happens the nearest point is the NEIGHBOUR's
+   house, so the living area shown is for the wrong building. Anchor to the parcel actually being
+   displayed instead: prefer a point that falls INSIDE the parcel polygon, then the one nearest
+   the parcel centroid; fall back to nearest the click only if there's no usable geometry. */
+function pickFilePointForParcel(pts, parcelFeature, lat, lng){
+  if(!pts || !pts.length) return null;
+  const rings = parcelFeature && parcelFeature.geometry && parcelFeature.geometry.rings;
+  if(rings && rings.length){
+    for(const f of pts){ const g=f&&f.geometry; if(g && pointInPolygon(g.x, g.y, rings)) return f; }
+  }
+  let ax=lng, ay=lat;
+  const c = parcelFeature ? featCentroid(parcelFeature) : null;
+  if(c){ ax=c[0]; ay=c[1]; }
+  let best=null, bd=Infinity;
+  for(const f of pts){ const g=f&&f.geometry; if(!g) continue;
+    const dx=g.x-ax, dy=g.y-ay, d=dx*dx+dy*dy; if(d<bd){ bd=d; best=f; } }
+  return best;
 }
 /* squared distance from point to a line segment (planar; fine at parcel scale) */
 function _segDist2(px,py,ax,ay,bx,by){
@@ -7915,8 +7977,9 @@ async function runLookup(lat,lng,searchCtx){
           if(_fileUrl && _fileUrl.indexOf('REPLACE-ME')<0 && isFinite(lat) && isFinite(lng)){
             const _eps=0.0008, _bb=L.latLngBounds([lat-_eps,lng-_eps],[lat+_eps,lng+_eps]);
             const _fr=await queryHostedFile(_fileUrl,_bb);
-            if(_fr && _fr.length){ let _bx=null,_bd=Infinity;
-              for(const f of _fr){ const dx=f.geometry.x-lng,dy=f.geometry.y-lat,d=dx*dx+dy*dy; if(d<_bd){_bd=d;_bx=f;} }
+            if(_fr && _fr.length){
+              // anchor to the selected parcel polygon, not the (possibly drifted) geocoded click
+              const _bx=pickFilePointForParcel(_fr, (parcel&&parcel.features&&parcel.features[0])||null, lat, lng);
               if(_bx && _bx.attributes && Number(_bx.attributes.TOT_LVG_AR)>0) _fileSqft=_bx.attributes.TOT_LVG_AR;
             }
           }
@@ -8063,9 +8126,9 @@ async function runLookup(lat,lng,searchCtx){
         const _bb=L.latLngBounds([lat-_eps,lng-_eps],[lat+_eps,lng+_eps]);
         const _fr=await queryHostedFile(_fileUrl,_bb);
         if(_fr && _fr.length){
-          // pick the file point nearest the subject coordinate
-          let _best=null,_bd=Infinity;
-          for(const f of _fr){ const dx=f.geometry.x-lng, dy=f.geometry.y-lat; const d=dx*dx+dy*dy; if(d<_bd){_bd=d;_best=f;} }
+          // pick the file point that belongs to the SELECTED parcel (inside its polygon),
+          // not merely nearest the geocoded click — which can sit on a neighbour's lot.
+          const _best=pickFilePointForParcel(_fr, parcel.features[0], lat, lng);
           const _fileSqft = _best && _best.attributes ? _best.attributes.TOT_LVG_AR : null;
           if(_fileSqft && Number(_fileSqft)>0){
             const _rollNum = liv2 ? Number(String(liv2).replace(/[^0-9.]/g,'')) : null;
@@ -8823,9 +8886,58 @@ function renderSuggest(items){
 }
 function setSugMsg(msg){ sugEl.innerHTML=`<div class="sgmsg">${esc(msg)}</div>`; sugEl.classList.add('show'); sugItems=[]; sugActive=-1; }
 
+/* ---- Autocomplete tuning: in-session cache + relevance ranking (no new dependency) ----
+   The cache makes re-typing / backspacing instant and cuts redundant network calls.
+   The ranker reorders merged candidates so the one that best matches what the user typed
+   (house number + street prefix) and is nearest the current map view floats to the top,
+   instead of relying on raw source order (Census→Esri→OSM). */
+const SUG_CACHE = new Map();         // normalized query -> candidate array
+const SUG_CACHE_MAX = 40;
+function sugCacheGet(k){ return SUG_CACHE.get(k) || null; }
+function sugCacheSet(k,v){
+  SUG_CACHE.set(k,v);
+  if(SUG_CACHE.size>SUG_CACHE_MAX){ SUG_CACHE.delete(SUG_CACHE.keys().next().value); } // drop oldest
+}
+
+// Score a candidate against the typed query: higher = better match. Free, purely local.
+function rankSuggestions(items, typed){
+  const t = (typed||'').toLowerCase().trim();
+  const tHouse = houseNum(t);
+  const tTokens = streetTokens(t).map(s=>s.toLowerCase());
+  let center=null;
+  try{ if(typeof map!=='undefined' && map.getCenter){ const c=map.getCenter(); center={lat:c.lat,lng:c.lng}; } }catch(e){}
+
+  function score(it){
+    const lbl=(it.label||'').toLowerCase();
+    let s=0;
+    // Exact house-number match is the strongest signal.
+    if(tHouse && new RegExp('(^|\\D)'+tHouse+'(\\D|$)').test(lbl)) s+=50;
+    // Street-token overlap (each distinctive token the user typed that appears in the label).
+    for(const tok of tTokens){ if(tok.length>1 && lbl.includes(tok)) s+=8; }
+    // Prefix match — label starts with what they typed (minus trailing fragments).
+    if(t && lbl.startsWith(t.split(',')[0].trim())) s+=15;
+    // Source quality nudge: Census/Esri tend to be cleaner for US street addresses than OSM.
+    if(it.src==='US Census') s+=4; else if(it.src==='Esri') s+=3;
+    // Proximity to current map view (closer = small bonus), so a nearby match outranks a far twin.
+    if(center && typeof it.lat==='number' && typeof it.lng==='number'){
+      const d=Math.hypot(it.lat-center.lat, it.lng-center.lng);   // degrees; fine for ranking
+      if(d<0.05) s+=6; else if(d<0.25) s+=3; else if(d<1) s+=1;
+    }
+    return s;
+  }
+  // Stable sort by score desc; keep original order among equals (Array.sort is stable in modern JS).
+  return items
+    .map((it,i)=>({it,i,sc:score(it)}))
+    .sort((a,b)=> b.sc-a.sc || a.i-b.i)
+    .map(x=>x.it);
+}
+
 /* fetch up to ~6 candidate addresses; Census first (best for US street addresses), then Esri
    (strong on rural addresses the others miss, e.g. Glades/Moore Haven), Nominatim as backup */
-async function fetchSuggestions(q){
+async function fetchSuggestions(q, signal){
+  const cacheKey = q.toLowerCase().replace(/\s+/g,' ').trim();
+  const cached = sugCacheGet(cacheKey);
+  if(cached) return cached;                 // instant: re-typed / backspaced query
   let qq = /\b(fl|florida)\b/i.test(q) ? q : q+', Florida';
   const out=[];
   // run Census + Esri in parallel; Esri is what catches rural addresses the Census geocoder lacks
@@ -8833,9 +8945,10 @@ async function fetchSuggestions(q){
   const esriU=`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates`+
     `?SingleLine=${encodeURIComponent(qq)}&f=json&outFields=*&maxLocations=6&outSR=4326`+
     `&searchExtent=${encodeURIComponent('-87.6,24.4,-80.0,31.0')}`;
+  const fopt = signal ? {signal} : {};
   const [cR,eR]=await Promise.allSettled([
-    fetch(censusU).then(r=>r.json()),
-    fetch(esriU).then(r=>r.json())
+    fetch(censusU,fopt).then(r=>r.json()),
+    fetch(esriU,fopt).then(r=>r.json())
   ]);
   if(cR.status==='fulfilled'){
     const ms=(cR.value&&cR.value.result&&cR.value.result.addressMatches)||[];
@@ -8855,7 +8968,7 @@ async function fetchSuggestions(q){
   if(out.length<5){
     try{
       const u=`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=us&q=${encodeURIComponent(qq)}`;
-      const j=await (await fetch(u)).json();
+      const j=await (await fetch(u, signal?{signal}:{})).json();
       for(const m of (j||[])){
         if(out.length>=6) break;
         if(out.some(o=>o.label===m.display_name)) continue;
@@ -8863,7 +8976,9 @@ async function fetchSuggestions(q){
       }
     }catch(e){}
   }
-  return out;
+  const ranked = rankSuggestions(out, q);
+  sugCacheSet(cacheKey, ranked);
+  return ranked;
 }
 
 async function chooseSuggestion(it){
@@ -8886,22 +9001,38 @@ async function chooseSuggestion(it){
   results.insertAdjacentHTML('afterbegin',conf);
 }
 
+let sugAbort=null;
 addrEl.addEventListener('input',()=>{
   const q=addrEl.value.trim();
   STORE.set('fl_addr',addrEl.value||'');
   clearTimeout(sugTimer);
   if(q.length<4){ hideSuggest(); return; }
   if(q===lastSugQ) return;
+
+  // Instant path: if we've already fetched this exact query this session, show it with no delay.
+  const cachedNow = sugCacheGet(q.toLowerCase().replace(/\s+/g,' ').trim());
+  if(cachedNow){
+    lastSugQ=q; ++sugSeq;
+    if(cachedNow.length) renderSuggest(cachedNow);
+    else setSugMsg('no matches — try adding a city or ZIP, or tap the map');
+    return;
+  }
+
   sugTimer=setTimeout(async()=>{
     lastSugQ=q;
     const seq=++sugSeq;
+    // Cancel any still-in-flight request from a previous keystroke so it doesn't waste mobile data.
+    if(sugAbort){ try{ sugAbort.abort(); }catch(e){} }
+    sugAbort = (typeof AbortController!=='undefined') ? new AbortController() : null;
     setSugMsg('searching addresses…');
-    const items=await fetchSuggestions(q);
+    let items=[];
+    try{ items=await fetchSuggestions(q, sugAbort?sugAbort.signal:undefined); }
+    catch(e){ if(e&&e.name==='AbortError') return; }   // superseded — newer keystroke owns the UI
     if(seq!==sugSeq) return;              // a newer keystroke superseded this
     if(addrEl.value.trim().length<4){ hideSuggest(); return; }
     if(!items.length){ setSugMsg('no matches — try adding a city or ZIP, or tap the map'); return; }
     renderSuggest(items);
-  },320);                                  // debounce so we don't hammer the geocoder
+  },180);                                  // snappier than before; cache + abort keep it cheap
 });
 
 sugEl.addEventListener('mousedown',e=>{      // mousedown beats input blur
