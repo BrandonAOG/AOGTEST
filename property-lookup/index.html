@@ -8330,30 +8330,34 @@ async function runLookup(lat,lng,searchCtx){
       html += `<a class="palink" href="${esc(_sunbizBase)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Open Sunbiz entity search</a>`;
     }
 
-    // Kick off the async match and fill the slot when results return.
+    // Kick off the async match. Compute the HTML once, then expose an idempotent fill
+    // function: the page renders twice (a fast partial render, then the full render that
+    // REPLACES it), and the HOA fetch can resolve against the partial DOM before the final
+    // render wipes it. Storing the fill lets us re-apply it after the final render+tabify.
     (async ()=>{
       let res = null;
       for(const cand of _hoaCandidates){
         res = await hoaLookup(cand);
         if(res && (res.exact.length || res.partial.length)) break;
       }
-      const el = document.getElementById(_hoaSlot);
-      if(!el) return;
-      if(res===null){ el.innerHTML = 'HOA registry file unavailable — use the Sunbiz/Google links below to search manually.'; return; }
       const card = (r, exact) => {
         const badge = exact ? '<span class="badge live">● MATCH</span>' : '<span class="badge unk">possible</span>';
         return `<div class="freshline" style="margin-top:6px">${badge} <b>${esc(r.name)}</b>`
              + `<div style="font-size:11px;opacity:.8">${esc(titleCase(r.city))}, FL ${esc(r.zip)} · ${esc(r.county)} · Sunbiz #${esc(r.doc)}</div>`
              + `<a class="palink" href="${esc(sunbizDetailUrl(r.doc))}" target="_blank" rel="noopener" style="margin-top:4px">↗ Open full Sunbiz record (agent, officers, address)</a></div>`;
       };
-      if(res.exact.length){
-        el.innerHTML = `<div style="margin-bottom:4px">Matched in the FL nonprofit registry (active associations):</div>` + res.exact.map(r=>card(r,true)).join('');
-        if(res.partial.length) el.innerHTML += `<div style="margin-top:8px;font-size:11px;opacity:.75">Other associations in the same community:</div>` + res.partial.map(r=>card(r,false)).join('');
+      let out;
+      if(res===null){ out = 'HOA registry file unavailable — use the Sunbiz/Google links below to search manually.'; }
+      else if(res.exact.length){
+        out = `<div style="margin-bottom:4px">Matched in the FL nonprofit registry (active associations):</div>` + res.exact.map(r=>card(r,true)).join('');
+        if(res.partial.length) out += `<div style="margin-top:8px;font-size:11px;opacity:.75">Other associations in the same community:</div>` + res.partial.map(r=>card(r,false)).join('');
       } else if(res.partial.length){
-        el.innerHTML = `<div style="margin-bottom:4px">No exact match — possible associations for this community:</div>` + res.partial.map(r=>card(r,false)).join('');
+        out = `<div style="margin-bottom:4px">No exact match — possible associations for this community:</div>` + res.partial.map(r=>card(r,false)).join('');
       } else {
-        el.innerHTML = 'No matching association found in the Florida nonprofit registry for this community. It may have no HOA, use deed restrictions without a corporation, or be registered under a different name — try the manual searches below.';
+        out = 'No matching association found in the Florida nonprofit registry for this community. It may have no HOA, use deed restrictions without a corporation, or be registered under a different name — try the manual searches below.';
       }
+      window.__hoaFill = ()=>{ const el=document.getElementById(_hoaSlot); if(el) el.innerHTML = out; };
+      window.__hoaFill();
     })();
 
     html += `<div class="note warnbox">Matched against the Florida Division of Corporations (Sunbiz) nonprofit registry. HOAs/condo associations register as FL not-for-profit corporations; the match is by community name, so verify the result on the linked Sunbiz record. Not all communities have an HOA.</div>`;
@@ -8810,6 +8814,9 @@ async function runLookup(lat,lng,searchCtx){
   results.innerHTML = setStatus('ok','Done — '+(new Date()).toLocaleTimeString())
     + _bc + _sum + '<div class="cardflow">' + html + '</div>';
   tabifyResults(results);
+  // The HOA fetch may have resolved against the earlier partial render that this final
+  // render just replaced; re-apply the stored fill so the match lands in the live DOM.
+  try{ if(window.__hoaFill) window.__hoaFill(); }catch(e){}
   document.body.classList.add('has-results');   // hides the intro disclaimer now that the breadcrumb/summary carry context
 }
 
