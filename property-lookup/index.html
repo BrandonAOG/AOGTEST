@@ -6391,7 +6391,7 @@ const ADDRPOINT_FILES = {
   // Collier also served from a compact file (offline-capable). Collier additionally
   // has a live feed in ADDRPOINT_FEEDS below, which acts as an automatic fallback if
   // this file ever fails to load.
-  COLLIER: "collier_compact_v3.json.gz",
+  COLLIER: "https://brandonaog.github.io/testing/collier_compact_v3.json.gz",
   // Sarasota: built by joining the county address-points (coords) with the ParcelHosted
   // attribute file (owner/sqft) via build_county.py.
   SARASOTA: "sarasota_compact_v3.json.gz",
@@ -6431,6 +6431,44 @@ async function fetchMaybeGzip(url){
   // not gzip (or no DecompressionStream): parse normally
   try{ return await r.json(); }catch(e){ return null; }
 }
+/* ---- HOA lookup (fl_hoas_swfl.json.gz, hosted beside this page) ----
+   The file is built by the offline Sunbiz parser. Its index keys are normalized
+   community-name tokens; the SAME normalizer must run here or keys won't line up. */
+const HOA_FILE_URL = 'fl_hoas_swfl.json.gz';
+let _hoaIdxPromise = null;
+function loadHOAIndex(){
+  if(_hoaIdxPromise) return _hoaIdxPromise;
+  _hoaIdxPromise = fetchMaybeGzip(HOA_FILE_URL).then(j=>{
+    if(!j || !Array.isArray(j.records) || !j.index) return null;
+    return j;   // {records:[[name,city,zip,county,doc]...], index:{key:[i,...]}}
+  }).catch(()=>null);
+  return _hoaIdxPromise;
+}
+// Mirror of the Python norm(): upper, strip non-alnum, remove corp/HOA filler words.
+const _HOA_STOP = /\b(INC|INCORPORATED|CORP|CORPORATION|CO|LLC|LTD|A|AN|THE|OF|AT|ASSOCIATION|ASSN|HOMEOWNERS|HOMEOWNER|PROPERTY|OWNERS|CONDOMINIUM|CONDO|COMMUNITY|MASTER|NEIGHBORHOOD|FOUNDATION|CLUB|VILLAS|VILLA|TOWNHOMES|TOWNHOME|TOWNHOUSES|VILLAGE|ESTATES|HOA|POA)\b/g;
+function _hoaNorm(s){
+  return String(s||'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ')
+    .replace(_HOA_STOP,' ').replace(/\s+/g,' ').trim();
+}
+/* Look a community name up in the HOA file. Returns {exact:[recs], partial:[recs]}.
+   exact = normalized key identical; partial = shares the first 1-2 significant words. */
+async function hoaLookup(name){
+  const j = await loadHOAIndex();
+  if(!j) return null;
+  const key = _hoaNorm(name);
+  if(!key) return {exact:[],partial:[]};
+  const rec = i => { const r=j.records[i]; return {name:r[0],city:r[1],zip:r[2],county:r[3],doc:r[4]}; };
+  const exactIdx = j.index[key] || [];
+  const toks = key.split(' ');
+  let partIdx = [];
+  if(toks.length>=2 && j.index['~'+toks[0]+' '+toks[1]]) partIdx = j.index['~'+toks[0]+' '+toks[1]];
+  else if(j.index['~'+toks[0]]) partIdx = j.index['~'+toks[0]];
+  const seen = new Set(exactIdx);
+  partIdx = partIdx.filter(i=>!seen.has(i));
+  return { exact: exactIdx.slice(0,8).map(rec), partial: partIdx.slice(0,8).map(rec) };
+}
+function sunbizDetailUrl(doc){ return 'https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResultDetail?inquirytype=DocumentNumber&directionType=Initial&searchNameOrder=&aggregateId=&searchTerm='+encodeURIComponent(doc)+'&listNameOrder=&documentNumber='+encodeURIComponent(doc); }
+
 async function loadHostedFileIndex(url){
   if(_fileCache.has(url)) return _fileCache.get(url);
   const p = fetchMaybeGzip(url).then(j=>{
@@ -7692,7 +7730,7 @@ function renderParcelGeneric(a, d){
   if(own2) h += fieldRow('Owner 2', esc(own2));
   h += fieldRow('Parcel ID', pid?esc(pid):'<span class="muted">—</span>','big');
   if(liv){ h += fieldRow('Living area', liv+' sq ft','big');
-    try{ if(window.__livOverride){ h += `<div class="note">Living area from the county appraiser's record (primary structure). The state roll listed ${window.__livOverride.roll.toLocaleString('en-US')} sq ft, which sums secondary structures.</div>`; window.__livOverride=null; } }catch(e){}
+    try{ if(window.__livOverride){ h += `<div class="note">Living area shown is the heated/living figure (${window.__livOverride.shown.toLocaleString('en-US')} sq ft). The other source listed ${window.__livOverride.other.toLocaleString('en-US')} sq ft &mdash; an adjusted/under-roof or multi-structure total.</div>`; window.__livOverride=null; } }catch(e){}
   }
   if(lotSf) h += fieldRow('Lot area', lotSf+' sq ft');
   if(site) h += fieldRow('Site address', esc(site)+(city?'<br>'+esc(city):''));
@@ -7984,10 +8022,16 @@ async function runLookup(lat,lng,searchCtx){
             }
           }
         }catch(e){}
-        if(_num(_fileSqft)){
-          _la.TOT_LVG_AR=_fileSqft; det.liv='TOT_LVG_AR';
-          if(_num(_rollLiv) && Math.abs(Number(_rollLiv)-Number(_fileSqft))>1)
-            window.__livOverride={roll:Number(_rollLiv), file:Number(_fileSqft)};
+        if(_num(_fileSqft) && _num(_rollLiv)){
+          // Both sources have a value. Heated/living area is always <= an adjusted/under-roof
+          // figure (e.g. Collier "Adj Area") and <= a multi-structure sum, so take the SMALLER:
+          // it corrects the file when IT carries the gross figure (this parcel) AND the roll when
+          // IT sums secondary structures (the Brynwood case).
+          const _f=Number(_fileSqft), _r=Number(String(_rollLiv).replace(/[^0-9.]/g,''));
+          const _small=Math.min(_f,_r), _big=Math.max(_f,_r);
+          _la.TOT_LVG_AR=_small; det.liv='TOT_LVG_AR';
+          if(_big-_small>1) window.__livOverride={shown:_small, other:_big};
+        } else if(_num(_fileSqft)){ _la.TOT_LVG_AR=_fileSqft; det.liv='TOT_LVG_AR';
         } else if(_num(_rollLiv)){ _la.TOT_LVG_AR=_rollLiv; det.liv='TOT_LVG_AR'; }
       }
       // year built (actual)
@@ -8132,8 +8176,16 @@ async function runLookup(lat,lng,searchCtx){
           const _fileSqft = _best && _best.attributes ? _best.attributes.TOT_LVG_AR : null;
           if(_fileSqft && Number(_fileSqft)>0){
             const _rollNum = liv2 ? Number(String(liv2).replace(/[^0-9.]/g,'')) : null;
-            liv2 = fmtNum(_fileSqft);
-            window.__livOverride = (_rollNum && Math.abs(_rollNum-Number(_fileSqft))>1) ? {roll:_rollNum, file:Number(_fileSqft)} : null;
+            // Prefer the smaller of roll vs file: heated/living area is always <= an adjusted/
+            // under-roof figure (Collier "Adj Area") and <= a multi-structure sum.
+            if(_rollNum && _rollNum>0){
+              const _small=Math.min(_rollNum, Number(_fileSqft)), _big=Math.max(_rollNum, Number(_fileSqft));
+              liv2 = fmtNum(_small);
+              window.__livOverride = (_big-_small>1) ? {shown:_small, other:_big} : null;
+            } else {
+              liv2 = fmtNum(_fileSqft);
+              window.__livOverride = null;
+            }
           }
         }
       }
@@ -8151,7 +8203,7 @@ async function runLookup(lat,lng,searchCtx){
     if(own2) html += fieldRow('Owner 2', esc(own2));
     html += fieldRow('Parcel ID', pid?esc(pid):'<span class="muted">—</span>','big');
     if(liv2){ html += fieldRow('Living area', liv2+' sq ft','big');
-      try{ if(window.__livOverride){ html += `<div class="note">Living area from the county appraiser's record (primary structure). The state roll listed ${window.__livOverride.roll.toLocaleString('en-US')} sq ft, which sums secondary structures.</div>`; window.__livOverride=null; } }catch(e){}
+      try{ if(window.__livOverride){ html += `<div class="note">Living area shown is the heated/living figure (${window.__livOverride.shown.toLocaleString('en-US')} sq ft). The other source listed ${window.__livOverride.other.toLocaleString('en-US')} sq ft &mdash; an adjusted/under-roof or multi-structure total.</div>`; window.__livOverride=null; } }catch(e){}
     }
     if(lsf) html += fieldRow('Lot area', lsf+' sq ft');
     if(site)     html += fieldRow('Site address', esc(site)+(siteCity?'<br>'+esc(siteCity):''));
@@ -8250,18 +8302,61 @@ async function runLookup(lat,lng,searchCtx){
     html += `<div class="card"><div class="ch"><span class="icn">[ HOA ]</span><h2>HOA / Community Association</h2>
       <div class="src">FL Division of<br>Corporations · Sunbiz</div></div><div class="cb">`;
 
+    // Candidate community names to match, best signal first: extracted subdivision,
+    // then the raw legal text (catches condo names the extractor trims).
+    const _hoaCandidates = [];
+    if(_subdiv) _hoaCandidates.push(_subdiv);
+    try{
+      let _lglRaw = null;
+      if(parcel && parcel.features && parcel.features[0]) _lglRaw = pick(parcel.features[0].attributes,'S_LEGAL');
+      if(!_lglRaw && typeof _la!=='undefined' && _la && _la.__legal) _lglRaw = _la.__legal;
+      if(_lglRaw) _hoaCandidates.push(String(_lglRaw));
+    }catch(e){}
+
     if(_subdiv){
       html += `<div class="freshline"><span class="badge live">● SUBDIVISION FOUND</span> extracted from property appraiser legal description</div>`;
       html += fieldRow('Subdivision', esc(_subdiv), 'big');
-      html += `<a class="palink" href="${esc(_sunbizUrl(_subdiv))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Search Sunbiz for &ldquo;${esc(_subdiv)}&rdquo;</a>`;
-      html += `<a class="palink" href="${esc(_googleUrl('"' + _subdiv + '" homeowners association Florida'))} " target="_blank" rel="noopener" style="margin-top:6px">↗ Google: &ldquo;${esc(_subdiv)}&rdquo; homeowners association</a>`;
     } else {
       html += `<div class="freshline snap"><span class="badge unk">subdivision</span> not detected from legal description</div>`;
-      html += `<div class="note">A subdivision name could not be extracted from the legal description for this parcel. Use the Sunbiz search below and enter the subdivision or community name manually.</div>`;
+    }
+    // Placeholder filled asynchronously once the HOA file resolves.
+    const _hoaSlot = 'hoaSlot_'+Math.random().toString(36).slice(2,9);
+    html += `<div id="${_hoaSlot}" class="note">Searching the Florida nonprofit registry for a matching association…</div>`;
+    // Always keep manual escape hatches.
+    if(_subdiv){
+      html += `<a class="palink" href="${esc(_sunbizUrl(_subdiv))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Search Sunbiz for &ldquo;${esc(_subdiv)}&rdquo;</a>`;
+      html += `<a class="palink" href="${esc(_googleUrl('"' + _subdiv + '" homeowners association Florida'))}" target="_blank" rel="noopener" style="margin-top:6px">↗ Google: &ldquo;${esc(_subdiv)}&rdquo; homeowners association</a>`;
+    } else {
       html += `<a class="palink" href="${esc(_sunbizBase)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Open Sunbiz entity search</a>`;
     }
 
-    html += `<div class="note warnbox">Sunbiz is Florida&rsquo;s official Division of Corporations registry. HOAs and community associations must register here as Florida not-for-profit corporations — search the subdivision name to find the registered agent, officers, and annual report filings. Not all communities have an HOA; some use a master deed or deed restrictions without a corporation.</div>`;
+    // Kick off the async match and fill the slot when results return.
+    (async ()=>{
+      let res = null;
+      for(const cand of _hoaCandidates){
+        res = await hoaLookup(cand);
+        if(res && (res.exact.length || res.partial.length)) break;
+      }
+      const el = document.getElementById(_hoaSlot);
+      if(!el) return;
+      if(res===null){ el.innerHTML = 'HOA registry file unavailable — use the Sunbiz/Google links below to search manually.'; return; }
+      const card = (r, exact) => {
+        const badge = exact ? '<span class="badge live">● MATCH</span>' : '<span class="badge unk">possible</span>';
+        return `<div class="freshline" style="margin-top:6px">${badge} <b>${esc(r.name)}</b>`
+             + `<div style="font-size:11px;opacity:.8">${esc(titleCase(r.city))}, FL ${esc(r.zip)} · ${esc(r.county)} · Sunbiz #${esc(r.doc)}</div>`
+             + `<a class="palink" href="${esc(sunbizDetailUrl(r.doc))}" target="_blank" rel="noopener" style="margin-top:4px">↗ Open full Sunbiz record (agent, officers, address)</a></div>`;
+      };
+      if(res.exact.length){
+        el.innerHTML = `<div style="margin-bottom:4px">Matched in the FL nonprofit registry (active associations):</div>` + res.exact.map(r=>card(r,true)).join('');
+        if(res.partial.length) el.innerHTML += `<div style="margin-top:8px;font-size:11px;opacity:.75">Other associations in the same community:</div>` + res.partial.map(r=>card(r,false)).join('');
+      } else if(res.partial.length){
+        el.innerHTML = `<div style="margin-bottom:4px">No exact match — possible associations for this community:</div>` + res.partial.map(r=>card(r,false)).join('');
+      } else {
+        el.innerHTML = 'No matching association found in the Florida nonprofit registry for this community. It may have no HOA, use deed restrictions without a corporation, or be registered under a different name — try the manual searches below.';
+      }
+    })();
+
+    html += `<div class="note warnbox">Matched against the Florida Division of Corporations (Sunbiz) nonprofit registry. HOAs/condo associations register as FL not-for-profit corporations; the match is by community name, so verify the result on the linked Sunbiz record. Not all communities have an HOA.</div>`;
     html += `</div></div>`;
   }
 
