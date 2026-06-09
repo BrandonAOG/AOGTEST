@@ -2827,6 +2827,7 @@ function printForm() {
   function restore() {
     if (_restored) return;
     _restored = true;
+    if (window.__removePrintDebug) window.__removePrintDebug();
     _printReplaced.forEach(function(r) {
       if (r.box && r.box.parentNode) r.box.parentNode.removeChild(r.box);
       if (r.origStyle) r.input.setAttribute('style', r.origStyle);
@@ -2865,6 +2866,7 @@ function printForm() {
 
   // ── Shared restore trigger setup ──
   function armRestoreAndPrint(isMobile, deferPrint) {
+    if (window.__buildPrintDebug) window.__buildPrintDebug();
     var _triggered = false;
     function triggerRestore(delay) {
       if (_triggered) return;
@@ -4803,6 +4805,50 @@ window.addEventListener('afterprint', function() {
     page.style.paddingTop = _savedPagePaddingTop;
   }
 });
+</script>
+<script>
+/* ── PRINT DEBUG RULER (only active when ?debug is in the URL) ──
+   Builds a px ruler + readout on #page before printing so you can read the
+   exact layout-px where Safari breaks to page 2. Removed automatically after. */
+(function(){
+  if (!/[?&]debug\b/.test(location.search)) return;
+  var st = document.createElement('style');
+  st.textContent =
+    '@media print{body.debugprint #print-ruler{display:block!important}body.debugprint #print-readout{display:block!important}}' +
+    '#print-ruler{display:none;position:absolute;top:0;left:0;width:34px;z-index:99998;pointer-events:none}' +
+    '#print-ruler .pr-tick{position:absolute;left:0;width:34px;border-top:0.5px solid rgba(220,38,6,0.55);font:700 6px/1 monospace;color:#DC2606;padding-left:1px;box-sizing:border-box}' +
+    '#print-ruler .pr-tick.pr-major{border-top:0.8px solid rgba(220,38,6,0.95)}' +
+    '#print-readout{display:none;position:absolute;top:2px;right:2px;z-index:99999;font:700 7px/1.25 monospace;color:#fff;background:#DC2606;padding:3px 5px;border-radius:3px;white-space:pre;pointer-events:none}';
+  document.head.appendChild(st);
+
+  window.__buildPrintDebug = function(){
+    var page = document.getElementById('page'); if (!page) return;
+    window.__removePrintDebug();
+    document.body.classList.add('debugprint');
+    var ruler = document.createElement('div'); ruler.id = 'print-ruler';
+    for (var y = 0; y <= 1700; y += 25){
+      var t = document.createElement('div');
+      t.className = 'pr-tick' + (y % 100 === 0 ? ' pr-major' : '');
+      t.style.top = y + 'px';
+      if (y % 100 === 0) t.textContent = y;
+      ruler.appendChild(t);
+    }
+    page.appendChild(ruler);
+    var foot = page.querySelector('.footer');
+    var pr = page.getBoundingClientRect();
+    var ph = Math.round(pr.height);
+    var fb = foot ? Math.round(foot.getBoundingClientRect().bottom - pr.top) : 0;
+    var ro = document.createElement('div'); ro.id = 'print-readout';
+    ro.textContent = 'DEBUG (screen px)\npage H: ' + ph + '\nfooter bottom: ' + fb + '\nread ruler @ break';
+    page.appendChild(ro);
+    try { console.log('[PRINT DEBUG] page H(px):', ph, ' footer bottom(px):', fb); } catch(e){}
+  };
+  window.__removePrintDebug = function(){
+    var r = document.getElementById('print-ruler'); if (r) r.remove();
+    var o = document.getElementById('print-readout'); if (o) o.remove();
+    document.body.classList.remove('debugprint');
+  };
+})();
 </script>
 </body>
 </html>
