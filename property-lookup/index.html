@@ -6467,7 +6467,7 @@ async function hoaLookup(name){
   partIdx = partIdx.filter(i=>!seen.has(i));
   return { exact: exactIdx.slice(0,8).map(rec), partial: partIdx.slice(0,8).map(rec) };
 }
-function sunbizDetailUrl(doc){ return 'https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResultDetail?inquirytype=DocumentNumber&directionType=Initial&searchNameOrder=&aggregateId=&searchTerm='+encodeURIComponent(doc)+'&listNameOrder=&documentNumber='+encodeURIComponent(doc); }
+function sunbizNameUrl(name){ const n=String(name||'').replace(/,?\s+[A-Z]{1,3}\.?$/,'').trim()||name; return 'https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResults?inquiryType=EntityName&searchNameOrder=&searchTerm='+encodeURIComponent(n); }
 
 async function loadHostedFileIndex(url){
   if(_fileCache.has(url)) return _fileCache.get(url);
@@ -8344,7 +8344,7 @@ async function runLookup(lat,lng,searchCtx){
         const badge = exact ? '<span class="badge live">● MATCH</span>' : '<span class="badge unk">possible</span>';
         return `<div class="freshline" style="margin-top:6px">${badge} <b>${esc(r.name)}</b>`
              + `<div style="font-size:11px;opacity:.8">${esc(titleCase(r.city))}, FL ${esc(r.zip)} · ${esc(r.county)} · Sunbiz #${esc(r.doc)}</div>`
-             + `<a class="palink" href="${esc(sunbizDetailUrl(r.doc))}" target="_blank" rel="noopener" style="margin-top:4px">↗ Open full Sunbiz record (agent, officers, address)</a></div>`;
+             + `<a class="palink" href="${esc(sunbizNameUrl(r.name))}" target="_blank" rel="noopener" style="margin-top:4px">↗ Open on Sunbiz (agent, officers, address)</a></div>`;
       };
       let out;
       if(res===null){ out = 'HOA registry file unavailable — use the Sunbiz/Google links below to search manually.'; }
