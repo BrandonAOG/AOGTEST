@@ -1219,8 +1219,8 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   body[class*="seasonal-"] .section-header::before,
   body[class*="seasonal-"] .col-label::before { background: #D97706 !important; box-shadow: none !important; animation: none !important; animation-play-state: paused !important; }
   .section-header svg, .section-header svg * { stroke: #D97706 !important; color: #D97706 !important; }
-  .section-header svg, .section-header svg *, .col-label svg, .col-label svg * { background: #DCEBF9 !important; background-color: #DCEBF9 !important; }
-  .logo-img, .header-logo, .header svg, .header svg * { background: #ffffff !important; background-color: #ffffff !important; }
+  .section-header svg, .section-header svg *, .col-label svg, .col-label svg * { background: transparent !important; background-color: transparent !important; }
+  .logo-img, .header-logo, .header svg, .header svg * { background: transparent !important; background-color: transparent !important; }
   .section-body { background: #ffffff !important; padding: var(--pd-print-phone-section-body) !important; }
   .grid-2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: var(--grid23-gap-print) !important; margin-bottom: 4px !important; }
   .grid-3 { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; gap: var(--grid23-gap-print) !important; margin-bottom: 4px !important; }
@@ -1482,8 +1482,6 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   .section-body          { padding: var(--pd-ipad-section-body) !important; }
   .top-col               { padding: var(--pd-ipad-top-col) !important; }
   .flood-item            { padding: var(--pd-ipad-flood-item) !important; min-width: 180px !important; }
-  label[for="flood_zone"] { margin-left: -25px !important; }
-  label[for="parcel"]     { margin-left: -12px !important; }
   .section, .top-grid, .flood-bar { margin-bottom: var(--mb-section-ipad) !important; }
 }
 
@@ -1995,6 +1993,18 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   html.desktop-print #seasonal-canvas, #seasonal-canvas { display: none !important; }
   html.desktop-print body::before, html.desktop-print body::after,
   body::before, body::after, body[class*="seasonal-"]::before, body[class*="seasonal-"]::after { display: none !important; content: none !important; }
+  /* LAST WORD on icon/logo backgrounds: the blanket light-forcing rules above paint
+     #ffffff behind every element, which shows as white rectangles behind the SVG icons
+     sitting on the #DCEBF9 pills and behind the transparent logo PNG. Re-assert
+     transparency at matching/higher specificity, placed last so it wins the cascade. */
+  html.desktop-print svg, html.desktop-print svg *,
+  html.desktop-print .logo-img, html.desktop-print .header-logo,
+  body.dark-mode svg, body.dark-mode svg *,
+  body.dark-mode .logo-img, body.dark-mode .header-logo,
+  html.dark-mode-pending body svg, html.dark-mode-pending body svg *,
+  svg, svg *, .logo-img, .header-logo, canvas[data-capture-icon] {
+    background: transparent !important; background-color: transparent !important; background-image: none !important;
+  }
 }
 </style>
 </head>
@@ -3051,8 +3061,10 @@ function printForm() {
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
       var tag = el.tagName;
-      // Skip the drawn checkbox boxes (amber fills) and SVGs (handled below).
+      // Skip the drawn checkbox boxes (amber fills), SVG content (handled below), and
+      // images — forcing white onto a transparent-PNG logo paints a white box behind it.
       if (el.classList && (el.classList.contains('print-cb-box') || el.classList.contains('print-cb-mark'))) continue;
+      if ((typeof SVGElement !== 'undefined' && el instanceof SVGElement) || tag === 'IMG' || tag === 'CANVAS') continue;
       forceLight(el, { 'background': LIGHT_BG, 'background-image': 'none', 'color': DARK_TXT,
                        'box-shadow': 'none', 'text-shadow': 'none',
                        '-webkit-print-color-adjust': 'exact', 'print-color-adjust': 'exact' });
@@ -3068,6 +3080,10 @@ function printForm() {
     // SVG icons → amber stroke.
     document.querySelectorAll('#page .section-header svg, #page .section-header svg *, #page .col-label svg, #page .col-label svg *, #page .icon-themed svg, #page .icon-themed svg *').forEach(function(el){
       forceLight(el, { 'stroke': AMBER, 'color': AMBER, 'background': 'transparent', 'fill': 'none' });
+    });
+    // Logo + any icon canvases: transparent so the white page shows through cleanly.
+    document.querySelectorAll('#page .logo-img, #page canvas').forEach(function(el){
+      forceLight(el, { 'background': 'transparent', 'background-image': 'none' });
     });
     // Inputs/fields: white bg, dark text incl. Safari's text-fill-color.
     document.querySelectorAll('#page input, #page textarea, #page select').forEach(function(el){
@@ -3181,6 +3197,7 @@ function capturePageToCanvas() {
       '  --icon-color-gps: #10B981 !important;',
       '}',
       '.icon-themed { color: #D97706 !important; }',
+      'svg, svg *, canvas[data-capture-icon], .logo-img, .header-logo { background: transparent !important; background-color: transparent !important; background-image: none !important; }',
       '/* ROOT-CAUSE FIX: .col-label is display:inline-flex on screen, and html2canvas drops the',
       '   injected dot + icon inside inline-flex containers (the block-level .section-header works',
       '   fine). Switch the pills to block-level flex with fit-content width for capture so they keep',
