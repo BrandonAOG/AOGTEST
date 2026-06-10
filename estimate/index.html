@@ -1876,41 +1876,30 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   html:not(.ipad-print):not(.desktop-print) #pad_notes  { height:var(--h-print-phone-pad-notes)!important;min-height:var(--h-print-phone-pad-notes)!important;max-height:var(--h-print-phone-pad-notes)!important; }
   html:not(.ipad-print):not(.desktop-print) #gas_notes  { height:var(--h-print-phone-gas-notes)!important;min-height:var(--h-print-phone-gas-notes)!important;max-height:var(--h-print-phone-gas-notes)!important; }
   html:not(.ipad-print):not(.desktop-print) #ready_notes { height:var(--h-print-phone-ready-notes)!important;min-height:var(--h-print-phone-ready-notes)!important;max-height:var(--h-print-phone-ready-notes)!important; }
-  /* Kill the phantom 2nd page. The 1050px-wide layout is scaled to fit one 8.5x11 sheet;
-     one page tall at that width is ~1358px (1050 / (8.5/11)). Pin .page to exactly that
-     height and clip, so nothing can spill onto a second sheet. Sections must not break. */
+  /* NATURAL BLOCK FLOW (matches the maintenance/QC sheet) — no fixed page height, no flex
+     distribution, no clipping. The page grows to its natural content height and the footer
+     flows right after the last section. Because nothing is distributed or clipped, iOS can't
+     recompute it differently between the print preview and the generated PDF — so the PDF
+     matches the preview (kills the reflow). Tightened element spacing keeps it on one sheet. */
   html:not(.ipad-print):not(.desktop-print) .page {
-    height: 1358px !important;
-    max-height: 1358px !important;
+    display: block !important;
+    height: auto !important;
     min-height: 0 !important;
-    overflow: hidden !important;
-  }
-  html:not(.ipad-print):not(.desktop-print) .page {
-    height: 1290px !important; min-height: 1290px !important; max-height: 1290px !important;
-    overflow: hidden !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
   html:not(.ipad-print):not(.desktop-print) .content {
-    justify-content: flex-start !important;
-    gap: 10px !important;
-  }
-  /* Precast notes box carries a 10px inline top-margin the dense sections don't —
-     tighten it so the precast section isn't padded out above its notes. */
-  html:not(.ipad-print):not(.desktop-print) #precast-pad-row .field-block {
-    margin-top: 2px !important;
-  }
-  /* Relax the cramped Customer Info / Property Info rows — give them breathing room */
-  html:not(.ipad-print):not(.desktop-print) .top-col .field-row {
-    margin-bottom: 5px !important;
-  }
-  html:not(.ipad-print):not(.desktop-print) .top-col {
-    padding: 8px 12px !important;
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
   html:not(.ipad-print):not(.desktop-print) .content,
   html:not(.ipad-print):not(.desktop-print) .section {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  html:not(.ipad-print):not(.desktop-print) .footer { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+  html:not(.ipad-print):not(.desktop-print) .footer { margin-top: 0 !important; margin-bottom: 0 !important; padding-bottom: 0 !important; }
 }
 
 /* ---- iPAD print sizing (mirrors the old injected safari-page-fix; the html.ipad-print
