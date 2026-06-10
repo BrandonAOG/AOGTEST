@@ -3284,6 +3284,21 @@ function capturePageToCanvas() {
           e.style.setProperty('min-width', '154px', 'important');
           e.style.setProperty('max-width', '154px', 'important');
         }
+        // First Transfer Switch row was overflowing 1050px at capture font sizes, which
+        // wrapped #num_ts below its label. Pin the small count boxes and trim the type
+        // field so the whole row fits on one line and #num_ts sits beside its label.
+        if (e.id === 'num_ts' || e.id === 'num_panels') {
+          e.style.setProperty('width', '3ch', 'important');
+          e.style.setProperty('min-width', '3ch', 'important');
+          e.style.setProperty('max-width', '3ch', 'important');
+          e.style.setProperty('flex', '0 0 auto', 'important');
+        }
+        if (e.id === 'ts_type_desc') {
+          e.style.setProperty('width', '21ch', 'important');
+          e.style.setProperty('min-width', '21ch', 'important');
+          e.style.setProperty('max-width', '21ch', 'important');
+          e.style.setProperty('flex', '0 0 auto', 'important');
+        }
       });
     });
     page.querySelectorAll('label, legend, .inline-label, .check-item span, .yn-group .yn-label, .col-label, .section-header, .footer-text, #ver-span, .gas-appliances-label, .company-name, .doc-title').forEach(function(el) {
@@ -3305,10 +3320,40 @@ function capturePageToCanvas() {
         // Make every field/inline label the same size in the capture: the plain field labels,
         // the generator "Size" label, AND the .inline-label elements all forced to one value.
         else if (e.matches('.inline-label, .field-row label:not(.yn-label), .field-block label:not(.yn-label), .flood-item label:not(.yn-label), label[for="gen_size"], .survey-legend')) {
-          e.style.setProperty('font-size', '0.88rem', 'important');
+          // The first Transfer Switch row is the widest line on the page; its labels get a
+          // slightly smaller size in the capture so the row fits without wrapping.
+          var tsRow = e.closest && e.closest('#transfer-switch-row .inline-row');
+          var firstTsRow = document.querySelector('#transfer-switch-row .inline-row');
+          if (tsRow && tsRow === firstTsRow) {
+            e.style.setProperty('font-size', '0.78rem', 'important');
+          } else {
+            e.style.setProperty('font-size', '0.88rem', 'important');
+          }
         }
       });
     });
+
+    // ── Pair-glue for the first Transfer Switch row (capture only) ──
+    // The row is allowed to wrap, but each inline-label is wrapped together with its
+    // control in a nowrap inline-flex group, so a wrap can only occur between pairs:
+    // "# Transfer Switches" keeps its input beside it; "FPL/LCEC Shutdown" carries its
+    // Y/N group down to the next line instead of running off the page. Reverted after.
+    var _pairWraps = [];
+    (function gluePairs() {
+      var row = page.querySelector('#transfer-switch-row .inline-row');
+      if (!row) return;
+      row.querySelectorAll(':scope > .inline-label').forEach(function(lbl) {
+        var ctrl = lbl.nextElementSibling;
+        if (!ctrl) return;
+        var wrap = document.createElement('span');
+        wrap.setAttribute('data-capture-pair', '1');
+        wrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;min-width:0;';
+        row.insertBefore(wrap, lbl);
+        wrap.appendChild(lbl);
+        wrap.appendChild(ctrl);
+        _pairWraps.push(wrap);
+      });
+    })();
 
     // Replace ::before dots with real spans on live DOM BEFORE html2canvas clones
     // ::before pseudo-elements carry computed styles into clone — real spans carry inline styles
@@ -3379,6 +3424,13 @@ function capturePageToCanvas() {
       // Remove injected dots
       injectedDots.forEach(function(d) { if (d.parentNode) d.parentNode.removeChild(d); });
       injectedDots = [];
+      // Unwrap the label+control pair groups (move children out, drop the wrapper)
+      _pairWraps.forEach(function(w) {
+        if (!w.parentNode) return;
+        while (w.firstChild) { w.parentNode.insertBefore(w.firstChild, w); }
+        w.parentNode.removeChild(w);
+      });
+      _pairWraps = [];
       // Restore icon SVGs (remove the temp canvases, un-hide the originals)
       _iconSwaps.forEach(function(sw) {
         if (sw.canvas && sw.canvas.parentNode) sw.canvas.parentNode.removeChild(sw.canvas);
