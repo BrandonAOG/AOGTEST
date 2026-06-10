@@ -2362,7 +2362,7 @@ function getInitialTheme() {
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
   return 'light';
 }
-function applyTheme(theme) {
+function applyTheme(theme, persist) {
   var isDark = theme === 'dark';
   if (isDark) {
     document.body.classList.add('dark-mode');
@@ -2372,9 +2372,11 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', 'light');
   }
   document.documentElement.classList.remove('dark-mode-pending');
-  try { localStorage.setItem(THEME_KEY, theme); } catch(e) {}
+  // Only persist when the USER explicitly chose a theme. Persisting the
+  // system-derived theme would lock it in and break auto-follow of the OS setting.
+  if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch(e) {} }
 }
-function toggleTheme() { applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark'); }
+function toggleTheme() { applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark', true); }
 function setupThemeToggle() {
   var btn = document.getElementById('theme-toggle-btn');
   if (!btn) return;
@@ -2415,7 +2417,8 @@ function saveDraft() {
 }
 
 function restoreDraft() {
-  var saved = localStorage.getItem(DRAFT_KEY);
+  var saved = null;
+  try { saved = localStorage.getItem(DRAFT_KEY); } catch(e) {}
   if (!saved) return;
   try {
     var data = JSON.parse(saved);
@@ -2437,7 +2440,13 @@ function restoreDraft() {
 
 setInterval(saveDraft, 30000);
 document.addEventListener('change', saveDraft);
-document.addEventListener('input',  saveDraft);
+// Debounced on keystrokes — saving the whole form to localStorage on every 'input'
+// event (and again on 'change') causes jank on older tablets.
+var _saveDebounce;
+document.addEventListener('input', function() {
+  clearTimeout(_saveDebounce);
+  _saveDebounce = setTimeout(saveDraft, 400);
+});
 
 // ── SAVE DRAFT FILE ──
 function saveDraftFile() {
@@ -2864,6 +2873,7 @@ function printForm() {
     el = document.getElementById('safari-page-fix');  if (el) el.remove();
     el = document.getElementById('no-transitions');   if (el) el.remove();
     el = document.getElementById('print-instant-switch'); if (el) el.remove();
+    el = document.getElementById('desktop-page-margin'); if (el) el.remove();
     if (wasDark) document.body.classList.add('dark-mode');
     document.documentElement.classList.remove('desktop-print');
     document.documentElement.classList.remove('desktop-print-safari');
@@ -3876,7 +3886,9 @@ function createSeasonalCanvas(theme) {
   var ctx = canvas.getContext('2d');
   var W, H, particles = [], animId;
 
+  function isDead() { return !(canvas.isConnected !== undefined ? canvas.isConnected : document.body.contains(canvas)); }
   function resize() {
+    if (isDead()) { window.removeEventListener('resize', resize); return; }
     W = canvas.width  = page.offsetWidth;
     H = canvas.height = page.offsetHeight;
   }
@@ -4627,16 +4639,19 @@ function createSeasonalCanvas(theme) {
   for (var i=0;i<cfg.count;i++) particles.push(cfg.make());
 
   function loop() {
+    if (isDead()) { cancelAnimationFrame(animId); document.removeEventListener('visibilitychange', onVis); return; }
     ctx.clearRect(0,0,W,H);
     particles.forEach(function(p) { cfg.tick(p); cfg.draw(p); });
     animId = requestAnimationFrame(loop);
   }
   loop();
 
-  document.addEventListener('visibilitychange', function() {
+  function onVis() {
+    if (isDead()) { cancelAnimationFrame(animId); document.removeEventListener('visibilitychange', onVis); return; }
     if (document.hidden) { cancelAnimationFrame(animId); }
-    else { loop(); }
-  });
+    else { cancelAnimationFrame(animId); loop(); }
+  }
+  document.addEventListener('visibilitychange', onVis);
 }
 
 function injectSeasonalStyles() {
