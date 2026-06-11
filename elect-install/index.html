@@ -2650,6 +2650,17 @@ if (document.readyState === 'loading') {
   function handleTranscript(raw) {
     const t = normalize(raw);
 
+    // full reset of voice settings (language + range filter)
+    if (/\breset voice\b|\bvoice reset\b/.test(t)) {
+      try { localStorage.removeItem('voiceLang'); localStorage.removeItem('voiceGate2'); } catch(e) {}
+      voiceLang = 'en-US'; gateLevel = 'off';
+      updateVoiceBtn();
+      stopProximityGate();
+      if (listening && rec) { rec.lang = voiceLang; try { rec.stop(); } catch(e) {} }
+      showStatus('\u2713 Voice settings reset \u2014 English, no range filter', 'ok', 4000);
+      return;
+    }
+
     // proximity / sensitivity commands
     const gm = t.match(/\b(range filter|sensitivity|voice range|proximity)\b.*\b(off|low|medium|high|up|down)\b/) ||
                t.match(/\b(off|low|medium|high)\b\s*(range filter|sensitivity)\b/);
@@ -2838,12 +2849,19 @@ if (document.readyState === 'loading') {
   let rec = null, listening = false, restartOnEnd = false;
   let voiceLang = 'en-US';
   try { voiceLang = localStorage.getItem('voiceLang') || 'en-US'; } catch(e) {}
+  function updateVoiceBtn() {
+    const btn = document.getElementById('btn-voice');
+    if (btn) btn.textContent = '\ud83c\udfa4 VOICE ' + (voiceLang === 'es-US' ? 'ES' : 'EN');
+  }
   function switchLang(lang) {
     voiceLang = lang;
+    updateVoiceBtn();
     try { localStorage.setItem('voiceLang', lang); } catch(e) {}
     if (listening && rec) { rec.lang = lang; try { rec.stop(); } catch(e) {} } // onend restarts with new lang
     showStatus(lang === 'es-US' ? '\ud83c\udfa4 Modo espa\u00f1ol \u2014 diga el campo y el valor' : '\ud83c\udfa4 English mode', 'ok', 3500);
   }
+
+  setTimeout(updateVoiceBtn, 0);
 
   window.toggleVoiceEntry = function() {
     const btn = document.getElementById('btn-voice');
@@ -2866,6 +2884,7 @@ if (document.readyState === 'loading') {
     rec.maxAlternatives = 1;
 
     rec.onresult = (e) => {
+      gotResultSinceStart = true;
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
         const text = res[0].transcript.trim();
@@ -2881,13 +2900,14 @@ if (document.readyState === 'loading') {
         // allow chaining several commands in one breath: "... next ... next ..."
         text.split(/\bnext\b|\balso\b|\bthen\b/i).forEach(part => {
           part = part.trim();
-          if (part) handleTranscript(part);
+          if (!part) return;
+          try { handleTranscript(part); }
+          catch(err) { showStatus('\u26a0 Could not process: "' + part + '"', 'err', 4000); }
         });
       }
     };
     rec.onerror = (e) => {
       if (e.error === 'audio-capture') {
-        // mic fight (often the range-filter's 2nd stream) -> kill the gate and keep listening
         stopProximityGate();
         showStatus('Mic conflict \u2014 range filter disabled, voice still on', '', 4000);
         return;
@@ -2895,10 +2915,36 @@ if (document.readyState === 'loading') {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         restartOnEnd = false; listening = false;
         btn.classList.remove('listening');
-        showStatus('Mic blocked — allow microphone access in browser settings', 'err', 6000);
+        showStatus('Mic blocked \u2014 allow microphone access in browser settings', 'err', 6000);
+        return;
+      }
+      if (e.error === 'network') {
+        showStatus('\u26a0 No connection to speech service \u2014 voice needs internet', 'err', 4000);
+        return;
+      }
+      if (e.error !== 'no-speech' && e.error !== 'aborted') {
+        showStatus('\u26a0 Voice error: ' + e.error, 'err', 4000);
       }
     };
-    rec.onend = () => { if (restartOnEnd) { rec.lang = voiceLang; try { rec.start(); } catch(e) {} } };
+    let gotResultSinceStart = false;
+    let deadRestarts = 0;
+    rec.onstart = () => {
+      gotResultSinceStart = false;
+      showStatus('\ud83c\udfa4 Mic on (' + (voiceLang === 'es-US' ? 'Espa\u00f1ol' : 'English') + ') \u2014 talk anytime', '', 2500);
+    };
+    rec.onend = () => {
+      if (!restartOnEnd) return;
+      deadRestarts = gotResultSinceStart ? 0 : deadRestarts + 1;
+      if (deadRestarts >= 8) {
+        restartOnEnd = false; listening = false;
+        btn.classList.remove('listening');
+        stopProximityGate();
+        showStatus('\u26a0 Mic keeps cutting out \u2014 check: internet on? mic allowed? another app using mic? Then tap \ud83c\udfa4 again.', 'err', 9000);
+        return;
+      }
+      rec.lang = voiceLang;
+      setTimeout(() => { try { rec.start(); } catch(e) {} }, 250);
+    };
 
     restartOnEnd = true;
     listening = true;
