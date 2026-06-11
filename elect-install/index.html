@@ -2234,7 +2234,12 @@ if (document.readyState === 'loading') {
     // "service changed" -> "service change" (tense), and inspection/walkthrough section cues
     [/\bservice changed\b/g, 'service change'],
     [/\binspections?\b|\binspect\b/g, 'inspected'],
-    [/\bwalkthrough\b|\bwalk thru\b|\bwalk threw\b/g, 'walk through']
+    [/\bwalkthrough\b|\bwalk thru\b|\bwalk threw\b/g, 'walk through'],
+    // Gen-Pro wire mishears -> genpro
+    [/\bgen pro\b|\bgenpro\b|\bjin pro\b|\bjen pro\b|\bgym pro\b|\bgen pros\b|\bjenpro\b|\bgin pro\b|\bgen bro\b|\bjean pro\b|\bgenero\b/g, 'genpro'],
+    // kilowatt spellings -> kw, and glue number to kw ("22 kw" / "22 kilowatt" -> "22kw")
+    [/(\d+)\s*(kilowatts?|kilo watts?|kw|k w|k\.w\.)\b/g, '$1kw'],
+    [/\bkilowatts?\b|\bkilo watts?\b/g, 'kw']
   ];
   function normalize(t) {
     t = ' ' + t.toLowerCase()
@@ -2409,6 +2414,88 @@ if (document.readyState === 'loading') {
     if (!target) return false;
     const inputs = target.querySelectorAll('tbody input[type="text"]');
     const inp = inputs[cmd.idx];
+    if (!inp) return false;
+    setInputValue(inp, cmd.qty);
+    return true;
+  }
+
+  // ---------- THHN / Gen-Pro / kw TABLE (single row, 9 columns) ----------
+  // Columns, in DOM order:
+  // 0:14 AWG  1:12 AWG  2:10 AWG  3:Gen-Pro  4:22-24kw Al  5:22-24kw Cu
+  // 6:26kw Cu  7:26kw Al  8:28kw Al
+  const THHN_COLS = [
+    { idx:0, label:'14 AWG', metal:null, phrases:['14 awg','14 gauge','fourteen gauge','fourteen awg','number 14','number fourteen','#14','14 thhn','fourteen thhn'] },
+    { idx:1, label:'12 AWG', metal:null, phrases:['12 awg','12 gauge','twelve gauge','twelve awg','number 12','number twelve','#12','12 thhn','twelve thhn'] },
+    { idx:2, label:'10 AWG', metal:null, phrases:['10 awg','10 gauge','ten gauge','ten awg','number 10','number ten','#10','10 thhn','ten thhn'] },
+    { idx:3, label:'Gen-Pro Wire', metal:null, phrases:['genpro','genpro wire','gen pro wire'] },
+    { idx:4, label:'22-24kw Al', metal:'al', phrases:['22kw','24kw','22 24kw','22 to 24kw','2224kw','twenty two kw','twenty four kw'] },
+    { idx:5, label:'22-24kw Cu', metal:'cu', phrases:['22kw','24kw','22 24kw','22 to 24kw','2224kw','twenty two kw','twenty four kw'] },
+    { idx:6, label:'26kw Cu', metal:'cu', phrases:['26kw','twenty six kw'] },
+    { idx:7, label:'26kw Al', metal:'al', phrases:['26kw','twenty six kw'] },
+    { idx:8, label:'28kw Al', metal:'al', phrases:['28kw','twenty eight kw'] }
+  ];
+  function parseThhn(t) {
+    if (t.includes(' polaris') || t.includes(' wireway')) return null;
+    const td = ' ' + wordsToDigits(t).trim() + ' ';
+    const isCU = / copper | cu | cooper | coper /.test(t);
+    const isAL = / aluminum | aluminium | al | alum | aluminm /.test(t);
+
+    // find every column whose phrase appears
+    let hits = [];
+    THHN_COLS.forEach(col => {
+      col.phrases.forEach(p => {
+        const probe = ' ' + p + ' ';
+        if ((' '+t+' ').indexOf(probe) !== -1 || td.indexOf(probe) !== -1
+            || (' '+t+' ').indexOf(' '+p) !== -1 || td.indexOf(' '+p) !== -1) {
+          hits.push({ col, p });
+        }
+      });
+    });
+    if (!hits.length) return null;
+
+    // longest phrase wins as the primary size cue
+    hits.sort((a,b) => b.p.length - a.p.length);
+    const sizeTok = hits[0].p;
+    const sizeLabel = hits[0].col.label.replace(/\d+kw.*/,'').trim();
+
+    // candidate columns that matched this size token
+    let cands = hits.filter(h => h.p === sizeTok).map(h => h.col);
+
+    // kw rows need a metal to disambiguate Al vs Cu
+    const needsMetal = cands.some(c => c.metal);
+    let chosen = cands[0];
+    if (needsMetal) {
+      const want = isCU ? 'cu' : isAL ? 'al' : null;
+      if (!want) {
+        // 22-24kw exists in both; 26kw both; 28kw is Al-only
+        const onlyAl = cands.every(c => c.metal === 'al');
+        if (onlyAl) chosen = cands.find(c => c.metal === 'al');
+        else return { err: 'Which metal — copper or aluminum? e.g. "26kw copper 100"' };
+      } else {
+        const m = cands.find(c => c.metal === want);
+        if (!m) return { err: sizeTok.toUpperCase() + ' has no ' + want.toUpperCase() + ' column' };
+        chosen = m;
+      }
+    }
+
+    // quantity = a number that isn't part of the size token
+    let rem = td;
+    sizeTok.split(/\s+/).forEach(w => { rem = rem.replace(new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b'), ' '); });
+    rem = rem.replace(/\bawg\b|\bgauge\b|\bthhn\b|\bkw\b|\bcopper\b|\bcu\b|\baluminum\b|\baluminium\b|\bal\b|\bwire\b|\bfeet\b|\bfoot\b|\bgenpro\b|\bnumber\b/g, ' ');
+    const nums = rem.match(/\b\d+\b/g);
+    if (!nums) return { err: chosen.label + ' — say a length' };
+    return { table: 'thhn', col: chosen, qty: parseInt(nums[nums.length-1], 10) };
+  }
+  function applyThhn(cmd) {
+    const tables = document.querySelectorAll('#page2 table.mat-table, .form-page table.mat-table');
+    let target = null;
+    tables.forEach(tb => {
+      const th = tb.querySelector('thead th');
+      if (th && th.textContent.toUpperCase().indexOf('THHN') !== -1) target = tb;
+    });
+    if (!target) return false;
+    const inputs = target.querySelectorAll('tbody input[type="text"]');
+    const inp = inputs[cmd.col.idx];
     if (!inp) return false;
     setInputValue(inp, cmd.qty);
     return true;
@@ -2740,6 +2827,15 @@ if (document.readyState === 'loading') {
       return;
     }
 
+    // 0.5) THHN / Gen-Pro / kw table (14/12/10 AWG, genpro, 22-28kw columns)
+    const th = parseThhn(t);
+    if (th) {
+      if (th.err) { showStatus('❌ ' + th.err, 'err', 5000); return; }
+      if (applyThhn(th)) { showStatus('✓ ' + th.col.label + ' → ' + th.qty + ' ft', 'ok', 4000); }
+      else showStatus('❌ Could not find that THHN column', 'err', 4000);
+      return;
+    }
+
     // 1) wire length tables
     const w = parseWire(t);
     if (w) {
@@ -2878,7 +2974,17 @@ if (document.readyState === 'loading') {
       if (allNums) value = allNums[allNums.length - 1];
     }
 
-    if (!value) { showStatus('❌ "' + e.label + '" — say a value after the field name', 'err', 5000); return; }
+    // For free-text/date fields, people don't all speak in the same order.
+    // If nothing followed the field name, take whatever was said BEFORE it
+    // (e.g. "John Smith customer name", "today date"). Strip connective filler.
+    if (!isNumericField && !value) {
+      const before = tUsed.slice(0, m.index).trim()
+        .replace(/\b(set|put|enter|the|for|is|to|equals?|of|name|field)\b/g, ' ')
+        .replace(/\s+/g, ' ').trim();
+      if (before) value = before;
+    }
+
+    if (!value) { showStatus('❌ "' + e.label + '" — say a value with the field name', 'err', 5000); return; }
 
     if (e.el.type === 'date') {
       if (/today/.test(value)) value = isoToday();
