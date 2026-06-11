@@ -2244,6 +2244,11 @@ if (document.readyState === 'loading') {
   function normalize(t) {
     t = ' ' + t.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // strip accents: si, garcia, direccion
+      // split hyphens that join words ("three-aught", "one-aught", "made-up", "walk-through")
+      // but KEEP number-hyphen-zero ("4-0", "1-0") so the aught rule can see it
+      .replace(/([a-z])-(?=[a-z])/g, '$1 ')          // letter-letter:  three-aught -> three aught
+      .replace(/(\d)-(?=[a-z])/g, '$1 ')             // digit-letter:   3-aught -> 3 aught
+      .replace(/([a-z])-(?=\d)/g, '$1 ')             // letter-digit:   aught-1 -> aught 1
       .replace(/(\d)\s*["\u201d\u2033]?\s*[xX]\s*(?=\d)/g, '$1 by ')  // 4x4, 4 x 4, 4"x4" -> 4 by 4 (dimensions)
       .replace(/(\d)\s*['\u2019\u2032]/g, '$1 foot ')
       .replace(/(\d)\s*["\u201d\u2033]/g, '$1 inch ')
