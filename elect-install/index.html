@@ -2239,6 +2239,7 @@ if (document.readyState === 'loading') {
   function normalize(t) {
     t = ' ' + t.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // strip accents: si, garcia, direccion
+      .replace(/(\d)\s*["\u201d\u2033]?\s*[xX]\s*(?=\d)/g, '$1 by ')  // 4x4, 4 x 4, 4"x4" -> 4 by 4 (dimensions)
       .replace(/(\d)\s*['\u2019\u2032]/g, '$1 foot ')
       .replace(/(\d)\s*["\u201d\u2033]/g, '$1 inch ')
       .replace(/(\d)\s*in\b/g, '$1 inch')
@@ -2364,10 +2365,16 @@ if (document.readyState === 'loading') {
 
   function parseWire(t) {
     if (t.includes(' polaris')) return null;
-    const isCU = / copper | cu /.test(t);
-    const isAL = / aluminum | aluminium | al /.test(t);
+    const isCU = / copper | cu | cooper | coper /.test(t);
+    const isAL = / aluminum | aluminium | al | alum | aluminm /.test(t);
     if (!isCU && !isAL) {
-      // "AWG" (American Wire Gauge) spoken but no metal named — wire tables need CU or AL
+      // A gauge/aught was clearly spoken but the metal wasn't — both CU and AL
+      // tables exist, so we must know which. Give a concrete prompt.
+      const saidGauge = / aught | ought | awg /.test(t) || /\b\d\/0\b/.test(t) ||
+        /\b(one|two|three|four) (aught|ought)\b/.test(t);
+      if (saidGauge) {
+        return { err: 'Say copper or aluminum first — e.g. "copper one aught 50"' };
+      }
       if (/ awg /.test(t) && !t.includes(' polaris') && !/ port | straight/.test(t)) {
         return { err: 'Which wire — copper or aluminum? e.g. "copper 2 AWG 60"' };
       }
