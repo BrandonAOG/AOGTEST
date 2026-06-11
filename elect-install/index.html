@@ -1227,12 +1227,12 @@ body.dark-mode .ft-label { color: #7DD3FC; }
     </div>
 
     <div class="top-fields">
-      <div class="field-row"><label>Customer Name:</label><input type="text"></div>
+      <div class="field-row"><label>Customer Name:</label><input type="text" autocapitalize="words" autocomplete="name" enterkeyhint="next"></div>
       <div class="field-row"><label>Date:</label><input type="date"></div>
-      <div class="field-row"><label>Address:</label><input type="text"></div>
+      <div class="field-row"><label>Address:</label><input type="text" autocapitalize="words" autocomplete="street-address" enterkeyhint="next"></div>
       <div class="field-row"><label>Install Truck:</label><input type="text"></div>
       <div class="field-row"><label>Job:</label><input type="text"></div>
-      <div class="field-row"><label>Team Member Names:</label><input type="text"></div>
+      <div class="field-row"><label>Team Member Names:</label><input type="text" autocapitalize="words" enterkeyhint="done"></div>
     </div>
 
     <div class="two-col">
@@ -3303,6 +3303,50 @@ if (document.readyState === 'loading') {
     showStatus('🎤 Listening — say a field and value, e.g. "battery connected yes" or "PVC pipe two inch 5"');
     try { rec.start(); } catch(e) {}
   };
+
+  // ---------- KEYBOARD-MIC COEXISTENCE ----------
+  // iPhone/Android let only ONE thing use the microphone at a time. While our
+  // continuous recognizer holds the mic, tapping the keyboard's own dictation mic
+  // captures nothing. So: the moment a text box is focused (the keyboard — and its
+  // mic — is coming up), we let go of the mic; when the box is blurred, we resume
+  // if the user had voice on.
+  let pausedForKeyboard = false;
+  function isTypableTextField(el) {
+    if (!el) return false;
+    if (el.tagName === 'TEXTAREA') return true;
+    if (el.tagName !== 'INPUT') return false;
+    const t = (el.getAttribute('type') || 'text').toLowerCase();
+    // number pads have no mic; only release for fields that show the full keyboard
+    if (el.getAttribute('inputmode') === 'numeric') return false;
+    return t === 'text' || t === 'email' || t === 'tel' || t === 'search' || t === 'url';
+  }
+  document.addEventListener('focusin', (e) => {
+    if (!isTypableTextField(e.target)) return;
+    // release the mic for the keyboard, remember to resume
+    if (listening) {
+      pausedForKeyboard = true;
+      restartOnEnd = false;
+      listening = false;
+      try { rec && rec.stop(); } catch(err) {}
+      try { stopProximityGate(); } catch(err) {}
+      const b = document.getElementById('btn-voice');
+      if (b) b.classList.remove('listening');
+      showStatus('\u2328\ufe0f Keyboard dictation ready \u2014 voice resumes when you tap out', '', 2500);
+    }
+  });
+  document.addEventListener('focusout', (e) => {
+    if (!isTypableTextField(e.target)) return;
+    if (!pausedForKeyboard) return;
+    pausedForKeyboard = false;
+    // give iOS a moment to release the mic before we re-grab it
+    setTimeout(() => {
+      // only resume if the user didn't move into another text field
+      if (isTypableTextField(document.activeElement)) { pausedForKeyboard = true; return; }
+      if (typeof window.toggleVoiceEntry === 'function' && !listening) {
+        window.toggleVoiceEntry(); // turn voice back on
+      }
+    }, 400);
+  });
 })();
 
 // ===== SERVICE WORKER =====
