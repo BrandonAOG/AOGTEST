@@ -2227,6 +2227,8 @@ if (document.readyState === 'loading') {
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // strip accents: si, garcia, direccion
       .replace(/(\d)\s*['\u2019\u2032]/g, '$1 foot ')
       .replace(/(\d)\s*["\u201d\u2033]/g, '$1 inch ')
+      .replace(/(\d)\s*in\b/g, '$1 inch')
+      .replace(/(\d)\s*ft\b/g, '$1 foot')
       .replace(/[.,!?:;]/g, ' ')
       .replace(/&/g, ' and ')
       .replace(/\s+/g, ' ').trim() + ' ';
@@ -2285,12 +2287,12 @@ if (document.readyState === 'loading') {
   ];
   const FITTING_ROWS = [
     { label:'PVC Pipe',                phrases:['pvc pipe','pipe','pvc'] },
-    { label:'Weatherproof Seals',      phrases:['weatherproof seal','weatherproof seals','weather proof seal','weather proof seals'] },
+    { label:'Weatherproof Seals',      phrases:['weatherproof seal','weatherproof seals','weather proof seal','weather proof seals','weatherproof'] },
     { label:'Weatherproof Lock Rings', phrases:['weatherproof lock ring','weatherproof lock rings','weather proof lock ring','weather proof lock rings'] },
-    { label:'Fiber Bushings',          phrases:['fiber bushing','fiber bushings','fibre bushing'] },
+    { label:'Fiber Bushings',          phrases:['fiber bushing','fiber bushings','fibre bushing','bushings','bushing'] },
     { label:'Lock Rings',              phrases:['lock ring','lock rings'] },
-    { label:'Male Adapters',           phrases:['male adapter','male adapters'] },
-    { label:'Female Adapters',         phrases:['female adapter','female adapters'] },
+    { label:'Male Adapters',           phrases:['male adapter','male adapters','male','males'] },
+    { label:'Female Adapters',         phrases:['female adapter','female adapters','female','females'] },
     { label:'Couplings',               phrases:['coupling','couplings'] },
     { label:'Box Adapters',            phrases:['box adapter','box adapters'] },
     { label:'LB PVC',                  phrases:['lb pvc','lb','l b'] },
@@ -2298,14 +2300,14 @@ if (document.readyState === 'loading') {
     { label:'LR PVC',                  phrases:['lr pvc','lr','l r'] },
     { label:'Sch40 90s',               phrases:['schedule 40 90','schedule forty 90','90s','nineties','90 degree','ninety degree','sweep 90'] },
     { label:'Sch40 45s',               phrases:['schedule 40 45','45s','45 degree','forty fives'] },
-    { label:'Seal Tight Straights',    phrases:['seal tight straight','seal tight straights','sealtight straight','sealtight straights'] },
+    { label:'Seal Tight Straights',    phrases:['seal tight straight','seal tight straights','sealtight straight','sealtight straights','straights'] },
     { label:'Seal Tight 90s',          phrases:['seal tight 90','seal tight 90s','seal tight ninety','sealtight 90','sealtight 90s'] },
     { label:'Seal Tight Car-Flex Hose',phrases:['car flex','carflex','seal tight hose','flex hose'] },
-    { label:'Myers Hubs',              phrases:['myers hub','myers hubs','meyers hub','meyers hubs','myers'] },
+    { label:'Myers Hubs',              phrases:['myers hub','myers hubs','meyers hub','meyers hubs','myers','hubs','hub'] },
     { label:'PVC Offset',              phrases:['pvc offset','offset','offsets'] },
     { label:"Mini's",                  phrases:['mini','minis',"mini's",'minnies'] },
-    { label:'Strut Clamps',            phrases:['strut clamp','strut clamps'] },
-    { label:'Two Hole Straps PVC',     phrases:['two hole strap','two hole straps','2 hole strap','2 hole straps'] },
+    { label:'Strut Clamps',            phrases:['strut clamp','strut clamps','clamps','clamp'] },
+    { label:'Two Hole Straps PVC',     phrases:['two hole strap','two hole straps','2 hole strap','2 hole straps','straps','strap','two hole'] },
     { label:'K.O. Seals',              phrases:['ko seal','ko seals','knockout seal','knockout seals','knock out seal','knock out seals','k o seal','k o seals'] }
   ];
   const WIREWAY_ROWS = [
@@ -2648,6 +2650,17 @@ if (document.readyState === 'loading') {
   function handleTranscript(raw) {
     const t = normalize(raw);
 
+    // proximity / sensitivity commands
+    const gm = t.match(/\b(range filter|sensitivity|voice range|proximity)\b.*\b(off|low|medium|high|up|down)\b/) ||
+               t.match(/\b(off|low|medium|high)\b\s*(range filter|sensitivity)\b/);
+    if (gm) {
+      let lv = gm[2] || gm[1];
+      if (lv === 'up')   lv = gateLevel === 'low' ? 'medium' : 'high';
+      if (lv === 'down') lv = gateLevel === 'high' ? 'medium' : 'low';
+      setGate(lv);
+      return;
+    }
+
     // language switching
     if (/\bespanol\b|\bespa\u00f1ol\b|\bspanish\b/.test(t)) { switchLang('es-US'); return; }
     if (/\benglish\b|\bingles\b|\bingl\u00e9s\b/.test(t)) { switchLang('en-US'); return; }
@@ -2755,6 +2768,68 @@ if (document.readyState === 'loading') {
     showStatus('✓ ' + e.label + sec + ' → ' + value, 'ok', 4000);
   }
 
+  // ---------- proximity gate (loudness-based) ----------
+  // A mic can't measure distance, but close voices are much louder. We track the
+  // peak level during each utterance and discard commands that were too quiet
+  // (i.e. probably someone across the room, not the person holding the phone).
+  let gateLevel = 'medium';
+  try { gateLevel = localStorage.getItem('voiceGate') || 'medium'; } catch(e) {}
+  const GATE_THRESHOLDS = { off: 0, low: 0.02, medium: 0.05, high: 0.10 }; // peak RMS 0..1
+  let audioCtx = null, analyser = null, gateData = null, gateTimer = null;
+  let utterPeak = 0;
+
+  function startProximityGate() {
+    if (GATE_THRESHOLDS[gateLevel] === 0) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.AudioContext && !window.webkitAudioContext) return;
+    navigator.mediaDevices.getUserMedia({ audio: { noiseSuppression: true, echoCancellation: true } })
+      .then(stream => {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AC();
+        const src = audioCtx.createMediaStreamSource(stream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        src.connect(analyser);
+        gateData = new Float32Array(analyser.fftSize);
+        gateTimer = setInterval(() => {
+          if (!analyser) return;
+          analyser.getFloatTimeDomainData(gateData);
+          let sum = 0;
+          for (let i = 0; i < gateData.length; i++) sum += gateData[i] * gateData[i];
+          const rms = Math.sqrt(sum / gateData.length);
+          if (rms > utterPeak) utterPeak = rms;
+        }, 60);
+        audioCtx.__stream = stream;
+      })
+      .catch(() => { /* gate unavailable -> recognition still works, just ungated */ });
+  }
+  function stopProximityGate() {
+    clearInterval(gateTimer); gateTimer = null;
+    if (audioCtx) {
+      try { if (audioCtx.__stream) audioCtx.__stream.getTracks().forEach(tr => tr.stop()); } catch(e) {}
+      try { audioCtx.close(); } catch(e) {}
+    }
+    audioCtx = null; analyser = null; utterPeak = 0;
+  }
+  // returns true if the just-finished utterance was loud enough (close enough)
+  function passesGate() {
+    const th = GATE_THRESHOLDS[gateLevel];
+    if (th === 0 || !analyser) return true;   // gate off or unavailable
+    const peak = utterPeak;
+    utterPeak = 0;                            // reset for next utterance
+    return peak >= th;
+  }
+  function setGate(level) {
+    gateLevel = level;
+    try { localStorage.setItem('voiceGate', level); } catch(e) {}
+    if (level === 'off') stopProximityGate();
+    else if (listening && !gateTimer) startProximityGate();
+    showStatus('\u2713 Voice range filter: ' + level.toUpperCase() +
+      (level === 'off' ? ' \u2014 hears everything' :
+       level === 'high' ? ' \u2014 must talk close to the phone' :
+       level === 'low'  ? ' \u2014 picks up across the room' :
+       ' \u2014 normal arm\u2019s length'), 'ok', 4500);
+  }
+
   // ---------- speech recognition ----------
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let rec = null, listening = false, restartOnEnd = false;
@@ -2776,6 +2851,7 @@ if (document.readyState === 'loading') {
       try { rec.stop(); } catch(e) {}
       listening = false;
       btn.classList.remove('listening');
+      stopProximityGate();
       showStatus('Voice entry off', '', 2000);
       return;
     }
@@ -2793,6 +2869,10 @@ if (document.readyState === 'loading') {
         if (!text) continue;
         if (!res.isFinal) {
           showStatus('\ud83c\udfa4 ' + text + '\u2026');
+          continue;
+        }
+        if (!passesGate()) {
+          showStatus('\ud83d\udd07 Too far/quiet \u2014 ignored ("' + text + '")', '', 3000);
           continue;
         }
         // allow chaining several commands in one breath: "... next ... next ..."
@@ -2814,6 +2894,7 @@ if (document.readyState === 'loading') {
     restartOnEnd = true;
     listening = true;
     btn.classList.add('listening');
+    startProximityGate();
     showStatus('🎤 Listening — say a field and value, e.g. "battery connected yes" or "PVC pipe two inch 5"');
     try { rec.start(); } catch(e) {}
   };
