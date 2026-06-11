@@ -2847,8 +2847,8 @@ if (document.readyState === 'loading') {
   // ---------- speech recognition ----------
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let rec = null, listening = false, restartOnEnd = false;
-  let voiceLang = 'en-US';
-  try { voiceLang = localStorage.getItem('voiceLang') || 'en-US'; } catch(e) {}
+  let voiceLang = 'en-US';   // always starts in English; auto-detects Spanish below
+  try { localStorage.removeItem('voiceLang'); } catch(e) {}  // clear any stuck setting from older versions
   function updateVoiceBtn() {
     const btn = document.getElementById('btn-voice');
     if (btn) btn.textContent = '\ud83c\udfa4 VOICE ' + (voiceLang === 'es-US' ? 'ES' : 'EN');
@@ -2856,9 +2856,43 @@ if (document.readyState === 'loading') {
   function switchLang(lang) {
     voiceLang = lang;
     updateVoiceBtn();
-    try { localStorage.setItem('voiceLang', lang); } catch(e) {}
     if (listening && rec) { rec.lang = lang; try { rec.stop(); } catch(e) {} } // onend restarts with new lang
     showStatus(lang === 'es-US' ? '\ud83c\udfa4 Modo espa\u00f1ol \u2014 diga el campo y el valor' : '\ud83c\udfa4 English mode', 'ok', 3500);
+  }
+
+  // ---- automatic language detection ----
+  // The recognizer can only transcribe ONE language at a time. So: listen in the
+  // current language; when a phrase fails to parse, sniff it for the other
+  // language's words and auto-switch, asking the speaker to repeat once.
+  const ES_MARKERS = /\b(el|la|los|las|de|del|con|por|para|que|esta|esto|pero|tubo|tuberia|pulgada|pulgadas|coples?|cobre|aluminio|cliente|fecha|hoy|direccion|bateria|caja|codos?|cemento|concreto|listo|bueno|cuanto|donde|aqui|tambien|interruptor|generador|inspeccion|si)\b/g;
+  const EN_MARKERS = /\b(the|and|with|inch|inches|foot|feet|yes|no|pipe|copper|aluminum|wire|switch|battery|customer|name|date|today|connected|coupling|couplings|male|female|check|clean|ready|adapter|adapters)\b/g;
+  let langFailStreak = 0;
+  function sniffLanguage(rawText) {
+    const t = ' ' + rawText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') + ' ';
+    const es = (t.match(ES_MARKERS) || []).length;
+    const en = (t.match(EN_MARKERS) || []).length;
+    if (es >= 2 && es > en) return 'es-US';
+    if (en >= 2 && en > es) return 'en-US';
+    return null;
+  }
+  function maybeAutoSwitch(rawText, anySuccess) {
+    if (anySuccess) { langFailStreak = 0; return; }
+    langFailStreak++;
+    const guess = sniffLanguage(rawText);
+    if (guess && guess !== voiceLang) {
+      langFailStreak = 0;
+      switchLang(guess);
+      showStatus(guess === 'es-US'
+        ? '\ud83d\udd04 Detect\u00e9 espa\u00f1ol \u2014 repita por favor'
+        : '\ud83d\udd04 Switched to English \u2014 please repeat that', 'ok', 4500);
+      return;
+    }
+    // stuck in Spanish hearing nothing useful? fall back to English after 3 misses
+    if (voiceLang === 'es-US' && langFailStreak >= 3) {
+      langFailStreak = 0;
+      switchLang('en-US');
+      showStatus('\ud83d\udd04 Back to English \u2014 please repeat', 'ok', 4500);
+    }
   }
 
   setTimeout(updateVoiceBtn, 0);
@@ -2898,12 +2932,17 @@ if (document.readyState === 'loading') {
           continue;
         }
         // allow chaining several commands in one breath: "... next ... next ..."
+        let anySuccess = false;
         text.split(/\bnext\b|\balso\b|\bthen\b/i).forEach(part => {
           part = part.trim();
           if (!part) return;
-          try { handleTranscript(part); }
+          try {
+            handleTranscript(part);
+            if (statusEl.className.indexOf('ok') !== -1) anySuccess = true;
+          }
           catch(err) { showStatus('\u26a0 Could not process: "' + part + '"', 'err', 4000); }
         });
+        maybeAutoSwitch(text, anySuccess);
       }
     };
     rec.onerror = (e) => {
