@@ -2218,7 +2218,11 @@ if (document.readyState === 'loading') {
     [/\bgage\b/g, 'gauge'], [/\bamerican wire gauge\b/g, 'awg'], [/\bamerican wire gage\b/g, 'awg'],
     [/\bwire way\b/g, 'wireway'], [/\bsealtight\b/g, 'seal tight'], [/\bseal type\b/g, 'seal tight'],
     [/\bmyer'?s\b/g, 'myers'], [/\bmeyer'?s\b/g, 'myers'],
-    [/\bought\b|\bnaught\b/g, 'aught'],
+    // numeric "4/0", "4-0", "4 0" -> "four aught" (do this BEFORE word->digit conversion)
+    [/\b([1-4])\s*[\/\-]\s*0\b/g, (m, d) => ({1:'one',2:'two',3:'three',4:'four'}[d]) + ' aught'],
+    // misheard "aught" — only when it follows a number word, so real words (art, odd, auto) elsewhere are safe
+    [/\b(one|two|three|four|1|2|3|4)\s+(ought|naught|aught|art|arts|yacht|yaught|yachts|ot|odd|auto|otto|ah|aw|out)\b/g,
+      (m, num) => num + ' aught'],
     [/\bj box\b/g, 'jbox'], [/\bjay box\b/g, 'jbox'],
     [/\bcustomer'?s name\b/g, 'customer name']
   ];
