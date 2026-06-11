@@ -2239,8 +2239,46 @@ if (document.readyState === 'loading') {
     [/\bgen pro\b|\bgenpro\b|\bjin pro\b|\bjen pro\b|\bgym pro\b|\bgen pros\b|\bjenpro\b|\bgin pro\b|\bgen bro\b|\bjean pro\b|\bgenero\b/g, 'genpro'],
     // kilowatt spellings -> kw, and glue number to kw ("22 kw" / "22 kilowatt" -> "22kw")
     [/(\d+)\s*(kilowatts?|kilo watts?|kw|k w|k\.w\.)\b/g, '$1kw'],
-    [/\bkilowatts?\b|\bkilo watts?\b/g, 'kw']
+    [/\bkilowatts?\b|\bkilo watts?\b/g, 'kw'],
+    // "grounds and neutrals separated" in ANY order/filler:
+    // "neutral and grounds are separated", "grounds separated and neutrals separated", etc.
+    [/\b(ground|grounds|neutral|neutrals)\b(?:\s+(?:and|are|is|the|both)\b|\s+(?:ground|grounds|neutral|neutrals)\b|\s+separated\b)+/g,
+      (m) => /separat/.test(m) ? 'grounds and neutrals separated' : m]
   ];
+  // ---------- AUGHT LISTENER ----------
+  // The word "aught" (0-gauge wire) is the single hardest token for phone speech
+  // engines. They render it as: ought, naught, not, odd, art, auto, otto, ot,
+  // yacht, oughta, ah, aw, out, oh, etc. We canonicalize these to "aught" — but
+  // ONLY in clear wire context, and the riskier homophones ("not", "all", "art",
+  // "odd", "auto") are converted ONLY when sitting right next to a 1-4 size word,
+  // so ordinary words elsewhere on the form are never touched.
+  function aughtListener(t) {
+    const wireContext = / copper | cu | cooper | coper | aluminum | aluminium | al | alum | awg /.test(t);
+
+    // (a) number + aught-ish word (any homophone) -> "N aught"  [always safe: number-anchored]
+    t = t.replace(/\b(one|two|three|four|1|2|3|4)\s+(aught|ought|oughta|naught|nought|not|odd|art|arts|auto|otto|ot|oot|yacht|yaught|yachts|aut|all|oh|aw|ah|out|o)\b/g,
+      (m, num) => num + ' aught');
+
+    if (!wireContext) return t;
+
+    // (b) in wire context only, a SAFE-set standalone aught word -> "aught"
+    //     (these are not common English words that appear elsewhere on this form)
+    t = t.replace(/\b(aught|ought|oughta|naught|nought|yacht|yaught)\b/g, 'aught');
+
+    // (b2) metal directly followed by a riskier aught-homophone -> that means a
+    //      single-aught (1/0) size, e.g. "copper auto 50", "copper odd 50".
+    //      Safe because it's pinned between the metal word and the rest.
+    t = t.replace(/\b(copper|cu|cooper|coper|aluminum|aluminium|al|alum)\s+(odd|art|arts|auto|otto|ot|oot|out|all|oh|o|aut)\b/g,
+      '$1 aught');
+
+    // (c) collapse "aught oh/zero/o" and accidental "aught aught"
+    t = t.replace(/\baught\s+(aught|oh|zero|o)\b/g, 'aught');
+
+    // (d) join a size word to a nearby standalone "aught" with filler between
+    t = t.replace(/\b(one|two|three|four|1|2|3|4)\b[^0-9a-z]+\baught\b/g, '$1 aught');
+
+    return t;
+  }
   function normalize(t) {
     t = ' ' + t.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // strip accents: si, garcia, direccion
@@ -2259,6 +2297,7 @@ if (document.readyState === 'loading') {
       .replace(/\s+/g, ' ').trim() + ' ';
     SPANISH.forEach(h => { t = t.replace(h[0], h[1]); });
     HOMOPHONES.forEach(h => { t = t.replace(h[0], h[1]); });
+    t = aughtListener(t);
     return t.replace(/\s+/g, ' ');
   }
   function wordsToDigits(t) {
@@ -2363,7 +2402,7 @@ if (document.readyState === 'loading') {
       '4/0':['four aught','four ought','four naught','four not','four oh','four zero','four over zero','four slash zero','4 aught','4 ought','4 naught','4/0','quad aught','quadruple aught','quadruple ought'],
       '3/0':['three aught','three ought','three naught','three not','three oh','three zero','three over zero','three slash zero','3 aught','3 ought','3 naught','3/0','triple aught','triple ought'],
       '2/0':['two aught','two ought','two naught','two not','two oh','two zero','two over zero','two slash zero','2 aught','2 ought','2 naught','2/0','double aught','double ought','double oh'],
-      '1/0':['one aught','one ought','one naught','one not','one oh','one zero','one over zero','one slash zero','1 aught','1 ought','1 naught','1/0','single aught','aught one'],
+      '1/0':['one aught','one ought','one naught','one not','one oh','one zero','one over zero','one slash zero','1 aught','1 ought','1 naught','1/0','single aught','aught one','aught'],
       '#1':['number one','number 1','one awg','1 awg','one gauge'], '#2':['number two','number 2','two awg','2 awg','two gauge'],
       '#3':['number three','number 3','three awg','3 awg','three gauge'], '#4':['number four','number 4','four awg','4 awg','four gauge'],
       '#6':['number six','number 6','six awg','6 awg','six gauge'], '#6 GRN':['number six green','number 6 green','green ground','six green','6 awg green']
@@ -2575,7 +2614,7 @@ if (document.readyState === 'loading') {
     'install truck': ['truck'],
     'team member names': ['team members','crew names','crew'],
     'generator size': ['gen size'],
-    'pad or stand installed': ['pad or stand','stand installed'],
+    'pad or stand installed': ['pad or stand','stand installed','pad installed','pad stand'],
     'generator set and mounted': ['set and mounted','generator mounted'],
     'connected to mobile link': ['mobile link'],
     'battery connected': ['battery'],
@@ -2584,7 +2623,7 @@ if (document.readyState === 'loading') {
     'generator manual': ['manual'],
     'harness plugged in transfer switch es': ['harness plugged in','harness'],
     'grounding updated': ['grounding'],
-    'grounds and neutrals separated': ['grounds and neutrals','neutrals separated'],
+    'grounds and neutrals separated': ['grounds and neutrals','neutrals separated','grounds separated','neutral and grounds','neutrals and grounds','ground and neutral','neutral and ground','grounds and neutral','neutral and grounds separated','neutrals and grounds separated','grounds neutrals separated','neutrals grounds separated','separated grounds and neutrals','separated neutrals and grounds','grounds and neutrals are separated','neutrals and grounds are separated'],
     'transfer switch es made up': ['transfer switch made up','transfer switches made up'],
     'generator electrical run': ['electrical run'],
     '60a load shed installed and programmed': ['60 amp load shed','60a load shed','sixty amp load shed'],
@@ -2714,15 +2753,42 @@ if (document.readyState === 'loading') {
 
   function matchField(t, entries) {
     let best = null;
+
+    // Which non-generic option words did the speaker actually say? (existing, ase,
+    // nse, ug, attic, surface mount, etc.) Knowing this lets us prefer the field
+    // that CAN accept that option, and avoid a shorter label that can't.
+    const spokenOpts = [];
+    entries.forEach(e => {
+      if (e.kind !== 'checkrow') return;
+      e.options.forEach(o => {
+        o.phrases.forEach(p => {
+          if ((t.indexOf(' ' + p + ' ') !== -1 || t.indexOf(' ' + p) !== -1) && spokenOpts.indexOf(o.base) === -1) {
+            spokenOpts.push(o.base);
+          }
+        });
+      });
+    });
+    // restrict to distinctive option words — yes/no are too common to use as a router
+    const routingOpts = spokenOpts.filter(b => b !== 'yes' && b !== 'no');
+    const rowHasOpt = (e, base) => e.kind === 'checkrow' && e.options.some(o => o.base === base);
+
     entries.forEach(e => {
       const sectionPresent = e.section && t.indexOf(' ' + e.section) !== -1;
+      // does this row support every distinctive option the speaker named?
+      const optCompatible = routingOpts.length ? routingOpts.every(b => rowHasOpt(e, b)) : true;
+      const optBonus = (routingOpts.length && optCompatible) ? 60 : 0;
+      // a label match on a row that can't accept the spoken option is almost surely
+      // the wrong field (e.g. "pad existing" hitting the yes/no-only "Pad" row)
+      const optPenalty = (routingOpts.length && !optCompatible) ? 1000 : 0;
+
       // label phrases
       e.phrases.forEach(p => {
         if (!p) return;
         const i = t.indexOf(' ' + p + ' ') !== -1 ? t.indexOf(' ' + p + ' ') : t.indexOf(' ' + p);
         if (i !== -1) {
           let score = p.length;
-          if (sectionPresent) score += 100; // section spoken explicitly
+          if (sectionPresent) score += 100;
+          score += optBonus - optPenalty;
           if (!best || score > best.score) best = { entry: e, phrase: p, index: i, score, via: 'label' };
         }
       });
@@ -2731,12 +2797,25 @@ if (document.readyState === 'loading') {
       // section is named explicitly ("transfer switch 2 existing") it's unambiguous.
       if (e.kind === 'checkrow') {
         e.options.forEach(o => {
-          if (GENERIC_OPTS.indexOf(o.base) !== -1 && !sectionPresent) return;
+          const isGeneric = GENERIC_OPTS.indexOf(o.base) !== -1;
+          // A generic option can match on its own when it's a distinctive routing
+          // option the speaker named AND this row can accept it. Among multiple
+          // owners, label/section bonuses and the -1000 incompatibility penalty
+          // settle which one wins.
+          const isRoutingOpt = routingOpts.indexOf(o.base) !== -1;
+          if (isGeneric && !sectionPresent && !isRoutingOpt) return;
           o.phrases.forEach(p => {
             const i = t.indexOf(' ' + p + ' ') !== -1 ? t.indexOf(' ' + p + ' ') : t.indexOf(' ' + p);
             if (i !== -1) {
               let score = p.length;
               if (sectionPresent) score += 100;
+              score += optBonus;
+              // tie-breaker: if a distinctive word from THIS row's label/aliases is
+              // also spoken ("pad" in "pad existing"), nudge it ahead of other rows
+              // that share the same option.
+              const labelWords = (e.phrases.join(' ').match(/[a-z]{3,}/g) || [])
+                .filter(w => ['the','and','for','installed'].indexOf(w) === -1);
+              if (labelWords.some(w => t.indexOf(' ' + w) !== -1)) score += 15;
               if (!best || score > best.score) best = { entry: e, phrase: p, index: i, score, via: 'option', option: o };
             }
           });
