@@ -2230,7 +2230,11 @@ if (document.readyState === 'loading') {
     [/\ba ?t ?s\b|\ba\.t\.s\b|\bat and s\b|\bat s\b/g, 'transfer switch'],
     // bare "switch" -> "transfer switch", but NOT when "transfer" already precedes it
     // (avoids "transfer transfer switch"). Also leaves "load shed"/"disconnect" etc. alone.
-    [/\b(?<!transfer )switch\b/g, 'transfer switch']
+    [/\b(?<!transfer )switch\b/g, 'transfer switch'],
+    // "service changed" -> "service change" (tense), and inspection/walkthrough section cues
+    [/\bservice changed\b/g, 'service change'],
+    [/\binspections?\b|\binspect\b/g, 'inspected'],
+    [/\bwalkthrough\b|\bwalk thru\b|\bwalk threw\b/g, 'walk through']
   ];
   function normalize(t) {
     t = ' ' + t.toLowerCase()
@@ -2545,7 +2549,12 @@ if (document.readyState === 'loading') {
     const sec = el.closest('.section');
     if (sec) {
       const title = sec.querySelector('.section-title');
-      if (title) return labelPhrase(title.textContent).replace(/ s$/, '');
+      if (title) {
+        let s = labelPhrase(title.textContent).replace(/ s$/, '');
+        // align section name with how it's spoken (normalize() turns these the same way)
+        if (s === 'inspection' || s === 'inspections') s = 'inspected';
+        return s;
+      }
     }
     return '';
   }
@@ -2607,25 +2616,28 @@ if (document.readyState === 'loading') {
   function matchField(t, entries) {
     let best = null;
     entries.forEach(e => {
+      const sectionPresent = e.section && t.indexOf(' ' + e.section) !== -1;
       // label phrases
       e.phrases.forEach(p => {
         if (!p) return;
         const i = t.indexOf(' ' + p + ' ') !== -1 ? t.indexOf(' ' + p + ' ') : t.indexOf(' ' + p);
         if (i !== -1) {
           let score = p.length;
-          if (e.section && t.indexOf(' ' + e.section) !== -1) score += 100; // section spoken explicitly
+          if (sectionPresent) score += 100; // section spoken explicitly
           if (!best || score > best.score) best = { entry: e, phrase: p, index: i, score, via: 'label' };
         }
       });
-      // distinctive checkbox option phrases (match without label)
+      // distinctive checkbox option phrases (match without label).
+      // Generic options (yes/no/existing) normally need their label, BUT if the
+      // section is named explicitly ("transfer switch 2 existing") it's unambiguous.
       if (e.kind === 'checkrow') {
         e.options.forEach(o => {
-          if (GENERIC_OPTS.indexOf(o.base) !== -1) return;
+          if (GENERIC_OPTS.indexOf(o.base) !== -1 && !sectionPresent) return;
           o.phrases.forEach(p => {
             const i = t.indexOf(' ' + p + ' ') !== -1 ? t.indexOf(' ' + p + ' ') : t.indexOf(' ' + p);
             if (i !== -1) {
               let score = p.length;
-              if (e.section && t.indexOf(' ' + e.section) !== -1) score += 100;
+              if (sectionPresent) score += 100;
               if (!best || score > best.score) best = { entry: e, phrase: p, index: i, score, via: 'option', option: o };
             }
           });
@@ -2694,6 +2706,28 @@ if (document.readyState === 'loading') {
       }
       return;
     }
+    if (/\b(remove|delete|drop|erase|get rid of|take out|take off|cancel|scratch) transfer switch\b/.test(t)) {
+      const blocks = document.querySelectorAll('.ts-block');
+      if (blocks.length <= 1) {
+        showStatus('❌ Only one Transfer Switch — can\u2019t remove the last one', 'err', 4000);
+        return;
+      }
+      // "remove transfer switch 2" -> that one; otherwise remove the last
+      const nm = wordsToDigits(t).match(/transfer switch\s+(\d+)/);
+      let target;
+      if (nm) {
+        const idx = parseInt(nm[1], 10) - 1;
+        target = blocks[idx];
+        if (!target) { showStatus('❌ No Transfer Switch ' + nm[1] + ' to remove', 'err', 4000); return; }
+      } else {
+        target = blocks[blocks.length - 1];
+      }
+      const label = (target.querySelector('.ts-header-left')?.textContent || 'Transfer Switch').trim();
+      target.remove();
+      if (typeof renumberTS === 'function') renumberTS();
+      showStatus('✓ Removed ' + label, 'ok', 3000);
+      return;
+    }
     if (/\bstop listening\b|\bvoice off\b|\bturn off voice\b/.test(t)) {
       window.toggleVoiceEntry();
       return;
@@ -2720,10 +2754,52 @@ if (document.readyState === 'loading') {
     // 3) form fields (checkboxes + text), index rebuilt live so new TS blocks are included
     const entries = buildFieldIndex();
     const tDigits = ' ' + wordsToDigits(t).trim() + ' ';
+
+    // If a specific transfer switch number is named ("transfer switch 2 ase"),
+    // the number can split the field phrase ("transfer switch type"). Build an
+    // extra variant with the number pulled out so the phrase reconnects, while
+    // remembering which TS the user meant so we can bias toward that section.
+    let tsWanted = 0;
+    const tsm = tDigits.match(/transfer switch\s+(\d+)/);
+    if (tsm) tsWanted = parseInt(tsm[1], 10);
+    const tCollapsed = tsWanted
+      ? ' ' + tDigits.replace(/transfer switch\s+\d+/g, 'transfer switch ' + tsWanted + ' ').replace(/\s+/g, ' ').trim() + ' '
+      : null;
+
     const m1 = matchField(t, entries);
     const m2 = tDigits !== t ? matchField(tDigits, entries) : null;
     let m = m1, tUsed = t;
     if (m2 && (!m1 || m2.score > m1.score)) { m = m2; tUsed = tDigits; }
+
+    // Extra pass: when a TS number was named, match against text with the number
+    // removed from the field phrase but keep section bias for the wanted TS.
+    if (tsWanted) {
+      const tNoNum = ' ' + tDigits.replace(/(transfer switch)\s+\d+/g, '$1').replace(/\s+/g, ' ').trim() + ' ';
+      const m3 = matchField(tNoNum, entries);
+      if (m3) {
+        // prefer the entry that actually belongs to the wanted TS section
+        const wantSec = 'transfer switch ' + tsWanted;
+        const m3InWanted = m3.entry.section === wantSec;
+        const mInWanted = m && m.entry.section === wantSec;
+        if (m3InWanted && !mInWanted) { m = m3; tUsed = tNoNum; }
+        else if (!m || m3.score > m.score) { m = m3; tUsed = tNoNum; }
+      }
+      // final safety: if best match is a TS row but wrong number, redirect to the
+      // same-labeled row in the wanted TS section
+      if (m && m.entry.section && /^transfer switch \d+$/.test(m.entry.section) && m.entry.section !== 'transfer switch ' + tsWanted) {
+        const want = entries.find(en => en.section === 'transfer switch ' + tsWanted
+          && en.kind === m.entry.kind
+          && en.label === m.entry.label);
+        if (want) {
+          let remappedOpt = m.option;
+          if (m.via === 'option' && m.option && want.options) {
+            remappedOpt = want.options.find(o => o.base === m.option.base) || m.option;
+          }
+          m = Object.assign({}, m, { entry: want, option: remappedOpt });
+        }
+      }
+    }
+
     if (!m) { showStatus('❌ Didn\u2019t recognize that ("' + raw + '")', 'err', 5000); return; }
     const e = m.entry;
 
