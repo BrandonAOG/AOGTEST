@@ -2772,8 +2772,9 @@ if (document.readyState === 'loading') {
   // A mic can't measure distance, but close voices are much louder. We track the
   // peak level during each utterance and discard commands that were too quiet
   // (i.e. probably someone across the room, not the person holding the phone).
-  let gateLevel = 'medium';
-  try { gateLevel = localStorage.getItem('voiceGate') || 'medium'; } catch(e) {}
+  let gateLevel = 'off';   // OFF by default: the meter opens a 2nd mic stream, which
+                           // can conflict with speech recognition on some phones.
+  try { gateLevel = localStorage.getItem('voiceGate2') || 'off'; } catch(e) {}
   const GATE_THRESHOLDS = { off: 0, low: 0.02, medium: 0.05, high: 0.10 }; // peak RMS 0..1
   let audioCtx = null, analyser = null, gateData = null, gateTimer = null;
   let utterPeak = 0;
@@ -2799,6 +2800,7 @@ if (document.readyState === 'loading') {
           if (rms > utterPeak) utterPeak = rms;
         }, 60);
         audioCtx.__stream = stream;
+        if (audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch(e) {} }
       })
       .catch(() => { /* gate unavailable -> recognition still works, just ungated */ });
   }
@@ -2816,11 +2818,12 @@ if (document.readyState === 'loading') {
     if (th === 0 || !analyser) return true;   // gate off or unavailable
     const peak = utterPeak;
     utterPeak = 0;                            // reset for next utterance
+    if (peak === 0) return true;              // meter saw nothing at all = meter broken, not user too quiet -> fail open
     return peak >= th;
   }
   function setGate(level) {
     gateLevel = level;
-    try { localStorage.setItem('voiceGate', level); } catch(e) {}
+    try { localStorage.setItem('voiceGate2', level); } catch(e) {}
     if (level === 'off') stopProximityGate();
     else if (listening && !gateTimer) startProximityGate();
     showStatus('\u2713 Voice range filter: ' + level.toUpperCase() +
@@ -2883,6 +2886,12 @@ if (document.readyState === 'loading') {
       }
     };
     rec.onerror = (e) => {
+      if (e.error === 'audio-capture') {
+        // mic fight (often the range-filter's 2nd stream) -> kill the gate and keep listening
+        stopProximityGate();
+        showStatus('Mic conflict \u2014 range filter disabled, voice still on', '', 4000);
+        return;
+      }
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         restartOnEnd = false; listening = false;
         btn.classList.remove('listening');
