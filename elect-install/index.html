@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -143,6 +151,32 @@ body.dark-mode {
 @media (max-width: 768px) { .action-bar { padding: 4px 6px; gap: 4px; } }
 
 @media screen {
+/* ===== VOICE ENTRY ===== */
+#btn-voice.listening {
+  background: var(--red) !important; color: #fff !important;
+  animation: voicePulse 1.2s ease-in-out infinite;
+}
+@keyframes voicePulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+}
+#voice-status {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: 18px; z-index: 99999; max-width: 92vw;
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--border-bright); border-radius: 24px;
+  padding: 10px 18px; font-family: Arial, sans-serif; font-size: 14px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.25); display: none; text-align: center;
+}
+#voice-status.show { display: block; }
+#voice-status.ok { border-color: var(--green); color: var(--green); font-weight: bold; }
+#voice-status.err { border-color: var(--red); color: var(--red); }
+body.dark-mode #voice-status { background: var(--panel2); }
+.voice-filled {
+  background: rgba(5,150,105,0.25) !important;
+  transition: background 0.4s ease;
+}
+
 body.dark-mode .action-bar {
   background: linear-gradient(90deg, rgba(15,21,53,0.9) 0%, rgba(26,40,71,0.8) 50%, rgba(15,21,53,0.9) 100%);
   border-bottom-color: rgba(0,255,200,0.25);
@@ -1155,6 +1189,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
   <button class="btn" id="btn-pdf" onclick="openPrintPreview()">📄 PDF</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
+  <button class="btn" id="btn-voice" onclick="toggleVoiceEntry()">🎤 VOICE</button>
   <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPhone</button>
   <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 Android</button>
 
@@ -2102,6 +2137,247 @@ if (document.readyState === 'loading') {
 } else {
   setTimeout(() => { attachAutosave(); restoreFormData(); }, 0);
 }
+
+// ===== VOICE ENTRY (talk-to-text material counts) =====
+(function() {
+  const statusEl = document.createElement('div');
+  statusEl.id = 'voice-status';
+  document.body.appendChild(statusEl);
+
+  let statusTimer = null;
+  function showStatus(msg, cls, holdMs) {
+    statusEl.textContent = msg;
+    statusEl.className = 'show' + (cls ? ' ' + cls : '');
+    clearTimeout(statusTimer);
+    if (holdMs) statusTimer = setTimeout(() => { statusEl.className = ''; }, holdMs);
+  }
+
+  // ---- Vocabulary helpers ----
+  const NUM_WORDS = {
+    'zero':0,'one':1,'two':2,'to':2,'too':2,'three':3,'four':4,'for':4,'five':5,'six':6,
+    'seven':7,'eight':8,'nine':9,'ten':10,'eleven':11,'twelve':12,'thirteen':13,
+    'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19,
+    'twenty':20,'thirty':30,'forty':40,'fifty':50,'sixty':60,'seventy':70,'eighty':80,'ninety':90,'hundred':100
+  };
+
+  function normalize(t) {
+    return ' ' + t.toLowerCase()
+      .replace(/[.,!?]/g, ' ')
+      .replace(/\s+/g, ' ') + ' ';
+  }
+
+  // Convert remaining number-words to digits AFTER size matching (sizes use words like "three quarter")
+  function wordsToDigits(t) {
+    // compound numbers first: "twenty five" -> 25
+    t = t.replace(/\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[ -](one|two|three|four|five|six|seven|eight|nine)\b/g,
+      (m, tens, ones) => String(NUM_WORDS[tens] + NUM_WORDS[ones]));
+    return t.replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)\b/g,
+      m => String(NUM_WORDS[m]));
+  }
+
+  // ---- Catalog: rows (parts) and columns (sizes) per table ----
+  // Each entry: phrases are matched against the normalized transcript; longest match wins.
+  const FITTING_COLS = [
+    { idx:0,  label:'5"',     phrases:['five inch','5 inch','5"'] },
+    { idx:1,  label:'4"',     phrases:['four inch','4 inch','4"'] },
+    { idx:2,  label:'3-1/2"', phrases:['three and a half','3 and a half','three and one half','3 1/2'] },
+    { idx:3,  label:'3"',     phrases:['three inch','3 inch','3"'] },
+    { idx:4,  label:'2-1/2"', phrases:['two and a half','2 and a half','two and one half','2 1/2'] },
+    { idx:5,  label:'2"',     phrases:['two inch','2 inch','2"'] },
+    { idx:6,  label:'1-1/2"', phrases:['one and a half','1 and a half','inch and a half','1 1/2'] },
+    { idx:7,  label:'1-1/4"', phrases:['one and a quarter','1 and a quarter','inch and a quarter','1 1/4'] },
+    { idx:8,  label:'1"',     phrases:['one inch','1 inch','1"'] },
+    { idx:9,  label:'¾"',     phrases:['three quarter','three quarters','3 quarter','3/4'] },
+    { idx:10, label:'½"',     phrases:['half inch','one half','a half','1/2'] }
+  ];
+  const WIREWAY_COLS = [
+    { idx:0, label:"2'", phrases:['two foot','two feet','2 foot','2 feet'] },
+    { idx:1, label:"3'", phrases:['three foot','three feet','3 foot','3 feet'] },
+    { idx:2, label:"4'", phrases:['four foot','four feet','4 foot','4 feet'] },
+    { idx:3, label:"5'", phrases:['five foot','five feet','5 foot','5 feet'] },
+    { idx:4, label:"6'", phrases:['six foot','six feet','6 foot','6 feet'] }
+  ];
+  const POLARIS_COLS = [
+    { idx:0, label:'Straights', phrases:['straight','straights'] },
+    { idx:1, label:'2-Port',    phrases:['two port','2 port','two ports'] },
+    { idx:2, label:'3-Port',    phrases:['three port','3 port','three ports'] },
+    { idx:3, label:'4-Port',    phrases:['four port','4 port','four ports'] },
+    { idx:4, label:'5-Port',    phrases:['five port','5 port','five ports'] }
+  ];
+
+  const FITTING_ROWS = [
+    { label:'PVC Pipe',                phrases:['pvc pipe','pipe'] },
+    { label:'Weatherproof Seals',      phrases:['weatherproof seal','weatherproof seals','weather proof seal','weather proof seals'] },
+    { label:'Weatherproof Lock Rings', phrases:['weatherproof lock ring','weatherproof lock rings','weather proof lock ring','weather proof lock rings'] },
+    { label:'Fiber Bushings',          phrases:['fiber bushing','fiber bushings','fibre bushing'] },
+    { label:'Lock Rings',              phrases:['lock ring','lock rings','locking'] },
+    { label:'Male Adapters',           phrases:['male adapter','male adapters'] },
+    { label:'Female Adapters',         phrases:['female adapter','female adapters'] },
+    { label:'Couplings',               phrases:['coupling','couplings'] },
+    { label:'Box Adapters',            phrases:['box adapter','box adapters'] },
+    { label:'LB PVC',                  phrases:['lb pvc','lb','l b'] },
+    { label:'LL PVC',                  phrases:['ll pvc','ll','l l'] },
+    { label:'LR PVC',                  phrases:['lr pvc','lr','l r'] },
+    { label:'Sch40 90s',               phrases:['schedule 40 90','schedule forty 90','90s','nineties','90 degree','ninety degree','sweep 90'] },
+    { label:'Sch40 45s',               phrases:['schedule 40 45','45s','45 degree','forty fives','45'] },
+    { label:'Seal Tight Straights',    phrases:['seal tight straight','seal tight straights','sealtight straight','sealtight straights'] },
+    { label:'Seal Tight 90s',          phrases:['seal tight 90','seal tight 90s','seal tight ninety','sealtight 90','sealtight 90s'] },
+    { label:'Seal Tight Car-Flex Hose',phrases:['car flex','carflex','seal tight hose','flex hose'] },
+    { label:'Myers Hubs',              phrases:['myers hub','myers hubs','meyers hub','meyers hubs','myers'] },
+    { label:'PVC Offset',              phrases:['pvc offset','offset','offsets'] },
+    { label:"Mini's",                  phrases:['mini','minis',"mini's",'minnies'] },
+    { label:'Strut Clamps',            phrases:['strut clamp','strut clamps'] },
+    { label:'Two Hole Straps PVC',     phrases:['two hole strap','two hole straps','2 hole strap','2 hole straps'] },
+    { label:'K.O. Seals',              phrases:['ko seal','ko seals','knockout seal','knockout seals','knock out seal','knock out seals','k o seal','k o seals'] }
+  ];
+  const WIREWAY_ROWS = [
+    { label:'4" x 4"',   phrases:['four by four','4 by 4','4x4'] },
+    { label:'6" x 6"',   phrases:['six by six','6 by 6','6x6'] },
+    { label:'8" x 8"',   phrases:['eight by eight','8 by 8','8x8'] },
+    { label:'10" x 10"', phrases:['ten by ten','10 by 10','10x10'] },
+    { label:'12" x 12"', phrases:['twelve by twelve','12 by 12','12x12'] }
+  ];
+  const POLARIS_ROWS = [
+    { label:'4 AWG',   phrases:['four gauge','4 gauge','number four','number 4','4 awg','four awg'] },
+    { label:'1/0',     phrases:['one aught','one ought','one not','one naught','1 aught','1/0','one zero'] },
+    { label:'3/0',     phrases:['three aught','three ought','three not','three naught','3 aught','3/0','three zero'] },
+    { label:'250 MCM', phrases:['two fifty','250 mcm','250','two hundred fifty'] },
+    { label:'350 MCM', phrases:['three fifty','350 mcm','350','three hundred fifty'] },
+    { label:'500 MCM', phrases:['five hundred','500 mcm','500'] }
+  ];
+
+  const TABLES = [
+    { id:'fittings-body', name:'Fittings', rows:FITTING_ROWS, cols:FITTING_COLS },
+    { id:'wireway-body',  name:'Wireway',  rows:WIREWAY_ROWS, cols:WIREWAY_COLS, keyword:'wireway' },
+    { id:'polaris-body',  name:'Polaris',  rows:POLARIS_ROWS, cols:POLARIS_COLS, keyword:'polaris' }
+  ];
+
+  // Find best phrase match in text. Returns {item, phrase, index} or null.
+  function bestMatch(text, items) {
+    let best = null;
+    items.forEach(item => {
+      item.phrases.forEach(p => {
+        const needle = ' ' + p + ' ';
+        const i = text.indexOf(needle);
+        // also allow plural/word-boundary-ish match at end
+        const i2 = i === -1 ? text.indexOf(' ' + p) : i;
+        if (i2 !== -1) {
+          if (!best || p.length > best.phrase.length) best = { item, phrase: p, index: i2 };
+        }
+      });
+    });
+    return best;
+  }
+
+  function parseCommand(raw) {
+    let t = normalize(raw);
+
+    // 1) Which table? Explicit keyword wins, otherwise decided by best row match.
+    let candidates = TABLES;
+    if (t.includes(' wireway')) candidates = [TABLES[1]];
+    else if (t.includes(' polaris')) candidates = [TABLES[2]];
+
+    let chosen = null, rowMatch = null;
+    candidates.forEach(tab => {
+      const m = bestMatch(t, tab.rows);
+      if (m && (!rowMatch || m.phrase.length > rowMatch.phrase.length)) { rowMatch = m; chosen = tab; }
+    });
+    if (!chosen) return { err: "Didn't catch a part name" };
+
+    // Remove the matched row phrase so its numbers don't get misread
+    let t2 = t.replace(rowMatch.phrase, ' ');
+
+    // 2) Column / size
+    const colMatch = bestMatch(t2, chosen.cols);
+    if (!colMatch) return { err: 'Got "' + rowMatch.item.label + '" but no size — say the size too' };
+    let t3 = t2.replace(colMatch.phrase, ' ');
+
+    // 3) Quantity = last number left over
+    t3 = wordsToDigits(t3).replace(/\binch(es)?\b|\bfoot\b|\bfeet\b|\bquantity\b|\bcount\b|\bqty\b/g, ' ');
+    const nums = t3.match(/\b\d+\b/g);
+    if (!nums) return { err: rowMatch.item.label + ' ' + colMatch.item.label + ' — how many? Say a quantity' };
+    const qty = parseInt(nums[nums.length - 1], 10);
+
+    return { table: chosen, row: rowMatch.item, col: colMatch.item, qty };
+  }
+
+  function applyCommand(cmd) {
+    const body = document.getElementById(cmd.table.id);
+    let targetInput = null;
+    body.querySelectorAll('tr').forEach(tr => {
+      const lbl = tr.querySelector('td.row-label');
+      if (lbl && lbl.textContent.trim() === cmd.row.label) {
+        const inputs = tr.querySelectorAll('input[type="text"]');
+        if (inputs[cmd.col.idx]) targetInput = inputs[cmd.col.idx];
+      }
+    });
+    if (!targetInput) return false;
+    targetInput.value = cmd.qty;
+    targetInput.dispatchEvent(new Event('input', { bubbles: true })); // fires autosave
+    targetInput.classList.add('voice-filled');
+    targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => targetInput.classList.remove('voice-filled'), 2500);
+    return true;
+  }
+
+  // ---- Speech recognition ----
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, listening = false, restartOnEnd = false;
+
+  function handleTranscript(text) {
+    const cmd = parseCommand(text);
+    if (cmd.err) { showStatus('❌ ' + cmd.err + '  ("' + text + '")', 'err', 5000); return; }
+    if (applyCommand(cmd)) {
+      showStatus('✓ ' + cmd.row.label + ' → ' + cmd.col.label + ' → ' + cmd.qty, 'ok', 4000);
+    } else {
+      showStatus('❌ Could not find that cell', 'err', 4000);
+    }
+  }
+
+  window.toggleVoiceEntry = function() {
+    const btn = document.getElementById('btn-voice');
+    if (!SR) { showStatus('Voice not supported in this browser — try Chrome or Safari', 'err', 5000); return; }
+
+    if (listening) {
+      restartOnEnd = false;
+      try { rec.stop(); } catch(e) {}
+      listening = false;
+      btn.classList.remove('listening');
+      showStatus('Voice entry off', '', 2000);
+      return;
+    }
+
+    rec = new SR();
+    rec.lang = 'en-US';
+    rec.continuous = false;       // one phrase at a time; we restart between phrases
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+
+    rec.onresult = (e) => {
+      const text = e.results[e.results.length - 1][0].transcript.trim();
+      if (text) handleTranscript(text);
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        restartOnEnd = false; listening = false;
+        btn.classList.remove('listening');
+        showStatus('Mic blocked — allow microphone access in browser settings', 'err', 6000);
+      }
+      // 'no-speech' etc: onend will restart
+    };
+    rec.onend = () => {
+      if (restartOnEnd) {
+        try { rec.start(); } catch(e) {}
+      }
+    };
+
+    restartOnEnd = true;
+    listening = true;
+    btn.classList.add('listening');
+    showStatus('🎤 Listening… say: part, size, quantity (e.g. "PVC pipe two inch 5")');
+    try { rec.start(); } catch(e) {}
+  };
+})();
 
 // ===== SERVICE WORKER =====
 if ('serviceWorker' in navigator) {
