@@ -2170,6 +2170,8 @@ if (document.readyState === 'loading') {
   ];
   function normalize(t) {
     t = ' ' + t.toLowerCase()
+      .replace(/(\d)\s*['\u2019\u2032]/g, '$1 foot ')
+      .replace(/(\d)\s*["\u201d\u2033]/g, '$1 inch ')
       .replace(/[.,!?:;]/g, ' ')
       .replace(/&/g, ' and ')
       .replace(/\s+/g, ' ').trim() + ' ';
@@ -2199,15 +2201,15 @@ if (document.readyState === 'loading') {
 
   // ---------- MATERIAL TABLE CATALOGS (page 2 grids) ----------
   const FITTING_COLS = [
-    { idx:0,  label:'5"',     phrases:['five inch','5 inch'] },
-    { idx:1,  label:'4"',     phrases:['four inch','4 inch'] },
+    { idx:0,  label:'5"',     phrases:['five inch','5 inch','five foot','5 foot','five feet','5 feet'] },
+    { idx:1,  label:'4"',     phrases:['four inch','4 inch','four foot','4 foot','four feet','4 feet'] },
     { idx:2,  label:'3-1/2"', phrases:['three and a half','3 and a half','three and one half','3 1/2'] },
-    { idx:3,  label:'3"',     phrases:['three inch','3 inch'] },
+    { idx:3,  label:'3"',     phrases:['three inch','3 inch','three foot','3 foot','three feet','3 feet'] },
     { idx:4,  label:'2-1/2"', phrases:['two and a half','2 and a half','two and one half','2 1/2'] },
-    { idx:5,  label:'2"',     phrases:['two inch','2 inch'] },
+    { idx:5,  label:'2"',     phrases:['two inch','2 inch','two foot','2 foot','two feet','2 feet'] },
     { idx:6,  label:'1-1/2"', phrases:['one and a half','1 and a half','inch and a half','1 1/2'] },
     { idx:7,  label:'1-1/4"', phrases:['one and a quarter','1 and a quarter','inch and a quarter','1 1/4'] },
-    { idx:8,  label:'1"',     phrases:['one inch','1 inch'] },
+    { idx:8,  label:'1"',     phrases:['one inch','1 inch','one foot','1 foot','one feet','1 feet'] },
     { idx:9,  label:'¾"',     phrases:['three quarter','three quarters','3 quarter','3/4'] },
     { idx:10, label:'½"',     phrases:['half inch','one half','a half','1/2'] }
   ];
@@ -2226,7 +2228,7 @@ if (document.readyState === 'loading') {
     { idx:4, label:'5-Port',    phrases:['five port','5 port','five ports'] }
   ];
   const FITTING_ROWS = [
-    { label:'PVC Pipe',                phrases:['pvc pipe','pipe'] },
+    { label:'PVC Pipe',                phrases:['pvc pipe','pipe','pvc'] },
     { label:'Weatherproof Seals',      phrases:['weatherproof seal','weatherproof seals','weather proof seal','weather proof seals'] },
     { label:'Weatherproof Lock Rings', phrases:['weatherproof lock ring','weatherproof lock rings','weather proof lock ring','weather proof lock rings'] },
     { label:'Fiber Bushings',          phrases:['fiber bushing','fiber bushings','fibre bushing'] },
@@ -2358,14 +2360,27 @@ if (document.readyState === 'loading') {
       if (m && (!rowMatch || m.phrase.length > rowMatch.phrase.length)) { rowMatch = m; chosen = tab; }
     });
     if (!chosen) return null;
-    const t2 = t.replace(rowMatch.phrase, ' ');
-    const colMatch = bestMatch(t2, chosen.cols);
+    let t2 = t.replace(rowMatch.phrase, ' ');
+    let colMatch = bestMatch(t2, chosen.cols);
+    let mergedQty = null;
+    if (!colMatch) {
+      // STT sometimes merges quantity+size: "one 3 foot" -> "13 foot". Split it:
+      // leading digit(s) = quantity, last digit = size, if that size is a real column.
+      const td = wordsToDigits(t2);
+      const mm = td.match(/\b(\d+)(\d)\s*(inch|inches|foot|feet)\b/);
+      if (mm) {
+        const trial = td.replace(mm[0], ' ' + mm[2] + ' ' + mm[3] + ' ');
+        const cm = bestMatch(trial, chosen.cols);
+        if (cm) { colMatch = cm; t2 = trial; mergedQty = parseInt(mm[1], 10); }
+      }
+    }
     if (!colMatch) return { err: 'Got "' + rowMatch.item.label + '" but no size — say the size too' };
     let t3 = t2.replace(colMatch.phrase, ' ');
     t3 = wordsToDigits(t3).replace(/\binch(es)?\b|\bfoot\b|\bfeet\b|\bquantity\b|\bcount\b|\bqty\b/g, ' ');
     const nums = t3.match(/\b\d+\b/g);
-    if (!nums) return { err: rowMatch.item.label + ' ' + colMatch.item.label + ' — say a quantity' };
-    return { table: chosen, row: rowMatch.item, col: colMatch.item, qty: parseInt(nums[nums.length-1],10) };
+    let qty = nums ? parseInt(nums[nums.length-1],10) : mergedQty;
+    if (qty === null || isNaN(qty)) return { err: rowMatch.item.label + ' ' + colMatch.item.label + ' — say a quantity' };
+    return { table: chosen, row: rowMatch.item, col: colMatch.item, qty };
   }
   function applyTableCmd(cmd) {
     const body = document.getElementById(cmd.table.id);
