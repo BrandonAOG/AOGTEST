@@ -2224,7 +2224,13 @@ if (document.readyState === 'loading') {
     [/\b(one|two|three|four|1|2|3|4)\s+(ought|naught|aught|art|arts|yacht|yaught|yachts|ot|odd|auto|otto|ah|aw|out)\b/g,
       (m, num) => num + ' aught'],
     [/\bj box\b/g, 'jbox'], [/\bjay box\b/g, 'jbox'],
-    [/\bcustomer'?s name\b/g, 'customer name']
+    [/\bcustomer'?s name\b/g, 'customer name'],
+    // "ATS" (automatic transfer switch) in its various misheard forms -> transfer switch
+    [/\bautomatic transfer switch\b/g, 'transfer switch'],
+    [/\ba ?t ?s\b|\ba\.t\.s\b|\bat and s\b|\bat s\b/g, 'transfer switch'],
+    // bare "switch" -> "transfer switch", but NOT when "transfer" already precedes it
+    // (avoids "transfer transfer switch"). Also leaves "load shed"/"disconnect" etc. alone.
+    [/\b(?<!transfer )switch\b/g, 'transfer switch']
   ];
   function normalize(t) {
     t = ' ' + t.toLowerCase()
@@ -2681,7 +2687,7 @@ if (document.readyState === 'loading') {
     if (/\benglish\b|\bingles\b|\bingl\u00e9s\b/.test(t)) { switchLang('en-US'); return; }
 
     // global commands
-    if (/\badd transfer switch\b|\bnew transfer switch\b/.test(t)) {
+    if (/\b(add|new|another|create|insert|extra) transfer switch\b/.test(t)) {
       if (typeof addTransferSwitch === 'function') {
         addTransferSwitch();
         showStatus('✓ Transfer Switch added', 'ok', 3000);
