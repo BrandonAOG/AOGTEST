@@ -2747,9 +2747,22 @@ if (document.readyState === 'loading') {
             showStatus('✓ ' + e.label + ' → cleared', 'ok', 4000);
             return;
           }
-          showStatus('❌ "' + e.label + '" — say an option (e.g. yes / no)', 'err', 5000); return;
+          // No yes/no spoken. For yes/no rows, infer it:
+          //   negation words ("not", "wasn't", "didn't", "never", "negative") -> NO
+          //   otherwise (bare field name) -> default YES
+          const yesOpt = e.options.find(o => o.base === 'yes');
+          const noOpt  = e.options.find(o => o.base === 'no');
+          if (yesOpt || noOpt) {
+            const negated = /\bnot\b|\bwas\s*n.?t\b|\bis\s*n.?t\b|\bdid\s*n.?t\b|\bdoes\s*n.?t\b|\bwere\s*n.?t\b|\bnever\b|\bnegative\b|\bincomplete\b|\bfailed\b|\bfail\b/.test(' ' + tUsed + ' ');
+            if (negated && noOpt) { opt = noOpt; }
+            else if (!negated && yesOpt) { opt = yesOpt; }
+            else { showStatus('❌ "' + e.label + '" — say yes or no', 'err', 5000); return; }
+          } else {
+            showStatus('❌ "' + e.label + '" — say an option', 'err', 5000); return;
+          }
+        } else {
+          opt = bestOpt.o;
         }
-        opt = bestOpt.o;
       }
       const uncheck = /\buncheck\b|\bclear\b|\bremove\b/.test(t);
       setCheckbox(opt.cb, !uncheck);
