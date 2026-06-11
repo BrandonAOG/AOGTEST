@@ -2159,6 +2159,60 @@ if (document.readyState === 'loading') {
     'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19,
     'twenty':20,'thirty':30,'forty':40,'fifty':50,'sixty':60,'seventy':70,'eighty':80,'ninety':90,'hundred':100
   };
+  // Spanish -> English so Spanish-speaking crew fill the same English form
+  const SPANISH = [
+    // long phrases first (before single words inside them get translated)
+    [/\btodo recogido y limpio\b/g,'everything picked up and clean'],
+    [/\bnombre del? cliente\b/g,'customer name'],
+    [/\binterruptor de transferencia\b/g,'transfer switch'],
+    [/\btamano del? generador\b/g,'generator size'],
+    [/\bgenerador montado\b/g,'generator set and mounted'],
+    [/\bbateria conectada\b/g,'battery connected'],
+    [/\bcodos? de noventa\b|\bcodos? 90\b/g,'90s'],
+    [/\bcodos? de cuarenta y cinco\b|\bcodos? de 45\b/g,'45s'],
+    [/\badaptadores? macho\b/g,'male adapters'],
+    [/\badaptadores? hembra\b/g,'female adapters'],
+    [/\badaptadores? de caja\b/g,'box adapters'],
+    [/\bcaja de paso\b/g,'jbox'],
+    [/\bdejar de escuchar\b|\bapagar voz\b/g,'stop listening'],
+    // fractions & sizes BEFORE numbers, so "tres cuartos" doesn't become "3 cuartos"
+    [/\btres cuartos?\b/g,'three quarter'],
+    [/\bpulgada y media\b/g,'one and a half inch'],
+    [/\bpulgada y cuarto\b/g,'one and a quarter inch'],
+    [/\b(uno|una|dos|tres|cuatro|cinco|\d) y media\b/g,'$1 and a half'],
+    [/\b(uno|una|dos|tres|cuatro|cinco|\d) y cuarto\b/g,'$1 and a quarter'],
+    [/\bmedia pulgada\b/g,'half inch'],
+    [/\bpulgadas?\b/g,'inch'],[/\bpies\b|\bpie\b/g,'foot'],
+    // compound numbers
+    [/\b(treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa) y (uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)\b/g,
+      function(m,t,o){var T={treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90};
+        var O={uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9};return String(T[t]+O[o]);}],
+    [/\bveinticinco\b/g,'25'],[/\bveinticuatro\b/g,'24'],[/\bveintitres\b/g,'23'],
+    [/\bveintidos\b/g,'22'],[/\bveintiuno\b|\bveintiun\b/g,'21'],
+    [/\bcien\b|\bciento\b/g,'100'],[/\bnoventa\b/g,'90'],[/\bochenta\b/g,'80'],[/\bsetenta\b/g,'70'],
+    [/\bsesenta\b/g,'60'],[/\bcincuenta\b/g,'50'],[/\bcuarenta\b/g,'40'],[/\btreinta\b/g,'30'],
+    [/\bveinte\b/g,'20'],[/\bquince\b/g,'15'],[/\bcatorce\b/g,'14'],[/\btrece\b/g,'13'],
+    [/\bdoce\b/g,'12'],[/\bonce\b/g,'11'],[/\bdiez\b/g,'10'],[/\bnueve\b/g,'9'],[/\bocho\b/g,'8'],
+    [/\bsiete\b/g,'7'],[/\bseis\b/g,'6'],[/\bcinco\b/g,'5'],[/\bcuatro\b/g,'4'],[/\btres\b/g,'3'],
+    [/\bdos\b/g,'2'],[/\buno\b|\buna\b|\bun\b/g,'1'],
+    // yes/no/options
+    [/\bsi\b/g,'yes'],[/\bexistente\b/g,'existing'],[/\batico\b/g,'attic'],
+    [/\bsubterraneo\b/g,'ug'],[/\bdesmarcar?\b|\bquitar\b|\bborrar\b/g,'uncheck'],
+    // materials
+    [/\btubo\b|\btuberia\b/g,'pipe'],[/\bcoples?\b|\bacoplamientos?\b|\bcoplas?\b/g,'couplings'],
+    [/\bcobre\b/g,'copper'],[/\baluminio\b/g,'aluminum'],
+    [/\bcalibre\b/g,'awg'],[/\balambre\b|\bcable\b/g,'wire'],[/\bverde\b/g,'green'],
+    [/\bcaja\b/g,'jbox'],[/\bconcreto\b|\bcemento\b/g,'concrete'],
+    // fields & sections
+    [/\bcliente\b/g,'customer name'],[/\bdireccion\b/g,'address'],
+    [/\bfecha\b/g,'date'],[/\bhoy\b/g,'today'],[/\btrabajo\b/g,'job'],
+    [/\bcamion\b|\btroca\b/g,'install truck'],
+    [/\bbateria\b/g,'battery connected'],
+    [/\btransferencia\b/g,'transfer switch'],
+    [/\binspeccionado\b/g,'inspected'],[/\binspeccion\b/g,'inspection'],
+    [/\bcondado\b/g,'county'],[/\bzapata\b/g,'footing'],
+    [/\bagregar?\b|\banadir\b/g,'add']
+  ];
   const HOMOPHONES = [
     [/\bmail\b/g, 'male'], [/\bmails\b/g, 'male'], [/\bfemail\b/g, 'female'],
     [/\bgage\b/g, 'gauge'], [/\bamerican wire gauge\b/g, 'awg'], [/\bamerican wire gage\b/g, 'awg'],
@@ -2170,11 +2224,13 @@ if (document.readyState === 'loading') {
   ];
   function normalize(t) {
     t = ' ' + t.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // strip accents: si, garcia, direccion
       .replace(/(\d)\s*['\u2019\u2032]/g, '$1 foot ')
       .replace(/(\d)\s*["\u201d\u2033]/g, '$1 inch ')
       .replace(/[.,!?:;]/g, ' ')
       .replace(/&/g, ' and ')
       .replace(/\s+/g, ' ').trim() + ' ';
+    SPANISH.forEach(h => { t = t.replace(h[0], h[1]); });
     HOMOPHONES.forEach(h => { t = t.replace(h[0], h[1]); });
     return t.replace(/\s+/g, ' ');
   }
@@ -2592,6 +2648,10 @@ if (document.readyState === 'loading') {
   function handleTranscript(raw) {
     const t = normalize(raw);
 
+    // language switching
+    if (/\bespanol\b|\bespa\u00f1ol\b|\bspanish\b/.test(t)) { switchLang('es-US'); return; }
+    if (/\benglish\b|\bingles\b|\bingl\u00e9s\b/.test(t)) { switchLang('en-US'); return; }
+
     // global commands
     if (/\badd transfer switch\b|\bnew transfer switch\b/.test(t)) {
       if (typeof addTransferSwitch === 'function') {
@@ -2698,6 +2758,14 @@ if (document.readyState === 'loading') {
   // ---------- speech recognition ----------
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let rec = null, listening = false, restartOnEnd = false;
+  let voiceLang = 'en-US';
+  try { voiceLang = localStorage.getItem('voiceLang') || 'en-US'; } catch(e) {}
+  function switchLang(lang) {
+    voiceLang = lang;
+    try { localStorage.setItem('voiceLang', lang); } catch(e) {}
+    if (listening && rec) { rec.lang = lang; try { rec.stop(); } catch(e) {} } // onend restarts with new lang
+    showStatus(lang === 'es-US' ? '\ud83c\udfa4 Modo espa\u00f1ol \u2014 diga el campo y el valor' : '\ud83c\udfa4 English mode', 'ok', 3500);
+  }
 
   window.toggleVoiceEntry = function() {
     const btn = document.getElementById('btn-voice');
@@ -2713,7 +2781,7 @@ if (document.readyState === 'loading') {
     }
 
     rec = new SR();
-    rec.lang = 'en-US';
+    rec.lang = voiceLang;
     rec.continuous = true;      // keep the mic hot — no pause needed between commands
     rec.interimResults = true;  // live feedback while you talk
     rec.maxAlternatives = 1;
@@ -2741,7 +2809,7 @@ if (document.readyState === 'loading') {
         showStatus('Mic blocked — allow microphone access in browser settings', 'err', 6000);
       }
     };
-    rec.onend = () => { if (restartOnEnd) { try { rec.start(); } catch(e) {} } };
+    rec.onend = () => { if (restartOnEnd) { rec.lang = voiceLang; try { rec.start(); } catch(e) {} } };
 
     restartOnEnd = true;
     listening = true;
