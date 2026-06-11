@@ -2216,14 +2216,14 @@ if (document.readyState === 'loading') {
   const HOMOPHONES = [
     [/\bmail\b/g, 'male'], [/\bmails\b/g, 'male'], [/\bfemail\b/g, 'female'],
     [/\bgage\b/g, 'gauge'], [/\bamerican wire gauge\b/g, 'awg'], [/\bamerican wire gage\b/g, 'awg'],
-    [/\bwire way\b/g, 'wireway'], [/\bsealtight\b/g, 'seal tight'], [/\bseal type\b/g, 'seal tight'],
+    [/\bwire way\b/g, 'wireway'], [/\bgutter\b/g, 'wireway'], [/\bsealtight\b/g, 'seal tight'], [/\bseal type\b/g, 'seal tight'],
     [/\bmyer'?s\b/g, 'myers'], [/\bmeyer'?s\b/g, 'myers'],
     // numeric "4/0", "4-0", "4 0" -> "four aught" (do this BEFORE word->digit conversion)
     [/\b([1-4])\s*[\/\-]\s*0\b/g, (m, d) => ({1:'one',2:'two',3:'three',4:'four'}[d]) + ' aught'],
     // misheard "aught" — only when it follows a number word, so real words (art, odd, auto) elsewhere are safe
     [/\b(one|two|three|four|1|2|3|4)\s+(ought|naught|aught|art|arts|yacht|yaught|yachts|ot|odd|auto|otto|ah|aw|out)\b/g,
       (m, num) => num + ' aught'],
-    [/\bj box\b/g, 'jbox'], [/\bjay box\b/g, 'jbox'],
+    [/\bj box\b/g, 'jbox'], [/\bjay box\b/g, 'jbox'], [/\bjunction box\b/g, 'jbox'], [/\bjunction boxes\b/g, 'jbox'],
     [/\bcustomer'?s name\b/g, 'customer name'],
     // "ATS" (automatic transfer switch) in its various misheard forms -> transfer switch
     [/\bautomatic transfer switch\b/g, 'transfer switch'],
@@ -2780,6 +2780,21 @@ if (document.readyState === 'loading') {
     // text field
     let value = tUsed.slice(m.index + m.phrase.length + 1).trim();
     value = value.replace(/^(is|to|equals|equal|set to|of)\s+/, '');
+
+    const isNumericField = e.el.getAttribute('inputmode') === 'numeric';
+
+    // For numeric fields the count is often spoken BEFORE the field name
+    // ("40 bags of concrete", "one 12 by 12 by 4 junction box"). If nothing
+    // usable follows the field name, remove the matched phrase from the whole
+    // transcript and take the leftover number — this skips the dimension
+    // numbers because they're part of the matched phrase itself.
+    if (isNumericField && !/\d/.test(wordsToDigits(value))) {
+      const stripped = wordsToDigits(tUsed.replace(m.phrase, ' '))
+        .replace(/\bbags?\b|\bof\b|\bpieces?\b|\bpcs?\b|\bqty\b|\bquantity\b|\bcount\b/g, ' ');
+      const allNums = stripped.match(/\d+/g);
+      if (allNums) value = allNums[allNums.length - 1];
+    }
+
     if (!value) { showStatus('❌ "' + e.label + '" — say a value after the field name', 'err', 5000); return; }
 
     if (e.el.type === 'date') {
@@ -2791,7 +2806,7 @@ if (document.readyState === 'loading') {
           value = yr + '-' + String(v[0]).padStart(2,'0') + '-' + String(v[1]).padStart(2,'0');
         } else { showStatus('❌ For the date say "date today" or "date 6 11 2026"', 'err', 5000); return; }
       }
-    } else if (e.el.getAttribute('inputmode') === 'numeric') {
+    } else if (isNumericField) {
       const nums = wordsToDigits(value).match(/\d+/g);
       value = nums ? nums[nums.length-1] : value;
     } else {
