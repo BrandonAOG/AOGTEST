@@ -3616,7 +3616,7 @@ function onMove(e){
         selectedShape._commentObj.cx=selectedShape.cx;
         selectedShape._commentObj.cy=selectedShape.cy;
         _dragComment=selectedShape._commentObj;   // draw live on selCv
-        renderSelection();                         // lightweight, no full shCv redraw
+        scheduleSelRender();                       // ≤1 redraw per painted frame
         repositionCommentEditor(selectedShape._commentObj);
       }
     } else if(selHandle>=8){
@@ -3694,7 +3694,7 @@ function onMove(e){
       _cobj.w=Math.max(selectedShape.w,40); _cobj.h=Math.max(selectedShape.h,24);
       selectedShape.w=_cobj.w; selectedShape.h=_cobj.h;
       _dragComment=_cobj;          // draw live on the lightweight selCv
-      renderSelection();           // no full shCv redraw during the drag
+      scheduleSelRender();         // ≤1 redraw per painted frame
       repositionCommentEditor(_cobj);
       return; // skip the unconditional renderSelection() below
     }
@@ -6083,15 +6083,52 @@ function findObjAtStrict(x, y){
 }
 
 // ── Render selection overlay ────────────────────────────────
+// Dirty-rect tracking for comment drags: clearing/redrawing the ENTIRE
+// document-sized selCv on every pointer move forced the browser to re-upload
+// the full canvas texture to the GPU each frame. At high zoom the compositor
+// then re-rasterizes a huge scaled surface — the "note sticks and freezes
+// when zoomed in, glides when zoomed out" problem. During a comment drag we
+// instead clear only the union of the note's previous + current footprint.
+var _selPrevDirty=null;
+// Pointer events can arrive faster than the screen paints (notably 120Hz
+// iPads, where each move triggered its own full redraw and the work piled up
+// into freezes). Coalesce live-drag redraws to at most one per painted frame.
+var _selRafPending=false;
+function scheduleSelRender(){
+  if(_selRafPending) return;
+  _selRafPending=true;
+  requestAnimationFrame(function(){ _selRafPending=false; renderSelection(); });
+}
 function renderSelection(){
   if(!selectedShape){
-    if(selCv.width>1){ selCv.width=1; selCv.height=1; } return;
+    if(selCv.width>1){ selCv.width=1; selCv.height=1; } _selPrevDirty=null; return;
   }
   if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
-    selCv.width=drawCv.width; selCv.height=drawCv.height;
+    selCv.width=drawCv.width; selCv.height=drawCv.height; _selPrevDirty=null;
   }
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
   var s=selectedShape, lw=1.5/zoom;
+
+  // ── Minimal clear region during a live comment drag ──
+  var _dirtyNow=null;
+  if(_dragComment && s.type==='comment' && s._commentObj===_dragComment){
+    // Margin covers handles, selection stroke, and the overflow marker —
+    // all of which hug the box. 60 screen-px is comfortably past the largest
+    // handle/offset at any zoom.
+    var _m=60/zoom + (s.strokeW||2)*2 + 8;
+    _dirtyNow={x:s.cx-s.w/2-_m, y:s.cy-s.h/2-_m, w:s.w+2*_m, h:s.h+2*_m};
+  }
+  if(_dirtyNow && _selPrevDirty){
+    var _ux=Math.min(_dirtyNow.x,_selPrevDirty.x);
+    var _uy=Math.min(_dirtyNow.y,_selPrevDirty.y);
+    var _ux2=Math.max(_dirtyNow.x+_dirtyNow.w,_selPrevDirty.x+_selPrevDirty.w);
+    var _uy2=Math.max(_dirtyNow.y+_dirtyNow.h,_selPrevDirty.y+_selPrevDirty.h);
+    selCtx.clearRect(_ux,_uy,_ux2-_ux,_uy2-_uy);
+  } else {
+    // First frame of a drag (or any non-comment-drag render): prior canvas
+    // content is unknown → full clear, exactly as before. Conservative.
+    selCtx.clearRect(0,0,selCv.width,selCv.height);
+  }
+  _selPrevDirty=_dirtyNow;
 
   // While dragging/resizing a comment, draw the full note box live here on the
   // lightweight selection canvas (it's skipped on shCv during the drag).
@@ -7145,10 +7182,15 @@ function closeStampPicker(){
         // no separate fontSize on selectedShape — comment obj is canonical
       }
 
-      // Update the live textarea if it's visible
+      // Update the live textarea if it's visible — using EXACTLY the same math
+      // as repositionCommentEditor. The old code floored the editor font at
+      // 12 screen px and used a (w-16) interior width: zoomed out, the canvas
+      // renders the note's true (smaller) size, so the editor text appeared
+      // 2-3× too big, wrapped differently, and spilled out of the box until
+      // commit re-drew it correctly.
       if(textOv.style.display !== 'none'){
-        var renderPx = Math.max(12, Math.round(cmtEffFontSize(target) * zoom));
-        var visualW  = Math.max((target.w - 16) * zoom, 40);
+        var renderPx = Math.max(1, cmtEffFontSize(target) * zoom);
+        var visualW  = Math.max((target.w - 2*CMT_PAD) * zoom, 40);
         textOv.style.fontSize = renderPx + 'px';
         textOv.style.transform = 'none';
         textOv.style.width    = Math.round(visualW) + 'px';
@@ -7168,10 +7210,11 @@ function closeStampPicker(){
         }catch(ex){}
       }
 
-      // Re-apply after a tick to beat any browser re-render
+      // Re-apply after a tick to beat any browser re-render (same unfloored
+      // size — the old 12px-floored re-apply undid pan/zoom corrections)
       var _ref = target;
       setTimeout(function(){
-        if(textOv.style.display !== 'none') textOv.style.fontSize = Math.max(12, Math.round(cmtEffFontSize(_ref) * zoom)) + 'px';
+        if(textOv.style.display !== 'none') textOv.style.fontSize = Math.max(1, cmtEffFontSize(_ref) * zoom) + 'px';
         if(_editingComment === _ref) _cmtAutoGrow(_ref);
       }, 0);
     });
