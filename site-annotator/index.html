@@ -2037,7 +2037,14 @@ function _cmtAutoGrow(c){
 function fitCommentToText(c, text, skipRender, mode){
   mode = mode || 'snap';
   text = (text!==undefined && text!==null ? text : (c.text||''));
-  var fs   = cmtEffFontSize(c);           // scale-locked canvas px
+  // CRITICAL: use EXACTLY the font size drawCommentBox will render with.
+  // cmtEffFontSize returns a fractional px value (points × DPI factor); the
+  // renderer rounds it (Math.max(8, Math.round(...))). Sizing the box with the
+  // raw fractional value while rendering with the rounded one meant that when
+  // rounding went UP, text wrapped wider and each line sat lower than the box
+  // was fitted for — the last line failed the renderer's clip test and the
+  // bottom text line vanished on commit (click-away).
+  var fs   = Math.max(8, Math.round(cmtEffFontSize(c)));   // matches renderer at sc=1
   var lineH= fs*1.4;
   // Padding: snap modes hug tight (CMT_SNAP_PAD on every side); live grow/draw
   // keeps the looser CMT_PAD so the cursor isn't jammed against the border.
