@@ -2814,8 +2814,9 @@ if (document.readyState === 'loading') {
           const optBase = labelPhrase(txt.trim());
           if (!optBase) return;
           let optPhrases = OPT_ALIASES[optBase] || [optBase];
-          // Inspection(s) section only: "pass/passed/past" = YES, "fail/failed" = NO
-          if (rowSection === 'inspected') {
+          // Inspection(s) section only: "pass/passed/past" = YES, "fail/failed" = NO.
+          // Service Change rows get it too (they exist in two sections and stay in sync).
+          if (rowSection === 'inspected' || /^service change$/i.test(rowLabelRaw.trim())) {
             if (optBase === 'yes') optPhrases = optPhrases.concat(['pass','passed','past']);
             if (optBase === 'no')  optPhrases = optPhrases.concat(['fail','failed']);
           }
@@ -3263,7 +3264,7 @@ if (document.readyState === 'loading') {
           const noOpt  = e.options.find(o => o.base === 'no');
           if (yesOpt || noOpt) {
             const negated = /\bnot\b|\bwas\s*n.?t\b|\bis\s*n.?t\b|\bdid\s*n.?t\b|\bdoes\s*n.?t\b|\bwere\s*n.?t\b|\bnever\b|\bnegative\b|\bincomplete\b/.test(' ' + tUsed + ' ')
-              || (e.section === 'inspected' && /\bfailed\b|\bfail\b/.test(' ' + tUsed + ' '));
+              || ((e.section === 'inspected' || /^service change$/i.test((e.label || '').trim())) && /\bfailed\b|\bfail\b/.test(' ' + tUsed + ' '));
             if (negated && noOpt) { opt = noOpt; }
             else if (!negated && yesOpt) { opt = yesOpt; }
             else { showStatus('❌ "' + e.label + '" — say yes or no', 'err', 5000); return; }
@@ -3276,8 +3277,24 @@ if (document.readyState === 'loading') {
       }
       const uncheck = /\buncheck\b|\bclear\b|\bremove\b/.test(t);
       setCheckbox(opt.cb, !uncheck);
+      // Service Change appears in BOTH Walk Through and Inspection(s) —
+      // one voice command sets the same answer on both rows.
+      let syncedBoth = false;
+      if (/^service change$/i.test((e.label || '').trim())) {
+        entries.forEach(other => {
+          if (other === e || other.kind !== 'checkrow') return;
+          if (!/^service change$/i.test((other.label || '').trim())) return;
+          const o2 = other.options.find(o => o.base === opt.base);
+          if (o2) {
+            // keep single-select rows consistent: clear the sibling first
+            other.options.forEach(o => { if (o !== o2 && o.cb.checked) setCheckbox(o.cb, false); });
+            setCheckbox(o2.cb, !uncheck);
+            syncedBoth = true;
+          }
+        });
+      }
       const sec = e.section ? ' (' + titleCase(e.section) + ')' : '';
-      showStatus('✓ ' + e.label + sec + ' → ' + (uncheck ? 'unchecked ' : '') + opt.label, 'ok', 4000);
+      showStatus('✓ ' + e.label + (syncedBoth ? ' (both sections)' : sec) + ' → ' + (uncheck ? 'unchecked ' : '') + opt.label, 'ok', 4000);
       return;
     }
 
