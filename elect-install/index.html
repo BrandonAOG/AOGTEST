@@ -2792,6 +2792,7 @@ if (document.readyState === 'loading') {
       // checkbox rows
       const cbs = row.querySelectorAll('input[type="checkbox"]');
       if (cbs.length) {
+        const rowSection = sectionNameFor(row);
         const lblEl = row.querySelector('label, b');
         const rowLabelRaw = lblEl ? lblEl.textContent.trim().replace(/:$/,'') : '';
         const base = rowLabelRaw ? labelPhrase(rowLabelRaw) : '';
@@ -2812,7 +2813,13 @@ if (document.readyState === 'loading') {
           }
           const optBase = labelPhrase(txt.trim());
           if (!optBase) return;
-          options.push({ cb, label: txt.trim(), base: optBase, phrases: OPT_ALIASES[optBase] || [optBase] });
+          let optPhrases = OPT_ALIASES[optBase] || [optBase];
+          // Inspection(s) section only: "pass/passed/past" = YES, "fail/failed" = NO
+          if (rowSection === 'inspected') {
+            if (optBase === 'yes') optPhrases = optPhrases.concat(['pass','passed','past']);
+            if (optBase === 'no')  optPhrases = optPhrases.concat(['fail','failed']);
+          }
+          options.push({ cb, label: txt.trim(), base: optBase, phrases: optPhrases });
         });
         if (options.length) {
           entries.push({ kind:'checkrow', label: rowLabelRaw || options.map(o=>o.label).join('/'), section: sectionNameFor(row), phrases: rowPhrases, options });
@@ -2852,11 +2859,14 @@ if (document.readyState === 'loading') {
       // Exception: the "All Pics for Inspected" row also fires on pic-upload
       // phrasing ("pics uploaded", "pic upload", "pictures uploaded").
       if (e.section === 'inspected') {
+        const lbl = (e.label || '').toLowerCase();
         const saidInspected = t.indexOf(' inspected') !== -1;
-        const isPicsRow = /all pics/.test((e.label || '').toLowerCase());
+        // Private Provider row is exempt — its own name is distinctive enough
+        const isPrivate = /private provider/.test(lbl);
+        const isPicsRow = /all pics/.test(lbl);
         const saidPicsUpload = /\b(pic|pics|picture|pictures|photo|photos)\b/.test(t)
           && /\bupload(ed|s)?\b/.test(t);
-        if (!saidInspected && !(isPicsRow && saidPicsUpload)) return;
+        if (!saidInspected && !isPrivate && !(isPicsRow && saidPicsUpload)) return;
       }
       const sectionPresent = e.section && t.indexOf(' ' + e.section) !== -1;
       // does this row support every distinctive option the speaker named?
@@ -3252,7 +3262,8 @@ if (document.readyState === 'loading') {
           const yesOpt = e.options.find(o => o.base === 'yes');
           const noOpt  = e.options.find(o => o.base === 'no');
           if (yesOpt || noOpt) {
-            const negated = /\bnot\b|\bwas\s*n.?t\b|\bis\s*n.?t\b|\bdid\s*n.?t\b|\bdoes\s*n.?t\b|\bwere\s*n.?t\b|\bnever\b|\bnegative\b|\bincomplete\b|\bfailed\b|\bfail\b/.test(' ' + tUsed + ' ');
+            const negated = /\bnot\b|\bwas\s*n.?t\b|\bis\s*n.?t\b|\bdid\s*n.?t\b|\bdoes\s*n.?t\b|\bwere\s*n.?t\b|\bnever\b|\bnegative\b|\bincomplete\b/.test(' ' + tUsed + ' ')
+              || (e.section === 'inspected' && /\bfailed\b|\bfail\b/.test(' ' + tUsed + ' '));
             if (negated && noOpt) { opt = noOpt; }
             else if (!negated && yesOpt) { opt = yesOpt; }
             else { showStatus('❌ "' + e.label + '" — say yes or no', 'err', 5000); return; }
