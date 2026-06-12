@@ -3613,9 +3613,13 @@ function onMove(e){
         repositionCommentEditor(selectedShape._commentObj);
       }
     } else if(selHandle>=8){
-      // Rotate from any corner — use stored angle offset so shape doesn't jump
-      var rawA=Math.atan2(tp.y-selectedShape.cy, tp.x-selectedShape.cx);
-      selectedShape.angle=rawA-selDragStart.rotAngleOffset;
+      // Rotate from any corner — use stored angle offset so shape doesn't jump.
+      // Comments are always axis-aligned (drawCommentBox ignores angle); a stray
+      // rotation here would desync the hit zones from the drawn box permanently.
+      if(selectedShape.type!=='comment'){
+        var rawA=Math.atan2(tp.y-selectedShape.cy, tp.x-selectedShape.cx);
+        selectedShape.angle=rawA-selDragStart.rotAngleOffset;
+      }
     } else {
       // Resize — opposite side stays anchored (not symmetric from center).
       // We transform the mouse into local shape space, then compute new
@@ -3671,6 +3675,14 @@ function onMove(e){
     // ── For comment: all handles resize freely (manual control) ──
     if(selectedShape.type==='comment'&&selectedShape._commentObj){
       var _cobj=selectedShape._commentObj;
+      // This press turned into a real drag — disarm the "double-tap handle to
+      // snap-fit" timer. Without this, releasing a resize and re-grabbing the
+      // handle within 380ms was misread as a double-tap: the box snapped to fit
+      // and the second drag was swallowed ("handle sticks"). A ~6 screen-px
+      // travel threshold keeps finger jitter from disarming a genuine double-tap.
+      if(Math.hypot(tp.x-selDragStart.x, tp.y-selDragStart.y) > 6/zoom){
+        _cmtHandleTap=0; _cmtHandleObj=null;
+      }
       _cobj.cx=selectedShape.cx; _cobj.cy=selectedShape.cy;
       _cobj.w=Math.max(selectedShape.w,40); _cobj.h=Math.max(selectedShape.h,24);
       selectedShape.w=_cobj.w; selectedShape.h=_cobj.h;
@@ -3843,13 +3855,16 @@ function onUp(e){
       var _rc=selectedShape._commentObj;
       _rc.cx=selectedShape.cx; _rc.cy=selectedShape.cy;
       _rc.w=selectedShape.w; _rc.h=selectedShape.h;
-      // After a manual resize, snap the height back so ALL text is visible at the
-      // tight snap padding (no wasted space, no clipped lines). The width the user
-      // dragged to is preserved — text re-wraps to it, then height hugs the result.
+      // After a manual resize, ensure ALL text remains visible: text re-wraps to
+      // the dragged width, then the height GROWS if lines would clip. Previously
+      // this forced a tight 'snap' on every release, which also SHRANK the box —
+      // dragging a note taller then letting go visibly snapped it back, making
+      // the side/bottom handles feel broken. Grow-only keeps the no-clipped-text
+      // guarantee while respecting the size the user just dragged to.
       // Top edge stays put so the box doesn't jump.
       if(!_editingComment){
         var _topR=_rc.cy-_rc.h/2;
-        fitCommentToText(_rc, _rc.text, true, 'snap');
+        fitCommentToText(_rc, _rc.text, true, 'grow');
         _rc.cy=_topR+_rc.h/2;
         if(selectedShape){ selectedShape.cy=_rc.cy; selectedShape.h=_rc.h; }
       }
@@ -5973,17 +5988,26 @@ function getHandleAt(x,y,isTouch){
   var screenTarget = isTouch ? 32 : 22;                // physical px
   var hitR = screenTarget / zoom;                      // canvas px at this zoom
   // For comments, keep handles from fully swallowing a small box's interior,
-  // but never shrink the grab target below a clickable floor.
+  // but never shrink the grab target below a clickable floor. The floor is
+  // touch-aware: after a text-commit snaps a note tight, a one-line box made
+  // the old fixed 14px floor nearly impossible to grab with a finger.
   if(selectedShape.type==='comment'){
     var hwC=selectedShape.w/2, hhC=selectedShape.h/2;
-    var floorR=14/zoom;                               // never smaller than 14 screen-px
+    var floorR=(isTouch?20:14)/zoom;                  // never smaller than this on screen
     var capR=Math.max(floorR, Math.min(hwC,hhC)*0.95);// near-full cap, with floor
     hitR=Math.min(hitR, capR);
     if(hitR<floorR) hitR=floorR;                      // guarantee the floor
   }
-  // Check rotation handles first (8-11) — they're further out so check before resize
-  for(var i=8;i<=11;i++){
-    if(Math.hypot(x-handles[i].x,y-handles[i].y)<hitR) return i;
+  // Check rotation handles first (8-11) — they're further out so check before resize.
+  // EXCEPT for comments: notes never rotate and their rotation handles are never
+  // drawn, but these invisible hit zones sat just outside each corner and silently
+  // swallowed grabs meant for the corner/side handles (drag then "rotated" the
+  // selection wrapper while the box stayed put — handles drifted out of alignment
+  // and resizing felt stuck).
+  if(selectedShape.type!=='comment'){
+    for(var i=8;i<=11;i++){
+      if(Math.hypot(x-handles[i].x,y-handles[i].y)<hitR) return i;
+    }
   }
   // Then resize handles
   for(var i=0;i<=7;i++){
