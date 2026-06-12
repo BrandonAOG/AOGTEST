@@ -2260,6 +2260,12 @@ if (document.readyState === 'loading') {
     // "service changed" -> "service change" (tense), and inspection/walkthrough section cues
     [/\bservice changed\b/g, 'service change'],
     [/\binspections?\b|\binspect\b/g, 'inspected'],
+    // strip filler verbs between a field name and its status, preserving "not":
+    // "generator is made up" -> "generator made up", "pad is not installed" -> "pad not installed"
+    [/\b(?:is|are|was|were|has been|have been|got|gets)\s+(not\s+|all\s+)?(made up|made|installed|connected|mounted|separated|torqued|uploaded|inspected|done|complete|completed|clean|set|ready|plugged)\b/g, '$1$2'],
+    // shift "not" past the status phrase so the field label stays contiguous:
+    // "generator not made up" -> "generator made up not" (negation -> NO still fires)
+    [/\bnot\s+(made up|made|installed|connected|mounted|separated|torqued|uploaded|done|complete|completed|clean|ready|plugged)\b/g, '$1 not'],
     // "pic" is often heard as pick/picks/pix/pegs near "upload"
     [/\b(pick|picks|pix|pig|pigs)\s+(upload|uploads|uploaded)\b/g, 'pics uploaded'],
     [/\bwalkthrough\b|\bwalk thru\b|\bwalk threw\b/g, 'walk through'],
@@ -2683,7 +2689,7 @@ if (document.readyState === 'loading') {
     'generator set and mounted': ['set and mounted','generator mounted'],
     'connected to mobile link': ['mobile link'],
     'battery connected': ['battery'],
-    'generator electrical made up': ['electrical made up'],
+    'generator electrical made up': ['electrical made up','generator made up','generator electrical','made up'],
     'generator set to ng or lp in controller': ['generator set to ng or lp','set to ng or lp','ng or lp','set to ng','set to lp','set the fuel','fuel set','fuel type'],
     'generator manual': ['generator manual','manual left','manual on site','manual'],
     'harness plugged in transfer switch es': ['harness plugged in','harness'],
