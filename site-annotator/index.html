@@ -1742,6 +1742,15 @@ var _cFontSize      = 13;
 var _editingComment = null;       // comment whose text is being edited
 var CMT_PAD = 2; // canvas px interior padding between note border and text while editing/drawing
 var CMT_SNAP_PAD = 1.5; // tighter padding used when the box snaps to hug text (commit / shrink)
+// Inner text inset in canvas px: base pad + HALF the border stroke. The border
+// is stroked centered on the box edge, so half of it lands INSIDE — without
+// this the first text line sat on top of the border and visibly clipped at
+// small fonts. Used identically by the renderer, the box-fit math, and the
+// editor so they always agree.
+function cmtInnerPad(c, mode){
+  var bw = Math.max(1, (c && c.borderStrokeW) || 2);
+  return ((mode==='snap') ? CMT_SNAP_PAD : CMT_PAD) + bw/2;
+}
 var _movingComment  = null;       // comment being dragged
 var _moveCmtStart   = null;       // {x,y,cx,cy} at drag start
 // ── Movement deadband (Acrobat-style intent detection) ──────────────
@@ -1838,19 +1847,24 @@ function drawCommentBox(ctx, c, sc, skipText, onScreen){
     ctx.fillStyle=c.textColor||'#1a1a2e';
     ctx.font=fs+'px Arial,sans-serif';
     ctx.textBaseline='top'; ctx.textAlign='left';
-    // Committed boxes are sized with CMT_SNAP_PAD (tight hug), so draw text at
-    // that same inset — otherwise text would sit at a looser pad than the box
-    // was fitted to and the last line would falsely read as overflow.
-    var pad=CMT_SNAP_PAD*sc;
+    // Committed boxes are sized with cmtInnerPad(snap) — draw text at the SAME
+    // inset, or the last line would falsely read as overflow.
+    var pad=cmtInnerPad(c,'snap')*sc;
     var maxW=w-2*pad;
     var lineH=fs*1.4;
+    // Half-leading: center each glyph row inside its 1.4× line box, exactly the
+    // way CSS line-height does in the editor. Without it the first line sat
+    // flush against the top pad (clipping into the border at small fonts) while
+    // all the slack piled up at the bottom — top/bottom spacing is now even.
+    var halfLead=(lineH-fs)/2;
     var lines=cmtWrapLines(ctx,c.text,maxW);
     lines.forEach(function(line,i){
-      var ty=y+pad+i*lineH;
-      // Clip lines that don't fit (Acrobat-style: no scaling). The fit test uses
-      // the glyph box (fs*1.2) for the line, NOT a full lineH, matching the box
-      // height math in fitCommentToText so no false overflow on the last line.
-      if(ty+fs*1.2<=y+h-pad+0.5) ctx.fillText(line,x+pad,ty,maxW);
+      var ty=y+pad+halfLead+i*lineH;
+      // Clip lines that don't fit (Acrobat-style: no scaling). A line counts as
+      // fitting when its glyphs stay inside the pad; the bottom half-leading is
+      // allowed to overlap the pad zone so legacy boxes fitted under the old
+      // (tighter) math don't suddenly flag overflow.
+      if(ty+fs<=y+h-pad+halfLead+0.5) ctx.fillText(line,x+pad,ty,maxW);
       else overflow=true;
     });
   }
@@ -1954,6 +1968,11 @@ function enterCommentSelectMode(c){
 // uses the same technique in repositionTextOverlay().
 function startCommentTextEdit(c){
   _editingComment=c;
+  // Re-render NOW so the canvas hides this note's committed text (the renderer
+  // skips text for c===_editingComment, but only on its next pass). Without
+  // this, the canvas text stayed painted under the editor, showing as ghosted
+  // "letters on top of letters" slightly offset from what you type.
+  renderShapeAndMeasure(); composite();
 
   // Editor overlay shows text at the same ON-SCREEN size the canvas will
   // render it: effective(box) size in canvas px × zoom. Clamp to a legible
@@ -1966,7 +1985,7 @@ function startCommentTextEdit(c){
   var renderPx = Math.max(1, cmtEffFontSize(c) * zoom);
   var scale = 1;
 
-  var pad = CMT_PAD;
+  var pad = cmtInnerPad(c,'grow');
   var cx  = c.cx - c.w/2 + pad;
   var cy  = c.cy - c.h/2 + pad;
   var cw  = c.w - 2*pad;
@@ -1995,7 +2014,7 @@ function startCommentTextEdit(c){
   // which is in canvas px) converted to screen px, so the typed text sits exactly
   // where drawCommentBox will paint it at any zoom. CSS box-sizing:border-box keeps
   // the set width correct. This is what aligns text-in-box across zoom levels.
-  textOv.style.padding      = Math.max(0, Math.round(CMT_PAD*zoom)) + 'px';
+  textOv.style.padding      = Math.max(0, Math.round(cmtInnerPad(c,'grow')*zoom)) + 'px';
   textOv.style.boxSizing    = 'border-box';
   textOv.style.lineHeight   = '1.4';
   textOv.style.transform    = 'none';
@@ -2046,23 +2065,30 @@ function fitCommentToText(c, text, skipRender, mode){
   // bottom text line vanished on commit (click-away).
   var fs   = Math.max(8, Math.round(cmtEffFontSize(c)));   // matches renderer at sc=1
   var lineH= fs*1.4;
-  // Padding: snap modes hug tight (CMT_SNAP_PAD on every side); live grow/draw
-  // keeps the looser CMT_PAD so the cursor isn't jammed against the border.
-  var pad  = (mode==='snap') ? CMT_SNAP_PAD : CMT_PAD;
+  // Padding: snap modes hug tight; live grow/draw keeps the looser pad so the
+  // cursor isn't jammed against the border. Includes half the border stroke
+  // (cmtInnerPad) to match the renderer exactly.
+  var pad  = cmtInnerPad(c, mode);
   var maxW = Math.max(c.w - 2*pad, 10);
   // Measure with the same font the renderer uses
   tCtx.save();
   tCtx.font = fs+'px Arial,sans-serif';
   var lines = (text && text.trim()) ? cmtWrapLines(tCtx, text, maxW) : [''];
   tCtx.restore();
+  // SNAP: drop trailing blank lines before counting — a newline after the last
+  // text line (Enter at the end) produced an invisible empty line that the box
+  // reserved a full row for, leaving a text-height gap above the bottom border.
+  // GROW (live typing) keeps them: the caret needs its row on a fresh line.
+  if(mode==='snap'){
+    while(lines.length>1 && lines[lines.length-1].trim()===''){ lines.pop(); }
+  }
   var n = Math.max(lines.length, 1);
-  // Height = leading between lines + the LAST line's actual glyph box, NOT a
-  // full lineH for the final line. A trailing full lineH includes ~40% leading
-  // below the last line — that was the wasted bottom space. fs*1.2 covers
-  // ascender+descender for Arial so descenders (g, y, p) never clip.
-  var blockH  = (n-1)*lineH + fs*1.2;
+  // Full 1.4× line boxes (includes the half-leading above the first line and
+  // below the last) so top and bottom spacing come out identical.
+  var blockH  = n*lineH;
   var neededH = Math.ceil(blockH + 2*pad);
-  var minH    = Math.ceil(fs*1.2 + 2*pad);
+  var minH    = Math.ceil(lineH + 2*pad);
+  var hBefore = c.h;
   if(mode==='grow'){
     // Only grow if the text doesn't fit; keep the user's manual height otherwise
     if(neededH > c.h) c.h = neededH;
@@ -2072,7 +2098,13 @@ function fitCommentToText(c, text, skipRender, mode){
     c.h = Math.max(neededH, minH);
   }
   if(selectedShape && selectedShape._commentObj === c) selectedShape.h = c.h;
-  if(!skipRender){
+  // Re-render ONLY if the box actually changed. This runs on EVERY keystroke
+  // while typing in a note (via _cmtAutoGrow) — unconditionally re-compositing
+  // the full document canvas per character was the desktop "freezes when I
+  // first type in it" stall. While editing, the canvas hides the note's text
+  // anyway (the editor shows it), so nothing on canvas needs repainting unless
+  // the box itself grew.
+  if(!skipRender && c.h !== hBefore){
     renderShapeAndMeasure(); composite();
     if(selectedShape) renderSelection();
   }
@@ -2088,6 +2120,7 @@ function snapCommentToFit(c){
   renderShapeAndMeasure(); composite();
   if(_editingComment===c) repositionCommentEditor(c);
   if(selectedShape) renderSelection();
+  if(!_preOp) captureState(false);   // avoid pushUndo's full pixel-readback fallback
   pushUndo();
 }
 
@@ -2095,7 +2128,7 @@ function snapCommentToFit(c){
 // textarea from scrolling its content out of the visible box).
 function repositionCommentEditorHeight(c){
   if(_editingComment !== c || textOv.style.display === 'none') return;
-  var interiorH = Math.max((c.h - 2*CMT_PAD) * zoom, 16);
+  var interiorH = Math.max((c.h - 2*cmtInnerPad(c,'grow')) * zoom, 16);
   textOv.style.height    = Math.round(interiorH) + 'px';
   textOv.style.minHeight = Math.round(interiorH) + 'px';
   textOv.style.maxHeight = Math.round(interiorH) + 'px';
@@ -2103,18 +2136,21 @@ function repositionCommentEditorHeight(c){
 }
 
 // ── Save text, close textOv, KEEP selection handles ──────────────
-function commitCommentEdit(){
+function commitCommentEdit(keepSize){
   if(!_editingComment) return;
   var c = _editingComment;
   _editingComment = null;
-  c.text = textOv.value;
+  c.text = textOv.value.replace(/\s+$/,'');   // strip trailing newlines — they reserved a phantom empty line
   if(selectedShape && selectedShape.type==='comment' && selectedShape._commentObj===c){
     c.cx=selectedShape.cx; c.cy=selectedShape.cy;
     c.w=selectedShape.w; c.h=selectedShape.h;
   }
   // On commit (click away), snap the box tight to hug the text.
+  // keepSize=true (used when the commit happens because the user just grabbed a
+  // resize handle): only GROW if text would clip — never shrink, so the box
+  // doesn't snap out from under the cursor at the exact moment of the grab.
   var _topE = c.cy - c.h/2;
-  fitCommentToText(c, c.text, true, 'snap');
+  fitCommentToText(c, c.text, true, keepSize ? 'grow' : 'snap');
   c.cy = _topE + c.h/2;
   if(selectedShape && selectedShape._commentObj===c){ selectedShape.cy=c.cy; selectedShape.h=c.h; }
   textOv.style.display = 'none'; textOv.blur();
@@ -2133,7 +2169,12 @@ function commitCommentEdit(){
   textOv.style.transformOrigin = '';
   textOv.style.padding         = '';  // revert to CSS default (2px 4px) for the text tool
   textOv.style.boxSizing       = '';
-  renderShapeAndMeasure(); composite(); pushUndo();
+  renderShapeAndMeasure(); composite();
+  // If no pre-op snapshot survived to here (the create/edit press already
+  // consumed it), take a cheap vector-only one — otherwise pushUndo's fallback
+  // does a FULL per-layer pixel readback, a visible freeze on big plans.
+  if(!_preOp) captureState(false);
+  pushUndo();
   if(selectedShape) renderSelection();
 }
 
@@ -2146,7 +2187,7 @@ function openCommentEditor(c){
 // Reposition textOv when box is resized while editing
 function repositionCommentEditor(c){
   if(_editingComment !== c || textOv.style.display === 'none') return;
-  var pad = CMT_PAD;
+  var pad = cmtInnerPad(c,'grow');
   var cx2 = c.cx - c.w/2 + pad;
   var cy2 = c.cy - c.h/2 + pad;
   var cw2 = c.w - 2*pad;
@@ -2169,9 +2210,14 @@ function repositionCommentEditor(c){
   }
   var newFont = Math.max(1, cmtEffFontSize(c) * zoom) + 'px';
   if(textOv.style.fontSize !== newFont) textOv.style.fontSize = newFont;
-  var newPad = Math.max(0, Math.round(CMT_PAD*zoom)) + 'px';
+  var newPad = Math.max(0, Math.round(cmtInnerPad(c,'grow')*zoom)) + 'px';
   if(textOv.style.padding !== newPad) textOv.style.padding = newPad;
   if(textOv.style.boxSizing !== 'border-box') textOv.style.boxSizing = 'border-box';
+  // Own these outright — if any other styler (text tool, picker handlers) left a
+  // scale transform or its 1.2 line-height behind, the note text rendered shrunken
+  // and wrapped wrong until commit.
+  if(textOv.style.transform !== 'none') textOv.style.transform = 'none';
+  if(textOv.style.lineHeight !== '1.4') textOv.style.lineHeight = '1.4';
   // Match editor height to the (already-fitted) box interior — cheap, no re-render.
   repositionCommentEditorHeight(c);
 }
@@ -2323,6 +2369,7 @@ var compositedSnap=null;
 var undoStack=[], redoStack=[];
 var polyPoints=[], polyActive=false;
 var leaderStep=0;
+var _leaderDragPlacing=false;   // hold-and-drag leader placement in progress
 var _suppressLeaderPlaceUntil=0; // ignore placement clicks right after a select/drag/deselect
 // ── TEXT FORMATTING STATE ──
 var textFontFamily = 'Arial';
@@ -2448,12 +2495,23 @@ function lctx(){ return layers[activeLayerIdx].ctx; }
 // ALL layers are snapshotted so undo works globally across layers.
 var _preOp = null;
 
-function captureState(){
+function captureState(includePixels){
+  if(includePixels===undefined) includePixels=true;
   try{
-    var snaps=layers.map(function(l){
+    // The per-layer getImageData below copies EVERY pixel of EVERY layer at full
+    // document resolution and forces a GPU→CPU readback stall — hundreds of MB
+    // and hundreds of ms on a large plan. Vector-only operations (notes, shapes,
+    // text, measures, leaders…) never touch layer pixels, so callers pass
+    // includePixels=false and the undo snapshot stores layerData:null — the
+    // restore path already skips null layer entries, leaving pixels untouched.
+    // (This was the desktop "note moves barely then sticks and freezes" bug:
+    // every press paid the full readback. It "fixed itself after a while"
+    // because the browser demotes a repeatedly-read canvas to software backing,
+    // which makes later readbacks cheap.)
+    var snaps = includePixels ? layers.map(function(l){
       if(!l.canvas.width||!l.canvas.height) return null;
       return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
-    });
+    }) : null;
     _preOp={
       layerData:  snaps,
       activeIdx:  activeLayerIdx,
@@ -3186,6 +3244,12 @@ function setupCtx(ctx){
 
 function resetCtx(ctx){ ctx.globalAlpha=1; ctx.setLineDash([]); }
 
+// Tools that should ALWAYS draw on press — they must never hijack the press to
+// select images, text objects, or an already-selected rect/ellipse underneath.
+// (Each still re-selects its OWN object type: line tool grabs lines, leader
+// tool grabs leaders, etc.)
+var DRAW_STRICT={line:1,arrow:1,polyline:1,measure:1,pathmeasure:1,polygon:1,leader:1};
+
 // ── DRAWING EVENTS ──
 function onDown(e){
   if(!baseLoaded||pinching) return;
@@ -3199,16 +3263,21 @@ function onDown(e){
     textOv.style.display='block';
     textOv.focus();
   } else if(tool!=='text' && tool!=='comment' && document.activeElement===textOv){
-    textOv.blur();
-    textOv.style.display='none';
+    // COMMIT the open overlay instead of raw blur+hide. The old code threw the
+    // typed text away while LEAVING it inside the hidden textarea — the next
+    // leader label / text box then opened pre-filled with the previous box's
+    // text ("pulling texts from the textbox"), and the label itself was lost.
+    commitText();
   }
 
   // Compute canvas position ONCE at top — used by both the selection block and shape re-select
   var sp=snapPt(getPos(e).x,getPos(e).y);
   // Raw (unsnapped) position for image overlay hit-testing — handles must never snap
   var spRaw=getPos(e);
-  // Capture pre-operation state for undo (before anything changes)
-  if(tool!=='pan'&&!spaceDown) captureState();
+  // Capture pre-operation state for undo (before anything changes).
+  // Only pen and eraser modify raster layer pixels from a pointer press —
+  // every other tool is vector — so only they pay for the pixel snapshot.
+  if(tool!=='pan'&&!spaceDown) captureState(tool==='pen'||tool==='eraser');
 
   // ── If a shape is selected, handle transform interaction first ──
   var _isTouchEvt = !!(e.touches && e.touches.length);
@@ -3251,23 +3320,28 @@ function onDown(e){
         perpW:(_imgHi===1||_imgHi===5)?_ov.w:null,perpH:(_imgHi===3||_imgHi===7)?_ov.h:null};
       return;
     }
-    if(_imgHitTest(selImg, spRaw.x, spRaw.y)){
+    if(!DRAW_STRICT[tool] && _imgHitTest(selImg, spRaw.x, spRaw.y)){
       e.preventDefault();
       selImgHandle=-1;
       selImgDrag={hi:-1,startX:spRaw.x,startY:spRaw.y,cx:selImg.cx,cy:selImg.cy,angle:selImg.angle||0};
       return;
     }
-    // Click outside image — deselect
+    // Click outside image — deselect. Drawing tools never re-select another
+    // image from the same press (the press is a draw, not a pick).
     commitImgSelection();
-    var _hit2=findImgAt(spRaw.x,spRaw.y,_isTouchEvt);
+    var _hit2=DRAW_STRICT[tool]?null:findImgAt(spRaw.x,spRaw.y,_isTouchEvt);
     if(_hit2){ selImg=_hit2; renderImgOverlays(); renderImgSelection(); return; }
-  } else {
+  } else if(!DRAW_STRICT[tool]){
+    // Fresh image pick — but NOT while a line/arrow/measure/leader-type tool is
+    // active. Pressing over an inserted picture used to select ("highlight")
+    // the picture instead of drawing, making those tools unusable over images.
     var _imgHit=findImgAt(spRaw.x,spRaw.y,_isTouchEvt);
     if(_imgHit){ selImg=_imgHit; renderImgOverlays(); renderImgSelection(); return; }
   }
 
-  // Tapping any existing text object with non-text/non-eraser tools → enter transform mode
-  if(!selectedShape && tool!=='text' && tool!=='eraser' && tool!=='pan' && !drawing){
+  // Tapping any existing text object with non-text/non-eraser tools → enter transform mode.
+  // Drawing tools are exempt — pressing over a text label must start the line/measure, not grab the text.
+  if(!selectedShape && tool!=='text' && tool!=='eraser' && tool!=='pan' && !DRAW_STRICT[tool] && !drawing){
     var _anyText=findTextObjAt(sp.x,sp.y);
     if(_anyText){
       e.preventDefault();
@@ -3277,7 +3351,14 @@ function onDown(e){
     }
   }
 
-  if(selectedShape && tool!=='measure'){
+  if(selectedShape && selectedShape.type!=='comment' && DRAW_STRICT[tool]){
+    // A rect/ellipse/etc. was left selected from earlier. Drawing tools never
+    // grab it: previously pressing its body MOVED the shape ("it switches to
+    // rect or ellipse") and pressing anywhere else only deselected and ATE the
+    // press entirely. Commit it and let this same press start the new draw.
+    commitSelection();
+  }
+  else if(selectedShape && tool!=='measure'){
     // Comments have their own full interaction logic in handleCommentDown — skip the
     // generic selected-shape block so interior clicks can open the text editor.
     if(selectedShape.type!=='comment'){
@@ -3402,7 +3483,10 @@ function onDown(e){
       renderLeaderSelection();
       return;
     }
-    // Empty space, nothing selected → fall through to placement (click handler).
+    // Empty space, nothing selected → HOLD-AND-DRAG placement:
+    // press = arrow tip (P1), drag to aim, release = text end (P2).
+    e.preventDefault();
+    leaderStep=1; leaderP1x=sp.x; leaderP1y=sp.y; _leaderDragPlacing=true;
     return;
   }
   if(tool==='stamp'){ handleStamp(e); return; }
@@ -3518,6 +3602,16 @@ function onDown(e){
 }
 
 function onMove(e){
+  // Leader hold-and-drag: live dashed preview for TOUCH (the separate drawCv
+  // mousemove listener already draws the identical preview for the mouse).
+  if(_leaderDragPlacing && tool==='leader' && leaderStep===1 && e.touches){
+    if(e.cancelable) e.preventDefault();
+    var _lpv=getPos(e);
+    composite();
+    dCtx.save(); dCtx.strokeStyle=color; dCtx.lineWidth=strokeW; dCtx.setLineDash([4,3]); dCtx.globalAlpha=0.6;
+    dCtx.beginPath(); dCtx.moveTo(leaderP1x,leaderP1y); dCtx.lineTo(_lpv.x,_lpv.y); dCtx.stroke(); dCtx.restore();
+    return;
+  }
   // ── Pending comment gesture: promote to MOVE once travel passes deadband ──
   // (Otherwise it resolves to "open editor" on pointerup — see onUp.)
   if(_cmtPending && selectedShape && selectedShape.type==='comment' && !pinching){
@@ -3763,6 +3857,33 @@ function onMove(e){
 }
 
 function onUp(e){
+  // ── Leader hold-and-drag release: commit the leader, open a CLEAN label ──
+  if(_leaderDragPlacing && tool==='leader'){
+    _leaderDragPlacing=false;
+    var _pL=snapPt(getPos(e).x,getPos(e).y);
+    if(leaderStep===1 && Math.hypot(_pL.x-leaderP1x,_pL.y-leaderP1y) > 8/zoom){
+      captureState(false);   // vector op — no pixel snapshot needed
+      var _shD=(_pL.x > baseCv.width/2) ? -1 : 1;
+      var _shL=60;
+      leaderObjs.push({
+        id:Date.now(),
+        x1:leaderP1x, y1:leaderP1y, x2:_pL.x, y2:_pL.y,
+        shoulderDir:_shD, shoulderLen:_shL,
+        color:color, strokeW:strokeW, opacity:opacity, layerIdx:activeLayerIdx
+      });
+      renderShapeAndMeasure();
+      composite();
+      textX=_pL.x+(_shL+2)*_shD; textY=_pL.y;
+      textOv.value='';   // label must NEVER inherit text left over from a previous box
+      showTextOverlay(textX, _pL.y);
+      pushUndo();
+    } else {
+      composite();       // a mere tap: cancel placement, wipe the dashed preview
+    }
+    leaderStep=0;
+    _suppressLeaderPlaceUntil=Date.now()+700;  // swallow the trailing/synthetic click
+    return;
+  }
   // ── Pending comment gesture resolves to a CLICK (no move occurred) ──
   // If travel never exceeded the deadband, onMove never promoted it to a move,
   // so the press was a click → open the text editor now. (Acrobat behavior)
@@ -3782,7 +3903,7 @@ function onUp(e){
     if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);
     var mw=Math.abs(p_.x-startX), mh=Math.abs(p_.y-startY);
     if(mw>4||mh>4){
-      captureState();
+      captureState(false);   // vector op — no pixel snapshot needed
       markupObjs.push({
         id:Date.now(),
         type:tool==='highlight'?'highlight':tool==='strikeout'?'strikeout':'underlinemark',
@@ -3802,7 +3923,7 @@ function onUp(e){
     if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);
     var w=Math.abs(p.x-startX), h=Math.abs(p.y-startY);
     if(w>15&&h>25){
-      captureState();
+      captureState(false);   // vector op — no pixel snapshot needed
       var nc={
         id:Date.now(),
         cx:(startX+p.x)/2, cy:(startY+p.y)/2,
@@ -3862,16 +3983,13 @@ function onUp(e){
       var _rc=selectedShape._commentObj;
       _rc.cx=selectedShape.cx; _rc.cy=selectedShape.cy;
       _rc.w=selectedShape.w; _rc.h=selectedShape.h;
-      // After a manual resize, ensure ALL text remains visible: text re-wraps to
-      // the dragged width, then the height GROWS if lines would clip. Previously
-      // this forced a tight 'snap' on every release, which also SHRANK the box —
-      // dragging a note taller then letting go visibly snapped it back, making
-      // the side/bottom handles feel broken. Grow-only keeps the no-clipped-text
-      // guarantee while respecting the size the user just dragged to.
-      // Top edge stays put so the box doesn't jump.
+      // After a manual resize: text re-wraps to the dragged WIDTH, then the
+      // height snaps to hug the result (top edge stays put). Width is the
+      // dimension the user is really steering — height follows the text, so
+      // no dead space is left at the bottom of the box.
       if(!_editingComment){
         var _topR=_rc.cy-_rc.h/2;
-        fitCommentToText(_rc, _rc.text, true, 'grow');
+        fitCommentToText(_rc, _rc.text, true, 'snap');
         _rc.cy=_topR+_rc.h/2;
         if(selectedShape){ selectedShape.cy=_rc.cy; selectedShape.h=_rc.h; }
       }
@@ -4923,8 +5041,8 @@ drawCv.addEventListener('touchend',function(e){
   if(tool==='polyline') return;
   lastTap=now;
   if(tool==='leader'){
-    if(selectedLeader || Date.now() < _suppressLeaderPlaceUntil) return;
-    handleLeaderClick(p.x,p.y,fakeE);
+    // Placement is hold-and-drag now (onDown→onUp). Taps never place points.
+    return;
   }
 },{passive:true});
 
@@ -4950,10 +5068,8 @@ drawCv.addEventListener('click',function(e){
     plPoints.push(plp); plActive=true; redrawPolylinePreview(plp.x,plp.y);
   }
   else if(tool==='leader'){
-    // Don't place a new leader if one is selected (we're editing it) or if a
-    // selection/drag/deselect interaction just consumed this click in onDown.
-    if(selectedLeader || Date.now() < _suppressLeaderPlaceUntil) return;
-    handleLeaderClick(p.x,p.y,e);
+    // Placement is hold-and-drag now (onDown→onUp). Clicks never place points.
+    return;
   }
 });
 drawCv.addEventListener('dblclick',function(e){
@@ -5112,7 +5228,7 @@ function redrawPolyPreview(mx,my){
 
 function closePolygon(){
   if(polyPoints.length<3){ polyPoints=[]; polyActive=false; composite(); return; }
-  captureState(); // save before polygon is committed
+  captureState(false); // vector op — save before polygon is committed
   polygonObjs.push({
     id:Date.now(), pts:polyPoints.slice(),
     color:color, strokeW:strokeW, opacity:opacity,
@@ -5143,7 +5259,7 @@ function handleLeaderClick(x,y,e){
     // show crosshair hint
   } else if(leaderStep===1){
     // Commit a LIVE leader object (never burned to the layer canvas)
-    captureState();
+    captureState(false);
     var shoulderDir = (x > baseCv.width/2) ? -1 : 1;
     var shoulderLen = 60;
     leaderObjs.push({
@@ -5163,7 +5279,7 @@ function handleLeaderClick(x,y,e){
 
 // ── STAMPS ──
 function handleStamp(e){
-  captureState(); // save before stamp is placed
+  captureState(false); // vector op — save before stamp is placed
   var p=snapPt(getPos(e).x,getPos(e).y);
   var sz=Math.max(20,Math.min(60,40/zoom));
   stampObjs.push({
@@ -5398,9 +5514,15 @@ var _txtHoverX       = 0;
 var _txtHoverY       = 0;
 
 function drawTextCursorAt(x, y, alpha){
-  var h   = FONT_SIZE * 1.25;           // cursor height in canvas px
-  var sw  = Math.max(1.5, 2/zoom);      // stroke width
-  var ss  = Math.max(4, 7/zoom);        // serif width
+  // Height = the ACTUAL rendered text height (points → canvas px via the DPI
+  // factor, same as the committed text). Using raw FONT_SIZE points-as-px made
+  // the caret the wrong size relative to the text.
+  var h   = ptToCanvasPx(FONT_SIZE) * 1.25;   // cursor height in canvas px
+  // Serifs, stroke, and glow used fixed SCREEN sizes (7/zoom, 4/zoom blur) —
+  // zoomed out on a phone they dwarfed both the bar and the text, reading as a
+  // giant blob at the tap point. Cap them relative to the caret height.
+  var sw  = Math.min(Math.max(1.5, 2/zoom), Math.max(1, h*0.12));   // stroke width
+  var ss  = Math.min(Math.max(4, 7/zoom),  Math.max(2, h*0.45));    // serif width
   var col = color;
 
   selCtx.save();
@@ -5409,7 +5531,7 @@ function drawTextCursorAt(x, y, alpha){
   selCtx.lineWidth   = sw;
   selCtx.lineCap     = 'round';
   selCtx.shadowColor = col;
-  selCtx.shadowBlur  = 4/zoom;
+  selCtx.shadowBlur  = Math.min(4/zoom, h*0.25);   // glow scales with the caret, not the screen
 
   // Vertical bar
   selCtx.beginPath();
@@ -5540,7 +5662,7 @@ function showTextHover(x, y){
     selCtx.globalAlpha=0.45;
     selCtx.font='bold '+(Math.max(10,11/zoom))+'px Arial,sans-serif';
     selCtx.fillStyle=color; selCtx.textAlign='left';
-    selCtx.fillText('T', x + 8/zoom, y - FONT_SIZE*1.1);
+    selCtx.fillText('T', x + 8/zoom, y - ptToCanvasPx(FONT_SIZE)*1.1); // true rendered height, not points-as-px
     selCtx.restore();
   }
 }
@@ -5601,7 +5723,13 @@ function handleCommentDown(e, sp, isTouch){
         return;
       }
       _cmtHandleTap=_hNow; _cmtHandleObj=selectedShape._commentObj;
-      // Resize handle: grab it (works whether or not we're editing)
+      // Resize handle: grab it. If the note is open for typing, RELEASE the
+      // text cursor first — the mouse-down on a handle commits the edit
+      // (grow-only, so the box never snaps out from under the press) and the
+      // same press continues straight into the resize.
+      if(_editingComment && _editingComment===selectedShape._commentObj){
+        commitCommentEdit(true);
+      }
       e.preventDefault();
       selHandle=sh;
       selDragStart={x:sp.x,y:sp.y,
@@ -5625,7 +5753,12 @@ function handleCommentDown(e, sp, isTouch){
       var onBorder = isOnCommentBorder(selectedShape, sp.x, sp.y, isTouch);
 
       if(onBorder){
-        // Drag on the border (between handles) = move, even while editing
+        // Drag on the border (between handles) = move. Grabbing the box to
+        // move it releases the text cursor — commit on mouse-down, then the
+        // same press continues as the move.
+        if(_editingComment && _editingComment===selectedShape._commentObj){
+          commitCommentEdit(true);
+        }
         e.preventDefault();
         selHandle=-2;
         selDragStart={x:sp.x,y:sp.y,
@@ -5778,18 +5911,21 @@ function showTextOverlay(cx,cy){
 
 function repositionTextOverlay(){
   if(textOv.style.display==='none') return;
+  // The shared textarea currently belongs to a NOTE — its styling is owned by
+  // repositionCommentEditor. Never apply text-tool sizing/transform to it.
+  if(_editingComment) return;
   var cx=textOv._canvasCx||textX, cy=textOv._canvasCy||textY;
-  // Use visualViewport to account for keyboard offset on iOS
-  var vv=window.visualViewport;
-  var vvOffTop  = vv ? vv.offsetTop  : 0;
-  var vvOffLeft = vv ? vv.offsetLeft : 0;
   var FONT_PX = ptToCanvasPx(FONT_SIZE); // scale-locked canvas px for editor preview
-  var sx = panX + cx*zoom + vvOffLeft;
-  var sy = panY + cy*zoom - FONT_PX*zoom + vvOffTop;
-  // Keep textarea on screen
-  var vpH = vv ? vv.height : viewport.clientHeight;
-  sy = Math.min(sy, vpH - 60);
-  sx = Math.max(0, sx);
+  // textOv is absolutely positioned inside #viewport, whose offset parent
+  // already moves with the on-screen keyboard / page scroll. Adding
+  // visualViewport offsets here DOUBLE-counted that shift — typed text landed
+  // somewhere else on the canvas, away from the tap, every time the mobile
+  // keyboard was up. Same bug the comment editor had; same fix: position in
+  // viewport-local space only. (Desktop: offsets were 0, identical behavior.)
+  // The old "keep above keyboard" clamp (vv.height-60) also yanked any
+  // lower-half tap upward — removed for the same reason.
+  var sx = Math.max(0, panX + cx*zoom);
+  var sy = panY + cy*zoom - FONT_PX*zoom;
   textOv.style.display  = 'block';
   textOv.style.left     = sx+'px';
   textOv.style.top      = sy+'px';
@@ -5818,17 +5954,66 @@ function repositionTextOverlay(){
 // Listen for keyboard appearance / viewport resize on iOS
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize', function(){
-    repositionTextOverlay();
+    // Route to ONE styler. Calling repositionTextOverlay while a NOTE was being
+    // edited let the TEXT tool's styling stomp the comment editor every time the
+    // mobile keyboard opened — including a transform:scale() shrink based on the
+    // text tool's font size. The comment repositioner fixed the font number but
+    // never cleared that transform, so typed note text displayed tiny on
+    // phones/iPads until commit. Desktop never fires these events.
     if(_editingComment) repositionCommentEditor(_editingComment);
+    else repositionTextOverlay();
   });
   window.visualViewport.addEventListener('scroll', function(){
-    repositionTextOverlay();
     if(_editingComment) repositionCommentEditor(_editingComment);
+    else repositionTextOverlay();
   });
 }
 
 // Stop mousedown on the textarea from propagating to canvas handlers
-textOv.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+// ── Edge-grab: release the caret when grabbing the box from inside ──────────
+// While editing, the textarea covers the box interior and swallowed every
+// press — including presses on the side/corner handle zones it overlaps. The
+// caret never released and the canvas never saw the grab, so resizing/moving
+// an open note felt stuck. A press within the edge zone now commits the edit
+// (keepSize — no snap under the cursor) and hands the SAME press to the
+// canvas, which resolves it as a handle resize or border move as usual.
+// Presses in the middle still place the caret normally.
+var _textOvFwdTouch=false;
+function _textOvEdgeGrab(e){
+  if(!_editingComment) return false;
+  var t=(e.touches&&e.touches[0])||e;
+  if(t.clientX===undefined) return false;
+  var r=textOv.getBoundingClientRect();
+  var m=e.touches?16:9;   // edge zone in screen px (bigger for fingers)
+  // On a tiny box (low zoom) the edge zones would swallow the whole textarea
+  // and make the caret unplaceable — prefer the caret; the handles still stick
+  // out past the border and remain grabbable on the canvas itself.
+  if(r.width < m*3 || r.height < m*3) return false;
+  var nearEdge = t.clientX < r.left+m || t.clientX > r.right-m ||
+                 t.clientY < r.top+m  || t.clientY > r.bottom-m;
+  if(!nearEdge) return false;
+  var c=_editingComment;
+  commitCommentEdit(true);                       // release caret, keep box size
+  if(!selectedShape || selectedShape._commentObj!==c) enterCommentSelectMode(c);
+  if(e.cancelable) e.preventDefault();
+  onDown(e);                                     // same press starts the grab
+  return true;
+}
+textOv.addEventListener('mousedown', function(e){
+  if(_textOvEdgeGrab(e)) return;                 // forwarded — textOv now hidden,
+  e.stopPropagation();                           // mousemoves reach the canvas
+});
+// Touch events keep firing at the element where the touch STARTED, even after
+// the textarea is hidden — forward the rest of the gesture explicitly.
+textOv.addEventListener('touchstart', function(e){
+  _textOvFwdTouch=_textOvEdgeGrab(e);
+},{passive:false});
+textOv.addEventListener('touchmove', function(e){
+  if(_textOvFwdTouch){ if(e.cancelable) e.preventDefault(); onMove(e); }
+},{passive:false});
+textOv.addEventListener('touchend', function(e){
+  if(_textOvFwdTouch){ _textOvFwdTouch=false; onUp(e); }
+});
 textOv.addEventListener('mouseup',   function(e){ e.stopPropagation(); });
 textOv.addEventListener('click',     function(e){ e.stopPropagation(); });
 textOv.addEventListener('keydown',function(e){
@@ -6279,7 +6464,7 @@ function commitSelection(){
     var c=s._commentObj;
     c.cx=s.cx; c.cy=s.cy; c.w=s.w; c.h=s.h;
     if(_editingComment===c){
-      c.text=textOv.value;
+      c.text=textOv.value.replace(/\s+$/,'');   // strip trailing newlines
       _editingComment=null;
       textOv.style.display='none'; textOv.blur();
       textOv.style.background=''; textOv.style.borderBottom='';
@@ -6363,7 +6548,7 @@ function cancelSelection(){
   if(selectedShape&&selectedShape.type==='comment'&&selectedShape._commentObj){
     var _cc=selectedShape._commentObj;
     if(_editingComment===_cc){
-      _cc.text=textOv.value;
+      _cc.text=textOv.value.replace(/\s+$/,'');   // strip trailing newlines
       _editingComment=null;
       textOv.style.display='none'; textOv.blur();
       textOv.style.background=''; textOv.style.borderBottom='';
@@ -7016,7 +7201,7 @@ document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
       if(_editingComment) commitCommentEdit();
       if(selectedShape&&selectedShape.type==='comment') commitSelection();
     }
-    commitText(); commitSelection(); commitMeasureSelection(); commitPolylineSelection(); commitLeaderSelection(); leaderStep=0;
+    commitText(); commitSelection(); commitMeasureSelection(); commitPolylineSelection(); commitLeaderSelection(); leaderStep=0; _leaderDragPlacing=false;
     stopTextCursor(); clearTextHover();
     tool=btn.dataset.tool;
     document.querySelectorAll('.tb-btn[data-tool]').forEach(function(b){ b.classList.remove('active'); });
@@ -7094,50 +7279,90 @@ function closeStampPicker(){
   // one repaint per animation frame — visually identical, but it can't pile up.
   var _liveRenderPending=false;
   function liveRender(){
-    if(!_editingComment) return;
     if(_liveRenderPending) return;
     _liveRenderPending=true;
     requestAnimationFrame(function(){
       _liveRenderPending=false;
-      if(!_editingComment) return;
       renderShapeAndMeasure(); composite();
+      if(selectedShape && selectedShape.type==='comment') renderSelection();
     });
   }
 
+  // ── Style pickers apply to the SELECTED note, not just while typing ──────
+  // On iPad, tapping any picker commits/closes the text editor before the
+  // input event fires, so _editingComment is already null — the change used to
+  // land on the DEFAULTS for the next note instead of the one on screen. The
+  // note stays SELECTED through the picker interaction, so target that; a
+  // snapshot ref (captured the moment the control is touched) bridges any
+  // flow where even the selection gets cleared.
+  var _cmtPickRef=null,_cmtPickAt=0;
+  function _cmtSnapRef(){
+    var t=_editingComment||(selectedShape&&selectedShape.type==='comment'&&selectedShape._commentObj)||null;
+    if(t){ _cmtPickRef=t; _cmtPickAt=Date.now(); }
+  }
+  function _cmtStyleTarget(){
+    return _editingComment
+        || (selectedShape&&selectedShape.type==='comment'&&selectedShape._commentObj)
+        || (Date.now()-_cmtPickAt<30000 ? _cmtPickRef : null);
+  }
+  [bgIn,bdIn,txIn,bgOpSl,bdWSl,bgSw,bdSw].forEach(function(el){
+    if(!el) return;
+    el.addEventListener('mousedown', _cmtSnapRef);
+    el.addEventListener('touchstart', _cmtSnapRef, {passive:true});
+  });
+  // After restyling a committed (non-editing) note, keep it hugging its text:
+  // border width changes the inner pad, which changes wrapping.
+  function _cmtRefit(t){
+    if(_editingComment===t) return;             // live grow handles the editing case
+    var _tp=t.cy-t.h/2;
+    fitCommentToText(t, t.text, true, 'snap');
+    t.cy=_tp+t.h/2;
+    if(selectedShape&&selectedShape._commentObj===t){ selectedShape.cy=t.cy; selectedShape.h=t.h; }
+  }
   if(bgIn){
-    bgIn.addEventListener('input',function(e){
+    // iOS/iPadOS color sheets often fire only 'change' (on dismiss), not the
+    // live 'input' stream desktop browsers send — apply on BOTH so a color
+    // picked on mobile lands on the highlighted note.
+    var applyBg=function(e){
       _cBgColor=e.target.value; bgSw.style.background=_cBgColor;
-      if(_editingComment){ _editingComment.bgColor=_cBgColor; liveRender(); }
-    });
-    bgIn.addEventListener('change', refocus);
+      var t=_cmtStyleTarget();
+      if(t){ t.bgColor=_cBgColor; liveRender(); }
+    };
+    bgIn.addEventListener('input',applyBg);
+    bgIn.addEventListener('change',function(e){ applyBg(e); refocus(); });
   }
   if(bdIn){
-    bdIn.addEventListener('input',function(e){
+    var applyBd=function(e){
       _cBorderColor=e.target.value; bdSw.style.background=_cBorderColor;
-      if(_editingComment){
-        _editingComment.borderColor=_cBorderColor;
-        if(selectedShape&&selectedShape._commentObj===_editingComment) selectedShape.color=_cBorderColor;
+      var t=_cmtStyleTarget();
+      if(t){
+        t.borderColor=_cBorderColor;
+        if(selectedShape&&selectedShape._commentObj===t) selectedShape.color=_cBorderColor;
         liveRender();
       }
-    });
-    bdIn.addEventListener('change', refocus);
+    };
+    bdIn.addEventListener('input',applyBd);
+    bdIn.addEventListener('change',function(e){ applyBd(e); refocus(); }); // iOS fires change on dismiss
   }
   if(txIn){
-    txIn.addEventListener('input',function(e){
+    var applyTx=function(e){
       _cTxtColor=e.target.value; txSw.style.background=_cTxtColor;
-      if(_editingComment){
-        _editingComment.textColor=_cTxtColor;
-        textOv.style.color=_cTxtColor; // live color while typing
+      var t=_cmtStyleTarget();
+      if(t){
+        t.textColor=_cTxtColor;
+        if(_editingComment===t) textOv.style.color=_cTxtColor; // live color while typing
         liveRender();
       }
-    });
-    txIn.addEventListener('change', refocus);
+    };
+    txIn.addEventListener('input',applyTx);
+    txIn.addEventListener('change',function(e){ applyTx(e); refocus(); }); // iOS fires change on dismiss
   }
   if(bgOpSl){
     function applyBgOp(v){
       _cBgOpacity=Math.round(v)/100;
       if(bgOpVal) bgOpVal.textContent=Math.round(v)+'%';
-      if(_editingComment){ _editingComment.bgOpacity=_cBgOpacity; liveRender(); }
+      var t=_cmtStyleTarget();
+      if(t){ t.bgOpacity=_cBgOpacity; liveRender(); }
     }
     bgOpSl.addEventListener('input',function(e){ applyBgOp(parseInt(e.target.value)); });
     bgOpSl.addEventListener('change', refocus);
@@ -7147,7 +7372,12 @@ function closeStampPicker(){
     function applyBdW(v){
       _cBorderW=Math.round(v);
       if(bdWVal) bdWVal.textContent=_cBorderW+'px';
-      if(_editingComment){ _editingComment.borderStrokeW=_cBorderW; liveRender(); }
+      var t=_cmtStyleTarget();
+      if(t){
+        t.borderStrokeW=_cBorderW;
+        _cmtRefit(t);          // pad follows border width — keep the box hugging
+        liveRender();
+      }
     }
     bdWSl.addEventListener('input',function(e){ applyBdW(parseInt(e.target.value)); });
     bdWSl.addEventListener('change', refocus);
@@ -7190,7 +7420,7 @@ function closeStampPicker(){
       // commit re-drew it correctly.
       if(textOv.style.display !== 'none'){
         var renderPx = Math.max(1, cmtEffFontSize(target) * zoom);
-        var visualW  = Math.max((target.w - 2*CMT_PAD) * zoom, 40);
+        var visualW  = Math.max((target.w - 2*cmtInnerPad(target,'grow')) * zoom, 40);
         textOv.style.fontSize = renderPx + 'px';
         textOv.style.transform = 'none';
         textOv.style.width    = Math.round(visualW) + 'px';
@@ -7275,8 +7505,11 @@ fontSizeSel.addEventListener('change',function(e){
   if(ref){ ref.fontSize = FONT_SIZE; }
 
   if(textOv.style.display !== 'none'){
-    // Apply font size directly without focus() — focus is blocked on iOS
-    var screenSz = FONT_SIZE * zoom;
+    // Apply font size directly without focus() — focus is blocked on iOS.
+    // MUST convert points → canvas px (ptToCanvasPx) like repositionTextOverlay
+    // does; using FONT_SIZE raw as px made the editor text display at half size
+    // (or less) on high-DPI plans until commit.
+    var screenSz = ptToCanvasPx(FONT_SIZE) * zoom;
     var renderSz = Math.max(16, screenSz);
     var scaleV   = screenSz / renderSz;
     textOv.style.fontSize  = renderSz + 'px';
@@ -7364,21 +7597,24 @@ var txtBgSwatch=document.getElementById('txt-bg-swatch');
 var txtBgOpSl=document.getElementById('txt-bg-op-sl');
 var txtBgOpVal=document.getElementById('txt-bg-op-val');
 if(txtBgInput){
-  txtBgInput.addEventListener('input',function(e){
+  var applyTxtBg=function(e){
     textBgColor=e.target.value;
-    // Show solid color when opacity>0
     if(textBgOpacity>0){ txtBgSwatch.style.background=textBgColor; txtBgSwatch.style.backgroundImage='none'; }
     if(editingObj){ editingObj.bgColor=textBgColor; renderTextObjs(); }
-  });
+  };
+  txtBgInput.addEventListener('input', applyTxtBg);
+  txtBgInput.addEventListener('change', applyTxtBg); // iOS dismiss
 }
 if(txtBgOpSl){
-  txtBgOpSl.addEventListener('input',function(e){
-    textBgOpacity=parseInt(e.target.value)/100;
-    txtBgOpVal.textContent=e.target.value+'%';
+  var applyTxtBgOp=function(v){
+    textBgOpacity=Math.round(v)/100;
+    txtBgOpVal.textContent=Math.round(v)+'%';
     if(textBgOpacity>0){ txtBgSwatch.style.background=textBgColor; txtBgSwatch.style.backgroundImage='none'; }
     else { txtBgSwatch.style.background=''; txtBgSwatch.style.backgroundImage='repeating-conic-gradient(#aaa 0% 25%, transparent 0% 50%)'; txtBgSwatch.style.backgroundSize='8px 8px'; }
     if(editingObj){ editingObj.bgOpacity=textBgOpacity; renderTextObjs(); }
-  });
+  };
+  txtBgOpSl.addEventListener('input',function(e){ applyTxtBgOp(parseInt(e.target.value)); });
+  attachSliderTouch(txtBgOpSl, applyTxtBgOp);   // mobile Safari: native range drag is blocked
 }
 
 // ── MARKUP TOOL COLOR/OPACITY ─────────────────────────────────
@@ -7387,20 +7623,25 @@ var markupClrSwatch=document.getElementById('markup-clr-swatch');
 var markupOpSl=document.getElementById('markup-op-sl');
 var markupOpValEl=document.getElementById('markup-op-val');
 if(markupClrInput){
-  markupClrInput.addEventListener('input',function(e){
+  var applyMarkupClr=function(e){
     markupColor=e.target.value;
     markupClrSwatch.style.background=markupColor;
-  });
+  };
+  markupClrInput.addEventListener('input', applyMarkupClr);
+  markupClrInput.addEventListener('change', applyMarkupClr); // iOS dismiss
 }
 if(markupOpSl){
-  markupOpSl.addEventListener('input',function(e){
-    markupOpacity=parseInt(e.target.value)/100;
-    markupOpValEl.textContent=e.target.value+'%';
-  });
+  var applyMarkupOp=function(v){
+    markupOpacity=Math.round(v)/100;
+    markupOpValEl.textContent=Math.round(v)+'%';
+  };
+  markupOpSl.addEventListener('input',function(e){ applyMarkupOp(parseInt(e.target.value)); });
+  attachSliderTouch(markupOpSl, applyMarkupOp); // mobile Safari: native range drag is blocked
 }
-clrInput.addEventListener('input',function(e){
-  color=e.target.value; clrSwatch.style.background=color;
-  // Live update selected item
+// Apply on 'input' AND 'change': iOS color sheets often fire only 'change' on
+// dismiss, so applying on 'input' alone silently dropped mobile color picks.
+function applyStrokeColor(v){
+  color=v; clrSwatch.style.background=color;
   if(selectedShape){
     selectedShape.color=color;
     if(selectedShape._textObj) selectedShape._textObj.color=color;
@@ -7409,16 +7650,24 @@ clrInput.addEventListener('input',function(e){
   if(selectedMeasure){ selectedMeasure.color=color; renderMeasureSelection(); renderShapeAndMeasure(); }
   if(selectedPolyline){ selectedPolyline.color=color; renderShapeAndMeasure(); renderPolylineSelection(); }
   if(selectedLeader){ selectedLeader.color=color; renderShapeAndMeasure(); renderLeaderSelection(); }
-});
-swSl.addEventListener('input',function(e){
-  strokeW=parseInt(e.target.value); swVal.textContent=strokeW+'px';
+}
+clrInput.addEventListener('input', function(e){ applyStrokeColor(e.target.value); });
+clrInput.addEventListener('change', function(e){ applyStrokeColor(e.target.value); });
+// One applier for stroke width, used by BOTH the native 'input' events
+// (desktop drag) and the custom touch path below. On mobile Safari the touch
+// helper preventDefaults the native range drag, so no 'input' events ever
+// fire — its old callback updated only the DEFAULT width, never the selected
+// line/arrow/shape/leader. Color worked (tap-based picker, separate handler),
+// width didn't — exactly the reported symptom.
+function applyStrokeW(v){
+  strokeW=Math.round(v); swVal.textContent=strokeW+'px';
   if(selectedShape){ selectedShape.strokeW=strokeW; renderSelection(); }
   if(selectedMeasure){ selectedMeasure.strokeW=strokeW; renderMeasureSelection(); renderShapeAndMeasure(); }
   if(selectedPolyline){ selectedPolyline.strokeW=strokeW; renderShapeAndMeasure(); renderPolylineSelection(); }
   if(selectedLeader){ selectedLeader.strokeW=strokeW; renderShapeAndMeasure(); renderLeaderSelection(); }
-});
-opSl.addEventListener('input',function(e){
-  opacity=parseInt(e.target.value)/100; opVal.textContent=e.target.value+'%';
+}
+function applyOpacityAll(v){
+  opacity=Math.round(v)/100; opVal.textContent=Math.round(v)+'%';
   if(selectedShape){
     selectedShape.opacity=opacity;
     if(selectedShape._textObj) selectedShape._textObj.opacity=opacity;
@@ -7427,18 +7676,21 @@ opSl.addEventListener('input',function(e){
   if(selectedMeasure){ selectedMeasure.opacity=opacity; renderMeasureSelection(); renderShapeAndMeasure(); }
   if(selectedPolyline){ selectedPolyline.opacity=opacity; renderShapeAndMeasure(); renderPolylineSelection(); }
   if(selectedLeader){ selectedLeader.opacity=opacity; renderShapeAndMeasure(); renderLeaderSelection(); }
-});
+}
+swSl.addEventListener('input',function(e){ applyStrokeW(parseInt(e.target.value)); });
+opSl.addEventListener('input',function(e){ applyOpacityAll(parseInt(e.target.value)); });
 
 // Fill color + opacity pickers
-fillClrInput.addEventListener('input',function(e){
-  fillColor=e.target.value; updateFillSwatch();
-  // Auto-enable fill when user picks a fill color
-  fillShape=true; fillBtn.classList.add('active');
+function applyFillColor(v){
+  fillColor=v; updateFillSwatch();
+  fillShape=true; fillBtn.classList.add('active');   // picking a fill color enables fill
   if(selectedShape&&selectedShape.type!=='text'){
     selectedShape.fillColor=fillColor; selectedShape.fill=true; renderSelection();
     if(editShapeObj){ editShapeObj.fillColor=fillColor; editShapeObj.fill=true; }
   }
-});
+}
+fillClrInput.addEventListener('input', function(e){ applyFillColor(e.target.value); });
+fillClrInput.addEventListener('change', function(e){ applyFillColor(e.target.value); }); // iOS dismiss
 fillOpSl.addEventListener('input',function(e){
   fillOpacity=parseInt(e.target.value)/100; fillOpVal.textContent=e.target.value+'%'; updateFillSwatch();
   // Auto-enable fill when user adjusts opacity (0 = transparent = disable fill)
@@ -7460,8 +7712,8 @@ function attachSliderTouch(sl,onVal){
   sl.addEventListener('touchstart',function(e){ e.stopPropagation(); e.preventDefault(); sx=e.touches[0].clientX; sw=sl.getBoundingClientRect().width||60; mn=parseFloat(sl.min); mx=parseFloat(sl.max); sv=parseFloat(sl.value); },{passive:false});
   sl.addEventListener('touchmove',function(e){ e.stopPropagation(); e.preventDefault(); var dx=e.touches[0].clientX-sx; var v=Math.max(mn,Math.min(mx,sv+dx/sw*(mx-mn))); sl.value=v; onVal(v); },{passive:false});
 }
-attachSliderTouch(swSl,function(v){ strokeW=Math.round(v); swVal.textContent=Math.round(v)+'px'; });
-attachSliderTouch(opSl,function(v){ opacity=Math.round(v)/100; opVal.textContent=Math.round(v)+'%'; });
+attachSliderTouch(swSl, applyStrokeW);     // touch drags apply to the selected object too
+attachSliderTouch(opSl, applyOpacityAll);
 
 // ── UNDO/REDO/CLEAR ──
 btnUndo.addEventListener('click',undoFn);
@@ -9165,8 +9417,8 @@ function commitImgSelection(){
 // Piggyback on the existing undo system by serialising imgOverlays state
 // into captureState/applySnap via monkey-patch
 var _origCaptureState=captureState;
-captureState=function(){
-  _origCaptureState();
+captureState=function(includePixels){
+  _origCaptureState(includePixels);   // forward the pixel-skip flag — dropping it forced a full readback on EVERY call
   if(_preOp) _preOp.imgOverlays=imgOverlays.map(function(ov){
     return {img:ov.img,cx:ov.cx,cy:ov.cy,w:ov.w,h:ov.h,angle:ov.angle,
             flipH:ov.flipH,flipV:ov.flipV,opacity:ov.opacity};
@@ -9452,12 +9704,14 @@ function showImgBar(ov){
 }
 function hideImgBar(){ _imgSelBar.style.display='none'; }
 
-_imgOpSl.addEventListener('input',function(){
+function applyImgOp(v){
   if(!selImg) return;
-  selImg.opacity=parseInt(this.value)/100;
-  _imgOpVal.textContent=this.value+'%';
+  selImg.opacity=Math.round(v)/100;
+  _imgOpVal.textContent=Math.round(v)+'%';
   renderImgOverlays(); renderImgSelection();
-});
+}
+_imgOpSl.addEventListener('input',function(){ applyImgOp(parseInt(this.value)); });
+attachSliderTouch(_imgOpSl, applyImgOp);      // mobile Safari: native range drag is blocked
 _imgOpSl.addEventListener('change',function(){ pushImgUndo(); });
 _imgOpSl.addEventListener('mousedown',function(e){ e.stopPropagation(); });
 _imgOpSl.addEventListener('touchstart',function(e){ e.stopPropagation(); },{passive:true});
