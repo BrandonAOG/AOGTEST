@@ -586,16 +586,27 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 #cdn-warn.show{display:block;}
 
 /* Watermark on canvas */
-#wm-canvas{position:absolute;bottom:12px;right:12px;pointer-events:none;z-index:4;opacity:0.55;text-align:right;}
-#wm-canvas .wm-name{font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:1.5px;color:#FBBF24;text-shadow:0 1px 4px rgba(0,0,0,0.7);line-height:1.3;}
-#wm-canvas .wm-addr{font-family:'Share Tech Mono',monospace;font-size:9.5px;letter-spacing:0.8px;color:#94A3B8;text-shadow:0 1px 3px rgba(0,0,0,0.7);line-height:1.3;}
-#wm-canvas .wm-brand{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#F97316;margin-top:2px;opacity:0.8;}
+#wm-canvas{position:absolute;pointer-events:none;z-index:4;opacity:0.9;text-align:right;--wm-pt:20px;}
+/* #wm-canvas lives inside #scene, which is scale(zoom)'d — so it grows when you
+   zoom in and shrinks when you zoom out, exactly like the plan and the other
+   on-canvas text. --wm-pt is the chosen size converted to canvas-space px, set
+   in applyWmScale(). No counter-scaling: the mark is anchored to the drawing. */
+/* Position driven by data-pos set from the toolbar selector. */
+#wm-canvas[data-pos="tl"]{top:12px;left:12px;right:auto;bottom:auto;text-align:left;}
+#wm-canvas[data-pos="tc"]{top:12px;left:50%;right:auto;bottom:auto;text-align:center;transform:translateX(-50%);}
+#wm-canvas[data-pos="tr"]{top:12px;right:12px;left:auto;bottom:auto;text-align:right;}
+#wm-canvas[data-pos="bl"]{bottom:12px;left:12px;right:auto;top:auto;text-align:left;}
+#wm-canvas[data-pos="bc"]{bottom:12px;left:50%;right:auto;top:auto;text-align:center;transform:translateX(-50%);}
+#wm-canvas[data-pos="br"]{bottom:12px;right:12px;left:auto;top:auto;text-align:right;}
+#wm-canvas .wm-name{font-family:'Orbitron',monospace;font-size:var(--wm-pt);font-weight:700;letter-spacing:1.5px;color:#FF4FA3;text-shadow:0 1px 4px rgba(0,0,0,0.7);line-height:1.3;}
+#wm-canvas .wm-addr{font-family:'Share Tech Mono',monospace;font-size:var(--wm-pt);letter-spacing:0.8px;color:#FF4FA3;text-shadow:0 1px 3px rgba(0,0,0,0.7);line-height:1.3;}
+#wm-canvas .wm-brand{font-family:'Share Tech Mono',monospace;font-size:calc(var(--wm-pt) * 0.65);letter-spacing:2px;text-transform:uppercase;color:#F97316;margin-top:2px;opacity:0.8;}
 
 /* Light theme overrides */
 [data-theme="light"] #aog-nav{background:#fff;}
 [data-theme="light"] #aog-offline{background:rgba(255,255,255,0.97);}
-[data-theme="light"] .wm-name{color:#D97706!important;}
-[data-theme="light"] .wm-addr{color:#4A5A7A!important;}
+[data-theme="light"] .wm-name{color:#FF4FA3!important;}
+[data-theme="light"] .wm-addr{color:#FF4FA3!important;}
 [data-theme="light"] .wm-brand{color:#EA580C!important;}
 
 /* Light theme: toolbar and body */
@@ -714,6 +725,32 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <div class="cust-sep"></div>
   <label>Address</label>
   <input class="cust-input" id="cust-addr" type="text" placeholder="Job address…" maxlength="80" style="max-width:280px;flex:2;">
+  <div class="cust-sep"></div>
+  <label for="wm-pos-sel">Mark</label>
+  <select id="wm-pos-sel" class="cust-input" title="Watermark position" style="max-width:140px;cursor:pointer;">
+    <option value="tl">Top Left</option>
+    <option value="tc">Top Center</option>
+    <option value="tr">Top Right</option>
+    <option value="bl">Bottom Left</option>
+    <option value="bc">Bottom Center</option>
+    <option value="br" selected>Bottom Right</option>
+  </select>
+  <select id="wm-size-sel" class="cust-input" title="Watermark size (pt)" style="max-width:80px;cursor:pointer;">
+    <option value="8">8 pt</option>
+    <option value="10">10 pt</option>
+    <option value="12">12 pt</option>
+    <option value="14">14 pt</option>
+    <option value="16">16 pt</option>
+    <option value="18">18 pt</option>
+    <option value="20" selected>20 pt</option>
+    <option value="24">24 pt</option>
+    <option value="28">28 pt</option>
+    <option value="32">32 pt</option>
+    <option value="36">36 pt</option>
+    <option value="48">48 pt</option>
+    <option value="60">60 pt</option>
+    <option value="72">72 pt</option>
+  </select>
 </div>
 
 <div id="aog-offline">⚠ &nbsp; No network · PDF &amp; export features need connection</div>
@@ -10405,6 +10442,8 @@ function toggleTheme(){
 })();
 
 // ── WATERMARK UPDATE ──────────────────────────────────────────
+function wmPos(){ var s=document.getElementById('wm-pos-sel'); return (s&&s.value)||'br'; }
+function wmSize(){ var s=document.getElementById('wm-size-sel'); var v=s?parseInt(s.value):20; return (v>=8&&v<=72)?v:20; }
 function updateWatermark(){
   var nm=document.getElementById('cust-name');
   var ad=document.getElementById('cust-addr');
@@ -10412,12 +10451,31 @@ function updateWatermark(){
   var adEl=document.getElementById('wm-addr-el');
   if(nmEl) nmEl.textContent=nm?nm.value:'';
   if(adEl) adEl.textContent=ad?ad.value:'';
+  var wm=document.getElementById('wm-canvas');
+  if(wm){
+    wm.setAttribute('data-pos', wmPos());
+    applyWmScale();   // refresh size + counter-scale
+  }
+}
+// On-screen watermark lives inside #scene (scale(zoom)'d), so it grows/shrinks
+// with the plan like the other on-canvas text — a fixed point size that gets
+// bigger when you zoom in. We set the font to the chosen pt converted to
+// canvas-space px (ptToCanvasPx), matching how the text tool sizes its glyphs.
+function applyWmScale(){
+  var wm=document.getElementById('wm-canvas'); if(!wm) return;
+  var px=(typeof ptToCanvasPx==='function') ? ptToCanvasPx(wmSize()) : wmSize();
+  wm.style.setProperty('--wm-pt', px+'px');
 }
 (function(){
   var nm=document.getElementById('cust-name');
   var ad=document.getElementById('cust-addr');
+  var ps=document.getElementById('wm-pos-sel');
+  var sz=document.getElementById('wm-size-sel');
   if(nm){ nm.addEventListener('input',updateWatermark); nm.addEventListener('mousedown',function(e){e.stopPropagation();}); nm.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
   if(ad){ ad.addEventListener('input',updateWatermark); ad.addEventListener('mousedown',function(e){e.stopPropagation();}); ad.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
+  if(ps){ ps.addEventListener('change',updateWatermark); ps.addEventListener('mousedown',function(e){e.stopPropagation();}); ps.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
+  if(sz){ sz.addEventListener('change',updateWatermark); sz.addEventListener('mousedown',function(e){e.stopPropagation();}); sz.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
+  updateWatermark();   // apply default position + size on load
 })();
 
 // Burn watermark text onto export canvas
@@ -10431,33 +10489,38 @@ function updateWatermark(){
     if(!nmVal && !adVal) return out;
     var ctx = out.getContext('2d');
     var sc = out.width / (baseCv.width||out.width);
-    // Watermark in bottom-right
-    var margin = Math.round(14*sc);
-    var lineH = Math.round(16*sc);
+    // 20pt text, pink, 90% opacity. Position chosen by the toolbar selector.
+    var pos    = wmPos();
+    var isTop  = pos[0]==='t';
+    var halign = pos[1]==='l' ? 'left' : pos[1]==='c' ? 'center' : 'right';
+    var margin = Math.round(16*sc);
+    var ptCanvas = (typeof ptToCanvasPx==='function') ? ptToCanvasPx(wmSize()) : wmSize();
+    var ptPx   = Math.round(ptCanvas*sc);    // chosen pt → canvas px → export px (matches on-screen)
+    var lineH  = Math.round(ptPx*1.35);
+    var xAnchor= halign==='left' ? margin : halign==='center' ? Math.round(out.width/2) : out.width-margin;
+    // Brand line scales with the chosen size (65%), matching the on-screen look.
+    var brandPx= Math.max(7, Math.round(ptPx*0.65));
+    var rows=[];
+    if(nmVal) rows.push({t:nmVal, f:'bold '+ptPx+'px "Orbitron",monospace',         px:ptPx});
+    if(adVal) rows.push({t:adVal, f:'bold '+ptPx+'px "Share Tech Mono",monospace',   px:ptPx});
+    rows.push({t:'Always On Generators', f:brandPx+'px "Share Tech Mono",monospace', px:brandPx, brand:true});
+    // Visual block height (textBaseline is 'top'): one line-advance per row
+    // except the last, plus the last row's own glyph height. This makes the
+    // bottom of the stack land exactly on the bottom margin for bottom-anchored
+    // positions (no extra gap below the brand line).
+    var blockH = lineH*(rows.length-1) + rows[rows.length-1].px;
     ctx.save();
-    ctx.globalAlpha = 0.55;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'bottom';
-    var y = out.height - margin;
-    if(adVal){
-      ctx.font = 'bold '+(Math.round(11*sc))+'px "Share Tech Mono",monospace';
-      ctx.fillStyle='#94A3B8';
-      ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=3;
-      ctx.fillText(adVal, out.width-margin, y);
-      y -= lineH;
-    }
-    if(nmVal){
-      ctx.font = 'bold '+(Math.round(14*sc))+'px "Orbitron",monospace';
-      ctx.fillStyle='#FBBF24';
-      ctx.shadowColor='rgba(0,0,0,0.8)'; ctx.shadowBlur=4;
-      ctx.fillText(nmVal, out.width-margin, y);
-      y -= Math.round(13*sc);
-    }
-    // Brand line
-    ctx.font = (Math.round(9*sc))+'px "Share Tech Mono",monospace';
-    ctx.fillStyle='#F97316';
-    ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=2;
-    ctx.fillText('Always On Generators', out.width-margin, out.height - margin + Math.round(12*sc));
+    ctx.globalAlpha = 0.9;
+    ctx.textAlign = halign;
+    ctx.textBaseline = 'top';
+    var y = isTop ? margin : (out.height - margin - blockH);
+    rows.forEach(function(r){
+      ctx.font = r.f;
+      ctx.fillStyle = r.brand ? '#FF4FA3' : '#FF4FA3';
+      ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur = r.brand?2:4;
+      ctx.fillText(r.t, xAnchor, y);
+      y += (r.px) + (lineH - r.px);   // advance one line
+    });
     ctx.restore();
     return out;
   };
