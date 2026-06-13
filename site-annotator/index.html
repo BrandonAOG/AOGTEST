@@ -2134,7 +2134,17 @@ function fitCommentToText(c, text, skipRender, mode){
     // snap: tight hug
     c.h = Math.max(neededH, minH);
   }
-  if(selectedShape && selectedShape._commentObj === c) selectedShape.h = c.h;
+  // The box is centred on cy, so changing h alone moves BOTH edges — when you
+  // re-enter a committed note and type, the extra height split half upward and
+  // the box appeared to grow up past where you were typing. Pin the TOP edge so
+  // growth goes DOWNWARD (toward the new lines), like every text box should.
+  // Callers that need a different anchor (e.g. resize from a bottom handle)
+  // already set cy themselves after calling, so only adjust when h changed.
+  if(c.h !== hBefore){
+    var topEdge = (c.cy - hBefore/2);   // keep the pre-grow top in place
+    c.cy = topEdge + c.h/2;
+  }
+  if(selectedShape && selectedShape._commentObj === c){ selectedShape.h = c.h; selectedShape.cy = c.cy; }
   // Re-render ONLY if the box actually changed. This runs on EVERY keystroke
   // while typing in a note (via _cmtAutoGrow) — unconditionally re-compositing
   // the full document canvas per character was the desktop "freezes when I
