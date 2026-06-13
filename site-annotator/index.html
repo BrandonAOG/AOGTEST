@@ -7745,28 +7745,39 @@ attachSliderTouch(fillOpSl,function(v){
 });
 
 function attachSliderTouch(sl,onVal){
-  // Absolute positioning: the value maps directly to the finger's X within the
-  // track, so pressing or dragging anywhere puts the thumb under your finger
-  // and it tracks as you slide. The previous version used a RELATIVE delta from
-  // the touch start, so a tap barely moved and dragging felt detached from the
-  // thumb — the "it picks once and won't let me slide" symptom on iOS/iPad.
-  var mn=0,mx=100,step=1;
+  // Absolute positioning: the value maps to the finger's X within the track, so
+  // pressing or dragging anywhere puts the thumb under your finger and it tracks
+  // as you slide.
+  // Older-iOS correctness: native range tracks reserve HALF A THUMB of dead
+  // space at each end (the thumb centre can't reach the very edge). These
+  // sliders are only ~56px wide with a 13px thumb, so ignoring that inset put
+  // the value noticeably off from the finger and made the thumb unable to reach
+  // 0% / 100% — which on a tiny control reads as "it won't slide". Map across
+  // the REACHABLE track (width minus one thumb) instead.
+  var mn=0,mx=100,step=1,thumb=13;
+  function read(){
+    mn=parseFloat(sl.min)||0; mx=parseFloat(sl.max); if(isNaN(mx))mx=100;
+    step=parseFloat(sl.step)||1;
+  }
   function valueAtX(clientX){
     var r=sl.getBoundingClientRect();
-    var w=r.width||60;
-    var frac=Math.max(0,Math.min(1,(clientX-r.left)/w));
+    var w=r.width||56;
+    var usable=Math.max(1, w-thumb);              // reachable travel
+    var frac=Math.max(0,Math.min(1,(clientX-r.left-thumb/2)/usable));
     var v=mn+frac*(mx-mn);
-    if(step>0) v=Math.round(v/step)*step;       // honor the slider's step
+    if(step>0) v=Math.round(v/step)*step;
     return Math.max(mn,Math.min(mx,v));
   }
-  function read(){ mn=parseFloat(sl.min)||0; mx=parseFloat(sl.max); if(isNaN(mx))mx=100; step=parseFloat(sl.step)||1; }
   function apply(e){
-    var t=e.touches&&e.touches[0]; if(!t) return;
+    // Old WebKit sometimes gives an empty touches list on touchmove; fall back
+    // to changedTouches so the drag keeps tracking.
+    var t=(e.touches&&e.touches[0])||(e.changedTouches&&e.changedTouches[0]);
+    if(!t) return;
     var v=valueAtX(t.clientX);
-    sl.value=v; onVal(v);
+    if(parseFloat(sl.value)!==v){ sl.value=v; onVal(v); }
   }
-  sl.addEventListener('touchstart',function(e){ e.stopPropagation(); e.preventDefault(); read(); apply(e); },{passive:false});
-  sl.addEventListener('touchmove', function(e){ e.stopPropagation(); e.preventDefault(); apply(e); },{passive:false});
+  sl.addEventListener('touchstart',function(e){ e.stopPropagation(); if(e.cancelable)e.preventDefault(); read(); apply(e); },{passive:false});
+  sl.addEventListener('touchmove', function(e){ e.stopPropagation(); if(e.cancelable)e.preventDefault(); apply(e); },{passive:false});
 }
 attachSliderTouch(swSl, applyStrokeW);     // touch drags apply to the selected object too
 attachSliderTouch(opSl, applyOpacityAll);
