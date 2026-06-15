@@ -125,7 +125,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .leg-name{font-size:11px;color:var(--txt2)}
 /* VIEWPORT */
 #viewport{flex:1;overflow:hidden;position:relative;cursor:default;background:var(--bg);contain:layout;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-#scene{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+#scene{position:absolute;top:0;left:0;transform-origin:0 0}
+#scene.zooming{will-change:transform}
 #canvas-wrap{position:relative;display:none;border-radius:3px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,.7)}
 #base-cv{display:block}
 #draw-cv{position:absolute;top:0;left:0;display:block;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -2454,12 +2455,12 @@ document.addEventListener('gesturechange', function(e){
   e.preventDefault(); e.stopPropagation();
   if(_gestZoom0!==null && typeof e.scale==='number' && e.scale>0 && typeof zoomAt==='function'){
     var r=viewport.getBoundingClientRect();
-    var target=Math.max(0.05,Math.min(12,_gestZoom0*e.scale));
+    var target=Math.max(0.05,Math.min(6,_gestZoom0*e.scale));
     var f=target/zoom;
     if(f && isFinite(f) && Math.abs(f-1)>0.001) zoomAt(f, e.clientX-r.left, e.clientY-r.top);
   }
 },{passive:false});
-document.addEventListener('gestureend',    function(e){ e.preventDefault(); e.stopPropagation(); _gestZoom0=null; },{passive:false});
+document.addEventListener('gestureend',    function(e){ e.preventDefault(); e.stopPropagation(); _gestZoom0=null; scene.classList.remove('zooming'); if(_annoDeferred && typeof _setAnnoRes==='function'){ _annoDeferred=false; _setAnnoRes(true); } },{passive:false});
 
 // Block touchmove everywhere EXCEPT designated scrollable zones.
 // Allowed: .panel-body (layer/props panels), #tb (toolbar horizontal scroll), #sb (subbar)
@@ -2908,7 +2909,7 @@ function updateLegend(){
 }
 
 // ── ZOOM/PAN ──
-function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
+function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(pinching||_gestZoom0!==null){ scene.classList.add('zooming'); } if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
 
 function clampPan(){
   var vw=viewport.clientWidth,vh=viewport.clientHeight;
@@ -2927,7 +2928,7 @@ function fitToVP(){
 }
 
 function zoomAt(f,cx,cy){
-  var nz=Math.max(0.05,Math.min(12,zoom*f));
+  var nz=Math.max(0.05,Math.min(6,zoom*f));
   var r=nz/zoom; panX=cx-r*(cx-panX); panY=cy-r*(cy-panY); zoom=nz;
   clampPan(); applyTransform();
 }
@@ -2997,7 +2998,7 @@ document.addEventListener('touchmove',function(e){
     panX+=(midX-twoMidX)*PAN_DAMP; panY+=(midY-twoMidY)*PAN_DAMP;
     var r=viewport.getBoundingClientRect();
     var cx=midX-r.left,cy=midY-r.top;
-    var tz=Math.max(0.05,Math.min(12,pinchZoom0*(dist/pinchDist0)));
+    var tz=Math.max(0.05,Math.min(6,pinchZoom0*(dist/pinchDist0)));
     var nz=zoom+(tz-zoom)*ZOOM_DAMP;
     var ratio=nz/zoom; panX=cx-ratio*(cx-panX); panY=cy-ratio*(cy-panY); zoom=nz;
     twoMidX=midX; twoMidY=midY;
@@ -3008,7 +3009,16 @@ document.addEventListener('touchmove',function(e){
 },{passive:false});
 
 document.addEventListener('touchend',function(e){
-  if(e.touches.length<2) pinching=false;
+  if(e.touches.length<2){
+    var wasPinching=pinching;
+    pinching=false;
+    scene.classList.remove('zooming');
+    // Pinch just ended — do the single re-rasterization we deferred during it,
+    // so text/shapes return to crisp resolution at the final zoom level.
+    if(wasPinching && _annoDeferred && typeof _setAnnoRes==='function'){
+      _annoDeferred=false; _setAnnoRes(true);
+    }
+  }
   if(e.touches.length===0){
     endPan();
     // Fire undo/redo when all fingers lift
@@ -3348,13 +3358,14 @@ function resize(w,h){
 // Both are display-only (never read back) and overlay at w×h via CSS, so this is
 // safe. Capped for mobile canvas-area / memory limits.
 var _annoEff = 0;     // effective scale currently baked into the anno canvases
+var _annoDeferred = false; // true when a re-raster was skipped during a gesture
 function _computeAnnoEff(){
   var w = baseCv.width, h = baseCv.height;
   if(!w || !h) return 1;
   var devicePR = window.devicePixelRatio || 1;
   var eff = Math.max(1, devicePR * Math.max(1, zoom));   // cover device px at zoom
-  eff = Math.min(eff, 3);                                // hard ceiling
-  var _CAP = 12e6;                                       // per-canvas device-px ceiling
+  eff = Math.min(eff, 2.5);                              // hard ceiling
+  var _CAP = 8e6;                                        // per-canvas device-px ceiling
   if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
   return Math.round(eff*4)/4;                            // bucket to 0.25 steps
 }
@@ -3369,6 +3380,11 @@ function _sizeAnnoCanvas(cv, ctx, eff){
 function _setAnnoRes(force){
   var w = baseCv.width, h = baseCv.height;
   if(!w || !h) return;
+  // During an active pinch/gesture the CSS transform already scales everything
+  // visually. Re-rasterizing the (large) annotation backing stores on every
+  // animation frame is what spikes GPU memory and crashes high-DPR phones, so
+  // defer it: just flag that a refresh is owed and do it once when fingers lift.
+  if(!force && (pinching || _gestZoom0!==null)){ _annoDeferred=true; return; }
   var eff = _computeAnnoEff();
   // Skip needless re-rasterization (e.g. during pan, where zoom is unchanged).
   if(!force && Math.abs(eff - _annoEff) < 0.2) return;
