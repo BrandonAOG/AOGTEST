@@ -3389,9 +3389,15 @@ function _computeAnnoEff(){
   var w = baseCv.width, h = baseCv.height;
   if(!w || !h) return 1;
   var devicePR = window.devicePixelRatio || 1;
-  var eff = Math.max(1, devicePR * Math.max(1, zoom));   // cover device px at zoom
-  eff = Math.min(eff, 2.5);                              // hard ceiling
-  var _CAP = 8e6;                                        // per-canvas device-px ceiling
+  // Effective resolution should cover the ON-SCREEN size of the plan, not a
+  // fixed device-pixel floor. When zoomed OUT the plan is tiny on screen, so a
+  // high-res annotation canvas is wasted memory; when zoomed IN we want detail.
+  // Tie eff to (devicePR * zoom) with no floor above 1× of the base — so zoomed
+  // all the way out it sits at 1, and only grows past 1 once zoom*DPR exceeds 1.
+  var eff = devicePR * Math.max(0.0001, zoom);
+  var _ceil = IS_IPHONE ? 1.5 : (IS_IPAD ? 2 : 2.5);    // sharpness ceiling per device
+  eff = Math.max(1, Math.min(eff, _ceil));              // never below base res
+  var _CAP = IS_IPHONE ? 26e6 : 40e6;                    // per-canvas device-px ceiling
   if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
   return Math.round(eff*4)/4;                            // bucket to 0.25 steps
 }
