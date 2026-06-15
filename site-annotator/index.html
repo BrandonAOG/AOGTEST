@@ -690,6 +690,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 </style>
 </head>
 <body>
+<!-- ══ DEBUG OVERLAY (toggle with the 🐞 button) ══════════════ -->
+<div id="dbg-panel" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,.86);color:#0f0;font:10px/1.35 'Share Tech Mono',monospace;padding:6px 8px;white-space:pre-wrap;pointer-events:none;max-height:55vh;overflow:hidden;-webkit-user-select:text;user-select:text;border-bottom:1px solid #0a0"></div>
+<button id="dbg-btn" style="position:fixed;bottom:8px;left:8px;z-index:100000;background:#111;color:#0f0;border:1px solid #0a0;border-radius:6px;width:34px;height:34px;font-size:15px;cursor:pointer;opacity:.6" title="Toggle debug overlay">🐞</button>
 
 <!-- ACTION BAR — matches spec viewer style -->
 <nav id="aog-nav">
@@ -3017,6 +3020,7 @@ document.addEventListener('touchend',function(e){
     // so text/shapes return to crisp resolution at the final zoom level.
     if(wasPinching && _annoDeferred && typeof _setAnnoRes==='function'){
       _annoDeferred=false; _setAnnoRes(true);
+      if(window.__dbgLog) window.__dbgLog('pinch end → reraster @zoom '+zoom.toFixed(2));
     }
   }
   if(e.touches.length===0){
@@ -3205,6 +3209,7 @@ function loadImageBlob(blob, _retried){
 
     if(!drewOk){
       // Couldn't render at any size — likely a decode problem (HEIC), not memory.
+      if(window.__dbgLog) window.__dbgLog('img load FAILED (blank at all caps)');
       console.warn('[Load] Canvas blank after drawImage — retrying with heic2any');
       if(!_retried) tryHEICFallback(blob, name);
       else showImageError(name);
@@ -3218,6 +3223,7 @@ function loadImageBlob(blob, _retried){
     _lastLoadedDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
 
     // ── SUCCESS ─────────────────────────────────────────────
+    if(window.__dbgLog) window.__dbgLog('img drawn '+baseCv.width+'x'+baseCv.height+' (native '+img.naturalWidth+'x'+img.naturalHeight+')');
     afterLoad();
   };
 
@@ -11835,9 +11841,109 @@ window.addEventListener('orientationchange', function(){
   // Dimensions settle a tick after the event on iOS/Android
   setTimeout(function(){ if(baseLoaded){ clampPan(); applyTransform(); } }, 250);
 });
+// ══════════════════════════════════════════════════════════════
+// DEBUG OVERLAY — live memory / canvas / zoom telemetry
+// Toggle with the 🐞 button. Captures the last frame before a crash.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  var panel = document.getElementById('dbg-panel');
+  var btn   = document.getElementById('dbg-btn');
+  if(!panel || !btn) return;
+  var on = false;
+  var events = [];            // rolling log of recent actions
+  var peakMB = 0;
+  var maxZoomSeen = 0;
+
+  function logEvt(msg){
+    var t = new Date().toLocaleTimeString();
+    events.push(t+' '+msg);
+    if(events.length>8) events.shift();
+    if(on) render();
+  }
+  window.__dbgLog = logEvt;     // let other code report events
+
+  function canvasMB(cv){
+    if(!cv || !cv.width || !cv.height) return 0;
+    return cv.width*cv.height*4/1048576;   // RGBA bytes → MB
+  }
+
+  function gather(){
+    var list = [];
+    function add(name, cv){ list.push([name, cv]); }
+    try{ add('base', baseCv); }catch(e){}
+    try{ add('draw', drawCv); }catch(e){}
+    try{ if(typeof imgCv!=='undefined') add('img', imgCv); }catch(e){}
+    try{ add('shapes', shCv); }catch(e){}
+    try{ add('text', tCv); }catch(e){}
+    try{ add('sel', selCv); }catch(e){}
+    var totalMB = 0, lines = [];
+    list.forEach(function(p){
+      var cv = p[1]; if(!cv) return;
+      var mb = canvasMB(cv);
+      totalMB += mb;
+      lines.push('  '+p[0].padEnd(7)+cv.width+'x'+cv.height+'  '+mb.toFixed(1)+'MB');
+    });
+    // user drawing layers
+    var layerMB = 0, layerCount = 0;
+    try{ if(typeof layers!=='undefined' && layers.length){ layerCount=layers.length; layers.forEach(function(l){ layerMB += canvasMB(l.canvas); }); } }catch(e){}
+    totalMB += layerMB;
+
+    var z = (typeof zoom!=='undefined') ? zoom : 0;
+    if(z > maxZoomSeen) maxZoomSeen = z;
+    if(totalMB > peakMB) peakMB = totalMB;
+
+    var dpr = window.devicePixelRatio||1;
+    // estimated GPU composite surface at current zoom (worst case = base layer scaled)
+    var compMB = 0;
+    try{ compMB = (baseCv.width*z)*(baseCv.height*z)*4/1048576; }catch(e){}
+
+    var mem = '';
+    try{ if(performance && performance.memory){ mem = '\nJS heap: '+(performance.memory.usedJSHeapSize/1048576).toFixed(0)+' / '+(performance.memory.jsHeapSizeLimit/1048576).toFixed(0)+'MB'; } }catch(e){}
+
+    var anno = '';
+    try{ anno = '\nannoEff: '+(typeof _annoEff!=='undefined'?_annoEff:'?')+'  deferred:'+(typeof _annoDeferred!=='undefined'?_annoDeferred:'?'); }catch(e){}
+
+    return [
+      'DEVICE '+(IS_IPHONE?'iPhone':IS_IPAD?'iPad':'Desktop')+'  DPR '+dpr+'  '+window.innerWidth+'x'+window.innerHeight,
+      'ZOOM '+z.toFixed(2)+'x  (max seen '+maxZoomSeen.toFixed(2)+'x)  cap '+IOS_MAX_PX+'px',
+      'pinching:'+(typeof pinching!=='undefined'?pinching:'?')+anno,
+      'CANVASES (backing-store px → MB):',
+      lines.join('\n'),
+      (layerCount? '  +'+layerCount+' draw-layers  '+layerMB.toFixed(1)+'MB':'  (no draw-layers)'),
+      'CANVAS TOTAL: '+totalMB.toFixed(1)+'MB  (peak '+peakMB.toFixed(1)+'MB)',
+      'GPU composite est @zoom: '+compMB.toFixed(1)+'MB'+mem,
+      '── recent ──',
+      events.join('\n')
+    ].join('\n');
+  }
+
+  function render(){ if(on) panel.textContent = gather(); }
+  window.__dbgRender = render;
+
+  btn.addEventListener('click', function(){
+    on = !on;
+    panel.style.display = on ? 'block' : 'none';
+    btn.style.opacity = on ? '1' : '.6';
+    if(on) render();
+  });
+
+  // Refresh ~5x/sec while visible (also catches mid-pinch state)
+  setInterval(function(){ if(on) render(); }, 200);
+
+  // Capture crashes / errors into the log so the last line is visible
+  window.addEventListener('error', function(e){
+    logEvt('ERROR: '+(e.message||e.type)+' @'+(e.lineno||'?'));
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    logEvt('REJECT: '+((e.reason&&e.reason.message)||e.reason||'?'));
+  });
+
+  logEvt('debug ready');
+})();
 
 })();
 </script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
