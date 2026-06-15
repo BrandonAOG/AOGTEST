@@ -38,29 +38,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans
 .tb-btn.active{background:rgba(108,99,255,.2);border-color:var(--acc);color:var(--acc2)}
 .tb-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;flex-shrink:0}
 .tb-btn .lbl{font-size:9.5px;color:inherit;white-space:nowrap;pointer-events:none;line-height:1;display:block}
-/* ── DESKTOP TOOL FLYOUTS (Draw / Measure) ──
-   The flyout group buttons + dropdown panels exist in the DOM always but are
-   only shown on non-touch desktop (body.is-desktop). On touch the original flat
-   tool row is used unchanged. */
-.tb-flyout{position:relative;flex-shrink:0;display:none}        /* shown only on desktop */
-body.is-desktop .tb-flyout{display:flex}
-.tb-flyout > .tb-grp-btn{position:relative}
-.tb-grp-btn .caret{position:absolute;right:3px;bottom:3px;width:0;height:0;
-  border-left:3px solid transparent;border-right:3px solid transparent;
-  border-top:4px solid currentColor;opacity:.6;pointer-events:none}
-/* Active (open) group button gets the accent highlight */
-.tb-grp-btn.grp-open{background:rgba(108,99,255,.2);border-color:var(--acc);color:var(--acc2)}
-/* SECOND TOOLBAR ROW — full-width strip under the main bar, holds a group's tools */
-#tb2{display:none;align-items:center;gap:2px;padding:0 10px;height:0;
-  background:var(--surf);border-bottom:1px solid var(--b1);overflow:hidden;
-  transition:height .12s ease;flex-shrink:0;position:relative;z-index:4}
-body.is-desktop #tb2.open{display:flex;height:60px}
-.tb-flyout-panel{display:none;gap:2px;align-items:center;flex-wrap:wrap}
-#tb2 .tb-flyout-panel.show{display:flex}
-#tb2 .tb-flyout-panel .tb-btn{min-width:54px}
-/* On desktop, hide the flat in-row tool buttons that now live in the 2nd row */
-body.is-desktop .tb-btn[data-flyout-member]{display:none}
-body.is-desktop #tb2 .tb-btn[data-flyout-member]{display:flex}
 #open-btn{background:var(--acc);color:#fff;border-radius:var(--rad);padding:0 12px;height:36px;border:none;cursor:pointer;font-size:12px;font-weight:700;flex-shrink:0;white-space:nowrap}
 /* line style group */
 .ls-group{display:flex;gap:2px;flex-shrink:0}
@@ -103,17 +80,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 #pg-info{font-size:11px;color:var(--txt2)}
 .save-btn{background:transparent;border:1.5px solid var(--acc);color:var(--acc2);border-radius:var(--rad);padding:0 12px;height:28px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;transition:background .15s}
 .save-btn:hover{background:rgba(108,99,255,.15)}
-/* ── EXPORT DROPDOWN (desktop only) ── */
-.export-dd{position:relative;display:none}              /* desktop only */
-body.is-desktop .export-dd{display:inline-flex}
-body.is-desktop #export-flat{display:none}              /* hide the 6 flat buttons on desktop */
-.export-dd-panel{position:fixed;z-index:200;
-  background:var(--surf);border:1px solid var(--b2);border-radius:10px;padding:6px;
-  display:none;flex-direction:column;gap:4px;min-width:150px;
-  box-shadow:0 8px 28px rgba(0,0,0,.45)}
-.export-dd.open .export-dd-panel{display:flex}
-.export-dd-panel .save-btn{width:100%;text-align:left;height:30px;display:flex;align-items:center;gap:6px}
-.export-dd-sep{height:1px;background:var(--b2);margin:2px 0}
 /* MAIN */
 #main{flex:1;display:flex;overflow:hidden;position:relative}
 /* PANELS */
@@ -158,12 +124,14 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
 .leg-swatch{width:18px;height:4px;border-radius:2px;flex-shrink:0}
 .leg-name{font-size:11px;color:var(--txt2)}
 /* VIEWPORT */
-#viewport{flex:1;overflow:hidden;position:relative;cursor:default;background:var(--bg);contain:layout}
+#viewport{flex:1;overflow:hidden;position:relative;cursor:default;background:var(--bg);contain:layout;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #scene{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
 #canvas-wrap{position:relative;display:none;border-radius:3px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,.7)}
 #base-cv{display:block}
-#draw-cv{position:absolute;top:0;left:0;display:block;touch-action:none}
-#grid-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;opacity:.35}
+#draw-cv{position:absolute;top:0;left:0;display:block;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#grid-cv{position:absolute;top:0;left:0;width:100%;height:100%;display:none;pointer-events:none;opacity:.35;
+  background-image:linear-gradient(to right,#88aaff 0.5px,transparent 0.5px),linear-gradient(to bottom,#88aaff 0.5px,transparent 0.5px);
+  background-size:50px 50px;background-position:0 0}
 /* DROP ZONE */
 #drop-zone{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--txt2);pointer-events:none}
 #drop-zone.hidden{display:none}
@@ -197,6 +165,10 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
   transform-origin:top left;
   pointer-events:auto;
   -webkit-user-select:text;user-select:text;
+  /* The editor lives inside #viewport, which disables the iOS callout so marker
+     drags don't pop the selection menu. Re-enable it HERE so right-click /
+     long-press Paste works when typing a note or text. */
+  -webkit-touch-callout:default;
 }
 /* STAMP PICKER */
 #stamp-picker{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surf);border:1px solid var(--b2);border-radius:12px;padding:16px;z-index:100;display:none;min-width:260px}
@@ -399,9 +371,7 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
 }
 #print-page img{display:block;width:100%;height:auto;transition:opacity .3s}
 #print-titleblock{
-  display:grid;grid-template-columns:1fr 1fr 1fr;
-  border-top:2px solid #000;padding:8px 12px;
-  font-family:Arial,sans-serif;
+  display:none;
 }
 #ptb-proj{font-weight:700;font-size:13px;margin-bottom:3px}
 #ptb-drwn{font-size:10px;color:#555}
@@ -797,98 +767,32 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
   <input type="file" id="file-in" accept="image/*,.pdf,.heic,.heif,.tiff,.tif,.bmp,.svg,.webp,application/pdf" style="display:none">
   <input type="file" id="camera-in" accept="image/*" capture="environment" style="display:none">
   <div class="sep"></div>
-  <!-- DESKTOP FLYOUT GROUPS (populated from tagged tool buttons at startup) -->
-  <div class="tb-flyout" id="flyout-draw">
-    <button class="tb-btn tb-grp-btn" id="grp-draw-btn" title="Draw tools" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/></svg><span class="lbl">Draw</span><span class="caret"></span></button>
-    <div class="tb-flyout-panel" id="grp-draw-panel"></div>
-  </div>
-  <div class="tb-flyout" id="flyout-measure">
-    <button class="tb-btn tb-grp-btn" id="grp-measure-btn" title="Measure tools" type="button"><svg viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="3"/><line x1="3" y1="21" x2="3" y2="17"/><line x1="21" y1="3" x2="17" y2="3"/><line x1="8" y1="16" x2="8" y2="13"/><line x1="13" y1="11" x2="16" y2="11"/></svg><span class="lbl">Measure</span><span class="caret"></span></button>
-    <div class="tb-flyout-panel" id="grp-measure-panel"></div>
-  </div>
   <!-- DRAW TOOLS -->
-  <button class="tb-btn" data-tool="pen" data-flyout-member="draw" title="Pen — draw freehand curves. Arc length is shown after each stroke."><svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg><span class="lbl">Pen</span></button>
-  <button class="tb-btn" data-tool="line" data-flyout-member="draw"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/></svg><span class="lbl">Line</span></button>
-  <button class="tb-btn" data-tool="arrow" data-flyout-member="draw"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg><span class="lbl">Arrow</span></button>
-  <button class="tb-btn" data-tool="polyline" data-flyout-member="draw" title="Polyline — click to add points, double-click or Enter to finish"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,20 8,10 14,15 21,5"/><circle cx="3" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="14" cy="15" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="5" r="1.5" fill="currentColor" stroke="none"/></svg><span class="lbl">Polyline</span></button>
-  <button class="tb-btn" data-tool="rect" data-flyout-member="draw"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/></svg><span class="lbl">Rect</span></button>
-  <button class="tb-btn" data-tool="ellipse" data-flyout-member="draw"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg><span class="lbl">Ellipse</span></button>
-  <button class="tb-btn" data-tool="cloud" data-flyout-member="draw"><svg viewBox="0 0 24 24"><path d="M3 18c0-2 1.5-3.5 3-3.5.3-2.5 2.5-4.5 5-4.5 2 0 3.8 1.1 4.7 2.8.2 0 .5-.1.8-.1 1.9 0 3.5 1.6 3.5 3.5 0 2-1.6 3.5-3.5 3.5H6C4.3 19.7 3 18.9 3 18z"/></svg><span class="lbl">Cloud</span></button>
-  <button class="tb-btn" data-tool="measure" data-flyout-member="measure" title="Measure — draw a straight line to measure distance. Tap existing measure to edit endpoints."><svg viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="3"/><line x1="3" y1="21" x2="3" y2="17"/><line x1="21" y1="3" x2="17" y2="3"/><line x1="8" y1="16" x2="8" y2="13"/><line x1="13" y1="11" x2="16" y2="11"/></svg><span class="lbl">Measure</span></button>
-  <button class="tb-btn" data-tool="pathmeasure" data-flyout-member="measure" title="Path Measure — click waypoints along a trench/run. Double-click to finish. Measures total curved distance."><svg viewBox="0 0 24 24"><path d="M3 20 Q8 8 12 12 Q16 16 21 4" fill="none"/><circle cx="3" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="4" r="1.5" fill="currentColor" stroke="none"/><line x1="3" y1="20" x2="3" y2="16"/><line x1="21" y1="4" x2="17" y2="4"/></svg><span class="lbl">Path&nbsp;Dist</span></button>
-  <button class="tb-btn" data-tool="polygon" data-flyout-member="measure"><svg viewBox="0 0 24 24"><polygon points="12,3 21,9 17,19 7,19 3,9"/></svg><span class="lbl">Area</span></button>
+  <button class="tb-btn" data-tool="pen" title="Pen — draw freehand curves. Arc length is shown after each stroke."><svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg><span class="lbl">Pen</span></button>
+  <button class="tb-btn" data-tool="line"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/></svg><span class="lbl">Line</span></button>
+  <button class="tb-btn" data-tool="arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg><span class="lbl">Arrow</span></button>
+  <button class="tb-btn" data-tool="polyline" title="Polyline — click to add points, double-click or Enter to finish"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,20 8,10 14,15 21,5"/><circle cx="3" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="14" cy="15" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="5" r="1.5" fill="currentColor" stroke="none"/></svg><span class="lbl">Polyline</span></button>
+  <button class="tb-btn" data-tool="rect"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/></svg><span class="lbl">Rect</span></button>
+  <button class="tb-btn" data-tool="ellipse"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg><span class="lbl">Ellipse</span></button>
+  <button class="tb-btn" data-tool="cloud"><svg viewBox="0 0 24 24"><path d="M3 18c0-2 1.5-3.5 3-3.5.3-2.5 2.5-4.5 5-4.5 2 0 3.8 1.1 4.7 2.8.2 0 .5-.1.8-.1 1.9 0 3.5 1.6 3.5 3.5 0 2-1.6 3.5-3.5 3.5H6C4.3 19.7 3 18.9 3 18z"/></svg><span class="lbl">Cloud</span></button>
+  <button class="tb-btn" data-tool="measure" title="Measure — draw a straight line to measure distance. Tap existing measure to edit endpoints."><svg viewBox="0 0 24 24"><line x1="3" y1="21" x2="21" y2="3"/><line x1="3" y1="21" x2="3" y2="17"/><line x1="21" y1="3" x2="17" y2="3"/><line x1="8" y1="16" x2="8" y2="13"/><line x1="13" y1="11" x2="16" y2="11"/></svg><span class="lbl">Measure</span></button>
+  <button class="tb-btn" data-tool="pathmeasure" title="Path Measure — click waypoints along a trench/run. Double-click to finish. Measures total curved distance."><svg viewBox="0 0 24 24"><path d="M3 20 Q8 8 12 12 Q16 16 21 4" fill="none"/><circle cx="3" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="4" r="1.5" fill="currentColor" stroke="none"/><line x1="3" y1="20" x2="3" y2="16"/><line x1="21" y1="4" x2="17" y2="4"/></svg><span class="lbl">Path&nbsp;Dist</span></button>
+  <button class="tb-btn" data-tool="polygon"><svg viewBox="0 0 24 24"><polygon points="12,3 21,9 17,19 7,19 3,9"/></svg><span class="lbl">Area</span></button>
   <button class="tb-btn" data-tool="leader"><svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="14" y2="10"/><polyline points="14 4 14 10 8 10"/></svg><span class="lbl">Leader</span></button>
   
   <button class="tb-btn" data-tool="text"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg><span class="lbl">Text</span></button>
   <button class="tb-btn" data-tool="comment" title="Comment box — drag to place, click to edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="13" x2="13" y2="13"/></svg><span class="lbl">Note</span></button>
-  <button class="tb-btn" data-tool="highlight" title="Highlight — drag to highlight text area"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="8" rx="1" fill="rgba(253,224,71,.35)" stroke="#f59e0b"/><line x1="3" y1="20" x2="21" y2="20"/></svg><span class="lbl">Hilite</span></button>
-  <button class="tb-btn" data-tool="strikeout" title="Strikethrough — drag to mark text for deletion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12" stroke="#ef4444"/><line x1="7" y1="7" x2="17" y2="7" stroke-width="1" opacity=".4"/><line x1="7" y1="17" x2="17" y2="17" stroke-width="1" opacity=".4"/></svg><span class="lbl">Strike</span></button>
-  <button class="tb-btn" data-tool="underlinemark" title="Underline markup — drag to underline text area"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="19" x2="20" y2="19" stroke="#3b82f6"/><path d="M8 5v7a4 4 0 0 0 8 0V5" stroke-width="1.5"/></svg><span class="lbl">Uline</span></button>
-  <div id="tb-font-size-grp"><select id="font-size-sel" title="Font size">
-    <option value="6">6</option><option value="7">7</option>
-    <option value="8">8</option><option value="9">9</option>
-    <option value="10">10</option><option value="12">12</option>
-    <option value="14">14</option><option value="16">16</option>
-    <option value="18" selected>18</option><option value="20">20</option>
-    <option value="24">24</option><option value="28">28</option>
-    <option value="32">32</option><option value="36">36</option>
-    <option value="48">48</option><option value="60">60</option>
-    <option value="72">72</option><option value="96">96</option>
-    <option value="120">120</option><option value="144">144</option>
-    <option value="180">180</option><option value="216">216</option>
-    <option value="240">240</option><option value="300">300</option>
-  </select></div>
-  <!-- FONT FAMILY — text tool only -->
-  <div id="tb-font-family-grp" style="display:none;flex-shrink:0">
-    <select id="font-family-sel" title="Font family">
-      <option value="Arial">Arial</option>
-      <option value="Helvetica">Helvetica</option>
-      <option value="Times New Roman">Times NR</option>
-      <option value="Courier New">Courier</option>
-      <option value="Georgia">Georgia</option>
-      <option value="Verdana">Verdana</option>
-      <option value="Calibri">Calibri</option>
-      <option value="Trebuchet MS">Trebuchet</option>
-      <option value="Impact">Impact</option>
-      <option value="Comic Sans MS">Comic Sans</option>
-    </select>
-  </div>
-  <!-- BOLD / ITALIC / UNDERLINE / STRIKETHROUGH — text tool only -->
-  <div id="tb-text-fmt-grp" style="display:none;flex-shrink:0;gap:2px;align-items:center">
-    <button class="fmt-btn" id="fmt-bold" title="Bold (Ctrl+B)"><b>B</b></button>
-    <button class="fmt-btn" id="fmt-italic" title="Italic (Ctrl+I)"><i>I</i></button>
-    <button class="fmt-btn" id="fmt-underline" title="Underline"><u>U</u></button>
-    <button class="fmt-btn" id="fmt-strike" title="Strikethrough"><s>S</s></button>
-  </div>
-  <!-- TEXT ALIGNMENT — text tool only -->
-  <div id="tb-text-align-grp" style="display:none;flex-shrink:0;gap:2px;align-items:center">
-    <button class="align-btn active" id="align-left" title="Align left" data-align="left"><svg viewBox="0 0 14 14"><line x1="1" y1="3" x2="13" y2="3"/><line x1="1" y1="6" x2="9" y2="6"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="1" y1="12" x2="9" y2="12"/></svg></button>
-    <button class="align-btn" id="align-center" title="Align center" data-align="center"><svg viewBox="0 0 14 14"><line x1="1" y1="3" x2="13" y2="3"/><line x1="3" y1="6" x2="11" y2="6"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="3" y1="12" x2="11" y2="12"/></svg></button>
-    <button class="align-btn" id="align-right" title="Align right" data-align="right"><svg viewBox="0 0 14 14"><line x1="1" y1="3" x2="13" y2="3"/><line x1="5" y1="6" x2="13" y2="6"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="5" y1="12" x2="13" y2="12"/></svg></button>
-  </div>
-  <!-- TEXT BACKGROUND — text tool only -->
-  <div id="tb-txt-bg-grp" style="display:none;flex-shrink:0;align-items:center;gap:3px">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
-      <span style="font-size:8px;color:var(--txt2);letter-spacing:.5px">TXT BG</span>
-      <div class="clr-wrap" style="position:relative;width:30px;height:30px">
-        <div id="txt-bg-swatch" style="background:rgba(255,255,0,0);border-radius:50%;width:30px;height:30px;border:2.5px solid var(--b2);cursor:pointer;background-image:repeating-conic-gradient(#aaa 0% 25%, transparent 0% 50%);background-size:8px 8px;background-position:center"></div>
-        <input type="color" id="txt-bg-input" value="#ffff00" style="position:absolute;inset:0;opacity:0.01;width:100%;height:100%;border:none;padding:0;margin:0;cursor:pointer;-webkit-appearance:none;border-radius:50%;">
-      </div>
-    </div>
-    <div class="sl-wrap" style="min-width:44px">
-      <input type="range" id="txt-bg-op-sl" min="0" max="100" value="0">
-      <span id="txt-bg-op-val" style="font-size:8px">0%</span>
-    </div>
-  </div>
-  <!-- MARKUP TOOLS: Highlight, Strikethrough markup, Underline markup -->
+  <button class="tb-btn" data-tool="highlight" title="Highlight — drag to highlight any area"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="8" rx="1" fill="rgba(253,224,71,.35)" stroke="#f59e0b"/><line x1="3" y1="20" x2="21" y2="20"/></svg><span class="lbl">Hilite</span></button>
+  <!-- Standalone Strike / Underline markup tools removed — these are available
+       inside the Text and Note formatting bars (U / S buttons). -->
+  <!-- TEXT FORMAT GROUPS moved to the right of Pan (see TEXT FORMAT ZONE below) -->
+  <!-- MARKUP TOOL: Highlight (color + opacity) -->
   <div id="tb-markup-grp" style="display:none;flex-shrink:0;align-items:center;gap:3px">
     <div class="sep" style="height:36px;background:var(--b2);width:1px;margin:0 2px;flex-shrink:0"></div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
       <span style="font-size:8px;color:var(--txt2)">MARK</span>
       <div style="display:flex;gap:2px">
-        <button class="markup-btn" id="markup-highlight" title="Highlight" style="background:rgba(255,230,0,.25);border-color:#f59e0b;color:#f59e0b;font-size:11px">▌H</button>
-        <button class="markup-btn" id="markup-strike" title="Strikethrough markup" style="font-size:11px"><s>T</s></button>
-        <button class="markup-btn" id="markup-underline" title="Underline markup" style="font-size:11px"><u>T</u></button>
+        <button class="markup-btn active" id="markup-highlight" title="Highlight" style="background:rgba(255,230,0,.25);border-color:#f59e0b;color:#f59e0b;font-size:11px">▌H</button>
       </div>
     </div>
     <!-- Markup color picker -->
@@ -907,6 +811,65 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
   <button class="tb-btn" data-tool="eraser"><svg viewBox="0 0 24 24"><path d="M20 20H7L3 16l10-10 7 7-3 3"/><path d="M6 10l8 8"/></svg><span class="lbl">Erase</span></button>
   <button class="tb-btn active" data-tool="pan"><svg viewBox="0 0 24 24"><path d="M18 11V8a2 2 0 0 0-4 0v3"/><path d="M14 11V6a2 2 0 0 0-4 0v5"/><path d="M10 11V5a2 2 0 0 0-4 0v9"/><path d="M6 14a4 4 0 0 0 3.67 4h2.5c1.74 0 3.83-.82 3.83-4v-3"/></svg><span class="lbl">Pan</span></button>
   <div class="sep"></div>
+  <!-- TEXT FORMAT ZONE — shown for Text + Leader tools (moved right of Pan for a cleaner tool row) -->
+  <div id="tb-textfmt-sep" class="sep" style="display:none"></div>
+  <div id="tb-font-size-grp"><select id="font-size-sel" title="Font size">
+    <option value="6">6</option><option value="7">7</option>
+    <option value="8">8</option><option value="9">9</option>
+    <option value="10">10</option><option value="12" selected>12</option>
+    <option value="14">14</option><option value="16">16</option>
+    <option value="18">18</option><option value="20">20</option>
+    <option value="24">24</option><option value="28">28</option>
+    <option value="32">32</option><option value="36">36</option>
+    <option value="48">48</option><option value="60">60</option>
+    <option value="72">72</option><option value="96">96</option>
+    <option value="120">120</option><option value="144">144</option>
+    <option value="180">180</option><option value="216">216</option>
+    <option value="240">240</option><option value="300">300</option>
+  </select></div>
+  <!-- FONT FAMILY — text/leader tools only -->
+  <div id="tb-font-family-grp" style="display:none;flex-shrink:0">
+    <select id="font-family-sel" title="Font family">
+      <option value="Arial">Arial</option>
+      <option value="Helvetica">Helvetica</option>
+      <option value="Times New Roman">Times NR</option>
+      <option value="Courier New">Courier</option>
+      <option value="Georgia">Georgia</option>
+      <option value="Verdana">Verdana</option>
+      <option value="Calibri">Calibri</option>
+      <option value="Trebuchet MS">Trebuchet</option>
+      <option value="Impact">Impact</option>
+      <option value="Comic Sans MS">Comic Sans</option>
+    </select>
+  </div>
+  <!-- BOLD / ITALIC / UNDERLINE / STRIKETHROUGH — text/leader tools only -->
+  <div id="tb-text-fmt-grp" style="display:none;flex-shrink:0;gap:2px;align-items:center">
+    <button class="fmt-btn" id="fmt-bold" title="Bold (Ctrl+B)"><b>B</b></button>
+    <button class="fmt-btn" id="fmt-italic" title="Italic (Ctrl+I)"><i>I</i></button>
+    <button class="fmt-btn" id="fmt-underline" title="Underline"><u>U</u></button>
+    <button class="fmt-btn" id="fmt-strike" title="Strikethrough"><s>S</s></button>
+  </div>
+  <!-- TEXT ALIGNMENT — text/leader tools only -->
+  <div id="tb-text-align-grp" style="display:none;flex-shrink:0;gap:2px;align-items:center">
+    <button class="align-btn active" id="align-left" title="Align left" data-align="left"><svg viewBox="0 0 14 14"><line x1="1" y1="3" x2="13" y2="3"/><line x1="1" y1="6" x2="9" y2="6"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="1" y1="12" x2="9" y2="12"/></svg></button>
+    <button class="align-btn" id="align-center" title="Align center" data-align="center"><svg viewBox="0 0 14 14"><line x1="1" y1="3" x2="13" y2="3"/><line x1="3" y1="6" x2="11" y2="6"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="3" y1="12" x2="11" y2="12"/></svg></button>
+    <button class="align-btn" id="align-right" title="Align right" data-align="right"><svg viewBox="0 0 14 14"><line x1="1" y1="3" x2="13" y2="3"/><line x1="5" y1="6" x2="13" y2="6"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="5" y1="12" x2="13" y2="12"/></svg></button>
+  </div>
+  <!-- TEXT BACKGROUND — text/leader tools only -->
+  <div id="tb-txt-bg-grp" style="display:none;flex-shrink:0;align-items:center;gap:3px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+      <span style="font-size:8px;color:var(--txt2);letter-spacing:.5px">TXT BG</span>
+      <div class="clr-wrap" style="position:relative;width:30px;height:30px">
+        <div id="txt-bg-swatch" style="background:rgba(255,255,0,0);border-radius:50%;width:30px;height:30px;border:2.5px solid var(--b2);cursor:pointer;background-image:repeating-conic-gradient(#aaa 0% 25%, transparent 0% 50%);background-size:8px 8px;background-position:center"></div>
+        <input type="color" id="txt-bg-input" value="#ffff00" style="position:absolute;inset:0;opacity:0.01;width:100%;height:100%;border:none;padding:0;margin:0;cursor:pointer;-webkit-appearance:none;border-radius:50%;">
+      </div>
+    </div>
+    <div class="sl-wrap" style="min-width:44px">
+      <input type="range" id="txt-bg-op-sl" min="0" max="100" value="0">
+      <span id="txt-bg-op-val" style="font-size:8px">0%</span>
+    </div>
+  </div>
+  <!-- /TEXT FORMAT ZONE -->
   <!-- COMMENT COLORS — only shown when Note/Comment tool is active -->
   <div id="cmt-clr-grp" style="display:none;align-items:center;gap:3px;flex-shrink:0">
     <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
@@ -1029,8 +992,6 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
   <button class="tb-btn" id="btn-redo"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg><span class="lbl">Redo</span></button>
   <button class="tb-btn" id="btn-clear"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg><span class="lbl">Clear</span></button>
 </div>
-<!-- SECOND TOOLBAR ROW: shows a tool group's tools (Draw / Measure) on desktop -->
-<div id="tb2"></div>
 
 <!-- SUBBAR -->
 <div id="sb">
@@ -1064,18 +1025,12 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
     <button class="ic-btn" id="btn-shortcuts" title="Keyboard shortcuts (?)">?</button>
   </div>
   <div class="sb-group">
-    <div id="export-flat" style="display:flex;align-items:center;gap:3px">
     <button class="save-btn" id="btn-saveproj" title="Save editable project file (.aogplan) — reopen later to keep editing">💾 Save</button>
     <button class="save-btn" id="btn-openproj" title="Open an editable project file (.aogplan)">📂 Open</button>
     <button class="save-btn" id="btn-png">PNG</button>
     <button class="save-btn" id="btn-pdf">PDF</button>
     <button class="save-btn" id="btn-pdfedit" title="Export a PDF that also re-opens here for editing">PDF✎</button>
     <button class="save-btn" id="btn-print">Print</button>
-    </div>
-    <div class="export-dd" id="export-dd">
-      <button class="save-btn" id="export-dd-btn" type="button" title="Save &amp; export options">⬇ Export ▾</button>
-      <div class="export-dd-panel" id="export-dd-panel"></div>
-    </div>
     <input type="file" id="openproj-in" accept=".aogplan,application/json" style="display:none">
   </div>
 </div>
@@ -1219,7 +1174,7 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
         <canvas id="shapes-cv"></canvas>
         <canvas id="txt-cv"></canvas>
         <canvas id="sel-cv"></canvas>
-        <canvas id="grid-cv"></canvas>
+        <div id="grid-cv"></div>
         <!-- Watermark overlay -->
         <div id="wm-canvas">
           <div class="wm-name" id="wm-name-el"></div>
@@ -1510,7 +1465,7 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
         <div class="sc-row"><span class="sc-desc">Pan</span><span class="sc-key">H</span></div>
         <div class="sc-row"><span class="sc-desc">Leader (toolbar only)</span><span class="sc-key">—</span></div>
         <div class="sc-row"><span class="sc-desc">Stamp (toolbar only)</span><span class="sc-key">—</span></div>
-        <div class="sc-row"><span class="sc-desc">Highlight / Strike / Underline (toolbar only)</span><span class="sc-key">—</span></div>
+        <div class="sc-row"><span class="sc-desc">Highlight (toolbar only)</span><span class="sc-key">—</span></div>
       </div>
 
       <div class="sc-section-title">EDIT</div>
@@ -1576,7 +1531,7 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
     <div class="sc-grid">
       <div class="sc-row"><span class="sc-desc">Leader line</span><span class="sc-key">Click anchor, click arrowhead, type label · click it again later to recolor, resize or move (drag tip / elbow / shoulder handles)</span></div>
       <div class="sc-row"><span class="sc-desc">Stamp</span><span class="sc-key">Tap Stamp tool → choose symbol → click to place</span></div>
-      <div class="sc-row"><span class="sc-desc">Highlight / Strikeout / Underline</span><span class="sc-key">Drag across an area to mark it</span></div>
+      <div class="sc-row"><span class="sc-desc">Highlight</span><span class="sc-key">Drag across any area to highlight it. (Underline &amp; strikethrough live in the Text/Note formatting bar.)</span></div>
       <div class="sc-row"><span class="sc-desc">Path Distance</span><span class="sc-key">Click waypoints along a route; dbl-click / Enter to finish</span></div>
       <div class="sc-row"><span class="sc-desc">Area / Polygon</span><span class="sc-key">Click vertices; dbl-click or Esc to close &amp; calculate area</span></div>
       <div class="sc-row"><span class="sc-desc">Pen arc length</span><span class="sc-key">Shown automatically after each freehand stroke</span></div>
@@ -1704,8 +1659,7 @@ body.is-desktop #export-flat{display:none}              /* hide the 6 flat butto
           <div id="ptb-proj"></div>
           <div id="ptb-drwn"></div>
         </div>
-        <div class="ptb-mid" id="ptb-scale"></div>
-        <div class="ptb-right" id="ptb-date"></div>
+
       </div>
     </div>
   </div>
@@ -1808,7 +1762,7 @@ var togSnap=document.getElementById('tog-snap');
 var legendList=document.getElementById('legend-list');
 var bCtx=baseCv.getContext('2d');
 var dCtx=drawCv.getContext('2d');
-var gCtx=gridCv.getContext('2d');
+/* grid-cv is now a CSS-tiled div, not a canvas — no 2D context */
 var selCv=document.getElementById('sel-cv');
 var selCtx=selCv.getContext('2d');
 var tCv=document.getElementById('txt-cv');
@@ -2330,6 +2284,10 @@ function commitCommentEdit(keepSize){
   c.cy = _topE + c.h/2;
   if(selectedShape && selectedShape._commentObj===c){ selectedShape.cy=c.cy; selectedShape.h=c.h; }
   textOv.style.display = 'none'; textOv.blur();
+  // CRITICAL: the textarea is SHARED with the Text tool. If we leave the note's
+  // text inside it, the next tap with the Text tool re-shows the overlay with
+  // this stale value and commits it as a new text object on the plan.
+  textOv.value = '';
   // Fully restore textOv to default state for next use (clear all comment-specific styles)
   textOv.style.background      = '';
   textOv.style.borderBottom    = '';
@@ -2612,7 +2570,7 @@ var pdfDoc=null, currentPage=1, baseLoaded=false;
 var isPanning=false, spaceDown=false, lastPanX=0, lastPanY=0;
 var pinching=false, twoMidX=0, twoMidY=0, pinchDist0=0, pinchZoom0=1;
 var PAN_DAMP=0.6, ZOOM_DAMP=0.2;
-var FONT_SIZE=18; // controlled by #font-size-sel
+var FONT_SIZE=12; // controlled by #font-size-sel
 var textX=0, textY=0;
 var hintTimer;
 
@@ -2875,6 +2833,22 @@ function clearFn(){
   polygonObjs = polygonObjs.filter(function(o){ return o.layerIdx!==activeLayerIdx; });
   leaderObjs  = leaderObjs.filter(function(o){ return o.layerIdx!==activeLayerIdx; });
   stampObjs   = stampObjs.filter(function(o){ return o.layerIdx!==activeLayerIdx; });
+  // Image overlays carry no layerIdx (they're not layer-bound), so Clear was
+  // leaving them on screen. Remove them too. Objects tagged with a matching
+  // layerIdx are filtered by layer; untagged ones are cleared.
+  if(typeof imgOverlays!=='undefined' && imgOverlays.length){
+    imgOverlays = imgOverlays.filter(function(o){
+      return o.layerIdx!==undefined && o.layerIdx!==activeLayerIdx;
+    });
+    // Drop any active image selection so no stale selection box is left behind.
+    if(typeof selImg!=='undefined' && selImg && imgOverlays.indexOf(selImg)===-1){
+      selImg=null;
+      if(typeof selImgDrag!=='undefined') selImgDrag=null;
+      if(typeof selImgHandle!=='undefined') selImgHandle=-1;
+      if(selCv.width>1){ selCv.width=1; selCv.height=1; }
+    }
+    if(typeof renderImgOverlays==='function') renderImgOverlays();
+  }
   if(selectedShape){
     var tobj=selectedShape._textObj;
     var sobj=editShapeObj;
@@ -2934,7 +2908,7 @@ function updateLegend(){
 }
 
 // ── ZOOM/PAN ──
-function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
+function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
 
 function clampPan(){
   var vw=viewport.clientWidth,vh=viewport.clientHeight;
@@ -3322,12 +3296,66 @@ function renderPDFPage(n){
 }
 
 function resize(w,h){
-  baseCv.width=drawCv.width=gridCv.width=tCv.width=shCv.width=w;
+  baseCv.width=drawCv.width=tCv.width=shCv.width=w;
   if(typeof imgCv!=='undefined'){ imgCv.width=w; }
-  baseCv.height=drawCv.height=gridCv.height=tCv.height=shCv.height=h;
+  baseCv.height=drawCv.height=tCv.height=shCv.height=h;
   if(typeof imgCv!=='undefined'){ imgCv.height=h; }
   selCv.width=1; selCv.height=1;
   canvasWrap.style.width=w+'px'; canvasWrap.style.height=h+'px';
+  // Render the TEXT/markup AND shape/note layers at device-pixel resolution so
+  // committed text and notes stay crisp on hi-DPI / Retina screens AND when zoomed
+  // in. Display size stays w×h via CSS so they overlay the other layers exactly;
+  // the backing stores are sized for the current zoom (see _setAnnoRes). (Export
+  // re-renders these on their own canvases, and neither is read back, so nothing
+  // else is affected.)
+  _setAnnoRes(true);
+}
+
+// Size the annotation canvases (text/markup = tCv, shapes/notes = shCv) so their
+// backing stores cover the device pixels actually on screen at the current zoom —
+// committed (rasterized) text and notes then look as sharp as the live editor.
+// Both are display-only (never read back) and overlay at w×h via CSS, so this is
+// safe. Capped for mobile canvas-area / memory limits.
+var _annoEff = 0;     // effective scale currently baked into the anno canvases
+function _computeAnnoEff(){
+  var w = baseCv.width, h = baseCv.height;
+  if(!w || !h) return 1;
+  var devicePR = window.devicePixelRatio || 1;
+  var eff = Math.max(1, devicePR * Math.max(1, zoom));   // cover device px at zoom
+  eff = Math.min(eff, 3);                                // hard ceiling
+  var _CAP = 12e6;                                       // per-canvas device-px ceiling
+  if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
+  return Math.round(eff*4)/4;                            // bucket to 0.25 steps
+}
+function _sizeAnnoCanvas(cv, ctx, eff){
+  var w = baseCv.width, h = baseCv.height;
+  cv.width  = Math.max(1, Math.round(w*eff));
+  cv.height = Math.max(1, Math.round(h*eff));
+  cv.style.width  = w+'px';
+  cv.style.height = h+'px';
+  ctx.setTransform(eff,0,0,eff,0,0);                    // draw in plan coords, render at eff
+}
+function _setAnnoRes(force){
+  var w = baseCv.width, h = baseCv.height;
+  if(!w || !h) return;
+  var eff = _computeAnnoEff();
+  // Skip needless re-rasterization (e.g. during pan, where zoom is unchanged).
+  if(!force && Math.abs(eff - _annoEff) < 0.2) return;
+  _annoEff = eff;
+  _sizeAnnoCanvas(tCv,  tCtx,  eff);
+  _sizeAnnoCanvas(shCv, shCtx, eff);
+  if(baseLoaded){
+    if(typeof renderTextObjs==='function')        renderTextObjs();
+    if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
+  }
+}
+// Ensure shCv is at the current effective resolution before a live preview draws
+// on it (used by the path-measure / polyline preview helpers that previously
+// forced it back to plan size).
+function _ensureShcvRes(){
+  var eff = _annoEff || _computeAnnoEff();
+  var want = Math.max(1, Math.round(baseCv.width*eff));
+  if(shCv.width !== want){ _sizeAnnoCanvas(shCv, shCtx, eff); }
 }
 
 function afterLoad(){
@@ -3418,12 +3446,9 @@ togSnap.addEventListener('click',function(){ snapEnabled=!snapEnabled; togSnap.c
 gridSz.addEventListener('input',function(){ gridSize=parseInt(gridSz.value)||50; if(gridEnabled) drawGrid(); });
 
 function drawGrid(){
-  gCtx.clearRect(0,0,gridCv.width,gridCv.height);
-  if(!gridEnabled||!gridCv.width) return;
-  gCtx.strokeStyle='#88aaff';
-  gCtx.lineWidth=0.5;
-  for(var x=0;x<gridCv.width;x+=gridSize){ gCtx.beginPath(); gCtx.moveTo(x,0); gCtx.lineTo(x,gridCv.height); gCtx.stroke(); }
-  for(var y=0;y<gridCv.height;y+=gridSize){ gCtx.beginPath(); gCtx.moveTo(0,y); gCtx.lineTo(gridCv.width,y); gCtx.stroke(); }
+  if(!gridEnabled){ gridCv.style.display='none'; return; }
+  gridCv.style.display='block';
+  gridCv.style.backgroundSize = gridSize+'px '+gridSize+'px';
 }
 
 // ── DRAWING SETUP ──
@@ -3445,7 +3470,11 @@ function resetCtx(ctx){ ctx.globalAlpha=1; ctx.setLineDash([]); }
 // select images, text objects, or an already-selected rect/ellipse underneath.
 // (Each still re-selects its OWN object type: line tool grabs lines, leader
 // tool grabs leaders, etc.)
-var DRAW_STRICT={line:1,arrow:1,polyline:1,measure:1,pathmeasure:1,polygon:1,leader:1};
+var DRAW_STRICT={line:1,arrow:1,polyline:1,measure:1,pathmeasure:1,polygon:1,leader:1,
+  // Markup tools must draw OVER text/images/shapes, not grab them. Without this,
+  // pressing the Highlight tool on a text label selected the text instead of
+  // highlighting it. (strikeout/underlinemark kept for any legacy saved marks.)
+  highlight:1,strikeout:1,underlinemark:1};
 
 // ── DRAWING EVENTS ──
 function onDown(e){
@@ -3540,9 +3569,15 @@ function onDown(e){
     if(_imgHit){ selImg=_imgHit; renderImgOverlays(); renderImgSelection(); return; }
   }
 
-  // Tapping any existing text object with non-text/non-eraser tools → enter transform mode.
-  // Drawing tools are exempt — pressing over a text label must start the line/measure, not grab the text.
-  if(!selectedShape && tool!=='text' && tool!=='eraser' && tool!=='pan' && !DRAW_STRICT[tool] && !drawing){
+  // Tapping an existing text label selects it for transform — but ONLY with the
+  // text tool's own handler. The shape/note/create tools (rect, ellipse, cloud,
+  // note/comment, pen, stamp) must NEVER grab a text: a press over a label has
+  // to draw the shape / place the note OVER it, not pop the text's transform
+  // outline. (Line/measure-type tools are already excluded via DRAW_STRICT.)
+  var _isCreateTool = (tool==='rect'||tool==='ellipse'||tool==='cloud'||
+                       tool==='comment'||tool==='pen'||tool==='stamp');
+  if(!selectedShape && tool!=='text' && tool!=='eraser' && tool!=='pan' &&
+     !_isCreateTool && !DRAW_STRICT[tool] && !drawing){
     var _anyText=findTextObjAt(sp.x,sp.y);
     if(_anyText){
       e.preventDefault();
@@ -3557,6 +3592,12 @@ function onDown(e){
     // grab it: previously pressing its body MOVED the shape ("it switches to
     // rect or ellipse") and pressing anywhere else only deselected and ATE the
     // press entirely. Commit it and let this same press start the new draw.
+    commitSelection();
+  }
+  else if(selectedShape && selectedShape.type==='text' && _isCreateTool){
+    // A text was left selected (oval transform outline) but the user is now on a
+    // shape/note/create tool. Don't grab the text — drop the selection and let
+    // this same press start drawing the shape / placing the note over it.
     commitSelection();
   }
   else if(selectedShape && tool!=='measure'){
@@ -3596,18 +3637,9 @@ function onDown(e){
             e.preventDefault();
             var _tobj=selectedShape._textObj;
             commitSelection();
-            editingObj=_tobj;
-            _tobj._editing=true;
-            renderTextObjs();
-            textX=_tobj.x; textY=_tobj.y;
-            // Re-editing keeps the object's own anchoring: only a leader label
-            // (marked _anchorRight, with a stored _anchorX) re-hangs from the
-            // right edge. Plain right-aligned text keeps its normal box.
-            _textAnchorRight = (_tobj._anchorRight===true && _tobj._anchorX!=null);
-            startTextCursor(_tobj.x,_tobj.y);
-            showTextOverlay(_tobj.x,_tobj.y);
-            textOv.value=_tobj.text;
-            _syncTextFmtFromObj(_tobj);
+            // Route through the single guarded editor opener so the synthetic
+            // touch→mouse replay can't double-open (and double-insert) the text.
+            _openTextEdit(_tobj);
             return;
           }
         }
@@ -3643,6 +3675,24 @@ function onDown(e){
   if(tool==='leader'){
     // Mid-placement (first point already set) → let the click handler place P2.
     if(leaderStep>0){ return; }
+    // Double-tap a label's TEXT with the leader tool → edit the text directly,
+    // so users don't have to switch to the Text tool. Single taps fall through
+    // to leader selection (handles / recolor) below.
+    var _ldTxt=findTextObjAt(sp.x,sp.y);
+    if(_ldTxt){
+      var _lnow=Date.now();
+      var _ldDbl=(_lnow-_txtTapTime<380 && _txtTapObj===_ldTxt);
+      _txtTapTime=_lnow; _txtTapObj=_ldTxt;
+      if(_ldDbl){
+        e.preventDefault();
+        if(selectedLeader) commitLeaderSelection();
+        // iOS needs focus() synchronously inside the touch handler for the
+        // keyboard to appear — prime the textarea before opening the editor.
+        if(e.touches && e.touches.length){ textOv.value=''; textOv.style.display='block'; textOv.focus(); }
+        _openTextEdit(_ldTxt);   // guarded opener (no doubling on iPad)
+        return;
+      }
+    }
     // If a leader is already selected, check its handles first.
     if(selectedLeader){
       var lh=getLeaderHandleAt(selectedLeader,sp.x,sp.y,_isTouchEvt);
@@ -3807,6 +3857,44 @@ function onDown(e){
 }
 
 function onMove(e){
+  // ── Moving a text by its dashed border ──
+  if(_txtMoving && _txtMoveObj){
+    if(e.cancelable) e.preventDefault();
+    var _mp=getPos(e);
+    _txtMoveObj.x=_txtMoveStart.ox+(_mp.x-_txtMoveStart.px);
+    _txtMoveObj.y=_txtMoveStart.oy+(_mp.y-_txtMoveStart.py);
+    renderTextObjs();
+    if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
+    selCtx.clearRect(0,0,selCv.width,selCv.height);
+    _drawTextChrome(_txtMoveObj);
+    return;
+  }
+  // ── Rotating a text by its rotate handle ──
+  if(_txtRotating && _txtRotObj){
+    if(e.cancelable) e.preventDefault();
+    var _rp=getPos(e);
+    var _na=Math.atan2(_rp.y-_txtRotStart.cy, _rp.x-_txtRotStart.cx)-_txtRotStart.off;
+    // Snap to whole degrees (1° increments). Shift = free/fine rotation.
+    if(!_shiftDown){
+      var _DEG=Math.PI/180;
+      _na=Math.round(_na/_DEG)*_DEG;
+    }
+    // Rotate about the box CENTER: re-derive the origin so the center stays put.
+    var _d=_textBoxDims(_txtRotObj);
+    var _lcx=_d.w/2, _lcy=-_d.fpx+_d.h/2;
+    var _ca=Math.cos(_na), _sa=Math.sin(_na);
+    _txtRotObj.angle=_na;
+    _txtRotObj.x=_txtRotStart.cx-(_lcx*_ca-_lcy*_sa);
+    _txtRotObj.y=_txtRotStart.cy-(_lcx*_sa+_lcy*_ca);
+    renderTextObjs();
+    if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
+    selCtx.clearRect(0,0,selCv.width,selCv.height);
+    _drawTextChrome(_txtRotObj);
+    // Live degree readout (0–359°, where 0° = upright).
+    var _deg=((Math.round(_na*180/Math.PI)%360)+360)%360;
+    _drawAngleBadge(_txtRotObj, _deg);
+    return;
+  }
   // Leader hold-and-drag: live dashed preview for TOUCH (the separate drawCv
   // mousemove listener already draws the identical preview for the mouse).
   if(_leaderDragPlacing && tool==='leader' && leaderStep===1 && e.touches){
@@ -3924,7 +4012,9 @@ function onMove(e){
       // rotation here would desync the hit zones from the drawn box permanently.
       if(selectedShape.type!=='comment'){
         var rawA=Math.atan2(tp.y-selectedShape.cy, tp.x-selectedShape.cx);
-        selectedShape.angle=rawA-selDragStart.rotAngleOffset;
+        var _sAng=rawA-selDragStart.rotAngleOffset;
+        if(!_shiftDown){ var _SD=Math.PI/180; _sAng=Math.round(_sAng/_SD)*_SD; } // 1° snap
+        selectedShape.angle=_sAng;
       }
     } else {
       // Resize — opposite side stays anchored (not symmetric from center).
@@ -3964,8 +4054,8 @@ function onMove(e){
       var wcos=Math.cos(orig.angle), wsin=Math.sin(orig.angle);
       selectedShape.cx=orig.cx+clx*wcos-cly*wsin;
       selectedShape.cy=orig.cy+clx*wsin+cly*wcos;
-      // If resizing a text object, scale fontSize with height AND
-      // update the bubble width so text stays inside the ellipse at the new size.
+      // If resizing a text object, scale fontSize with height AND keep the
+      // selection box tight to the rendered text (rectangular text-box style).
       if(selectedShape.type==='text'&&selectedShape._textObj&&selDragStart.origFontSize&&selDragStart.origH>0){
         var ratio=selectedShape.h/selDragStart.origH;
         var newFs=Math.max(6,Math.round(selDragStart.origFontSize*ratio));
@@ -3973,8 +4063,8 @@ function onMove(e){
         var _tlines=selectedShape._textObj.text.split('\n');
         var _newTextW=measureLinesW(_tlines,newFs);
         var _newTextH=_tlines.length*newFs*1.35;
-        selectedShape.w=Math.max(_newTextW*TEXT_ELLIPSE_K,40);
-        selectedShape.h=Math.max(_newTextH*TEXT_ELLIPSE_K,newFs*1.5);
+        selectedShape.w=Math.max(_newTextW,40);
+        selectedShape.h=Math.max(_newTextH,newFs*1.5);
         renderTextObjs();
       }
     }
@@ -4062,6 +4152,27 @@ function onMove(e){
 }
 
 function onUp(e){
+  // ── Text move release: persist new position, show the moved text ──
+  if(_txtMoving){
+    if(e.cancelable) e.preventDefault();
+    _txtMoving=false; _txtMoveObj=null; _txtMoveStart=null;
+    renderTextObjs();
+    if(selCv.width>1) selCtx.clearRect(0,0,selCv.width,selCv.height);
+    selCv.width=1; selCv.height=1;
+    pushUndo();
+    return;
+  }
+  // ── Text rotate release: persist angle and show the rotated text ──
+  if(_txtRotating){
+    if(e.cancelable) e.preventDefault();
+    _txtRotating=false; _txtRotObj=null; _txtRotStart=null;
+    renderTextObjs();
+    // Clear the chrome — the rotated text is now shown committed on the canvas.
+    if(selCv.width>1) selCtx.clearRect(0,0,selCv.width,selCv.height);
+    selCv.width=1; selCv.height=1;
+    pushUndo();
+    return;
+  }
   // ── Leader hold-and-drag release: commit the leader, open a CLEAN label ──
   if(_leaderDragPlacing && tool==='leader'){
     _leaderDragPlacing=false;
@@ -4223,12 +4334,23 @@ function onUp(e){
     // clear the live-drag flag, and restore the static draw at the new pose. ──
     if(selectedShape&&selectedShape.type==='text'&&selectedShape._textObj){
       var _tt=selectedShape._textObj;
-      // Position already synced live during move; ensure angle is persisted too
-      // (rotation only updates selectedShape.angle during the drag).
+      // Write the new POSE back to the text object. The move/rotate drag only
+      // updates selectedShape.cx/cy/angle (the live preview derives from those),
+      // so derive obj.x/obj.y from the selection center using the SAME inverse-
+      // rotation math as commitSelection. Without this the static copy redrew at
+      // the OLD position (it was only ever shown via the selCv preview before).
+      var _lns=_tt.text.split('\n');
+      var _fpx=ptToCanvasPx(_tt.fontSize);
+      var _ew=measureLinesWFull(_lns,_fpx,_tt.fontFamily||'Arial',_tt.bold,_tt.italic);
+      var _eh=_lns.length*_fpx*1.35;
+      var _cs=Math.cos(selectedShape.angle), _sn=Math.sin(selectedShape.angle);
+      var _lcx=_ew/2, _lcy=-_fpx+_eh/2;
+      _tt.x=selectedShape.cx-(_lcx*_cs-_lcy*_sn);
+      _tt.y=selectedShape.cy-(_lcx*_sn+_lcy*_cs);
       _tt.angle=selectedShape.angle;
-      // Font-size from resize is written live in the resize branch; nothing else
-      // to copy here. Re-establish the selection box around the final text pose.
       _dragText=null;                    // stop skipping it in renderTextObjs
+      selHandle=-1; selDragStart=null;   // reset BEFORE renderTextObjs so the
+                                         // static text is no longer flagged hidden
       renderTextObjs();                  // redraw static text at its new pose
       renderSelection();                 // keep handles, now over the static text
       pushUndo();
@@ -5147,9 +5269,7 @@ function renderPathMeasureObjs(){
 // ── Draw the live in-progress path on shCv ───────────────────
 function redrawPathMeasurePreview(mouseX,mouseY){
   if(!pmActive||pmPoints.length<1) return;
-  if(shCv.width!==drawCv.width||shCv.height!==drawCv.height){
-    shCv.width=drawCv.width; shCv.height=drawCv.height;
-  }
+  _ensureShcvRes();  // keep shapes/notes canvas at hi-res (was: force to plan size)
   // Full re-render of committed objects + live preview on top
   renderShapeAndMeasure(); // draws committed items
 
@@ -5334,9 +5454,7 @@ drawCv.addEventListener('mousemove',function(e){
     var lpos=getPos(e);
     lpos=maybeConstrainHV(startX,startY,lpos.x,lpos.y);
     dCtx.putImageData(compositedSnap,0,0);
-    if(shCv.width!==drawCv.width||shCv.height!==drawCv.height){
-      shCv.width=drawCv.width; shCv.height=drawCv.height;
-    }
+  _ensureShcvRes();  // keep shapes/notes canvas at hi-res (was: force to plan size)
     renderShapeAndMeasure(); // redraw committed objects underneath
     shCtx.save();
     shCtx.globalAlpha=opacity;
@@ -5363,9 +5481,7 @@ drawCv.addEventListener('mousemove',function(e){
     dCtx.putImageData(compositedSnap,0,0);
 
     // Draw live preview on shCv so it's visible above draw-cv
-    if(shCv.width!==drawCv.width||shCv.height!==drawCv.height){
-      shCv.width=drawCv.width; shCv.height=drawCv.height;
-    }
+  _ensureShcvRes();  // keep shapes/notes canvas at hi-res (was: force to plan size)
     // Re-render committed shapes/measures, then overlay live preview
     shCtx.clearRect(0,0,shCv.width,shCv.height);
     // Redraw committed shape+measure objects underneath
@@ -5610,18 +5726,39 @@ function renderTextObjs(){
     var maxW=measureLinesWFull(lines,fpx,family,obj.bold,obj.italic);
     // Compute anchor x for alignment
     var ax=obj.x+(align==='center'?maxW/2:align==='right'?maxW:0);
-    // Draw background if bgOpacity>0
+    // Draw background if bgOpacity>0 — tight, per-line highlight.
+    // Each line gets its own rectangle hugging that line's ACTUAL glyphs with
+    // exactly 1.5px above/below — so the bar is the same tightness at any font
+    // size, and lines without ascenders/descenders (e.g. "ss") aren't padded out
+    // to full cap-height. Empty lines get no highlight; a space/letter only its
+    // own width.
     if(obj.bgOpacity&&obj.bgOpacity>0){
-      var pad=4;
-      var bgH=lines.length*fpx*1.35+pad*2;
+      var _padX=2, _padY=1.5, _lineH=fpx*1.35;
       tCtx.save();
       tCtx.globalAlpha=obj.opacity*obj.bgOpacity;
       tCtx.fillStyle=obj.bgColor||'#ffff00';
+      var _bgLine=function(line, lineLeftX, baseY){
+        var m=tCtx.measureText(line);
+        var lw=m.width; if(lw<=0) return;            // empty line → nothing
+        var asc =(m.actualBoundingBoxAscent !=null)? m.actualBoundingBoxAscent  : fpx*0.74;
+        var desc=(m.actualBoundingBoxDescent!=null)? m.actualBoundingBoxDescent : fpx*0.21;
+        if(asc<=0.01) asc=fpx*0.5;                   // whitespace-only line → x-height bar
+        if(desc<0) desc=0;
+        tCtx.fillRect(lineLeftX-_padX, baseY-asc-_padY, lw+_padX*2, asc+desc+_padY*2);
+      };
       if(obj.angle){
         tCtx.translate(obj.x,obj.y);tCtx.rotate(obj.angle);
-        tCtx.fillRect(-pad,-fpx-pad,maxW+pad*2,bgH);
+        lines.forEach(function(line,i){
+          var lw=tCtx.measureText(line).width;
+          var lx=(align==='center'?-lw/2:align==='right'?-lw:0);
+          _bgLine(line, lx, i*_lineH);
+        });
       } else {
-        tCtx.fillRect(obj.x-pad,obj.y-fpx-pad,maxW+pad*2,bgH);
+        lines.forEach(function(line,i){
+          var lw=tCtx.measureText(line).width;
+          var lx=ax-(align==='center'?lw/2:align==='right'?lw:0);
+          _bgLine(line, lx, obj.y+i*_lineH);
+        });
       }
       tCtx.restore();
       tCtx.globalAlpha=obj.opacity;
@@ -5797,7 +5934,14 @@ function renderTextCursorFrame(){
     selCv.height = drawCv.height;
   }
   selCtx.clearRect(0,0,selCv.width,selCv.height);
-  if(_txtCursorActive && _txtCursorBlink){
+  // Dashed box + rotate handle around the text being edited (redrawn every
+  // blink frame so it persists with the caret).
+  if(editingObj) _drawTextChrome(editingObj);
+  // The live <textarea> shows its OWN native caret (click anywhere, select, type
+  // mid-text — exactly like the notes editor). Only draw the canvas I-beam when
+  // that editor isn't up, so we don't paint a misleading second cursor.
+  var _editorUp = (textOv && textOv.style.display!=='none');
+  if(_txtCursorActive && _txtCursorBlink && !_editorUp){
     drawTextCursorAt(_txtCursorX, _txtCursorY, 1.0);
   }
 }
@@ -5826,6 +5970,11 @@ function stopTextCursor(){
 // ── Sync text-formatting toolbar state from a text object ────────
 function _syncTextFmtFromObj(obj){
   if(!obj) return;
+  if(obj.fontSize){
+    FONT_SIZE = obj.fontSize;
+    var _fss=document.getElementById('font-size-sel');
+    if(_fss) _fss.value=String(obj.fontSize);
+  }
   textFontFamily = obj.fontFamily || 'Arial';
   textBold       = !!obj.bold;
   textItalic     = !!obj.italic;
@@ -5881,15 +6030,20 @@ function showTextHover(x, y){
     var estW=measureLinesW(lines,oefpx);
     var estH=lines.length*oefpx*1.3;
     var pad=6/zoom;
+    var _hang=overExisting.angle||0;   // follow the text's rotation
     selCtx.save();
+    // Draw in the label's own rotated frame so the dashed box sits over the live
+    // (rotated) text, not its original upright position.
+    selCtx.translate(overExisting.x, overExisting.y);
+    selCtx.rotate(_hang);
     selCtx.strokeStyle=color; selCtx.lineWidth=1.5/zoom;
     selCtx.setLineDash([4/zoom,3/zoom]); selCtx.globalAlpha=0.7;
-    selCtx.strokeRect(overExisting.x-pad, overExisting.y-oefpx-pad, estW+pad*2, estH+pad*2);
+    selCtx.strokeRect(-pad, -oefpx-pad, estW+pad*2, estH+pad*2);
     // Edit pencil icon hint
     selCtx.setLineDash([]); selCtx.globalAlpha=0.8;
     selCtx.font='bold '+(Math.max(10,11/zoom))+'px Arial,sans-serif';
     selCtx.fillStyle=color; selCtx.textAlign='left';
-    selCtx.fillText('✎ edit', overExisting.x, overExisting.y-oefpx-8/zoom);
+    selCtx.fillText('✎ edit', 0, -oefpx-8/zoom);
     selCtx.restore();
   } else {
     drawCv.style.cursor='crosshair';
@@ -6091,38 +6245,205 @@ function handleCommentDown(e, sp, isTouch){
   compositedSnap=dCtx.getImageData(0,0,drawCv.width,drawCv.height);
 }
 var _txtTapTime=0, _txtTapObj=null;
+// ── Text edit chrome + rotate handle ───────────────────────────────────────
+// While a text is being edited we draw a dashed box around it with ONE rotate
+// handle above it. Grabbing that handle rotates the whole label. Clicking inside
+// the text just places the edit caret (handled natively by the textarea).
+var _txtRotating=false, _txtRotStart=null, _txtRotObj=null;
+// Grabbing the dashed BORDER (not the rotate handle, not inside the text) drags
+// the whole label to a new spot.
+var _txtMoving=false, _txtMoveObj=null, _txtMoveStart=null;
+
+function _textBoxDims(o){
+  var lines=o.text.split('\n');
+  var fpx=ptToCanvasPx(o.fontSize);
+  var w=measureLinesWFull(lines,fpx,o.fontFamily||'Arial',o.bold,o.italic);
+  var h=lines.length*fpx*1.35;
+  return {fpx:fpx,w:w,h:h};
+}
+function _textCenter(o){
+  var d=_textBoxDims(o), ang=o.angle||0, ca=Math.cos(ang), sa=Math.sin(ang);
+  var lcx=d.w/2, lcy=-d.fpx+d.h/2;
+  return {x:o.x+(lcx*ca-lcy*sa), y:o.y+(lcx*sa+lcy*ca)};
+}
+// Draw the dashed text box + rotate handle for o onto selCtx. Caller has cleared selCv.
+function _drawTextChrome(o){
+  if(!o) return;
+  var d=_textBoxDims(o);
+  var pad=6/zoom, lw=1.5/zoom, ro=ROT_OFFSET/zoom, ang=o.angle||0;
+  selCtx.save();
+  selCtx.translate(o.x,o.y); selCtx.rotate(ang);
+  // Dashed text box (rectangular, hugs the glyphs)
+  selCtx.strokeStyle='rgba(0,212,255,0.9)'; selCtx.lineWidth=lw;
+  selCtx.setLineDash([5/zoom,3/zoom]); selCtx.globalAlpha=1;
+  selCtx.strokeRect(-pad,-d.fpx-pad,d.w+pad*2,d.h+pad*2);
+  // Connector + rotate handle above top-center
+  var topx=d.w/2, topy=-d.fpx-pad, hubx=topx, huby=topy-ro;
+  selCtx.setLineDash([2/zoom,2/zoom]);
+  selCtx.beginPath(); selCtx.moveTo(topx,topy); selCtx.lineTo(hubx,huby); selCtx.stroke();
+  selCtx.setLineDash([]);
+  var r=Math.max(7,HANDLE_SIZE/zoom)*1.15;
+  selCtx.fillStyle=ROT_COLOR; selCtx.strokeStyle='#fff'; selCtx.lineWidth=lw*1.5;
+  selCtx.shadowColor=ROT_COLOR; selCtx.shadowBlur=6/zoom;
+  selCtx.beginPath(); selCtx.arc(hubx,huby,r,0,Math.PI*2); selCtx.fill(); selCtx.stroke();
+  selCtx.shadowBlur=0;
+  selCtx.strokeStyle='#fff'; selCtx.lineWidth=lw*1.2;
+  selCtx.beginPath(); selCtx.arc(hubx,huby,r*0.5,Math.PI*0.12,Math.PI*1.7,false); selCtx.stroke();
+  selCtx.restore();
+  // Store the handle's world position for hit-testing
+  var ca=Math.cos(ang), sa=Math.sin(ang);
+  o._rotHandle={x:o.x+(hubx*ca-huby*sa), y:o.y+(hubx*sa+huby*ca), r:Math.max(16,22/zoom)};
+}
+function _textRotHandleAt(o,x,y){
+  return !!(o&&o._rotHandle&&Math.hypot(x-o._rotHandle.x,y-o._rotHandle.y)<=o._rotHandle.r);
+}
+// Small "##°" readout drawn at a canvas position, screen-upright.
+function _drawAngleBadgeXY(ctx,x,y,deg){
+  var fs=Math.max(9,Math.min(15,12/zoom)), pad=4/zoom, lw=0.9/zoom, rad=3/zoom;
+  var text=deg+'\u00B0';
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.font='bold '+fs+'px "Share Tech Mono",monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  var tw=ctx.measureText(text).width, bw=tw+pad*2.4, bh=fs+pad*2;
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(-bw/2,-bh/2,bw,bh,rad); else ctx.rect(-bw/2,-bh/2,bw,bh);
+  ctx.fillStyle='rgba(8,8,18,0.88)'; ctx.fill();
+  ctx.strokeStyle=ROT_COLOR; ctx.lineWidth=lw; ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.shadowColor=ROT_COLOR; ctx.shadowBlur=3/zoom;
+  ctx.fillText(text,0,0);
+  ctx.restore();
+}
+// Degrees (0–359, 0°=upright) from a radian angle.
+function _angToDeg(a){ return ((Math.round((a||0)*180/Math.PI)%360)+360)%360; }
+// Draw the "##°" readout centered on EACH of the 4 sides of a rotated box.
+// cx,cy = box center (canvas px); w,h = box size; ang = rotation (radians);
+// deg = value to print. The badge text stays screen-upright (via
+// _drawAngleBadgeXY) so it's readable from any side regardless of rotation.
+function _drawAngleBadge4Sides(ctx,cx,cy,w,h,ang,deg){
+  var ca=Math.cos(ang||0), sa=Math.sin(ang||0);
+  var off=14/zoom;                     // push each badge just outside its edge
+  var pts=[
+    {x:0,          y:-(h/2+off)},      // top
+    {x:0,          y:  h/2+off },      // bottom
+    {x:-(w/2+off), y:0          },     // left
+    {x:  w/2+off,  y:0          }      // right
+  ];
+  for(var i=0;i<pts.length;i++){
+    var wx=cx + pts[i].x*ca - pts[i].y*sa;
+    var wy=cy + pts[i].x*sa + pts[i].y*ca;
+    _drawAngleBadgeXY(ctx, wx, wy, deg);
+  }
+}
+// "##°" readout drawn on all 4 sides of a text label's box while rotating.
+function _drawAngleBadge(o,deg){
+  if(!o) return;
+  var d=_textBoxDims(o);
+  var c=_textCenter(o);
+  _drawAngleBadge4Sides(selCtx, c.x, c.y, d.w, d.h, o.angle||0, deg);
+}
+// True when (x,y) is on/near the dashed BOX border of o (in its rotated frame),
+// but not deep inside the text. Grabbing the border drags the whole label.
+function _textBorderAt(o,x,y){
+  var d=_textBoxDims(o);
+  var pad=6/zoom, band=Math.max(14,18/zoom);
+  var ang=o.angle||0, ca=Math.cos(-ang), sa=Math.sin(-ang);
+  var dx=x-o.x, dy=y-o.y;
+  var lx=dx*ca-dy*sa, ly=dx*sa+dy*ca;
+  var L=-pad, R=d.w+pad, T=-d.fpx-pad, B=d.h-d.fpx+pad;
+  if(lx<L-band||lx>R+band||ly<T-band||ly>B+band) return false;   // outside box+band
+  if(lx>L+band&&lx<R-band&&ly>T+band&&ly<B-band) return false;   // deep interior → not border
+  return true;
+}
+// Grab the dashed border and start moving the whole label.
+function _beginTextMove(o,p){
+  captureState(false);
+  if(editingObj===o){ o.text=textOv.value; }
+  o._editing=false; editingObj=null;
+  stopTextCursor();
+  if(textOv.style.display!=='none'){ textOv.style.display='none'; textOv.blur(); textOv.value=''; }
+  renderTextObjs();
+  _txtMoveObj=o; _txtMoving=true;
+  _txtMoveStart={px:p.x,py:p.y,ox:o.x,oy:o.y};
+  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
+  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _drawTextChrome(o);
+}
+// Grab the rotate handle of the text currently being edited and start rotating.
+function _beginTextRotate(o,p){
+  // Persist any in-progress edits, close the editor, show the text on canvas so
+  // it can rotate live.
+  captureState(false);   // vector op — snapshot for undo (no pixel copy needed)
+  if(editingObj===o){ o.text=textOv.value; }
+  o._editing=false; editingObj=null;
+  stopTextCursor();
+  if(textOv.style.display!=='none'){ textOv.style.display='none'; textOv.blur(); textOv.value=''; }
+  renderTextObjs();
+  var c=_textCenter(o);
+  _txtRotObj=o; _txtRotating=true;
+  _txtRotStart={cx:c.x, cy:c.y, off:Math.atan2(p.y-c.y,p.x-c.x)-(o.angle||0)};
+  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
+  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _drawTextChrome(o);
+}
+// (Re)open the inline editor for o — caret + dashed box + rotate handle.
+var _lastOpenEditObj=null, _lastOpenEditTime=0;
+function _openTextEdit(o){
+  // Re-entrancy guard. On touch a single tap fires the REAL touch event plus a
+  // synthetic mouse replay ~300ms later; both reach onDown → handleText → here.
+  // The second pass re-opened the SAME label while its text was already in the
+  // overlay, and iOS folded that into the box as duplicated content ("doubled
+  // text" on re-edit). If the same object is asked to open again within 700ms
+  // and its overlay is already up, the request is the synthetic echo — ignore.
+  var _now=Date.now();
+  if(o===_lastOpenEditObj && o===editingObj && (_now-_lastOpenEditTime)<700 &&
+     textOv.style.display!=='none'){
+    _lastOpenEditTime=_now;
+    return;
+  }
+  _lastOpenEditObj=o; _lastOpenEditTime=_now;
+  commitText();
+  stopTextCursor();
+  cancelSelection();
+  editingObj=o;
+  o._editing=true;
+  renderTextObjs();
+  textX=o.x; textY=o.y;
+  _textAnchorRight=(o._anchorRight===true && o._anchorX!=null);
+  // Load the text + formatting BEFORE showing/sizing the overlay, so the
+  // auto-fit measures the real (full) content and the box grows to show every
+  // line instead of clipping to the empty default height.
+  textOv.value=o.text;
+  _syncTextFmtFromObj(o);
+  startTextCursor(o.x, o.y);
+  showTextOverlay(o.x, o.y);
+  _fitTextOv();              // size to the loaded content (all lines visible)
+  renderTextCursorFrame();   // draw the box + rotate handle right away
+}
+
 function handleText(e){
   _textAnchorRight = false;  // normal text never uses the leader's left-hang anchor
   var p=getPos(e);
-  // If a text object is in transform mode, commit it first so it becomes
-  // visible and findTextObjAt can hit-test it correctly.
+  // Grabbing the rotate handle of the text being edited → rotate it.
+  if(editingObj && _textRotHandleAt(editingObj,p.x,p.y)){
+    if(e.cancelable) e.preventDefault();
+    _beginTextRotate(editingObj,p);
+    return;
+  }
+  // Grabbing the dashed border of the text being edited → move the whole label.
+  if(editingObj && _textBorderAt(editingObj,p.x,p.y)){
+    if(e.cancelable) e.preventDefault();
+    _beginTextMove(editingObj,p);
+    return;
+  }
   if(selectedShape&&selectedShape.type==='text') commitSelection();
   var existing=findTextObjAt(p.x,p.y);
   var now=Date.now();
 
   if(existing){
-    var isDouble=(now-_txtTapTime<380 && _txtTapObj===existing);
+    // Clicking a text only ever places the edit caret — no transform/move box.
     _txtTapTime=now; _txtTapObj=existing;
-    if(isDouble){
-      // Double-tap = edit text content
-      commitText();
-      stopTextCursor();
-      cancelSelection(); // close transform handles
-      editingObj=existing;
-      existing._editing=true;
-      renderTextObjs();
-      textX=existing.x; textY=existing.y;
-      _textAnchorRight = (existing._anchorRight===true && existing._anchorX!=null);
-      startTextCursor(existing.x, existing.y);
-      showTextOverlay(existing.x, existing.y);
-      textOv.value=existing.text;
-      // Sync formatting state from the existing object
-      _syncTextFmtFromObj(existing);
-    } else {
-      // Single tap = enter transform mode (move/rotate)
-      commitText();
-      enterTextTransformMode(existing);
-    }
+    _openTextEdit(existing);
   } else {
     _txtTapTime=now; _txtTapObj=null;
     commitText();
@@ -6216,9 +6537,24 @@ function repositionTextOverlay(){
   textOv.style.lineHeight = '1.2';
   textOv.style.transform = scaleV<0.99 ? 'scale('+scaleV.toFixed(3)+')' : 'none';
   textOv.style.transformOrigin='top left';
+  // ── Rotated editing (type sideways, Adobe-style) ──────────────
+  // When the text being edited is rotated, rotate the live textarea to match so
+  // the typed glyphs overlay the rotated label and the native caret lands where
+  // you click. Anchor + rotate about the glyph's top-left corner.
+  var _eAng = (editingObj && editingObj.angle) ? editingObj.angle : 0;
+  if(_eAng){
+    var _gx = cx + FONT_PX*Math.sin(_eAng);   // rotated glyph-top-left (canvas)
+    var _gy = cy - FONT_PX*Math.cos(_eAng);
+    textOv.style.left = (panX + _gx*zoom) + 'px';
+    textOv.style.top  = (panY + _gy*zoom) + 'px';
+    textOv.style.transform = 'rotate(' + _eAng + 'rad)' +
+      (scaleV < 0.99 ? (' scale(' + scaleV.toFixed(3) + ')') : '');
+  }
   textOv.style.color   = color;
   textOv.style.opacity = opacity;
   // Live Text-BG highlight behind the typed text (rgba from color+opacity).
+  // Shown as soon as editing starts; the box hugs the text so it begins at ~1
+  // letter and grows as you type.
   if(textBgOpacity>0){
     var _hx=(textBgColor||'#ffff00').replace('#','');
     if(_hx.length===3) _hx=_hx[0]+_hx[0]+_hx[1]+_hx[1]+_hx[2]+_hx[2];
@@ -6238,6 +6574,10 @@ function repositionTextOverlay(){
   textOv.style.width   = boxW + 'px';
   textOv.style.minWidth = '0px';           // override the CSS 200px floor so right-anchor width is exact
   textOv.style.height  = Math.max(40, renderSz * 2) + 'px';
+  // Multi-line or long pasted text would otherwise be clipped by this fixed
+  // ~2-line height (the box only grew on a typed Enter, never on paste). Grow to
+  // fit the actual content so everything the user pasted stays visible.
+  _fitTextOv();
 
   // ── Keep the canvas-drawn I-beam aligned with where the text actually
   // renders. Near the right/bottom edge the overlay gets clamped left/up
@@ -6263,7 +6603,47 @@ function repositionTextOverlay(){
   }
 }
 
-// Listen for keyboard appearance / viewport resize on iOS
+// Auto-size the TEXT-tool overlay to its content so multi-line and long pasted
+// text is fully visible while editing (the textarea is overflow:hidden, so any
+// content past the fixed box size would otherwise be invisible). Comments are
+// skipped — they manage their own sizing via _cmtAutoGrow.
+function _fitTextOv(){
+  if(_editingComment) return;
+  if(textOv.style.display==='none') return;
+  var renderSz = parseFloat(textOv.style.fontSize) || 16;
+  // The live editor (and its highlight background) should hug the text: about
+  // one letter wide on first click, growing a character at a time, and only as
+  // tall as the line being typed. Override the CSS 200px/40px floors that were
+  // forcing a big block behind the text.
+  textOv.style.minWidth  = '0px';
+  textOv.style.minHeight = '0px';
+  var pad   = 8;                              // 4px left + 4px right (CSS padding)
+  var oneCh = Math.max(8, renderSz * 0.62);   // ~1 character so an empty box ≈ 1 letter
+  // Height: hug the actual content — one line by default, grows with added lines.
+  textOv.style.height = 'auto';
+  textOv.style.height = Math.max(renderSz, textOv.scrollHeight) + 'px';
+  // Right-anchored leader labels keep their alignment-critical computed width.
+  if(_textAnchorRight) return;
+  // Width: a textarea's scrollWidth is floored at its current VISIBLE width, so
+  // reading it while the box is still wide reports the box width (not the text)
+  // — which kept the editor/highlight full-line on an empty or short line.
+  // Collapse to 0 first so scrollWidth reflects the true content width, then
+  // size to it (with a ~1-letter minimum) so the box hugs the text.
+  textOv.style.width = '0px';
+  var contentW = textOv.scrollWidth + 4;
+  if(editingObj && editingObj.angle){
+    textOv.style.width = Math.max(oneCh + pad, contentW) + 'px';
+  } else {
+    var sx     = parseFloat(textOv.style.left) || 0;
+    var vpW    = viewport.clientWidth || 0;
+    var scaleV = 1, _tr = textOv.style.transform || '', _si = _tr.indexOf('scale(');
+    if(_si >= 0) scaleV = parseFloat(_tr.slice(_si + 6)) || 1;
+    var maxW = vpW > 0 ? Math.max(oneCh + pad, (vpW - sx) / (scaleV || 1) - 4) : contentW;
+    textOv.style.width = Math.min(maxW, Math.max(oneCh + pad, contentW)) + 'px';
+  }
+}
+
+
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize', function(){
     // Route to ONE styler. Calling repositionTextOverlay while a NOTE was being
@@ -6351,10 +6731,22 @@ textOv.addEventListener('keydown',function(e){
   }
 });
 
-// ── Auto-grow comment box when user types or pastes ───────────
+// ── Auto-grow box when user types or pastes (notes AND text objects) ───────
 textOv.addEventListener('input', function(){
-  if(!_editingComment) return;
-  _cmtAutoGrow(_editingComment);
+  if(_editingComment){ _cmtAutoGrow(_editingComment); return; }
+  _fitTextOv();
+  if(typeof _txtBgLive==='function') _txtBgLive(); // toggle/track the live highlight as text changes
+  // Keep the dashed box + rotate handle tracking the text as it's typed.
+  if(editingObj){ editingObj.text=textOv.value; renderTextCursorFrame(); }
+});
+// Paste updates .value AFTER the event fires, so re-fit on the next tick. This
+// fixes pasted text appearing to vanish in a text object (it was just clipped
+// by the fixed box height until the overlay got re-fit to its content).
+textOv.addEventListener('paste', function(){
+  setTimeout(function(){
+    if(_editingComment) _cmtAutoGrow(_editingComment);
+    else _fitTextOv();
+  }, 0);
 });
 // While editing a note, the textarea must never scroll its own content
 // (that's what made text drift outside the box). Redirect wheel to canvas pan.
@@ -6377,7 +6769,12 @@ function commitText(){
 
   var val=textOv.value;
   textOv.style.display='none';
-  textOv.style.minWidth='';   // clear the right-anchor width override
+  // Clear the hug-content sizing overrides so the shared textarea resets cleanly
+  // for the next text/comment edit.
+  textOv.style.minWidth='';
+  textOv.style.minHeight='';
+  textOv.style.width='';
+  textOv.style.height='';
   textOv.blur();
 
   if(editingObj){
@@ -6404,7 +6801,7 @@ function commitText(){
       }
       var upd=editingObj; editingObj=null;
       renderTextObjs(); pushUndo();
-      enterTextTransformMode(upd); // allow repositioning/rotating after edit
+      // (No transform box — committing a text just places it. Re-click to edit.)
     }
   } else {
     if(!val.trim()) return;
@@ -6424,7 +6821,7 @@ function commitText(){
              bgColor:textBgColor,bgOpacity:textBgOpacity,
              _anchorRight:_textAnchorRight, _anchorX:textX};
     textObjs.push(obj); renderTextObjs(); pushUndo();
-    enterTextTransformMode(obj); // immediately allow move+rotate
+    // (No transform box — a freshly placed text just sits there. Re-click to edit.)
   }
   _textAnchorRight = false; // reset so the next text entry starts clean
 }
@@ -6432,21 +6829,26 @@ function commitText(){
 // Enter selection mode for a text object (move + rotate, no resize)
 function enterTextTransformMode(obj){
   if(!obj) return;
+  // Reset any leftover transform state FIRST. renderTextObjs() hides the static
+  // text whenever selHandle!==-1 or _dragText is set; if a stale value survived
+  // from a previous drag, the freshly selected text would be drawn hidden and
+  // only show as the selection-canvas preview (it then vanished on the next
+  // interaction until deselect/reselect). Clearing here keeps it visible.
+  selHandle=-1; selDragStart=null; _dragText=null;
   // Render text on txt-cv immediately (keep visible at all times)
   obj._editing=false;
   renderTextObjs();
   var lines=obj.text.split('\n');
   var tmfpx=ptToCanvasPx(obj.fontSize);
-  // Use actual canvas measurement so the ellipse fits the real rendered text.
+  // Tight bounds around the actual rendered text — the selection is drawn as a
+  // rectangular text box (not an oval), so it should hug the glyphs.
   var textW=measureLinesWFull(lines,tmfpx,obj.fontFamily||'Arial',obj.bold,obj.italic);
   var textH=lines.length*tmfpx*1.35;
-  // Ellipse must be TEXT_ELLIPSE_K× larger than the text bounding box so that
-  // all four text corners sit inside the ellipse (see TEXT_ELLIPSE_K comment above).
-  var estW=textW*TEXT_ELLIPSE_K;
-  var estH=textH*TEXT_ELLIPSE_K;
-  // The text is drawn rotated about its origin (obj.x, obj.y). Compute the
-  // ellipse center by rotating the local center-offset by the same angle, so
-  // the selection box sits exactly over the rotated glyphs (not drifted off).
+  var estW=textW;
+  var estH=textH;
+  // The text is drawn rotated about its origin (obj.x, obj.y). Compute the box
+  // center by rotating the local center-offset by the same angle, so the
+  // selection box sits exactly over the rotated glyphs (not drifted off).
   var _ang=obj.angle||0;
   var _lcx=textW/2, _lcy=-tmfpx+textH/2;   // center offset in the text's local frame
   var _ca=Math.cos(_ang), _sa=Math.sin(_ang);
@@ -6534,6 +6936,24 @@ function getHandleAt(x,y,isTouch){
     var floorS=(isTouch?12:8)/zoom;                   // keep handles grabbable
     var capS=Math.max(floorS, Math.min(hwS,hhS)*0.40);// leave the center free
     if(hitR>capS) hitR=capS;
+  }
+  // Text was the worst case: a small label is fully covered by the 8 fixed-size
+  // handle grab rings, so every press hit a resize handle and the text was nearly
+  // impossible to MOVE. Two-part fix: (1) cap the grab radius like other shapes,
+  // and (2) guarantee a central move zone — any press inside the inner half of
+  // the box (measured in the text's own rotated frame) is treated as "move" and
+  // never grabs a handle, no matter how tiny the text is. Resize is still
+  // available by pressing nearer the edges/corners.
+  else if(selectedShape.type==='text'){
+    var hwT=selectedShape.w/2, hhT=selectedShape.h/2;
+    var floorT=(isTouch?12:8)/zoom;
+    var capT=Math.max(floorT, Math.min(hwT,hhT)*0.40);
+    if(hitR>capT) hitR=capT;
+    var _ta=-(selectedShape.angle||0);
+    var _tdx=x-selectedShape.cx, _tdy=y-selectedShape.cy;
+    var _tlx=_tdx*Math.cos(_ta)-_tdy*Math.sin(_ta);
+    var _tly=_tdx*Math.sin(_ta)+_tdy*Math.cos(_ta);
+    if(Math.abs(_tlx) < hwT*0.5 && Math.abs(_tly) < hhT*0.5) return -1; // central → move
   }
   // Check rotation handles first (8-11) — they're further out so check before resize.
   // EXCEPT for comments: notes never rotate and their rotation handles are never
@@ -6727,7 +7147,7 @@ function renderSelection(){
   selCtx.strokeStyle='rgba(0,212,255,0.8)';
   selCtx.lineWidth=lw; selCtx.setLineDash([4/zoom,3/zoom]); selCtx.globalAlpha=1;
   var pad=6/zoom;
-  if(s.type==='rect'||s.type==='comment') selCtx.strokeRect(-s.w/2-pad,-s.h/2-pad,s.w+pad*2,s.h+pad*2);
+  if(s.type==='rect'||s.type==='comment'||s.type==='text') selCtx.strokeRect(-s.w/2-pad,-s.h/2-pad,s.w+pad*2,s.h+pad*2);
   else{selCtx.beginPath();selCtx.ellipse(0,0,s.w/2+pad,s.h/2+pad,0,0,Math.PI*2);selCtx.stroke();}
   selCtx.restore();
 
@@ -6796,6 +7216,17 @@ function renderSelection(){
      (s.type==='rect' || s.type==='ellipse' || s.type==='cloud')){
     _drawDimBadges(selCtx, s.cx, s.cy, s.w, s.h, s.angle);
   }
+
+  // Live point-size readout above a selected text object's top handles —
+  // updates in real time as a corner handle is dragged bigger/smaller.
+  if(s.type==='text' && s._textObj){
+    _drawTextSizeBadge(selCtx, s);
+  }
+
+  // Live degree readout while rotating a shape (rotation handles 8-11).
+  if(selHandle>=8 && selHandle<=11 && s.type!=='comment'){
+    _drawAngleBadge4Sides(selCtx, s.cx, s.cy, s.w, s.h, s.angle||0, _angToDeg(s.angle));
+  }
 }
 
 function commitSelection(){
@@ -6812,6 +7243,7 @@ function commitSelection(){
       c.text=textOv.value.replace(/\s+$/,'');   // strip trailing newlines
       _editingComment=null;
       textOv.style.display='none'; textOv.blur();
+      textOv.value='';   // shared textarea — don't leak note text into the Text tool
       textOv.style.background=''; textOv.style.borderBottom='';
       textOv.style.width=''; textOv.style.height='';
       textOv.style.minWidth=''; textOv.style.minHeight='';
@@ -6896,6 +7328,7 @@ function cancelSelection(){
       _cc.text=textOv.value.replace(/\s+$/,'');   // strip trailing newlines
       _editingComment=null;
       textOv.style.display='none'; textOv.blur();
+      textOv.value='';   // shared textarea — don't leak note text into the Text tool
       textOv.style.background=''; textOv.style.borderBottom='';
       textOv.style.width=''; textOv.style.height='';
       textOv.style.minWidth=''; textOv.style.minHeight='';
@@ -7458,6 +7891,7 @@ function updateToolbarForTool(t){
     textFmtGrp  : document.getElementById('tb-text-fmt-grp'),
     textAlignGrp: document.getElementById('tb-text-align-grp'),
     txtBgGrp    : document.getElementById('tb-txt-bg-grp'),
+    textFmtSep  : document.getElementById('tb-textfmt-sep'),
     markupGrp   : document.getElementById('tb-markup-grp'),
     lsGrp       : document.getElementById('tb-ls-grp'),
     lsSep       : document.getElementById('tb-ls-sep'),
@@ -7477,7 +7911,7 @@ function updateToolbarForTool(t){
   var STROKE    = ['pen','line','arrow','polyline','measure','pathmeasure','polygon','leader'];
   var TEXT_ONLY = ['text'];
   var NOTE      = ['comment'];
-  var MARKUP    = ['highlight','strikeout','underlinemark'];
+  var MARKUP    = ['highlight']; // strike/underline markup removed (now Text/Note-only)
   var NONE      = ['eraser','pan','stamp'];
 
   function sh(el, show){ if(el) el.style.display = show ? (el._origDisplay || '') : 'none'; }
@@ -7498,16 +7932,21 @@ function updateToolbarForTool(t){
   var isStroke = STROKE.indexOf(t) > -1;
   var isNone   = NONE.indexOf(t) > -1;
   var isMarkup = MARKUP.indexOf(t) > -1;
+  var isLeader = (t === 'leader');
+  // Leader labels ARE text objects, so the leader tool gets the same text
+  // formatting controls as the text tool (in addition to its stroke controls).
+  var showTextFmt = isText || isLeader;
 
   // cmt-clr-grp: only for note tool (already handled by tool button click, but keep in sync)
   shFlex(ids.cmtGrp, isNote);
 
-  // font size + text formatting (text tool only)
-  sh(ids.fontSizeGrp, isText);
-  shFlex(ids.fontFamilyGrp, isText);
-  shFlex(ids.textFmtGrp, isText);
-  shFlex(ids.textAlignGrp, isText);
-  shFlex(ids.txtBgGrp, isText);
+  // font size + text formatting (text tool + leader tool)
+  sh(ids.fontSizeGrp, showTextFmt);
+  shFlex(ids.fontFamilyGrp, showTextFmt);
+  shFlex(ids.textFmtGrp, showTextFmt);
+  shFlex(ids.textAlignGrp, showTextFmt);
+  shFlex(ids.txtBgGrp, showTextFmt);
+  if(ids.textFmtSep) ids.textFmtSep.style.display = showTextFmt ? '' : 'none';
 
   // markup color picker (markup tools only)
   shFlex(ids.markupGrp, isMarkup);
@@ -7522,7 +7961,7 @@ function updateToolbarForTool(t){
   if(ids.fillSep) ids.fillSep.style.display = isShape ? '' : 'none';
 
   // stroke color (shapes + stroke tools)
-  shFlex(ids.strokeGrp, isShape || isStroke || isText);
+  shFlex(ids.strokeGrp, isShape || isStroke || showTextFmt);
 
   // fill color (shapes only)
   if(ids.fillGrp) ids.fillGrp.style.display = isShape ? 'contents' : 'none';
@@ -7532,8 +7971,6 @@ function updateToolbarForTool(t){
   if(ids.swSep) ids.swSep.style.display = (isShape || isStroke) ? '' : 'none';
   shFlex(ids.opGrp, isShape || isStroke);
   if(ids.opSep) ids.opSep.style.display = (isShape || isStroke) ? '' : 'none';
-  // Keep the desktop flyout group buttons mirroring the active tool.
-  if(window._syncToolGroupButtons) window._syncToolGroupButtons();
 }
 // ── END TOOLBAR VISIBILITY ─────────────────────────────────────
 
@@ -7549,6 +7986,12 @@ document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
       if(selectedShape&&selectedShape.type==='comment') commitSelection();
     }
     commitText(); commitSelection(); commitMeasureSelection(); commitPolylineSelection(); commitLeaderSelection(); leaderStep=0; _leaderDragPlacing=false;
+    // Commit any selected image overlay back onto the persistent canvas.
+    // A selected image is drawn on the temporary selection canvas instead of
+    // the image canvas, so switching tools without committing would wipe it.
+    if(typeof selImg!=='undefined'&&selImg&&typeof commitImgSelection==='function'){ commitImgSelection(); }
+    // Cancel an in-progress (not-yet-placed) image ghost so it doesn't linger.
+    if(typeof _pendingImg!=='undefined'&&_pendingImg&&typeof _cancelImgPlacement==='function'){ _cancelImgPlacement(); }
     stopTextCursor(); clearTextHover();
     tool=btn.dataset.tool;
     document.querySelectorAll('.tb-btn[data-tool]').forEach(function(b){ b.classList.remove('active'); });
@@ -7568,189 +8011,6 @@ function switchTool(name){
   var btn=document.querySelector('.tb-btn[data-tool="'+name+'"]');
   if(btn) btn.click();
 }
-
-// ── TOOL FLYOUTS + EXPORT MENU (desktop layout) ───────────────────
-// "Desktop" = has a fine pointer (mouse/trackpad — true even on touchscreen
-// laptops) OR a wide screen. Touch-only phones/tablets keep the flat tool row.
-// The layout is re-evaluated live on resize/orientation change: tool buttons
-// are physically moved between the flat row and the dropdown panels, so we
-// remember each one's original slot to restore it.
-(function(){
-  var tb2 = document.getElementById('tb2');
-  var GROUPS = [
-    {key:'draw',    btn:'grp-draw-btn',    panel:'grp-draw-panel',    flyout:'flyout-draw'},
-    {key:'measure', btn:'grp-measure-btn', panel:'grp-measure-panel', flyout:'flyout-measure'}
-  ];
-  GROUPS.forEach(function(g){
-    g.btnEl    = document.getElementById(g.btn);
-    g.panelEl  = document.getElementById(g.panel);
-    g.flyoutEl = document.getElementById(g.flyout);
-    g.members  = Array.prototype.slice.call(
-                   document.querySelectorAll('.tb-btn[data-flyout-member="'+g.key+'"]'));
-    // Remember each member's original location (parent + next sibling anchor).
-    g.members.forEach(function(m){
-      m._homeParent = m.parentNode;
-      m._homeNext   = m.nextSibling;
-    });
-    // The group's tool panel lives in the SECOND toolbar row.
-    if(tb2 && g.panelEl) tb2.appendChild(g.panelEl);
-  });
-
-  // Export buttons + their original home, in display order.
-  var EXPORT_IDS = ['btn-saveproj','btn-openproj','btn-png','btn-pdf','btn-pdfedit','btn-print'];
-  var exportFlat = document.getElementById('export-flat');
-  var ddBtn   = document.getElementById('export-dd-btn');
-  var ddPanel = document.getElementById('export-dd-panel');
-  var ddWrap  = document.getElementById('export-dd');
-  var _ddBuilt = false;
-
-  function buildExportPanel(){
-    if(_ddBuilt || !ddPanel) return;
-    ['btn-saveproj','btn-openproj','__sep__','btn-png','btn-pdf','btn-pdfedit','btn-print'].forEach(function(id){
-      if(id==='__sep__'){ var s=document.createElement('div'); s.className='export-dd-sep'; ddPanel.appendChild(s); return; }
-      var b=document.getElementById(id);
-      if(b) ddPanel.appendChild(b);      // keeps each button's existing listener
-    });
-    _ddBuilt = true;
-  }
-  function restoreExportFlat(){
-    if(!_ddBuilt || !exportFlat) return;
-    EXPORT_IDS.forEach(function(id){
-      var b=document.getElementById(id);
-      if(b) exportFlat.appendChild(b);   // put them back in the flat strip
-    });
-    ddPanel.querySelectorAll('.export-dd-sep').forEach(function(s){ s.remove(); });
-    _ddBuilt = false;
-  }
-
-  var _openGroup = null;
-  function closeGroups(){
-    _openGroup = null;
-    GROUPS.forEach(function(g){
-      g.panelEl.classList.remove('show');
-      g.btnEl.classList.remove('grp-open');
-    });
-    if(tb2) tb2.classList.remove('open');
-  }
-  function openGroup(g){
-    GROUPS.forEach(function(o){
-      var on = (o===g);
-      o.panelEl.classList.toggle('show', on);
-      o.btnEl.classList.toggle('grp-open', on);
-    });
-    if(tb2) tb2.classList.add('open');
-    _openGroup = g;
-  }
-  function closeExport(){ if(ddWrap) ddWrap.classList.remove('open'); }
-  function closeAll(){ closeGroups(); closeExport(); }
-
-  function applyDesktop(){
-    document.body.classList.add('is-desktop');
-    GROUPS.forEach(function(g){
-      g.members.forEach(function(m){ g.panelEl.appendChild(m); });
-    });
-    buildExportPanel();
-    syncGroupButtons();
-  }
-  function applyMobile(){
-    closeAll();
-    document.body.classList.remove('is-desktop');
-    GROUPS.forEach(function(g){
-      g.members.forEach(function(m){
-        if(m._homeNext && m._homeNext.parentNode===m._homeParent)
-          m._homeParent.insertBefore(m, m._homeNext);
-        else
-          m._homeParent.appendChild(m);
-      });
-    });
-    restoreExportFlat();
-  }
-
-  // Mirror the active tool's icon + label onto its group button.
-  function syncGroupButtons(){
-    if(!document.body.classList.contains('is-desktop')) return;
-    GROUPS.forEach(function(g){
-      var activeMember = g.members.filter(function(m){ return m.classList.contains('active'); })[0];
-      var src = activeMember || g.members[0];
-      if(src){
-        var svg = src.querySelector('svg'), gsvg = g.btnEl.querySelector('svg');
-        if(svg && gsvg) gsvg.innerHTML = svg.innerHTML;
-        var lbl = src.querySelector('.lbl'), glbl = g.btnEl.querySelector('.lbl');
-        if(lbl && glbl) glbl.innerHTML = lbl.innerHTML;
-      }
-      // Keep the accent on the group button when one of its tools is active,
-      // unless it's currently open (open styling handled by .grp-open).
-      g.btnEl.classList.toggle('active', !!activeMember);
-    });
-  }
-  window._syncToolGroupButtons = syncGroupButtons;
-
-  // ── Wire interactions ONCE (harmless on mobile: group buttons are hidden) ──
-  function placeExportPanel(){
-    if(!ddBtn || !ddPanel) return;
-    var r = ddBtn.getBoundingClientRect();
-    ddPanel.style.top = (r.bottom + 5) + 'px';
-    requestAnimationFrame(function(){
-      var pr = ddPanel.getBoundingClientRect();
-      var left = r.right - pr.width;
-      if(left < 6) left = 6;
-      ddPanel.style.left = left + 'px';
-    });
-  }
-  GROUPS.forEach(function(g){
-    g.btnEl.addEventListener('click', function(e){
-      e.stopPropagation();
-      closeExport();
-      if(_openGroup===g) closeGroups();   // clicking the open group again closes it
-      else openGroup(g);
-    });
-  });
-  // Clicking a tool inside the second row collapses the row (after the tool's
-  // own click handler runs to set the tool).
-  if(tb2) tb2.addEventListener('click', function(e){
-    if(e.target.closest('.tb-btn[data-flyout-member]')) closeGroups();
-  });
-  if(ddBtn){
-    ddBtn.addEventListener('click', function(e){
-      e.stopPropagation();
-      var willOpen=!ddWrap.classList.contains('open');
-      closeGroups(); closeExport();
-      if(willOpen){ ddWrap.classList.add('open'); placeExportPanel(); }
-    });
-    ddPanel.addEventListener('click', function(){ closeExport(); });
-  }
-  // Click outside the toolbars closes everything.
-  document.addEventListener('click', function(e){
-    if(e.target.closest('#tb') || e.target.closest('#tb2') || e.target.closest('#export-dd')) return;
-    closeAll();
-  });
-  document.getElementById('tb').addEventListener('click', function(){ setTimeout(syncGroupButtons,0); }, true);
-
-  // ── Decide + apply layout, and keep it in sync with the viewport ──
-  function isDesktopLayout(){
-    var fine = window.matchMedia && window.matchMedia('(any-pointer:fine)').matches;
-    return !!fine || window.innerWidth >= 900;
-  }
-  var _curDesktop = null;
-  function applyLayout(){
-    var want = isDesktopLayout();
-    if(want === _curDesktop) return;   // no change → don't churn the DOM
-    _curDesktop = want;
-    if(want) applyDesktop(); else applyMobile();
-  }
-  applyLayout();   // initial
-
-  var _rsT=null;
-  function onViewportChange(){ closeExport(); clearTimeout(_rsT); _rsT=setTimeout(applyLayout,120); }
-  window.addEventListener('resize', onViewportChange);
-  window.addEventListener('orientationchange', onViewportChange);
-  document.getElementById('tb').addEventListener('scroll', closeExport, {passive:true});
-  if(window.matchMedia){
-    var mq = window.matchMedia('(any-pointer:fine)');
-    if(mq.addEventListener) mq.addEventListener('change', applyLayout);
-    else if(mq.addListener) mq.addListener(applyLayout);   // older Safari
-  }
-})();
 
 // ── STAMP PICKER ──
 document.getElementById('stamp-overlay').addEventListener('click',closeStampPicker);
@@ -8178,6 +8438,9 @@ function _txtBgRgba(){
 }
 function _txtBgLive(){
   if(textOv.style.display==='none' || _editingComment) return; // notes own their own styling
+  // Show the highlight as soon as you start typing — the editor box now hugs the
+  // text (≈1 letter on first click, growing per character), so the bar tracks the
+  // content instead of filling a big block.
   textOv.style.background = (textBgOpacity>0) ? _txtBgRgba() : 'transparent';
 }
 if(txtBgInput){
@@ -8745,12 +9008,34 @@ function compositeExport(maxPx){
       ctx.textAlign=align_;
       var maxW_=measureLinesWFull(lines_,Math.round(efpx*scale),fam,obj.bold,obj.italic);
       var ax_=Math.round(obj.x*scale)+(align_==='center'?maxW_/2:align_==='right'?maxW_:0);
-      // Background
+      // Background — tight, per-line, hugs each line's actual glyphs (matches screen).
       if(obj.bgOpacity&&obj.bgOpacity>0){
         ctx.save(); ctx.globalAlpha=obj.opacity*obj.bgOpacity; ctx.fillStyle=obj.bgColor||'#ffff00';
-        var pad_=4*scale;
-        if(obj.angle){ctx.translate(Math.round(obj.x*scale),Math.round(obj.y*scale));ctx.rotate(obj.angle);ctx.fillRect(-pad_,-efpx*scale-pad_,maxW_+pad_*2,lines_.length*efpx*1.35*scale+pad_*2);}
-        else{ctx.fillRect(ax_-(align_==='center'?maxW_/2:align_==='right'?maxW_:0)-pad_,Math.round(obj.y*scale)-efpx*scale-pad_,maxW_+pad_*2,lines_.length*efpx*1.35*scale+pad_*2);}
+        var _efs=efpx*scale;
+        var _padX_=2*scale, _padY_=1.5*scale, _lineH_=_efs*1.35;
+        var _bgLine_=function(line, lineLeftX, baseY){
+          var m=ctx.measureText(line);
+          var lw_=m.width; if(lw_<=0) return;
+          var asc=(m.actualBoundingBoxAscent !=null)? m.actualBoundingBoxAscent  : _efs*0.74;
+          var desc=(m.actualBoundingBoxDescent!=null)? m.actualBoundingBoxDescent : _efs*0.21;
+          if(asc<=0.01) asc=_efs*0.5;
+          if(desc<0) desc=0;
+          ctx.fillRect(lineLeftX-_padX_, baseY-asc-_padY_, lw_+_padX_*2, asc+desc+_padY_*2);
+        };
+        if(obj.angle){
+          ctx.translate(Math.round(obj.x*scale),Math.round(obj.y*scale));ctx.rotate(obj.angle);
+          lines_.forEach(function(line,i){
+            var lw_=ctx.measureText(line).width;
+            var lx_=(align_==='center'?-lw_/2:align_==='right'?-lw_:0);
+            _bgLine_(line, lx_, Math.round(i*_lineH_));
+          });
+        } else {
+          lines_.forEach(function(line,i){
+            var lw_=ctx.measureText(line).width;
+            var lx_=ax_-(align_==='center'?lw_/2:align_==='right'?lw_:0);
+            _bgLine_(line, lx_, Math.round((obj.y+i*efpx*1.35)*scale));
+          });
+        }
         ctx.restore();
         ctx.globalAlpha=obj.opacity;
       }
@@ -9036,20 +9321,9 @@ btnPdf.addEventListener('click',function(){
       var orientation=cw>ch?'landscape':'portrait';
       var doc=new JSPDF({orientation:orientation,unit:'mm',format:'a3'});
       var pw=doc.internal.pageSize.getWidth(), ph=doc.internal.pageSize.getHeight();
-      var tbH=18, imgH=ph-tbH-4, imgW=pw-4;
+      var imgH=ph-4, imgW=pw-4;
       if(imgH/imgW<ch/cw) imgW=imgH/(ch/cw);
       doc.addImage(imgData,'JPEG',2,2,imgW,imgH);
-      var proj=document.getElementById('tb-proj').value||'Site Plan';
-      var drwn=document.getElementById('tb-drwn').value||'';
-      var date=document.getElementById('tb-date').value||new Date().toISOString().slice(0,10);
-      var scTxt=document.getElementById('tb-scale').value||(scaleSet?'1px='+ppu.toFixed(4)+scaleUnit:'NTS');
-      doc.setFillColor(255,255,255); doc.rect(0,ph-tbH,pw,tbH,'F');
-      doc.setDrawColor(0); doc.line(0,ph-tbH,pw,ph-tbH);
-      doc.line(pw/3,ph-tbH,pw/3,ph); doc.line(2*pw/3,ph-tbH,2*pw/3,ph);
-      doc.setFontSize(11); doc.setFont(undefined,'bold'); doc.text(proj,pw/6,ph-tbH+8,{align:'center'});
-      doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.text(drwn,pw/6,ph-tbH+14,{align:'center'});
-      doc.setFontSize(9); doc.text('Scale: '+scTxt,pw/2,ph-tbH+10,{align:'center'});
-      doc.setFontSize(8); doc.text(date,5*pw/6,ph-tbH+10,{align:'center'});
       var pdfBlob=doc.output('blob');
       writeToTarget(handle, pdfBlob, 'site-plan.pdf').then(function(){ toast('Saved as PDF ✓','ok',2500); });
     };
@@ -9137,20 +9411,9 @@ if(btnPdfEdit) btnPdfEdit.addEventListener('click', function(){
         var orientation=cw>ch?'landscape':'portrait';
         var doc=new JSPDF({orientation:orientation,unit:'mm',format:'a3'});
         var pw=doc.internal.pageSize.getWidth(), ph=doc.internal.pageSize.getHeight();
-        var tbH=18, imgH=ph-tbH-4, imgW=pw-4;
+        var imgH=ph-4, imgW=pw-4;
         if(imgH/imgW<ch/cw) imgW=imgH/(ch/cw);
         doc.addImage(imgData,'JPEG',2,2,imgW,imgH);
-        var proj=document.getElementById('tb-proj').value||'Site Plan';
-        var drwn=document.getElementById('tb-drwn').value||'';
-        var date=document.getElementById('tb-date').value||new Date().toISOString().slice(0,10);
-        var scTxt=document.getElementById('tb-scale').value||(scaleSet?'1px='+ppu.toFixed(4)+scaleUnit:'NTS');
-        doc.setFillColor(255,255,255); doc.rect(0,ph-tbH,pw,tbH,'F');
-        doc.setDrawColor(0); doc.line(0,ph-tbH,pw,ph-tbH);
-        doc.line(pw/3,ph-tbH,pw/3,ph); doc.line(2*pw/3,ph-tbH,2*pw/3,ph);
-        doc.setFontSize(11); doc.setFont(undefined,'bold'); doc.text(proj,pw/6,ph-tbH+8,{align:'center'});
-        doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.text(drwn,pw/6,ph-tbH+14,{align:'center'});
-        doc.setFontSize(9); doc.text('Scale: '+scTxt,pw/2,ph-tbH+10,{align:'center'});
-        doc.setFontSize(8); doc.text(date,5*pw/6,ph-tbH+10,{align:'center'});
         var pdfArrayBuffer=doc.output('arraybuffer');
         // 2) Build the editable record, embed it with pdf-lib, then save.
         buildProjectRecord(0.92, function(rec){
@@ -9224,8 +9487,6 @@ btnPrint.addEventListener('click',function(){
   // Populate title block immediately
   document.getElementById('ptb-proj').textContent=proj;
   document.getElementById('ptb-drwn').textContent=drwn;
-  document.getElementById('ptb-scale').textContent='Scale: '+scText;
-  document.getElementById('ptb-date').textContent=date;
 
   // Show overlay right away with loading state — don't make user wait
   var img=document.getElementById('print-img');
@@ -9803,6 +10064,10 @@ function renderImgSelection(){
   if(selImgDrag && selImgDrag.hi >= 0 && selImgDrag.hi <= 7){
     _drawDimBadges(selCtx, ov.cx, ov.cy, ov.w, ov.h, ov.angle);
   }
+  // Degree readout — while actively rotating (handles 8-11)
+  if(selImgDrag && selImgDrag.hi >= 8 && selImgDrag.hi <= 11){
+    _drawAngleBadge4Sides(selCtx, ov.cx, ov.cy, ov.w, ov.h, ov.angle||0, _angToDeg(ov.angle));
+  }
 }
 
 // ── Shared live dimension badges (shown during resize for images AND shapes) ──
@@ -9853,6 +10118,42 @@ function _drawDimBadges(ctx, cx, cy, w, h, angle){
   // Height badge: just right of the right edge, rotated 90°
   var rightOff = w / 2 + edgeGap + badgeH / 2;
   drawBadge(cx + cosA * rightOff, cy + sinA * rightOff, fmtDim(h), a + Math.PI / 2);
+}
+
+// ── LIVE TEXT-SIZE READOUT ────────────────────────────────────────
+// Small "## pt" badge centered above a selected text object's top handles.
+// Drawn every renderSelection() frame, so while a corner handle is dragged the
+// number updates live as the text grows or shrinks.
+function _drawTextSizeBadge(ctx, s){
+  if(!s || !s._textObj) return;
+  var a    = s.angle || 0;
+  var cosA = Math.cos(a), sinA = Math.sin(a);
+  var fontSize = Math.max(9, Math.min(16, 12 / zoom)); // screen-constant size
+  var pad      = 5 / zoom;
+  var radius   = 3 / zoom;
+  var lw       = 0.9 / zoom;
+  var badgeH   = fontSize + pad * 2;
+  var hs       = HANDLE_SIZE / zoom;
+  // Sit just above the top edge, clear of the top handle row.
+  var topOff   = s.h / 2 + hs / 2 + 7 / zoom + badgeH / 2;
+  var bx = s.cx + sinA * topOff;       // local (0, -topOff) rotated by angle
+  var by = s.cy - cosA * topOff;
+  var text = Math.round(s._textObj.fontSize) + ' pt';
+  ctx.save();
+  ctx.translate(bx, by); ctx.rotate(a);
+  ctx.font = 'bold ' + fontSize + 'px "Share Tech Mono",monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  var tw = ctx.measureText(text).width;
+  var bw = tw + pad * 2.4;
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(-bw / 2, -badgeH / 2, bw, badgeH, radius);
+  else ctx.rect(-bw / 2, -badgeH / 2, bw, badgeH);
+  ctx.fillStyle   = 'rgba(8,8,18,0.86)'; ctx.fill();
+  ctx.strokeStyle = '#00D4FF'; ctx.lineWidth = lw; ctx.stroke();
+  ctx.fillStyle   = '#E2F8FF';
+  ctx.shadowColor = '#00D4FF'; ctx.shadowBlur = 3 / zoom;
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
 }
 
 function _drawImgFlipButtons(ctx, ov){
@@ -9973,7 +10274,9 @@ function handleImgPointerMove(e, sp){
     // Rotate: angle from centre to current cursor
     var angle = Math.atan2(sp.y - d.cy, sp.x - d.cx);
     var startAngle = Math.atan2(d.startY - d.cy, d.startX - d.cx);
-    selImg.angle = d.angle + (angle - startAngle);
+    var _ia = d.angle + (angle - startAngle);
+    if(!_shiftDown){ var _ID=Math.PI/180; _ia=Math.round(_ia/_ID)*_ID; } // 1° snap
+    selImg.angle = _ia;
 
   } else {
     // Resize: the fixed corner stays put; the dragged corner follows the cursor.
@@ -10148,6 +10451,15 @@ function _clearImgGhost(){
 }
 
 function _enterImgPlacementMode(img){
+  // A currently-selected image is drawn only on selCv (it's skipped in
+  // renderImgOverlays). The placement ghost clears selCv, which would make
+  // that image vanish until the new one is placed. Commit the selection first
+  // so the previously-selected image is painted onto the persistent overlay
+  // canvas before the ghost wipes selCv.
+  if(typeof selImg!=='undefined' && selImg && typeof commitImgSelection==='function'){
+    commitImgSelection();
+    if(typeof hideImgBar==='function') hideImgBar();
+  }
   _pendingImg    = img;
   _pendingImgPos = null;
   // Crosshair cursor for the whole viewport
@@ -10549,11 +10861,8 @@ var _pendingLabel = null; // label text waiting to be placed by tap
 function placePreset(text, cx, cy){
   if(!baseLoaded){ toast('Open a site plan first','warn'); return; }
   captureState();
-  // Target ~48 screen pixels tall regardless of zoom level.
-  // canvas_px = screen_px / zoom, then convert to a scale-locked POINT value
-  // (divide by DPI factor) so fontSize stays resolution-independent like all text.
-  var fsPx = Math.max(10, Math.min(300, 48 / zoom));
-  var fs = Math.round(fsPx / textDpiFactor());
+  // Placed labels use a fixed 12pt size (scale-locked point value).
+  var fs = 12;
   var obj={
     id:Date.now(), x:cx, y:cy, text:text,
     angle:0, color:color, fontSize:fs,
@@ -11241,6 +11550,15 @@ function applyWmScale(){
   }
 
   viewport.addEventListener('contextmenu', function(e){
+    // If the right-click landed in the note/text editor (or any editable field),
+    // do NOT hijack it — let the browser's native menu appear so the user can
+    // Paste clipboard text, Select All, etc. inside their note.
+    var _t = e.target;
+    if(_t === textOv ||
+       (_t && (_t.tagName==='TEXTAREA' || _t.tagName==='INPUT' || _t.isContentEditable))){
+      hideMenu();
+      return; // no preventDefault → native context menu shows
+    }
     e.preventDefault();
     if(!baseLoaded){ hideMenu(); return; }
     var cp = vpToCanvas(e.clientX, e.clientY);
