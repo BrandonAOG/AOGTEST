@@ -2582,28 +2582,48 @@ var hintTimer;
 function makeLayer(name, col){
   var c=document.createElement('canvas');
   c.width=baseCv.width||1; c.height=baseCv.height||1;
-  return {name:name, color:col, visible:true, canvas:c, ctx:c.getContext('2d')};
+  return {name:name, color:col, visible:true, canvas:c, ctx:c.getContext('2d'), _alloc:true};
 }
 
 function initLayers(w,h){
   // Release old layer canvases before reinitialising to free Safari GPU memory
   if(layers.length) layers.forEach(function(l){ releaseCanvas(l.canvas); });
+  // Single default drawing layer. (Previously five category layers —
+  // Structures/Boundaries/Services/Vegetation/Notes — which sat allocated at
+  // full resolution and cost ~112MB of dead canvas memory on load, the main
+  // iOS Safari crash trigger. A site plan only needs one layer; more can be
+  // added on demand via the Layers panel.)
   var defs=[
-    {name:'Structures',color:'#ef4444'},
-    {name:'Boundaries',color:'#f59e0b'},
-    {name:'Services',  color:'#3b82f6'},
-    {name:'Vegetation',color:'#22c55e'},
-    {name:'Notes',     color:'#a855f7'}
+    {name:'Drawing',color:'#ef4444'}
   ];
   layers=[];
   defs.forEach(function(d){
+    // Allocate the backing canvas LAZILY: start at 1x1 (a few bytes) and only
+    // grow to full size when the layer is actually drawn on (ensureLayer()).
     var c=document.createElement('canvas');
-    c.width=w; c.height=h;
-    layers.push({name:d.name,color:d.color,visible:true,canvas:c,ctx:c.getContext('2d')});
+    c.width=1; c.height=1;
+    layers.push({name:d.name,color:d.color,visible:true,canvas:c,ctx:c.getContext('2d'),_alloc:false});
   });
   activeLayerIdx=0;
   renderLayers();
 }
+
+// Grow a layer's backing store to full canvas size on first real use.
+function ensureLayer(l){
+  if(!l) return l;
+  var w=baseCv.width||1, h=baseCv.height||1;
+  if(!l._alloc || l.canvas.width!==w || l.canvas.height!==h){
+    // preserve anything already drawn (e.g. after a resize)
+    var had = l._alloc && l.canvas.width>1;
+    var tmp=null;
+    if(had){ tmp=document.createElement('canvas'); tmp.width=l.canvas.width; tmp.height=l.canvas.height; try{ tmp.getContext('2d').drawImage(l.canvas,0,0); }catch(ex){} }
+    l.canvas.width=w; l.canvas.height=h;
+    if(tmp){ try{ l.ctx.drawImage(tmp,0,0); }catch(ex){} releaseCanvas(tmp); }
+    l._alloc=true;
+  }
+  return l;
+}
+function ensureActiveLayer(){ return ensureLayer(layers[activeLayerIdx]); }
 
 function resizeLayers(w,h){
   layers.forEach(function(l){
@@ -2617,7 +2637,7 @@ function resizeLayers(w,h){
 
 function composite(){
   dCtx.clearRect(0,0,drawCv.width,drawCv.height);
-  layers.forEach(function(l){ if(l.visible) dCtx.drawImage(l.canvas,0,0); });
+  layers.forEach(function(l){ if(l.visible && l._alloc) dCtx.drawImage(l.canvas,0,0); });
   // shapes-cv and txt-cv render on their own canvases above draw-cv — no need to blit here
   // (they are separate absolutely-positioned canvases in the DOM)
 }
@@ -2641,7 +2661,7 @@ function scheduleShapeRender(extra){
   });
 }
 
-function lctx(){ return layers[activeLayerIdx].ctx; }
+function lctx(){ ensureActiveLayer(); return layers[activeLayerIdx].ctx; }
 
 // ── PRE-OPERATION SNAPSHOT ──────────────────────────────────
 // captureState() is called BEFORE any operation changes state.
@@ -2663,7 +2683,7 @@ function captureState(includePixels){
     // because the browser demotes a repeatedly-read canvas to software backing,
     // which makes later readbacks cheap.)
     var snaps = includePixels ? layers.map(function(l){
-      if(!l.canvas.width||!l.canvas.height) return null;
+      if(!l._alloc||!l.canvas.width||!l.canvas.height) return null;
       return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
     }) : null;
     _preOp={
@@ -2693,7 +2713,7 @@ function pushUndo(){
       try{
         snap={
           layerData: layers.map(function(l){
-            if(!l.canvas.width||!l.canvas.height) return null;
+            if(!l._alloc||!l.canvas.width||!l.canvas.height) return null;
             return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
           }),
           activeIdx:  activeLayerIdx,
@@ -2738,7 +2758,7 @@ function applySnap(snap){
 function _snapCurrentState(){
   return {
     layerData: layers.map(function(l){
-      if(!l.canvas.width||!l.canvas.height) return null;
+      if(!l._alloc||!l.canvas.width||!l.canvas.height) return null;
       try{ return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height); }catch(ex){ return null; }
     }),
     activeIdx:  activeLayerIdx,
@@ -3454,17 +3474,18 @@ function rotateCanvas(deg){
   tc.translate(h/2,w/2); tc.rotate(deg*Math.PI/180); tc.drawImage(baseCv,-w/2,-h/2);
   // rotate each layer
   // Save old canvases for release after rotation
-var oldLayerCanvases=layers.map(function(l){ return l.canvas; });
+var oldLayerCanvases=layers.map(function(l){ return l._alloc ? l.canvas : null; });
 var layerTmps=layers.map(function(l){
+    if(!l._alloc) return null;   // unallocated layer stays lazy — nothing to rotate
     var t=document.createElement('canvas'); t.width=h; t.height=w;
     var tc2=t.getContext('2d'); tc2.translate(h/2,w/2); tc2.rotate(deg*Math.PI/180); tc2.drawImage(l.canvas,-w/2,-h/2);
     return t;
   });
   resize(h,w);
   bCtx.drawImage(tmp,0,0);
-  layers.forEach(function(l,i){ l.canvas.width=h; l.canvas.height=w; l.ctx.drawImage(layerTmps[i],0,0); });
+  layers.forEach(function(l,i){ if(!l._alloc) return; l.canvas.width=h; l.canvas.height=w; l.ctx.drawImage(layerTmps[i],0,0); });
   // Release old layer canvases on iOS
-  if(IS_IOS){ oldLayerCanvases.forEach(function(c){ releaseCanvas(c); }); layerTmps.forEach(function(c){ releaseCanvas(c); }); }
+  if(IS_IOS){ oldLayerCanvases.forEach(function(c){ if(c) releaseCanvas(c); }); layerTmps.forEach(function(c){ if(c) releaseCanvas(c); }); }
   // Rotate text object positions to match new canvas orientation
   var rw=baseCv.width, rh=baseCv.height; // after resize these are swapped
   // deg is -90 or 90; transform each text object position
@@ -9015,7 +9036,7 @@ function compositeExport(maxPx){
   try{ ctx.drawImage(baseCv,0,0,w,h); }catch(e){ console.warn('[Export] base:',e); }
   // Layer canvases
   layers.forEach(function(l){
-    if(!l.visible) return;
+    if(!l.visible || !l._alloc) return;
     try{ ctx.drawImage(l.canvas,0,0,w,h); }catch(e){ console.warn('[Export] layer:',e); }
   });
   // Shape objects (rect/ellipse/cloud — live objects not on layer canvases)
@@ -9675,7 +9696,7 @@ function buildProjectRecord(quality, cb){
         try{
           record.layers.push({
             name:layers[i].name, color:layers[i].color, visible:layers[i].visible,
-            data:layers[i].canvas.toDataURL('image/png')
+            data: layers[i]._alloc ? layers[i].canvas.toDataURL('image/png') : ''
           });
         }catch(ex){
           record.layers.push({name:layers[i].name,color:layers[i].color,visible:layers[i].visible,data:''});
@@ -9755,7 +9776,7 @@ function encodeLayerSequential(i, record){
         name:    layers[i].name,
         color:   layers[i].color,
         visible: layers[i].visible,
-        data:    layers[i].canvas.toDataURL('image/png')
+        data:    layers[i]._alloc ? layers[i].canvas.toDataURL('image/png') : ''
       });
     } catch(ex){
       // If a layer fails to encode (memory), store empty and continue
@@ -9841,17 +9862,7 @@ function doRestore(rec){
       if(layers.length) layers.forEach(function(l){ releaseCanvas(l.canvas); });
       layers=[];
       var pending=rec.layers.length;
-      rec.layers.forEach(function(ld,i){
-        var c=document.createElement('canvas'); c.width=w; c.height=h;
-        var lc=c.getContext('2d');
-        var li=new Image();
-        li.onload=function(){
-          lc.globalCompositeOperation='source-over';
-          lc.clearRect(0,0,w,h);
-          lc.drawImage(li,0,0,w,h);
-          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:c,ctx:lc};
-          pending--;
-          if(pending===0){
+      function _finalizeRestore(){
             // All layers loaded
             activeLayerIdx=Math.min(rec.activeLayerIdx||0,layers.length-1);
             // Scale-locked text: restore the plan DPI so point sizes render at
@@ -9911,12 +9922,33 @@ function doRestore(rec){
             drawGrid(); renderLayers(); composite(); fitToVP();
             setSaveStatus('saved');
             toast('Session restored ✓','ok',3000);
-          }
+      }
+      function _layerDone(){ pending--; if(pending===0) _finalizeRestore(); }
+      rec.layers.forEach(function(ld,i){
+        // Empty layer (never drawn on) → restore it lazily at 1x1, no full-size
+        // canvas, no image decode. This is what keeps memory low on load.
+        if(!ld.data){
+          var ec=document.createElement('canvas'); ec.width=1; ec.height=1;
+          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:ec,ctx:ec.getContext('2d'),_alloc:false};
+          _layerDone();
+          return;
+        }
+        var c=document.createElement('canvas'); c.width=w; c.height=h;
+        var lc=c.getContext('2d');
+        var li=new Image();
+        li.onload=function(){
+          lc.globalCompositeOperation='source-over';
+          lc.clearRect(0,0,w,h);
+          lc.drawImage(li,0,0,w,h);
+          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:c,ctx:lc,_alloc:true};
+          _layerDone();
         };
         li.onerror=function(){
-          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:c,ctx:lc};
-          pending--;
-          if(pending===0){ composite(); renderLayers(); }
+          // decode failed — keep the layer entry but treat as empty/lazy
+          releaseCanvas(c);
+          var ec=document.createElement('canvas'); ec.width=1; ec.height=1;
+          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:ec,ctx:ec.getContext('2d'),_alloc:false};
+          _layerDone();
         };
         li.src=ld.data;
       });
