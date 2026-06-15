@@ -1695,7 +1695,7 @@ var IS_IOS    = IS_IPHONE || IS_IPAD;
 // iPad gets 10000px cap.
 // iPad canvas capped at 10000px — prevents multi-layer snapshots from
 // filling Safari's memory and crashing on reload.
-var IOS_MAX_PX = IS_IPHONE ? 2800 : (IS_IPAD ? 10000 : 25000);
+var IOS_MAX_PX = IS_IPHONE ? 3500 : (IS_IPAD ? 10000 : 25000);
 // iPad undo kept at 5 — each snapshot is ~50MB+ per layer at full res.
 var MAX_UNDO   = IS_IPHONE ? 5 : (IS_IPAD ? 5 : 20);
 
@@ -2458,7 +2458,7 @@ document.addEventListener('gesturechange', function(e){
   e.preventDefault(); e.stopPropagation();
   if(_gestZoom0!==null && typeof e.scale==='number' && e.scale>0 && typeof zoomAt==='function'){
     var r=viewport.getBoundingClientRect();
-    var target=Math.max(0.05,Math.min(6,_gestZoom0*e.scale));
+    var target=Math.max(0.05,Math.min(maxZoom(),_gestZoom0*e.scale));
     var f=target/zoom;
     if(f && isFinite(f) && Math.abs(f-1)>0.001) zoomAt(f, e.clientX-r.left, e.clientY-r.top);
   }
@@ -2950,8 +2950,21 @@ function fitToVP(){
   applyTransform();
 }
 
+// Maximum zoom is bounded by the GPU composite surface it produces. The CSS
+// transform scales the WHOLE base canvas, and that surface = (w*zoom)*(h*zoom)*4
+// bytes. On iPhone, surfaces past ~360MB risk an iOS Safari GPU kill (this is
+// what the debug overlay's "GPU composite est" line revealed). So derive the
+// zoom ceiling from a fixed surface budget, and never exceed a hard 4x/6x cap.
+function maxZoom(){
+  var w=baseCv.width||1, h=baseCv.height||1;
+  var budget = IS_IPHONE ? 300e6 : (IS_IPAD ? 700e6 : 1600e6); // bytes of GPU surface
+  var byBudget = Math.sqrt(budget / (w*h*4));
+  var hardCap  = IS_IPHONE ? 4 : 6;
+  return Math.max(1.5, Math.min(hardCap, byBudget));
+}
+
 function zoomAt(f,cx,cy){
-  var nz=Math.max(0.05,Math.min(6,zoom*f));
+  var nz=Math.max(0.05,Math.min(maxZoom(),zoom*f));
   var r=nz/zoom; panX=cx-r*(cx-panX); panY=cy-r*(cy-panY); zoom=nz;
   clampPan(); applyTransform();
 }
@@ -3021,7 +3034,7 @@ document.addEventListener('touchmove',function(e){
     panX+=(midX-twoMidX)*PAN_DAMP; panY+=(midY-twoMidY)*PAN_DAMP;
     var r=viewport.getBoundingClientRect();
     var cx=midX-r.left,cy=midY-r.top;
-    var tz=Math.max(0.05,Math.min(6,pinchZoom0*(dist/pinchDist0)));
+    var tz=Math.max(0.05,Math.min(maxZoom(),pinchZoom0*(dist/pinchDist0)));
     var nz=zoom+(tz-zoom)*ZOOM_DAMP;
     var ratio=nz/zoom; panX=cx-ratio*(cx-panX); panY=cy-ratio*(cy-panY); zoom=nz;
     twoMidX=midX; twoMidY=midY;
