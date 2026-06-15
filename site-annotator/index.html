@@ -1691,7 +1691,7 @@ var IS_IOS    = IS_IPHONE || IS_IPAD;
 // iPad gets 10000px cap.
 // iPad canvas capped at 10000px — prevents multi-layer snapshots from
 // filling Safari's memory and crashing on reload.
-var IOS_MAX_PX = IS_IPHONE ? 2900 : (IS_IPAD ? 10000 : 25000);
+var IOS_MAX_PX = IS_IPHONE ? 2800 : (IS_IPAD ? 10000 : 25000);
 // iPad undo kept at 5 — each snapshot is ~50MB+ per layer at full res.
 var MAX_UNDO   = IS_IPHONE ? 5 : (IS_IPAD ? 5 : 20);
 
@@ -3166,29 +3166,47 @@ function loadImageBlob(blob, _retried){
       else showImageError(name);
       return;
     }
-    var scale=Math.min(1,IOS_MAX_PX/Math.max(img.naturalWidth,img.naturalHeight));
-    var w=Math.round(img.naturalWidth*scale);
-    var h=Math.round(img.naturalHeight*scale);
-    pdfDoc=null; pgGrp(false);
-    resize(w,h);
-    bCtx.clearRect(0,0,w,h);
-    bCtx.drawImage(img,0,0,w,h);
+    // Adaptive cap: start at the device ceiling, but if the canvas comes back
+    // blank (iOS Safari silently drops drawImage when it runs out of canvas
+    // memory), step the resolution down and retry until it fits. The ladder
+    // ends well below any device's practical ceiling.
+    var caps=[IOS_MAX_PX, 3000, 2600, 2200, 1800];
+    var drewOk=false;
+    for(var ci=0; ci<caps.length; ci++){
+      var cap=caps[ci];
+      var scale=Math.min(1, cap/Math.max(img.naturalWidth,img.naturalHeight));
+      var w=Math.round(img.naturalWidth*scale);
+      var h=Math.round(img.naturalHeight*scale);
+      pdfDoc=null; pgGrp(false);
+      resize(w,h);
+      bCtx.clearRect(0,0,w,h);
+      try{ bCtx.drawImage(img,0,0,w,h); }catch(ex){}
+      if(!isCanvasBlank(bCtx,w,h)){
+        drewOk=true;
+        if(ci>0) console.warn('[Load] Stepped down to '+cap+'px to fit canvas memory');
+        break;
+      }
+      // blank — but only treat as memory pressure if there IS image data to draw.
+      // A genuinely undecodable image (HEIC-in-img) won't draw at any size, so
+      // bail to the HEIC path rather than spinning down the whole ladder.
+      if(scale===1 && ci===0){ break; }
+    }
     URL.revokeObjectURL(url);
+
+    if(!drewOk){
+      // Couldn't render at any size — likely a decode problem (HEIC), not memory.
+      console.warn('[Load] Canvas blank after drawImage — retrying with heic2any');
+      if(!_retried) tryHEICFallback(blob, name);
+      else showImageError(name);
+      return;
+    }
+
     // Set the plan DPI to the SAME device default the PDF loader uses, so text
     // placed on a converted/imported image renders at the correct physical point
     // size instead of the tiny 72-DPI fallback (factor 1.0). Without this,
     // _lastLoadedDpi stayed 0 and every label came out ~half size after a convert.
     _lastLoadedDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
 
-    // ── BLANK CANVAS CHECK ──────────────────────────────────
-    // img.onload fired but canvas is still empty — common with HEIC
-    // on browsers that "support" HEIC in <img> but not in canvas.
-    if(isCanvasBlank(bCtx,w,h)){
-      console.warn('[Load] Canvas blank after drawImage — retrying with heic2any');
-      if(!_retried) tryHEICFallback(blob, name);
-      else showImageError(name);
-      return;
-    }
     // ── SUCCESS ─────────────────────────────────────────────
     afterLoad();
   };
@@ -3269,7 +3287,7 @@ function _loadPDFRasterized(f){
   }).catch(function(err){ toast('PDF error: '+err.message,'err'); URL.revokeObjectURL(url); });
 }
 
-function renderPDFPage(n){
+function renderPDFPage(n, _capOverride){
   pdfDoc.getPage(n).then(function(page){
     var vp1=page.getViewport({scale:1});
     // PDFs are 72 pts/inch at scale:1. Target DPI per device, always capped by IOS_MAX_PX.
@@ -3278,11 +3296,19 @@ function renderPDFPage(n){
     // Desktop:300 DPI (4.17×) — full print quality
     var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
     var dpiScale  = targetDpi / 72;
-    var sc = Math.min(dpiScale, IOS_MAX_PX / Math.max(vp1.width, vp1.height));
+    var effCap = _capOverride || IOS_MAX_PX;
+    var sc = Math.min(dpiScale, effCap / Math.max(vp1.width, vp1.height));
     var vp=page.getViewport({scale:sc});
     var w=Math.round(vp.width),h=Math.round(vp.height);
     resize(w,h);
     page.render({canvasContext:bCtx,viewport:vp}).promise.then(function(){
+      // Verify the render actually landed — iOS Safari can silently drop it
+      // under memory pressure. If blank, step the cap down and retry.
+      if(isCanvasBlank(bCtx,w,h)){
+        var ladder=[3000,2600,2200,1800];
+        var next=ladder.filter(function(c){ return c < effCap; })[0];
+        if(next){ console.warn('[PDF] Blank render — stepping down to '+next+'px'); renderPDFPage(n, next); return; }
+      }
       afterLoad();
       pgInfo.textContent=n+'/'+pdfDoc.numPages;
       btnPrev.disabled=n<=1; btnNext.disabled=n>=pdfDoc.numPages;
@@ -3291,6 +3317,11 @@ function renderPDFPage(n){
       var dpiIn = document.getElementById('dpi-value');
       if(dpiIn) dpiIn.value = actualDpi;
       toast('PDF loaded at '+actualDpi+' DPI · '+w+'×'+h+' px','ok',3000);
+    }).catch(function(){
+      var ladder=[3000,2600,2200,1800];
+      var next=ladder.filter(function(c){ return c < effCap; })[0];
+      if(next){ console.warn('[PDF] Render failed — stepping down to '+next+'px'); renderPDFPage(n, next); }
+      else toast('PDF too large to render on this device','err');
     });
   });
 }
