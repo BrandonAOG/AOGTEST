@@ -2934,6 +2934,18 @@ function updateLegend(){
 // ── ZOOM/PAN ──
 function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(pinching||_gestZoom0!==null){ scene.classList.add('zooming'); } if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
 
+// rAF-throttled transform: during a fast pinch, touchmove can fire many times
+// per frame. Each synchronous applyTransform() forces the GPU to rebuild the
+// composite surface at a new scale, and on a fast gesture those large textures
+// pile up faster than they're released — the "slow=fine, fast=crash" signature.
+// Coalescing to one visual update per animation frame removes the pileup.
+var _xfReq=false;
+function applyTransformThrottled(){
+  if(_xfReq) return;
+  _xfReq=true;
+  requestAnimationFrame(function(){ _xfReq=false; applyTransform(); });
+}
+
 function clampPan(){
   var vw=viewport.clientWidth,vh=viewport.clientHeight;
   var cw=baseCv.width*zoom,ch=baseCv.height*zoom;
@@ -2966,7 +2978,8 @@ function maxZoom(){
 function zoomAt(f,cx,cy){
   var nz=Math.max(0.05,Math.min(maxZoom(),zoom*f));
   var r=nz/zoom; panX=cx-r*(cx-panX); panY=cy-r*(cy-panY); zoom=nz;
-  clampPan(); applyTransform();
+  clampPan();
+  if(_gestZoom0!==null) applyTransformThrottled(); else applyTransform();
 }
 
 btnZi.addEventListener('click',function(){ zoomAt(1.25,viewport.clientWidth/2,viewport.clientHeight/2); });
@@ -3036,9 +3049,16 @@ document.addEventListener('touchmove',function(e){
     var cx=midX-r.left,cy=midY-r.top;
     var tz=Math.max(0.05,Math.min(maxZoom(),pinchZoom0*(dist/pinchDist0)));
     var nz=zoom+(tz-zoom)*ZOOM_DAMP;
+    // Clamp how far zoom can move in a single frame. A very fast pinch can
+    // otherwise jump zoom in one step, forcing a huge GPU surface jump that
+    // can't be released in time. Limiting the per-step delta lets textures
+    // recycle between frames (this is the fix for fast-pinch crashes).
+    var _maxStep=0.18*zoom;
+    if(nz-zoom >  _maxStep) nz=zoom+_maxStep;
+    if(nz-zoom < -_maxStep) nz=zoom-_maxStep;
     var ratio=nz/zoom; panX=cx-ratio*(cx-panX); panY=cy-ratio*(cy-panY); zoom=nz;
     twoMidX=midX; twoMidY=midY;
-    clampPan(); applyTransform();
+    clampPan(); applyTransformThrottled();
   } else if(isPanning&&e.touches.length===1){
     movePan(e.touches[0].clientX,e.touches[0].clientY);
   }
@@ -3055,6 +3075,7 @@ document.addEventListener('touchend',function(e){
       _annoDeferred=false; _setAnnoRes(true);
       if(window.__dbgLog) window.__dbgLog('pinch end → reraster @zoom '+zoom.toFixed(2));
     }
+    if(wasPinching){ clampPan(); applyTransform(); }  // final crisp frame at settled zoom
   }
   if(e.touches.length===0){
     endPan();
