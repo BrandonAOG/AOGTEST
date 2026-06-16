@@ -2453,6 +2453,7 @@ var _isDesktopGesture=function(){ return !IS_IOS && navigator.maxTouchPoints===0
 document.addEventListener('gesturestart',  function(e){
   e.preventDefault(); e.stopPropagation();
   _gestZoom0 = _isDesktopGesture() ? zoom : null;
+  if(_gestZoom0!==null && !_fullyVisible()) scene.classList.add('zooming');
 },{passive:false});
 document.addEventListener('gesturechange', function(e){
   e.preventDefault(); e.stopPropagation();
@@ -2932,7 +2933,7 @@ function updateLegend(){
 }
 
 // ── ZOOM/PAN ──
-function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if((pinching||_gestZoom0!==null) && !_fullyVisible()){ scene.classList.add('zooming'); } else { scene.classList.remove('zooming'); } if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
+function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
 
 // True when the whole canvas fits within (or is smaller than) the viewport —
 // i.e. zoomed out to the "fit" band or below. At those zooms every layer is
@@ -3041,7 +3042,7 @@ document.addEventListener('touchstart',function(e){
     } else {
       _t3Active=false; _t4Active=false;
     }
-    if(!pinching){ if(drawing){drawing=false;if(compositedSnap){dCtx.putImageData(compositedSnap,0,0);}dCtx.beginPath();try{lctx().beginPath();}catch(ex){}} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; }
+    if(!pinching){ if(drawing){drawing=false;if(compositedSnap){dCtx.putImageData(compositedSnap,0,0);}dCtx.beginPath();try{lctx().beginPath();}catch(ex){}} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; if(!_fullyVisible()) scene.classList.add('zooming'); }
   } else {
     _t3Active=false; _t4Active=false;
   }
@@ -7618,7 +7619,7 @@ drawCv.addEventListener('touchstart',function(e){
     redrawPolylinePreview(sp.x,sp.y);
     return;
   }
-  if(e.touches.length>=2){ e.preventDefault(); if(drawing){drawing=false;if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; return; }
+  if(e.touches.length>=2){ e.preventDefault(); if(drawing){drawing=false;if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; if(!_fullyVisible()) scene.classList.add('zooming'); return; }
   holdStartTouch(e);
   onDown(e);
 },{passive:false});
