@@ -10248,12 +10248,208 @@ btnPng.addEventListener('click',function(){
   });
 });
 
+// ── True-vector annotation painter ───────────────────────────────────────────
+// Draws the user's geometric + text annotations DIRECTLY into the PDF page as
+// real vector operators (lines, rects, ellipses, text) via pdf-lib — so they
+// stay infinitely crisp in Acrobat at any zoom, exactly like the original page
+// linework. Types handled here are removed from the raster overlay so nothing
+// is drawn twice. Complex/raster types (pen, cloud, stamp, comment, polygon,
+// path-measure) are left to the transparent raster overlay.
+//
+// Coordinate mapping: canvas is top-left origin in BASE px; PDF is bottom-left
+// origin in points. sc = base px per PDF point.  px→pt: v/sc.  y flips.
+var VEC_ANNO_TYPES = true; // feature flag
+function _paintVectorAnnotations(page, sz, sc, fonts){
+  var rgb=PDFLib.rgb, degrees=PDFLib.degrees;
+  var H=sz.height;
+  function col(hex){ var c=_hexToRgb(hex||'#000000')||{r:0,g:0,b:0}; return rgb(c.r/255,c.g/255,c.b/255); }
+  function X(px){ return px/sc; }                 // canvas-x px → pt
+  function Y(px){ return H - px/sc; }             // canvas-y px → pt (flip)
+  function W(px){ return px/sc; }                 // canvas length px → pt
+  function visible(o){ var L=layers[o.layerIdx]; return !(L && !L.visible); }
+  function dashArr(o){
+    var w=W(Math.max(1,o.strokeW||1));
+    if(o.lineStyle==='dashed') return [w*4, w*3];
+    if(o.lineStyle==='dotted') return [w, w*2.5];
+    return undefined;
+  }
+  function line(x1,y1,x2,y2,hex,wpx,op,dash){
+    page.drawLine({start:{x:X(x1),y:Y(y1)}, end:{x:X(x2),y:Y(y2)},
+      thickness:Math.max(0.2,W(wpx)), color:col(hex), opacity:(op==null?1:op),
+      lineCap:PDFLib.LineCapStyle.Round, dashArray:dash});
+  }
+
+  // ── Rectangles / ellipses (rotation supported) ─────────────────────────────
+  try{ shapeObjs.forEach(function(s){
+    if(s._editing||!visible(s)) return;
+    if(s.type!=='rect' && s.type!=='ellipse') return;   // cloud → raster overlay
+    var cx=X(s.cx), cy=Y(s.cy), w=W(s.w), h=W(s.h);
+    var ang=-(s.angle||0)*180/Math.PI;                  // canvas CW → PDF CCW
+    var stroke=col(s.color), sw=Math.max(0.2,W(s.strokeW||1));
+    var hasFill=!!s.fill;
+    var fillC=hasFill?col(s.fillColor||s.color):undefined;
+    var fillOp=hasFill?(s.fillOpacity!=null?s.fillOpacity:(s.opacity||1)*0.25):0;
+    var dash=dashArr(s);
+    if(s.type==='rect'){
+      // pdf-lib rectangle origin = bottom-left corner; we have a center + angle.
+      // Translate so the rect is centered: rotate about center by drawing from
+      // the rotated bottom-left corner.
+      var a=(s.angle||0); var ca=Math.cos(a), sa=Math.sin(a);
+      // bottom-left in canvas space relative to center is (-w/2, +h/2) (y down)
+      var blx=s.cx + (-s.w/2)*ca - (s.h/2)*sa;
+      var bly=s.cy + (-s.w/2)*sa + (s.h/2)*ca;
+      page.drawRectangle({x:X(blx), y:Y(bly), width:w, height:h,
+        rotate:degrees(ang), borderColor:stroke, borderWidth:sw,
+        color:fillC, opacity:fillOp, borderOpacity:(s.opacity==null?1:s.opacity),
+        borderDashArray:dash});
+    } else { // ellipse
+      page.drawEllipse({x:cx, y:cy, xScale:Math.max(0.5,w/2), yScale:Math.max(0.5,h/2),
+        rotate:degrees(ang), borderColor:stroke, borderWidth:sw,
+        color:fillC, opacity:fillOp, borderOpacity:(s.opacity==null?1:s.opacity),
+        borderDashArray:dash});
+    }
+  }); }catch(e){ console.warn('[Vec] shapes',e); }
+
+  // ── Measures / arrows / plain lines ────────────────────────────────────────
+  try{ measureObjs.forEach(function(m){
+    if(!visible(m)) return;
+    var op=(m.opacity==null?1:m.opacity);
+    var dash=dashArr(m);
+    line(m.x1,m.y1,m.x2,m.y2,m.color,m.strokeW,op,dash);
+    var ang=Math.atan2(m.y2-m.y1,m.x2-m.x1);
+    if(m.isArrow){
+      var hw=Math.max((m.strokeW||2)*3.2,12);
+      line(m.x2,m.y2, m.x2-hw*Math.cos(ang-Math.PI/6), m.y2-hw*Math.sin(ang-Math.PI/6), m.color, m.strokeW, op);
+      line(m.x2,m.y2, m.x2-hw*Math.cos(ang+Math.PI/6), m.y2-hw*Math.sin(ang+Math.PI/6), m.color, m.strokeW, op);
+      return;
+    }
+    if(m.showLabel===false) return;
+    // measure ticks + label
+    var tk=Math.max(5,(m.strokeW||2)*2.5), perp=ang+Math.PI/2;
+    [[m.x1,m.y1],[m.x2,m.y2]].forEach(function(p){
+      line(p[0]+Math.cos(perp)*tk, p[1]+Math.sin(perp)*tk,
+           p[0]-Math.cos(perp)*tk, p[1]-Math.sin(perp)*tk, m.color, m.strokeW, op);
+    });
+    var px=Math.hypot(m.x2-m.x1,m.y2-m.y1);
+    var label=(typeof scaleSet!=='undefined'&&scaleSet)?formatLength(px):(Math.round(px)+'px');
+    var midX=(m.x1+m.x2)/2, midY=(m.y1+m.y2)/2;
+    var fsize=13/sc;
+    var deg=-ang*180/Math.PI;
+    // center the text along the line, lifted 8px above it
+    var tw=fonts.bold.widthOfTextAtSize(label,fsize);
+    var lift=8;
+    var ox=midX + Math.cos(perp)*-lift, oy=midY + Math.sin(perp)*-lift;
+    // shift back by half text width along the line direction
+    var halfX=Math.cos(ang)*(tw*sc)/2, halfY=Math.sin(ang)*(tw*sc)/2;
+    page.drawText(label,{x:X(ox-halfX), y:Y(oy-halfY), size:fsize, font:fonts.bold,
+      color:col(m.color), rotate:degrees(deg)});
+  }); }catch(e){ console.warn('[Vec] measures',e); }
+
+  // ── Polylines (open multi-segment vector lines) ────────────────────────────
+  try{ if(typeof polylineObjs!=='undefined') polylineObjs.forEach(function(pl){
+    if(!visible(pl)||!pl.pts||pl.pts.length<2) return;
+    var op=(pl.opacity==null?1:pl.opacity), dash=dashArr(pl);
+    for(var i=0;i<pl.pts.length-1;i++){
+      line(pl.pts[i].x,pl.pts[i].y,pl.pts[i+1].x,pl.pts[i+1].y,pl.color,pl.strokeW,op,dash);
+    }
+  }); }catch(e){ console.warn('[Vec] polylines',e); }
+
+  // ── Leaders (arrow + shoulder + label is drawn raster; draw the lines vector,
+  //    leave the text to raster overlay only if styled). Simpler + safe: draw the
+  //    two line segments as vectors and let the raster overlay carry the text.
+  //    To avoid double lines, leaders are fully handled in raster (skip here). ──
+
+  // ── Markups: highlight (fill rect), strikeout/underline (line) ─────────────
+  try{ if(typeof markupObjs!=='undefined') markupObjs.forEach(function(m){
+    if(!visible(m)) return;
+    var op=(m.opacity==null?1:m.opacity);
+    var x1=Math.min(m.x1,m.x2), x2=Math.max(m.x1,m.x2);
+    var y1=Math.min(m.y1,m.y2), y2=Math.max(m.y1,m.y2);
+    var h=(y2-y1)||6, w=(x2-x1)||20, midY=(y1+y2)/2;
+    if(m.type==='highlight'){
+      page.drawRectangle({x:X(x1), y:Y(y2), width:W(w), height:W(h),
+        color:col(m.color), opacity:op, borderWidth:0});
+    } else if(m.type==='strikeout'){
+      line(x1,midY,x2,midY,m.color,2,op);
+    } else if(m.type==='underlinemark'){
+      line(x1,y2,x2,y2,m.color,2,op);
+    }
+  }); }catch(e){ console.warn('[Vec] markups',e); }
+
+  // ── Text objects (multi-line, alignment, bg, underline/strike) ─────────────
+  try{ textObjs.forEach(function(obj){
+    if(!visible(obj)||!obj.text) return;
+    var f = obj.bold ? (obj.italic?fonts.boldItalic:fonts.bold)
+                     : (obj.italic?fonts.italic:fonts.regular);
+    var efpx=ptToCanvasPx(obj.fontSize);          // canvas px per line
+    var fsize=efpx/sc;                             // pt
+    var lines=String(obj.text).split('\n');
+    var align=obj.textAlign||'left';
+    var op=(obj.opacity==null?1:obj.opacity);
+    var a=(obj.angle||0);
+    var lineH=efpx*1.35;
+    // Per-line draw. Canvas baseline ~ obj.y + i*lineH (top-anchored fillText
+    // uses alphabetic baseline; pdf-lib drawText y is the baseline too).
+    lines.forEach(function(ln,i){
+      if(ln==='') return;
+      var tw=f.widthOfTextAtSize(ln,fsize)*sc;     // back to canvas px
+      var lx = obj.x + (align==='center'? -tw/2 : align==='right'? -tw : 0);
+      var ly = obj.y + i*lineH;
+      if(a){
+        // rotate around (obj.x,obj.y)
+        var ca=Math.cos(a), sa=Math.sin(a);
+        var rx0 = (align==='center'? -tw/2 : align==='right'? -tw : 0);
+        var ry0 = i*lineH;
+        var rx = obj.x + rx0*ca - ry0*sa;
+        var ry = obj.y + rx0*sa + ry0*ca;
+        page.drawText(ln,{x:X(rx), y:Y(ry), size:fsize, font:f, color:col(obj.color),
+          opacity:op, rotate:degrees(-a*180/Math.PI)});
+      } else {
+        // optional background highlight behind the line
+        if(obj.bgOpacity && obj.bgOpacity>0){
+          var asc=fsize*0.74, desc=fsize*0.21, padX=2/sc, padY=1.5/sc;
+          page.drawRectangle({x:X(lx)-padX, y:Y(ly)-desc-padY,
+            width:W(tw)+padX*2, height:(asc+desc)+padY*2,
+            color:col(obj.bgColor||'#ffff00'), opacity:op*obj.bgOpacity, borderWidth:0});
+        }
+        page.drawText(ln,{x:X(lx), y:Y(ly), size:fsize, font:f, color:col(obj.color), opacity:op});
+        if(obj.underline) line(lx,ly+efpx*0.12,lx+tw,ly+efpx*0.12,obj.color,Math.max(1,efpx*0.07),op);
+        if(obj.strike)    line(lx,ly-efpx*0.32,lx+tw,ly-efpx*0.32,obj.color,Math.max(1,efpx*0.07),op);
+      }
+    });
+  }); }catch(e){ console.warn('[Vec] text',e); }
+}
+
+// Types painted as true vectors above — temporarily cleared from the arrays so
+// the raster overlay (compositeExport) doesn't draw them a second time. Returns
+// a restore() closure.
+function _suppressVectorizedForOverlay(){
+  var saved={
+    shapeObjs:shapeObjs, measureObjs:measureObjs, textObjs:textObjs,
+    polylineObjs:(typeof polylineObjs!=='undefined'?polylineObjs:null),
+    markupObjs:(typeof markupObjs!=='undefined'?markupObjs:null)
+  };
+  // Keep ONLY the cloud shapes in the raster overlay (rect/ellipse are vectorized).
+  shapeObjs = shapeObjs.filter(function(s){ return s.type==='cloud'; });
+  measureObjs = [];
+  textObjs = [];
+  if(saved.polylineObjs!==null) polylineObjs = [];
+  if(saved.markupObjs!==null) markupObjs = [];
+  return function restore(){
+    shapeObjs=saved.shapeObjs; measureObjs=saved.measureObjs; textObjs=saved.textObjs;
+    if(saved.polylineObjs!==null) polylineObjs=saved.polylineObjs;
+    if(saved.markupObjs!==null) markupObjs=saved.markupObjs;
+  };
+}
+
 // ── Vector-preserving PDF export ─────────────────────────────────────────────
 // When the backdrop is a pristine PDF page (_vectorBackdropOK), build the export
 // PDF from the ORIGINAL file so its text/linework stay true vectors — infinitely
-// crisp in Acrobat — and stamp only the user's annotations on top as a
-// transparent high-res raster overlay. attachJson (string|null): when provided,
-// the AOG editable project JSON is embedded as an attachment (for "PDF✎").
+// crisp in Acrobat. The user's geometric + text annotations are painted as TRUE
+// PDF vectors (infinite zoom); only complex types (pen/cloud/stamp/comment/
+// polygon/path-measure) ride along in a transparent raster overlay.
+// attachJson (string|null): when provided, the AOG editable project JSON is
+// embedded as an attachment (for "PDF✎").
 // Calls onReady(uint8Bytes) on success, or onReady(null) to fall back to raster.
 function _buildVectorPdf(attachJson, onReady){
   try{
@@ -10276,10 +10472,14 @@ function _buildVectorPdf(attachJson, onReady){
     try{ saved=bCtx.getImageData(0,0,baseCv.width,baseCv.height); }
     catch(e){ onReady(null); return; }
     imgOverlays = complexList;                                  // native images excluded from overlay
+    // Pull the vectorized types out of the raster overlay so they aren't drawn
+    // twice (raster + vector). Restored right after compositing.
+    var _restoreVec = (VEC_ANNO_TYPES ? _suppressVectorizedForOverlay() : function(){});
     bCtx.save(); bCtx.clearRect(0,0,baseCv.width,baseCv.height); bCtx.restore();
     var comp=null;
     try{ comp=compositeExport(0); }catch(e){ comp=null; }
     try{ if(saved) bCtx.putImageData(saved,0,0); }catch(e){}    // restore real backdrop
+    _restoreVec();                                              // restore full anno arrays
     imgOverlays = fullImgs;                                     // restore overlay list
     if(!comp){ onReady(null); return; }
     var releaseComp=function(){ try{ if(typeof releaseCanvas==='function') releaseCanvas(comp); }catch(e){} };
@@ -10327,8 +10527,17 @@ function _buildVectorPdf(attachJson, onReady){
               if(rot!==0){ done(null); return null; }            // rotated page → raster fallback
               var sz=page.getSize();
               var sc=baseCv.width/sz.width;                       // base px per PDF point
+              // Embed the standard fonts used for vector text.
+              var _fonts=null;
+              var fontChain = (VEC_ANNO_TYPES ? Promise.all([
+                  pdf.embedFont(PDFLib.StandardFonts.Helvetica),
+                  pdf.embedFont(PDFLib.StandardFonts.HelveticaBold),
+                  pdf.embedFont(PDFLib.StandardFonts.HelveticaOblique),
+                  pdf.embedFont(PDFLib.StandardFonts.HelveticaBoldOblique)
+                ]).then(function(fs){ _fonts={regular:fs[0],bold:fs[1],italic:fs[2],boldItalic:fs[3]}; })
+                : Promise.resolve());
               // Embed each native image at its true placement (PDF origin = bottom-left).
-              var chain=pdf.embedPng(overlayBytes).then(function(ovImg){
+              var chain=fontChain.then(function(){ return pdf.embedPng(overlayBytes); }).then(function(ovImg){
                 page.drawImage(ovImg,{x:0,y:0,width:sz.width,height:sz.height});
               });
               natives.forEach(function(n){
@@ -10346,6 +10555,14 @@ function _buildVectorPdf(attachJson, onReady){
                   });
                 });
               });
+              // Paint the true-vector annotations LAST so they sit crisply on top
+              // of both the original page content and the raster overlay.
+              if(VEC_ANNO_TYPES){
+                chain=chain.then(function(){
+                  try{ _paintVectorAnnotations(page, sz, sc, _fonts); }
+                  catch(e){ console.warn('[VectorExport] vector anno paint failed:',e); }
+                });
+              }
               return chain.then(function(){
                 if(attachJson){
                   var jb=new TextEncoder().encode(attachJson);
