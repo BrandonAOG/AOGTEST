@@ -2604,6 +2604,11 @@ var _scalingRefMeasure=null; // reference line kept live while scale dialog is o
 var scaleSet=false, ppu=1, scaleUnit='m';
 var gridEnabled=false, gridSize=50, snapEnabled=false;
 var pdfDoc=null, currentPage=1, baseLoaded=false;
+// Vector-export source: when the backdrop IS a pristine PDF page (nothing was
+// extracted/whited-out and nothing was drawn into the base), we can export the
+// original vectors instead of a flattened raster, so the survey stays infinitely
+// crisp in Acrobat. _pdfBytes holds the original file; _vectorBackdropOK gates it.
+var _pdfBytes=null, _vectorBackdropOK=false, _vecPageNum=1;
 var isPanning=false, spaceDown=false, lastPanX=0, lastPanY=0;
 var pinching=false, twoMidX=0, twoMidY=0, pinchDist0=0, pinchZoom0=1;
 var PAN_DAMP=0.6, ZOOM_DAMP=0.2;
@@ -3230,6 +3235,7 @@ function loadImageBlob(blob, _retried, srcCap){
     var w=Math.round(img.naturalWidth*scale);
     var h=Math.round(img.naturalHeight*scale);
     pdfDoc=null; pgGrp(false);
+    _vectorBackdropOK=false; _pdfBytes=null;  // backdrop is a raster image, not a PDF page
     resize(w,h);
     bCtx.clearRect(0,0,w,h);
     bCtx.drawImage(img,0,0,w,h);
@@ -3350,6 +3356,7 @@ function _askPdfImportOptions(f){
 
 function _loadPDFRasterized(f){
   if(typeof pdfjsLib==='undefined'){ toast('PDF support requires an internet connection.','warn'); return; }
+  try{ f.arrayBuffer().then(function(b){ _pdfBytes=b; }).catch(function(){ _pdfBytes=null; }); }catch(e){ _pdfBytes=null; }
   // pdf.js 3.x REQUIRES a worker source. The original code set this in a
   // guard that executed before the library loaded, so it was never applied
   // and PDFs failed to open. Set it lazily here, once, now that pdfjsLib exists.
@@ -3409,6 +3416,7 @@ function _pdfColorToHex(c){
 // Main entry. Renders page, then explodes text + images into editable objects.
 function _loadPDFExploded(f){
   if(typeof pdfjsLib==='undefined'){ toast('PDF support requires an internet connection.','warn'); return; }
+  try{ f.arrayBuffer().then(function(b){ _pdfBytes=b; }).catch(function(){ _pdfBytes=null; }); }catch(e){ _pdfBytes=null; }
   if(pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc){
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
@@ -3423,7 +3431,7 @@ function _loadPDFExploded(f){
 
 // DPI / scale chosen exactly like renderPDFPage so coordinates line up.
 function _explodeScale(vp1){
-  var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
+  var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 400;
   var dpiScale  = targetDpi / 72;
   return Math.min(dpiScale, IOS_MAX_PX / Math.max(vp1.width, vp1.height));
 }
@@ -3456,6 +3464,7 @@ function _explodePDFPage(n){
         // Fallback: plain flatten so the user still sees their drawing.
         page.render({canvasContext:bCtx, viewport:vp}).promise.then(function(){
           _lastLoadedDpi=Math.round(sc*72); afterLoad(); imgOverlays=[]; textObjs=[];
+          _vectorBackdropOK=true; _vecPageNum=n;  // pristine page → vectors exportable
           _finishExplode(n,w,h,sc,true);
         });
       });
@@ -3507,6 +3516,11 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   if(_denseDrawing){
     if(typeof toast==='function') toast('Detailed drawing ('+_pathOps.toLocaleString()+' paths) — opened as a faithful background. Annotate on top.','ok',3600);
   }
+  // Vectors are exportable only when we DON'T touch the backdrop: dense flatten,
+  // or the user unchecked both extraction options. Any extraction whites out
+  // content from the backdrop, so the original vectors no longer match.
+  _vectorBackdropOK = (_denseDrawing || (!EXPLODE_TEXT && !EXPLODE_OTHER));
+  _vecPageNum = n;
 
   var styles=tc.styles||{};
 
@@ -3827,9 +3841,21 @@ function _extractVectors(opList, vp, sc, w, h){
       pendingPaths=[]; dashOn=false;
     }
     else if(fn===OPS.fill || fn===OPS.eoFill){
-      // Filled-only paths. Keep CURVE (ellipse) fills as editable shapes; leave
-      // small rect/line fills (e.g. white pipe blocks) baked in the backdrop.
-      pendingPaths.forEach(function(s){ if(s.nCurves>=3){ s.filled=true; s.fillOnly=true; collected.push(s); } });
+      // Filled-only paths. Keep CURVE (ellipse) fills and RECTANGLE fills as
+      // editable shapes (a gray-filled box must import as a filled rect, not get
+      // dropped). Still skip tiny rect/line fills (e.g. white pipe masks) so they
+      // stay baked in the backdrop and don't litter the scene with specks.
+      pendingPaths.forEach(function(s){
+        if(s.nCurves>=3){ s.filled=true; s.fillOnly=true; collected.push(s); return; }
+        if(s.isRect){
+          var xs=s.pts.map(function(p){return p.x;}), ys=s.pts.map(function(p){return p.y;});
+          var rw=Math.max.apply(null,xs)-Math.min.apply(null,xs);
+          var rh=Math.max.apply(null,ys)-Math.min.apply(null,ys);
+          // Ignore near-white fills (background masks) and very small boxes.
+          var isWhite=/^#f[0-9a-f]f[0-9a-f]f[0-9a-f]$/i.test(s.fillColor||'');
+          if(rw>=6 && rh>=6 && !isWhite){ s.filled=true; s.fillOnly=true; collected.push(s); }
+        }
+      });
       pendingPaths=[];
     }
   }
@@ -3882,7 +3908,10 @@ function _extractVectors(opList, vp, sc, w, h){
       var s=segs[best];
       // Arrow tail = the far end; head (tip) = the chevron vertex.
       var tail = (bestEnd==='a') ? s.b : s.a;
-      arrows.push({x1:tail.x,y1:tail.y,x2:ch.v.x,y2:ch.v.y,color:s.color,lineW:s.lineW,dash:s.dash});
+      arrows.push({x1:tail.x,y1:tail.y,x2:ch.v.x,y2:ch.v.y,color:s.color,lineW:s.lineW,dash:s.dash,
+        // Keep the original arrowhead arm endpoints so the whiteout can bury the
+        // exact baked geometry (its real angle/length) instead of guessing a fan.
+        armA:ch.a, armC:ch.c});
     } else {
       // Orphan chevron — emit its two arms as plain lines so nothing vanishes.
       segs.push({a:ch.a,b:ch.v,color:ch.color,lineW:ch.lineW,dash:false});
@@ -3898,10 +3927,17 @@ function _extractVectors(opList, vp, sc, w, h){
     var y0=Math.min.apply(null,ys), y1=Math.max.apply(null,ys);
     var rw=x1-x0, rh=y1-y0;
     if(rw<3||rh<3) return;
+    var isFilled=!!r.filled;
+    // A fill-only rect has no real outline — don't invent a stroke (which was
+    // showing up as a stray colored border around gray boxes). Give it a hairline
+    // in the fill color so the editable outline isn't a contrasting frame.
+    var fillOnly=!!r.fillOnly;
     shapeObjs.push({
       id:Date.now()+count, type:'rect', cx:x0+rw/2, cy:y0+rh/2, w:rw, h:rh, angle:0,
-      color:r.color||'#000000', strokeW:Math.max(1,r.lineW), opacity:1,
-      fill:false, fillColor:'#ffffff', fillOpacity:0, lineStyle:(r.dash?'dashed':'solid'),
+      color:(fillOnly?(r.fillColor||'#808080'):(r.color||'#000000')),
+      strokeW:(fillOnly?1:Math.max(1,r.lineW)), opacity:1,
+      fill:isFilled, fillColor:(isFilled?(r.fillColor||'#808080'):'#ffffff'),
+      fillOpacity:(isFilled?1:0), lineStyle:(r.dash?'dashed':'solid'),
       layerIdx:activeLayerIdx
     });
     count++;
@@ -3945,11 +3981,51 @@ function _extractVectors(opList, vp, sc, w, h){
   // White-out every extracted stroke on the backdrop so it isn't doubled.
   bCtx.save();
   bCtx.strokeStyle='#ffffff'; bCtx.lineCap='round'; bCtx.lineJoin='round';
-  function wipe(ax,ay,bx,by,lw){ bCtx.lineWidth=Math.max(3,lw+3); bCtx.beginPath(); bCtx.moveTo(ax,ay); bCtx.lineTo(bx,by); bCtx.stroke(); }
+  // Cover the original stroke PLUS its antialiased fringe. A flat +3 margin
+  // (1.5px per side) was too thin for thicker / light-colored strokes: the AA
+  // edge of the baked PDF line survived just outside the wipe and read as a
+  // faint parallel "shadow" line beside the new editable vector. Scale the
+  // margin with the stroke width and extend each end so round caps / arrowhead
+  // arms are fully buried.
+  function wipe(ax,ay,bx,by,lw){
+    var w=Math.max(2,lw);
+    bCtx.lineWidth=w+Math.max(5, w*1.1);   // generous, width-proportional margin
+    // Lengthen the segment slightly past both endpoints so the wipe doesn't
+    // stop short of an arrowhead tip / joint and leave a sliver there.
+    var dx=bx-ax, dy=by-ay, len=Math.hypot(dx,dy);
+    var ex=0, ey=0;
+    if(len>0.001){ var ux=dx/len, uy=dy/len, pad=Math.max(3,w*0.7); ex=ux*pad; ey=uy*pad; }
+    bCtx.beginPath(); bCtx.moveTo(ax-ex,ay-ey); bCtx.lineTo(bx+ex,by+ey); bCtx.stroke();
+  }
   rects.forEach(function(r){
+    if(r.filled){
+      // Filled rect: wipe the whole footprint (plus a small outward margin for
+      // the AA fringe) so the baked gray doesn't peek out around the new shape.
+      var xs=r.pts.map(function(p){return p.x;}), ys=r.pts.map(function(p){return p.y;});
+      var x0=Math.min.apply(null,xs), y0=Math.min.apply(null,ys);
+      var x1=Math.max.apply(null,xs), y1=Math.max.apply(null,ys);
+      var pad=Math.max(2,(r.lineW||2));
+      bCtx.save(); bCtx.fillStyle='#ffffff';
+      bCtx.fillRect(x0-pad, y0-pad, (x1-x0)+pad*2, (y1-y0)+pad*2);
+      bCtx.restore();
+    }
     for(var pi=0; pi<r.pts.length; pi++){ var p=r.pts[pi], q=r.pts[(pi+1)%r.pts.length]; wipe(p.x,p.y,q.x,q.y,Math.max(2,r.lineW)); }
   });
-  arrows.forEach(function(ar){ wipe(ar.x1,ar.y1,ar.x2,ar.y2,Math.max(2,ar.lineW)); });
+  arrows.forEach(function(ar){
+    wipe(ar.x1,ar.y1,ar.x2,ar.y2,Math.max(2,ar.lineW));
+    // Bury the original arrowhead. Prefer the real baked arm endpoints captured
+    // at pairing time (exact angle + length); fall back to a guessed fan only if
+    // they're missing. The new editable arrow draws its own head on top.
+    if(ar.armA && ar.armC){
+      wipe(ar.x2,ar.y2, ar.armA.x, ar.armA.y, Math.max(2,ar.lineW));
+      wipe(ar.x2,ar.y2, ar.armC.x, ar.armC.y, Math.max(2,ar.lineW));
+    } else {
+      var ang=Math.atan2(ar.y2-ar.y1, ar.x2-ar.x1);
+      var hw=Math.max(ar.lineW*4.5, 16);
+      wipe(ar.x2,ar.y2, ar.x2-hw*Math.cos(ang-Math.PI/6), ar.y2-hw*Math.sin(ang-Math.PI/6), Math.max(2,ar.lineW));
+      wipe(ar.x2,ar.y2, ar.x2-hw*Math.cos(ang+Math.PI/6), ar.y2-hw*Math.sin(ang+Math.PI/6), Math.max(2,ar.lineW));
+    }
+  });
   // White-out ellipses: fill the area for filled ones, stroke the rim for outlines.
   ellipses.forEach(function(el){
     var cx=(el.x0+el.x1)/2, cy=(el.y0+el.y1)/2, rx=(el.x1-el.x0)/2, ry=(el.y1-el.y0)/2;
@@ -4104,8 +4180,8 @@ function renderPDFPage(n){
     // PDFs are 72 pts/inch at scale:1. Target DPI per device, always capped by IOS_MAX_PX.
     // iPhone: 150 DPI (2.08×) — memory constrained, still 2× sharper than before
     // iPad:   200 DPI (2.78×) — good balance of quality vs memory
-    // Desktop:300 DPI (4.17×) — full print quality
-    var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
+    // Desktop:400 DPI (5.56×) — high print quality + zoom headroom
+    var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 400;
     var dpiScale  = targetDpi / 72;
     var sc = Math.min(dpiScale, IOS_MAX_PX / Math.max(vp1.width, vp1.height));
     var vp=page.getViewport({scale:sc});
@@ -4113,6 +4189,7 @@ function renderPDFPage(n){
     resize(w,h);
     page.render({canvasContext:bCtx,viewport:vp}).promise.then(function(){
       afterLoad();
+      _vectorBackdropOK=true; _vecPageNum=n;  // pristine page render → vectors exportable
       pgInfo.textContent=n+'/'+pdfDoc.numPages;
       btnPrev.disabled=n<=1; btnNext.disabled=n>=pdfDoc.numPages;
       var actualDpi=Math.round(sc*72);
@@ -4311,7 +4388,36 @@ var DRAW_STRICT={line:1,arrow:1,polyline:1,measure:1,pathmeasure:1,polygon:1,lea
 // ── DRAWING EVENTS ──
 function onDown(e){
   if(!baseLoaded||pinching) return;
-  if(tool==='pan'){ var _px=e.touches&&e.touches.length?e.touches[0].clientX:e.clientX; var _py=e.touches&&e.touches.length?e.touches[0].clientY:e.clientY; startPan(_px,_py); return; }
+  if(tool==='pan'){
+    // ── Tap-to-edit (Pan tool) ───────────────────────────────────────────
+    // Imported PDF vectors (arrows, lines, rects, ellipses) land while the
+    // canvas is in Pan mode. Previously the user had to know to switch to the
+    // exact matching tool (Arrow for arrows, Line for lines, Rect/Ellipse for
+    // shapes) before any of them could be grabbed — so they read as
+    // "not editable on import". Here, a press in Pan mode first checks whether
+    // it landed on an editable object; if so we auto-switch to that object's
+    // tool and route the same press into its select logic. A press on empty
+    // space still pans as before.
+    if(!spaceDown && !(e.touches && e.touches.length>1)){
+      var _ts=!!(e.touches && e.touches.length);
+      var _pp=snapPt(getPos(e).x,getPos(e).y);
+      var _picked=null;
+      // Order: arrows/lines (thin, on top) before shapes (areas).
+      var _mh=(typeof findMeasureObjAt==='function')?findMeasureObjAt(_pp.x,_pp.y,_ts):null;
+      if(_mh){ _picked=_mh.isArrow?'arrow':(_mh.showLabel===false?'line':'measure'); }
+      if(!_picked && typeof findShapeObjAt==='function'){
+        var _sh=findShapeObjAt(_pp.x,_pp.y,_ts);
+        if(_sh){ _picked=(_sh.type==='ellipse'?'ellipse':(_sh.type==='cloud'?'cloud':'rect')); }
+      }
+      if(_picked){
+        switchTool(_picked);
+        // Replay this same press now that the matching tool is active, so its
+        // select/handle logic runs and the object becomes editable.
+        return onDown(e);
+      }
+    }
+    var _px=e.touches&&e.touches.length?e.touches[0].clientX:e.clientX; var _py=e.touches&&e.touches.length?e.touches[0].clientY:e.clientY; startPan(_px,_py); return;
+  }
   if(spaceDown) return;
   if(e.touches&&e.touches.length>1) return;
   // iOS keyboard: .focus() MUST be called synchronously inside the touch handler.
@@ -10142,6 +10248,125 @@ btnPng.addEventListener('click',function(){
   });
 });
 
+// ── Vector-preserving PDF export ─────────────────────────────────────────────
+// When the backdrop is a pristine PDF page (_vectorBackdropOK), build the export
+// PDF from the ORIGINAL file so its text/linework stay true vectors — infinitely
+// crisp in Acrobat — and stamp only the user's annotations on top as a
+// transparent high-res raster overlay. attachJson (string|null): when provided,
+// the AOG editable project JSON is embedded as an attachment (for "PDF✎").
+// Calls onReady(uint8Bytes) on success, or onReady(null) to fall back to raster.
+function _buildVectorPdf(attachJson, onReady){
+  try{
+    if(!_vectorBackdropOK || !_pdfBytes || typeof window.PDFLib==='undefined'){ onReady(null); return; }
+
+    // Image overlays are raster (pixels), so they can't be vectors — but we embed
+    // each as its OWN native-resolution image in the PDF so it's as sharp as its
+    // source allows. Axis-aligned (un-rotated) images go in natively; flips are
+    // pre-baked. Rotated images stay in the high-res annotation overlay (correct
+    // placement without matrix math). Hidden-layer images are excluded everywhere.
+    function _layerVisible(ov){ var L=layers[ov.layerIdx]; return !(L && !L.visible); }
+    var fullImgs   = imgOverlays.slice();
+    var nativeList = fullImgs.filter(function(ov){ return _layerVisible(ov) && ((ov.angle||0)===0); });
+    var complexList= fullImgs.filter(function(ov){ return _layerVisible(ov) && ((ov.angle||0)!==0); });
+
+    // 1) Render a TRANSPARENT overlay of all NON-native annotations by blanking the
+    //    base and reusing the full compositeExport pipeline (shapes, text, leaders,
+    //    stamps, rotated image overlays, watermark). No duplicated drawing logic.
+    var saved=null;
+    try{ saved=bCtx.getImageData(0,0,baseCv.width,baseCv.height); }
+    catch(e){ onReady(null); return; }
+    imgOverlays = complexList;                                  // native images excluded from overlay
+    bCtx.save(); bCtx.clearRect(0,0,baseCv.width,baseCv.height); bCtx.restore();
+    var comp=null;
+    try{ comp=compositeExport(0); }catch(e){ comp=null; }
+    try{ if(saved) bCtx.putImageData(saved,0,0); }catch(e){}    // restore real backdrop
+    imgOverlays = fullImgs;                                     // restore overlay list
+    if(!comp){ onReady(null); return; }
+    var releaseComp=function(){ try{ if(typeof releaseCanvas==='function') releaseCanvas(comp); }catch(e){} };
+
+    // 2) Build native-resolution PNG bytes for each axis-aligned image overlay.
+    function _nativeBytes(ov){
+      return new Promise(function(res,rej){
+        try{
+          var src=ov.img;
+          var nw=src.naturalWidth||src.width, nh=src.naturalHeight||src.height;
+          if(!nw||!nh){ rej(new Error('no image dims')); return; }
+          var tc=document.createElement('canvas'); tc.width=nw; tc.height=nh;
+          var tcx=tc.getContext('2d');
+          if(typeof _imgSmooth==='function') _imgSmooth(tcx);
+          tcx.translate(ov.flipH?nw:0, ov.flipV?nh:0);
+          tcx.scale(ov.flipH?-1:1, ov.flipV?-1:1);
+          tcx.drawImage(src,0,0,nw,nh);
+          tc.toBlob(function(b){
+            if(!b){ rej(new Error('toBlob null')); return; }
+            var fr=new FileReader();
+            fr.onerror=function(){ rej(new Error('read fail')); };
+            fr.onload=function(){ res({ov:ov, bytes:new Uint8Array(fr.result)}); };
+            fr.readAsArrayBuffer(b);
+          },'image/png');
+        }catch(e){ rej(e); }
+      });
+    }
+
+    // 3) Read the overlay PNG, then assemble the PDF from original vectors.
+    comp.toBlob(function(blob){
+      var done=function(v){ releaseComp(); onReady(v); };
+      if(!blob){ done(null); return; }
+      var fr=new FileReader();
+      fr.onerror=function(){ done(null); };
+      fr.onload=function(){
+        try{
+          var overlayBytes=new Uint8Array(fr.result);
+          Promise.all(nativeList.map(_nativeBytes)).then(function(natives){
+            return PDFLib.PDFDocument.load(_pdfBytes.slice(0)).then(function(pdf){
+              var idx=Math.max(0,(_vecPageNum||1)-1);
+              var pages=pdf.getPages();
+              if(idx>=pages.length) idx=0;
+              var page=pages[idx];
+              var rot=0; try{ rot=(page.getRotation().angle||0)%360; }catch(e){ rot=0; }
+              if(rot!==0){ done(null); return null; }            // rotated page → raster fallback
+              var sz=page.getSize();
+              var sc=baseCv.width/sz.width;                       // base px per PDF point
+              // Embed each native image at its true placement (PDF origin = bottom-left).
+              var chain=pdf.embedPng(overlayBytes).then(function(ovImg){
+                page.drawImage(ovImg,{x:0,y:0,width:sz.width,height:sz.height});
+              });
+              natives.forEach(function(n){
+                chain=chain.then(function(){
+                  return pdf.embedPng(n.bytes).then(function(im){
+                    var ov=n.ov;
+                    var Lpx=ov.cx-ov.w/2, Tpx=ov.cy-ov.h/2;
+                    page.drawImage(im,{
+                      x: Lpx/sc,
+                      y: sz.height - (Tpx+ov.h)/sc,
+                      width:  ov.w/sc,
+                      height: ov.h/sc,
+                      opacity: (ov.opacity!=null?ov.opacity:1)
+                    });
+                  });
+                });
+              });
+              return chain.then(function(){
+                if(attachJson){
+                  var jb=new TextEncoder().encode(attachJson);
+                  return pdf.attach(jb, AOG_PDF_ATTACH, {
+                    mimeType:'application/json',
+                    description:'AOG editable annotation data',
+                    creationDate:new Date(), modificationDate:new Date()
+                  }).then(function(){ return pdf.save(); });
+                }
+                return pdf.save();
+              });
+            });
+          }).then(function(bytes){ if(bytes) done(bytes); })
+            .catch(function(err){ console.warn('[VectorExport] failed, using raster:',err); done(null); });
+        }catch(e){ console.warn('[VectorExport] error, using raster:',e); done(null); }
+      };
+      fr.readAsArrayBuffer(blob);
+    },'image/png');
+  }catch(e){ console.warn('[VectorExport] error, using raster:',e); try{ onReady(null); }catch(_){} }
+}
+
 btnPdf.addEventListener('click',function(){
   if(!baseLoaded){ toast('Open a file first','warn'); return; }
   if(typeof window.jspdf==='undefined'&&typeof jsPDF==='undefined'){
@@ -10151,7 +10376,15 @@ btnPdf.addEventListener('click',function(){
   pickSaveTarget('site-plan.pdf', 'application/pdf', 'PDF Document', ['.pdf']).then(function(handle){
     if(handle==='cancelled'){ toast('Save cancelled'); return; }
     toast('Preparing PDF…','',0);
-    exportToBlob(0,'image/jpeg',0.92,function(blob){
+    // Preferred path: keep the original PDF vectors crisp, stamp annotations on top.
+    _buildVectorPdf(null, function(vbytes){
+      if(vbytes){
+        var pdfBlob=new Blob([vbytes],{type:'application/pdf'});
+        writeToTarget(handle, pdfBlob, 'site-plan.pdf').then(function(){ toast('Saved as PDF (vectors kept) ✓','ok',2800); });
+        return;
+      }
+      // Fallback: high-res flattened raster.
+      exportToBlob(0,'image/png',1.0,function(blob){
       if(!blob){ toast('Export failed','err'); return; }
       var JSPDF=window.jspdf?window.jspdf.jsPDF:jsPDF;
       var reader=new FileReader();
@@ -10163,11 +10396,12 @@ btnPdf.addEventListener('click',function(){
       var pw=doc.internal.pageSize.getWidth(), ph=doc.internal.pageSize.getHeight();
       var imgH=ph-4, imgW=pw-4;
       if(imgH/imgW<ch/cw) imgW=imgH/(ch/cw);
-      doc.addImage(imgData,'JPEG',2,2,imgW,imgH);
+      doc.addImage(imgData,'PNG',2,2,imgW,imgH);
       var pdfBlob=doc.output('blob');
       writeToTarget(handle, pdfBlob, 'site-plan.pdf').then(function(){ toast('Saved as PDF ✓','ok',2500); });
     };
     reader.readAsDataURL(blob);
+    });
     });
   });
 });
@@ -10240,42 +10474,50 @@ if(btnPdfEdit) btnPdfEdit.addEventListener('click', function(){
   pickSaveTarget(name, 'application/pdf', 'PDF Document', ['.pdf']).then(function(handle){
     if(handle==='cancelled'){ toast('Save cancelled'); return; }
     toast('Preparing editable PDF…','',0);
-    // 1) Build the visual PDF exactly like the normal PDF export.
-    exportToBlob(0,'image/jpeg',0.92,function(blob){
-      if(!blob){ toast('Export failed','err'); return; }
-      var JSPDF=window.jspdf?window.jspdf.jsPDF:jsPDF;
-      var reader=new FileReader();
-      reader.onload=function(ev){
-        var imgData=ev.target.result;
-        var cw=baseCv.width, ch=baseCv.height;
-        var orientation=cw>ch?'landscape':'portrait';
-        var doc=new JSPDF({orientation:orientation,unit:'mm',format:'a3'});
-        var pw=doc.internal.pageSize.getWidth(), ph=doc.internal.pageSize.getHeight();
-        var imgH=ph-4, imgW=pw-4;
-        if(imgH/imgW<ch/cw) imgW=imgH/(ch/cw);
-        doc.addImage(imgData,'JPEG',2,2,imgW,imgH);
-        var pdfArrayBuffer=doc.output('arraybuffer');
-        // 2) Build the editable record, embed it with pdf-lib, then save.
-        buildProjectRecord(0.92, function(rec){
-          if(!rec){ toast('Editable PDF failed — try again','err',4000); return; }
-          var json; try{ json=JSON.stringify(rec); }catch(ex){ toast('Project too large to embed','err',4000); return; }
-          PDFLib.PDFDocument.load(pdfArrayBuffer).then(function(pdfDoc){
-            var bytes=new TextEncoder().encode(json);
-            return pdfDoc.attach(bytes, AOG_PDF_ATTACH, {
-              mimeType:'application/json',
-              description:'AOG editable annotation data',
-              creationDate:new Date(), modificationDate:new Date()
-            }).then(function(){ return pdfDoc.save(); });
-          }).then(function(outBytes){
-            var outBlob=new Blob([outBytes],{type:'application/pdf'});
-            writeToTarget(handle, outBlob, name).then(function(){ toast('Editable PDF saved ✓','ok',3000); });
-          }).catch(function(err){
-            console.warn('[Editable PDF] embed failed:',err);
-            toast('Could not embed editable data','err',4000);
-          });
+    // Build the editable record first; we embed it as a PDF attachment either way.
+    buildProjectRecord(0.92, function(rec){
+      if(!rec){ toast('Editable PDF failed — try again','err',4000); return; }
+      var json; try{ json=JSON.stringify(rec); }catch(ex){ toast('Project too large to embed','err',4000); return; }
+      // Preferred: keep original PDF vectors crisp + annotations on top + JSON attached.
+      _buildVectorPdf(json, function(vbytes){
+        if(vbytes){
+          var outBlob=new Blob([vbytes],{type:'application/pdf'});
+          writeToTarget(handle, outBlob, name).then(function(){ toast('Editable PDF saved (vectors kept) ✓','ok',3200); });
+          return;
+        }
+        // Fallback: flattened raster PDF with the same JSON attachment.
+        exportToBlob(0,'image/png',1.0,function(blob){
+          if(!blob){ toast('Export failed','err'); return; }
+          var JSPDF=window.jspdf?window.jspdf.jsPDF:jsPDF;
+          var reader=new FileReader();
+          reader.onload=function(ev){
+            var imgData=ev.target.result;
+            var cw=baseCv.width, ch=baseCv.height;
+            var orientation=cw>ch?'landscape':'portrait';
+            var doc=new JSPDF({orientation:orientation,unit:'mm',format:'a3'});
+            var pw=doc.internal.pageSize.getWidth(), ph=doc.internal.pageSize.getHeight();
+            var imgH=ph-4, imgW=pw-4;
+            if(imgH/imgW<ch/cw) imgW=imgH/(ch/cw);
+            doc.addImage(imgData,'PNG',2,2,imgW,imgH);
+            var pdfArrayBuffer=doc.output('arraybuffer');
+            PDFLib.PDFDocument.load(pdfArrayBuffer).then(function(pdfDoc){
+              var bytes=new TextEncoder().encode(json);
+              return pdfDoc.attach(bytes, AOG_PDF_ATTACH, {
+                mimeType:'application/json',
+                description:'AOG editable annotation data',
+                creationDate:new Date(), modificationDate:new Date()
+              }).then(function(){ return pdfDoc.save(); });
+            }).then(function(outBytes){
+              var outBlob=new Blob([outBytes],{type:'application/pdf'});
+              writeToTarget(handle, outBlob, name).then(function(){ toast('Editable PDF saved ✓','ok',3000); });
+            }).catch(function(err){
+              console.warn('[Editable PDF] embed failed:',err);
+              toast('Could not embed editable data','err',4000);
+            });
+          };
+          reader.readAsDataURL(blob);
         });
-      };
-      reader.readAsDataURL(blob);
+      });
     });
   });
 });
@@ -10606,6 +10848,7 @@ function checkForSavedSession(){
 }
 
 function doRestore(rec){
+  _vectorBackdropOK=false; _pdfBytes=null;  // restored from a flattened project, no PDF vectors
   var img=new Image();
   img.onload=function(){
     var scale=Math.min(1,IOS_MAX_PX/Math.max(img.width,img.height));
@@ -11967,7 +12210,7 @@ document.getElementById('print-close-btn').addEventListener('click',function(){
 document.getElementById('print-go-btn').addEventListener('click',function(){
   // Swap preview image with full-res before printing
   toast('Preparing full resolution…','',0);
-  exportToBlob(0,'image/jpeg',0.95,function(blob){
+  exportToBlob(0,'image/png',1.0,function(blob){
     if(!blob){ window.print(); return; } // fall back to whatever is displayed
     var img=document.getElementById('print-img');
     var oldSrc=img.src;
@@ -12151,6 +12394,7 @@ function hideHint(){ panHint.classList.remove('show'); }
 
     // Reset all annotation state (same as afterLoad)
     pdfDoc = null; pgGrp(false);
+    _vectorBackdropOK=false; _pdfBytes=null;  // blank/drawn base, no PDF source
     resize(px.w, px.h);
 
     // Fill the base canvas with chosen background
