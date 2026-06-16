@@ -10751,13 +10751,73 @@ function renderImgOverlays(){
   });
 }
 
+// Turn on the browser's best-quality resampling. Default is 'low' (a single
+// bilinear pass) which smears text/fine detail badly when an image is shrunk
+// way down — this is the cause of the blurry overlay reports.
+function _imgSmooth(ctx){
+  try{ ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; }catch(e){}
+}
+
+// Even with quality:'high', a single drawImage from a huge source to a tiny box
+// only samples a fraction of the source pixels, so text still smears. Acrobat
+// avoids this by downsampling in steps. We do the same: progressively halve the
+// source down to ~2× the on-screen target, cache the result on the overlay, and
+// draw THAT. The cache is keyed on source + target size, so it rebuilds only
+// when the displayed size actually changes (not every frame).
+function _imgScaledSource(ov, targetW, targetH){
+  var src = ov.img;
+  if(!src) return src;
+  var sw = src.naturalWidth || src.width, sh = src.naturalHeight || src.height;
+  if(!sw || !sh) return src;
+  targetW = Math.max(1, Math.round(targetW));
+  targetH = Math.max(1, Math.round(targetH));
+  // Only worth it when shrinking a lot (source ≥ 2× target on an axis).
+  if(sw <= targetW*2 && sh <= targetH*2) return src;
+
+  var c = ov._scaledCache;
+  if(c && c._sw===sw && c._sh===sh && c._tw===targetW && c._th===targetH) return c;
+
+  try{
+    var cur = document.createElement('canvas');
+    cur.width=sw; cur.height=sh;
+    var cctx=cur.getContext('2d'); _imgSmooth(cctx);
+    cctx.drawImage(src,0,0,sw,sh);
+    var cw=sw, ch=sh;
+    while(cw>targetW*2 || ch>targetH*2){
+      var nw=Math.max(targetW, Math.floor(cw/2));
+      var nh=Math.max(targetH, Math.floor(ch/2));
+      var nx=document.createElement('canvas'); nx.width=nw; nx.height=nh;
+      var nctx=nx.getContext('2d'); _imgSmooth(nctx);
+      nctx.drawImage(cur,0,0,cw,ch,0,0,nw,nh);
+      cur=nx; cw=nw; ch=nh;
+    }
+    cur._sw=sw; cur._sh=sh; cur._tw=targetW; cur._th=targetH;
+    ov._scaledCache=cur;
+    return cur;
+  }catch(e){ return src; }
+}
+
 function _drawImgOv(ctx, ov){
   ctx.save();
+  _imgSmooth(ctx);
   ctx.globalAlpha = ov.opacity!==undefined ? ov.opacity : 1;
   ctx.translate(ov.cx, ov.cy);
   ctx.rotate(ov.angle||0);
   ctx.scale(ov.flipH?-1:1, ov.flipV?-1:1);
-  ctx.drawImage(ov.img, -ov.w/2, -ov.h/2, ov.w, ov.h);
+  // Figure out how many device pixels this image actually occupies (the ctx
+  // transform already carries the eff/zoom scale) so we can pre-downsample to it.
+  var src = ov.img;
+  // Skip the heavy step-down resample WHILE actively dragging this image — keep
+  // drags smooth with single-pass high quality; the crisp cache builds on release.
+  var dragging = (typeof selImgDrag!=='undefined' && selImgDrag && typeof selImg!=='undefined' && selImg===ov);
+  if(!dragging && ctx.getTransform){
+    try{
+      var m = ctx.getTransform();
+      var sx = Math.hypot(m.a, m.b) || 1, sy = Math.hypot(m.c, m.d) || 1;
+      src = _imgScaledSource(ov, ov.w*sx, ov.h*sy);
+    }catch(e){ src = ov.img; }
+  }
+  ctx.drawImage(src, -ov.w/2, -ov.h/2, ov.w, ov.h);
   ctx.restore();
 }
 
@@ -11102,8 +11162,8 @@ function handleImgPointerMove(e, sp){
     selImg.angle = _ia;
 
   } else {
-    // Resize: the fixed corner stays put; the dragged corner follows the cursor.
-    // Work entirely in rotated local space so axis-aligned resize is clean.
+    // Resize: the fixed corner/edge stays put; the dragged handle follows the
+    // cursor. Work entirely in rotated local space so axis-aligned resize is clean.
     var a = -(d.angle);
     var cos = Math.cos(a), sin = Math.sin(a);
 
@@ -11111,29 +11171,49 @@ function handleImgPointerMove(e, sp){
     var dcx = sp.x - d.cx, dcy = sp.y - d.cy;
     var cursorLocal = { x: dcx*cos - dcy*sin, y: dcx*sin + dcy*cos };
 
-    // Fixed corner in local space — always stays at d.fixedLocalX/Y
+    // Fixed corner/edge in local space — always stays at d.fixedLocalX/Y
     var fx = d.fixedLocalX, fy = d.fixedLocalY;
 
-    // New size = distance from fixed corner to cursor, per axis
-    var rawW = cursorLocal.x - fx;  // signed
-    var rawH = cursorLocal.y - fy;  // signed
+    // Signed spans from the fixed point to the cursor
+    var spanW = cursorLocal.x - fx;
+    var spanH = cursorLocal.y - fy;
 
-    // Edge handles: lock the perpendicular axis
-    if(hi===1||hi===5){ rawW = d.perpW===null ? (cursorLocal.x - fx) : (d.perpW * (fx<0?-1:1)); }
-    if(hi===3||hi===7){ rawH = d.perpH===null ? (cursorLocal.y - fy) : (d.perpH * (fy<0?-1:1)); }
+    var isVEdge = (hi===1 || hi===5); // top/bottom centre → only HEIGHT changes
+    var isHEdge = (hi===3 || hi===7); // left/right middle → only WIDTH changes
 
-    // For TC/BC only resize height
-    if(hi===1||hi===5){ rawW = d.w; }
-    // For MR/ML only resize width
-    if(hi===3||hi===7){ rawH = d.h; }
+    var newW, newH, newCx_local, newCy_local;
 
-    // Minimum size 20px
-    var newW = Math.max(20, Math.abs(rawW));
-    var newH = Math.max(20, Math.abs(rawH));
-
-    // New centre in local space = midpoint between fixed corner and cursor
-    var newCx_local = fx + (rawW)/2;
-    var newCy_local = fy + (rawH)/2;
+    if(isVEdge){
+      // Width is locked; the locked axis stays centred on the fixed point (fx=0),
+      // so the image must NOT shift sideways.
+      newW = d.w;
+      newH = Math.max(20, Math.abs(spanH));
+      newCx_local = fx;                 // = 0 → no horizontal drift
+      newCy_local = fy + spanH/2;
+    } else if(isHEdge){
+      // Height is locked; keep vertical position fixed → no vertical drift.
+      newH = d.h;
+      newW = Math.max(20, Math.abs(spanW));
+      newCx_local = fx + spanW/2;
+      newCy_local = fy;                 // = 0 → no vertical drift
+    } else {
+      // Corner — keep the image's aspect ratio locked so it stays "squared"
+      // (proportional) as you drag up/down/diagonally. Scale uniformly off
+      // whichever axis the cursor has moved farther on, anchored at the
+      // opposite corner.
+      var ar = (d.h !== 0) ? (d.w / d.h) : 1;
+      var sW = Math.abs(spanW), sH = Math.abs(spanH);
+      var scale = (sW / d.w > sH / d.h) ? (sW / d.w) : (sH / d.h);
+      var minScale = Math.max(20 / d.w, 20 / d.h);
+      if(scale < minScale) scale = minScale;
+      newW = d.w * scale;
+      newH = d.h * scale;
+      // Grow toward the cursor's quadrant relative to the fixed corner.
+      var sgnX = spanW < 0 ? -1 : 1;
+      var sgnY = spanH < 0 ? -1 : 1;
+      newCx_local = fx + sgnX * newW/2;
+      newCy_local = fy + sgnY * newH/2;
+    }
 
     // Convert new centre back to canvas space using original rotation
     var cosA = Math.cos(d.angle), sinA = Math.sin(d.angle);
@@ -11150,6 +11230,9 @@ function handleImgPointerMove(e, sp){
 function handleImgPointerUp(){
   if(!selImg||!selImgDrag) return false;
   selImgDrag=null; selImgHandle=-1;
+  // Drag is over — re-render so the high-quality step-down cache (skipped during
+  // the drag for smoothness) rebuilds at the final size and the image looks crisp.
+  renderImgOverlays(); renderImgSelection();
   pushImgUndo();
   return true;
 }
@@ -11496,11 +11579,16 @@ _imgFileInput.addEventListener('change',function(){
     imgOverlays.forEach(function(ov){
       var L=layers[ov.layerIdx]; if(L && !L.visible) return; // skip hidden-layer images
       bCtx.save();
+      _imgSmooth(bCtx);
       bCtx.globalAlpha=ov.opacity!==undefined?ov.opacity:1;
       bCtx.translate(ov.cx,ov.cy);
       bCtx.rotate(ov.angle||0);
       bCtx.scale(ov.flipH?-1:1,ov.flipV?-1:1);
-      try{ bCtx.drawImage(ov.img,-ov.w/2,-ov.h/2,ov.w,ov.h); }catch(e){}
+      // Pre-downsample huge sources to the box size so burned-in images stay sharp.
+      var _src=_imgScaledSource(ov, ov.w, ov.h);
+      try{ bCtx.drawImage(_src,-ov.w/2,-ov.h/2,ov.w,ov.h); }catch(e){
+        try{ bCtx.drawImage(ov.img,-ov.w/2,-ov.h/2,ov.w,ov.h); }catch(e2){}
+      }
       bCtx.restore();
     });
 
