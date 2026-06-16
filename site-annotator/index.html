@@ -125,14 +125,11 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .leg-name{font-size:11px;color:var(--txt2)}
 /* VIEWPORT */
 #viewport{flex:1;overflow:hidden;position:relative;cursor:default;background:var(--bg);contain:layout;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-#scene{position:absolute;top:0;left:0;transform-origin:0 0}
-#scene.zooming{will-change:transform}
+#scene{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
 #canvas-wrap{position:relative;display:none;border-radius:3px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,.7)}
 #base-cv{display:block}
 #draw-cv{position:absolute;top:0;left:0;display:block;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-#grid-cv{position:absolute;top:0;left:0;width:100%;height:100%;display:none;pointer-events:none;opacity:.35;
-  background-image:linear-gradient(to right,#88aaff 0.5px,transparent 0.5px),linear-gradient(to bottom,#88aaff 0.5px,transparent 0.5px);
-  background-size:50px 50px;background-position:0 0}
+#grid-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;opacity:.35}
 /* DROP ZONE */
 #drop-zone{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--txt2);pointer-events:none}
 #drop-zone.hidden{display:none}
@@ -690,9 +687,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 </style>
 </head>
 <body>
-<!-- ══ DEBUG OVERLAY (toggle with the 🐞 button) ══════════════ -->
-<div id="dbg-panel" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,.86);color:#0f0;font:10px/1.35 'Share Tech Mono',monospace;padding:6px 8px;white-space:pre-wrap;pointer-events:none;max-height:55vh;overflow:hidden;-webkit-user-select:text;user-select:text;border-bottom:1px solid #0a0"></div>
-<button id="dbg-btn" style="position:fixed;bottom:8px;left:8px;z-index:100000;background:#111;color:#0f0;border:1px solid #0a0;border-radius:6px;width:34px;height:34px;font-size:15px;cursor:pointer;opacity:.6" title="Toggle debug overlay">🐞</button>
 
 <!-- ACTION BAR — matches spec viewer style -->
 <nav id="aog-nav">
@@ -1178,7 +1172,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
         <canvas id="shapes-cv"></canvas>
         <canvas id="txt-cv"></canvas>
         <canvas id="sel-cv"></canvas>
-        <div id="grid-cv"></div>
+        <canvas id="grid-cv"></canvas>
         <!-- Watermark overlay -->
         <div id="wm-canvas">
           <div class="wm-name" id="wm-name-el"></div>
@@ -1695,7 +1689,7 @@ var IS_IOS    = IS_IPHONE || IS_IPAD;
 // iPad gets 10000px cap.
 // iPad canvas capped at 10000px — prevents multi-layer snapshots from
 // filling Safari's memory and crashing on reload.
-var IOS_MAX_PX = IS_IPHONE ? 3500 : (IS_IPAD ? 10000 : 25000);
+var IOS_MAX_PX = IS_IPHONE ? 2900 : (IS_IPAD ? 10000 : 25000);
 // iPad undo kept at 5 — each snapshot is ~50MB+ per layer at full res.
 var MAX_UNDO   = IS_IPHONE ? 5 : (IS_IPAD ? 5 : 20);
 
@@ -1766,47 +1760,12 @@ var togSnap=document.getElementById('tog-snap');
 var legendList=document.getElementById('legend-list');
 var bCtx=baseCv.getContext('2d');
 var dCtx=drawCv.getContext('2d');
-/* grid-cv is now a CSS-tiled div, not a canvas — no 2D context */
+var gCtx=gridCv.getContext('2d');
 var selCv=document.getElementById('sel-cv');
 var selCtx=selCv.getContext('2d');
 var tCv=document.getElementById('txt-cv');
 var tCtx=tCv.getContext('2d');
 var shCv=document.getElementById('shapes-cv');
-
-// ── GPU compositing optimization ───────────────────────────────
-// The scene stacks 6 full-size canvases; iOS composites EVERY visible one on
-// each transform (pan or zoom). Empty annotation/image canvases (often 35MB
-// each) waste that work and are the real cause of fast pan/zoom crashes. Hide
-// any layer that currently has nothing drawn on it via display:none so the GPU
-// skips it; show it again the moment it has content. Called after renders and
-// from composite(). Cheap: just checks whether the source object arrays/overlays
-// are non-empty rather than scanning pixels.
-function _layerHasContent(which){
-  try{
-    if(which==='shapes'){
-      return (typeof shapeObjs!=='undefined'&&shapeObjs.length) ||
-             (typeof measureObjs!=='undefined'&&measureObjs.length) ||
-             (typeof pathMeasureObjs!=='undefined'&&pathMeasureObjs.length) ||
-             (typeof polylineObjs!=='undefined'&&polylineObjs.length) ||
-             (typeof penObjs!=='undefined'&&penObjs.length) ||
-             (typeof polygonObjs!=='undefined'&&polygonObjs.length) ||
-             (typeof leaderObjs!=='undefined'&&leaderObjs.length) ||
-             (typeof stampObjs!=='undefined'&&stampObjs.length) ||
-             (typeof markupObjs!=='undefined'&&markupObjs.length) ||
-             (typeof commentObjs!=='undefined'&&commentObjs.length);
-    }
-    if(which==='text'){ return (typeof textObjs!=='undefined'&&textObjs.length); }
-    if(which==='img'){  return (typeof imgOverlays!=='undefined'&&imgOverlays.length); }
-  }catch(e){ return true; }   // on any doubt, keep it visible (safe)
-  return true;
-}
-function _updateLayerVisibility(){
-  try{
-    if(typeof shCv!=='undefined') shCv.style.display = _layerHasContent('shapes') ? '' : 'none';
-    if(typeof tCv!=='undefined')  tCv.style.display  = _layerHasContent('text')   ? '' : 'none';
-    if(typeof imgCv!=='undefined')imgCv.style.display = _layerHasContent('img')    ? '' : 'none';
-  }catch(e){}
-}
 var shCtx=shCv.getContext('2d');
 
 // ── Accurate text width using real canvas measurement ────────────
@@ -2488,18 +2447,17 @@ var _isDesktopGesture=function(){ return !IS_IOS && navigator.maxTouchPoints===0
 document.addEventListener('gesturestart',  function(e){
   e.preventDefault(); e.stopPropagation();
   _gestZoom0 = _isDesktopGesture() ? zoom : null;
-  if(_gestZoom0!==null && !_fullyVisible()) scene.classList.add('zooming');
 },{passive:false});
 document.addEventListener('gesturechange', function(e){
   e.preventDefault(); e.stopPropagation();
   if(_gestZoom0!==null && typeof e.scale==='number' && e.scale>0 && typeof zoomAt==='function'){
     var r=viewport.getBoundingClientRect();
-    var target=Math.max(minZoom(),Math.min(maxZoom(),_gestZoom0*e.scale));
+    var target=Math.max(0.05,Math.min(12,_gestZoom0*e.scale));
     var f=target/zoom;
     if(f && isFinite(f) && Math.abs(f-1)>0.001) zoomAt(f, e.clientX-r.left, e.clientY-r.top);
   }
 },{passive:false});
-document.addEventListener('gestureend',    function(e){ e.preventDefault(); e.stopPropagation(); _gestZoom0=null; scene.classList.remove('zooming'); if(_annoDeferred && typeof _setAnnoRes==='function'){ _annoDeferred=false; _setAnnoRes(true); } },{passive:false});
+document.addEventListener('gestureend',    function(e){ e.preventDefault(); e.stopPropagation(); _gestZoom0=null; },{passive:false});
 
 // Block touchmove everywhere EXCEPT designated scrollable zones.
 // Allowed: .panel-body (layer/props panels), #tb (toolbar horizontal scroll), #sb (subbar)
@@ -2618,48 +2576,24 @@ var hintTimer;
 function makeLayer(name, col){
   var c=document.createElement('canvas');
   c.width=baseCv.width||1; c.height=baseCv.height||1;
-  return {name:name, color:col, visible:true, canvas:c, ctx:c.getContext('2d'), _alloc:true};
+  return {name:name, color:col, visible:true, canvas:c, ctx:c.getContext('2d')};
 }
 
 function initLayers(w,h){
   // Release old layer canvases before reinitialising to free Safari GPU memory
   if(layers.length) layers.forEach(function(l){ releaseCanvas(l.canvas); });
-  // Single default drawing layer. (Previously five category layers —
-  // Structures/Boundaries/Services/Vegetation/Notes — which sat allocated at
-  // full resolution and cost ~112MB of dead canvas memory on load, the main
-  // iOS Safari crash trigger. A site plan only needs one layer; more can be
-  // added on demand via the Layers panel.)
   var defs=[
-    {name:'Drawing',color:'#ef4444'}
+    {name:'Layer 1',color:'#ef4444'}
   ];
   layers=[];
   defs.forEach(function(d){
-    // Allocate the backing canvas LAZILY: start at 1x1 (a few bytes) and only
-    // grow to full size when the layer is actually drawn on (ensureLayer()).
     var c=document.createElement('canvas');
-    c.width=1; c.height=1;
-    layers.push({name:d.name,color:d.color,visible:true,canvas:c,ctx:c.getContext('2d'),_alloc:false});
+    c.width=w; c.height=h;
+    layers.push({name:d.name,color:d.color,visible:true,canvas:c,ctx:c.getContext('2d')});
   });
   activeLayerIdx=0;
   renderLayers();
 }
-
-// Grow a layer's backing store to full canvas size on first real use.
-function ensureLayer(l){
-  if(!l) return l;
-  var w=baseCv.width||1, h=baseCv.height||1;
-  if(!l._alloc || l.canvas.width!==w || l.canvas.height!==h){
-    // preserve anything already drawn (e.g. after a resize)
-    var had = l._alloc && l.canvas.width>1;
-    var tmp=null;
-    if(had){ tmp=document.createElement('canvas'); tmp.width=l.canvas.width; tmp.height=l.canvas.height; try{ tmp.getContext('2d').drawImage(l.canvas,0,0); }catch(ex){} }
-    l.canvas.width=w; l.canvas.height=h;
-    if(tmp){ try{ l.ctx.drawImage(tmp,0,0); }catch(ex){} releaseCanvas(tmp); }
-    l._alloc=true;
-  }
-  return l;
-}
-function ensureActiveLayer(){ return ensureLayer(layers[activeLayerIdx]); }
 
 function resizeLayers(w,h){
   layers.forEach(function(l){
@@ -2673,7 +2607,7 @@ function resizeLayers(w,h){
 
 function composite(){
   dCtx.clearRect(0,0,drawCv.width,drawCv.height);
-  layers.forEach(function(l){ if(l.visible && l._alloc) dCtx.drawImage(l.canvas,0,0); });
+  layers.forEach(function(l){ if(l.visible) dCtx.drawImage(l.canvas,0,0); });
   // shapes-cv and txt-cv render on their own canvases above draw-cv — no need to blit here
   // (they are separate absolutely-positioned canvases in the DOM)
 }
@@ -2697,7 +2631,7 @@ function scheduleShapeRender(extra){
   });
 }
 
-function lctx(){ ensureActiveLayer(); return layers[activeLayerIdx].ctx; }
+function lctx(){ return layers[activeLayerIdx].ctx; }
 
 // ── PRE-OPERATION SNAPSHOT ──────────────────────────────────
 // captureState() is called BEFORE any operation changes state.
@@ -2719,7 +2653,7 @@ function captureState(includePixels){
     // because the browser demotes a repeatedly-read canvas to software backing,
     // which makes later readbacks cheap.)
     var snaps = includePixels ? layers.map(function(l){
-      if(!l._alloc||!l.canvas.width||!l.canvas.height) return null;
+      if(!l.canvas.width||!l.canvas.height) return null;
       return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
     }) : null;
     _preOp={
@@ -2749,7 +2683,7 @@ function pushUndo(){
       try{
         snap={
           layerData: layers.map(function(l){
-            if(!l._alloc||!l.canvas.width||!l.canvas.height) return null;
+            if(!l.canvas.width||!l.canvas.height) return null;
             return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
           }),
           activeIdx:  activeLayerIdx,
@@ -2794,7 +2728,7 @@ function applySnap(snap){
 function _snapCurrentState(){
   return {
     layerData: layers.map(function(l){
-      if(!l._alloc||!l.canvas.width||!l.canvas.height) return null;
+      if(!l.canvas.width||!l.canvas.height) return null;
       try{ return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height); }catch(ex){ return null; }
     }),
     activeIdx:  activeLayerIdx,
@@ -2970,59 +2904,6 @@ function updateLegend(){
 // ── ZOOM/PAN ──
 function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
 
-// True when the whole canvas fits within (or is smaller than) the viewport —
-// i.e. zoomed out to the "fit" band or below. At those zooms every layer is
-// fully on screen, so GPU layer-promotion just pins large full-surface textures
-// instead of helping; we skip promotion there to avoid the fast-scrub spike.
-function _fullyVisible(){
-  var dispW=baseCv.width*zoom, dispH=baseCv.height*zoom;
-  return dispW <= viewport.clientWidth*1.05 && dispH <= viewport.clientHeight*1.05;
-}
-
-// rAF-throttled transform: during a fast pinch, touchmove can fire many times
-// per frame. Each synchronous applyTransform() forces the GPU to rebuild the
-// composite surface at a new scale, and on a fast gesture those large textures
-// pile up faster than they're released — the "slow=fine, fast=crash" signature.
-// Coalescing to one visual update per animation frame removes the pileup.
-var _xfReq=false;
-var _zoomTarget=null;   // desired zoom set by the gesture; advanced per frame
-var _zoomFocus=null;    // {cx,cy} screen focal point for the zoom
-function applyTransformThrottled(){
-  if(_xfReq) return;
-  _xfReq=true;
-  requestAnimationFrame(function(){
-    _xfReq=false;
-    // If a gesture set a zoom target, advance the ACTUAL zoom toward it by a
-    // bounded amount THIS FRAME. This is the real fast-pinch fix: no matter how
-    // many touch events fired since the last frame, the visible scale can only
-    // change by a capped ratio per repaint, so the GPU never has to composite a
-    // huge sudden scale jump (which crashes at low zoom where the whole canvas
-    // stack is visible).
-    if(_zoomTarget!==null && _zoomFocus){
-      // The 0–0.25x band is fragile: the whole canvas stack is fully visible so
-      // the GPU composites every layer each frame. Move at HALF speed whenever
-      // the CURRENT zoom is in that band (regardless of direction), and resume
-      // full speed once above it. Gating on current zoom (not the target) means
-      // a fast zoom-out only slows down as it ENTERS the band, not the whole way.
-      var _slow = (zoom < 0.25);
-      var _ease    = _slow ? 0.25 : 0.5;       // fraction of remaining gap per frame
-      var maxRatio = _slow ? 1.11 : 1.22;      // ≤11% (slow) vs ≤22% (fast) per frame
-      var nz=zoom + (_zoomTarget-zoom)*_ease;  // ease toward target
-      if(nz/zoom > maxRatio) nz=zoom*maxRatio;
-      if(zoom/nz > maxRatio) nz=zoom/maxRatio;
-      var cx=_zoomFocus.cx, cy=_zoomFocus.cy;
-      var ratio=nz/zoom;
-      panX=cx-ratio*(cx-panX); panY=cy-ratio*(cy-panY); zoom=nz;
-      clampPan();
-      // settled close enough → stop advancing
-      if(Math.abs(_zoomTarget-zoom) < 0.002){ _zoomTarget=null; }
-    }
-    applyTransform();
-    // keep advancing while a target remains (fingers may have stopped moving)
-    if(_zoomTarget!==null) applyTransformThrottled();
-  });
-}
-
 function clampPan(){
   var vw=viewport.clientWidth,vh=viewport.clientHeight;
   var cw=baseCv.width*zoom,ch=baseCv.height*zoom;
@@ -3030,35 +2911,19 @@ function clampPan(){
   panY=Math.max(Math.min(80-ch,0),Math.min(Math.max(vh-80,0),panY));
 }
 
-function minZoom(){ return 0.05; }
-
 function fitToVP(){
   var vw=viewport.clientWidth-48,vh=viewport.clientHeight-48;
   var cw=baseCv.width,ch=baseCv.height; if(!cw||!ch) return;
-  zoom=Math.max(minZoom(),Math.min(1,vw/cw,vh/ch));
+  zoom=Math.max(0.05,Math.min(1,vw/cw,vh/ch));
   panX=Math.round((viewport.clientWidth-cw*zoom)/2);
   panY=Math.round((viewport.clientHeight-ch*zoom)/2);
   applyTransform();
 }
 
-// Maximum zoom is bounded by the GPU composite surface it produces. The CSS
-// transform scales the WHOLE base canvas, and that surface = (w*zoom)*(h*zoom)*4
-// bytes. On iPhone, surfaces past ~360MB risk an iOS Safari GPU kill (this is
-// what the debug overlay's "GPU composite est" line revealed). So derive the
-// zoom ceiling from a fixed surface budget, and never exceed a hard 4x/6x cap.
-function maxZoom(){
-  var w=baseCv.width||1, h=baseCv.height||1;
-  var budget = IS_IPHONE ? 300e6 : (IS_IPAD ? 700e6 : 1600e6); // bytes of GPU surface
-  var byBudget = Math.sqrt(budget / (w*h*4));
-  var hardCap  = IS_IPHONE ? 4 : 6;
-  return Math.max(1.5, Math.min(hardCap, byBudget));
-}
-
 function zoomAt(f,cx,cy){
-  var nz=Math.max(minZoom(),Math.min(maxZoom(),zoom*f));
+  var nz=Math.max(0.05,Math.min(12,zoom*f));
   var r=nz/zoom; panX=cx-r*(cx-panX); panY=cy-r*(cy-panY); zoom=nz;
-  clampPan();
-  if(_gestZoom0!==null) applyTransformThrottled(); else applyTransform();
+  clampPan(); applyTransform();
 }
 
 btnZi.addEventListener('click',function(){ zoomAt(1.25,viewport.clientWidth/2,viewport.clientHeight/2); });
@@ -3091,7 +2956,7 @@ viewport.addEventListener('wheel',function(e){
 },{passive:false});
 
 function startPan(x,y){ isPanning=true; lastPanX=x; lastPanY=y; }
-function movePan(x,y){ if(!isPanning) return; panX+=x-lastPanX; panY+=y-lastPanY; lastPanX=x; lastPanY=y; clampPan(); applyTransformThrottled(); }
+function movePan(x,y){ if(!isPanning) return; panX+=x-lastPanX; panY+=y-lastPanY; lastPanX=x; lastPanY=y; clampPan(); applyTransform(); }
 function endPan(){ isPanning=false; }
 
 viewport.addEventListener('mousedown',function(e){ if(spaceDown||tool==='pan'){ e.preventDefault(); startPan(e.clientX,e.clientY); viewport.style.cursor='grabbing'; } else if(e.button===1){ e.preventDefault(); startPan(e.clientX,e.clientY); } });
@@ -3111,7 +2976,7 @@ document.addEventListener('touchstart',function(e){
     } else {
       _t3Active=false; _t4Active=false;
     }
-    if(!pinching){ if(drawing){drawing=false;if(compositedSnap){dCtx.putImageData(compositedSnap,0,0);}dCtx.beginPath();try{lctx().beginPath();}catch(ex){}} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; if(!_fullyVisible()) scene.classList.add('zooming'); if(window.__dbgLog) window.__dbgLog('PINCH START @zoom '+zoom.toFixed(3)+' base '+baseCv.width+'x'+baseCv.height); }
+    if(!pinching){ if(drawing){drawing=false;if(compositedSnap){dCtx.putImageData(compositedSnap,0,0);}dCtx.beginPath();try{lctx().beginPath();}catch(ex){}} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; }
   } else {
     _t3Active=false; _t4Active=false;
   }
@@ -3126,41 +2991,18 @@ document.addEventListener('touchmove',function(e){
     panX+=(midX-twoMidX)*PAN_DAMP; panY+=(midY-twoMidY)*PAN_DAMP;
     var r=viewport.getBoundingClientRect();
     var cx=midX-r.left,cy=midY-r.top;
-    var tz=Math.max(minZoom(),Math.min(maxZoom(),pinchZoom0*(dist/pinchDist0)));
-    // Store the TARGET zoom; the actual applied zoom is advanced toward it once
-    // per animation frame (in applyTransformThrottled), clamped per FRAME. Doing
-    // the clamp per touch-event was useless because many events fire per frame —
-    // zoom could still leap before a single repaint, spiking the GPU composite.
-    _zoomTarget = tz;
-    _zoomFocus = {cx:cx, cy:cy};
+    var tz=Math.max(0.05,Math.min(12,pinchZoom0*(dist/pinchDist0)));
+    var nz=zoom+(tz-zoom)*ZOOM_DAMP;
+    var ratio=nz/zoom; panX=cx-ratio*(cx-panX); panY=cy-ratio*(cy-panY); zoom=nz;
     twoMidX=midX; twoMidY=midY;
-    applyTransformThrottled();
+    clampPan(); applyTransform();
   } else if(isPanning&&e.touches.length===1){
     movePan(e.touches[0].clientX,e.touches[0].clientY);
   }
 },{passive:false});
 
 document.addEventListener('touchend',function(e){
-  if(e.touches.length<2){
-    var wasPinching=pinching;
-    pinching=false;
-    scene.classList.remove('zooming');
-    // Settle to the final zoom target (we were advancing toward it per-frame).
-    if(wasPinching && _zoomTarget!==null && _zoomFocus){
-      var ratio=_zoomTarget/zoom;
-      panX=_zoomFocus.cx-ratio*(_zoomFocus.cx-panX);
-      panY=_zoomFocus.cy-ratio*(_zoomFocus.cy-panY);
-      zoom=_zoomTarget;
-    }
-    _zoomTarget=null; _zoomFocus=null;
-    // Pinch just ended — do the single re-rasterization we deferred during it,
-    // so text/shapes return to crisp resolution at the final zoom level.
-    if(wasPinching && _annoDeferred && typeof _setAnnoRes==='function'){
-      _annoDeferred=false; _setAnnoRes(true);
-      if(window.__dbgLog) window.__dbgLog('pinch end → reraster @zoom '+zoom.toFixed(2));
-    }
-    if(wasPinching){ clampPan(); applyTransform(); }  // final crisp frame at settled zoom
-  }
+  if(e.touches.length<2) pinching=false;
   if(e.touches.length===0){
     endPan();
     // Fire undo/redo when all fingers lift
@@ -3215,49 +3057,24 @@ if(camBtn){
   if('ontouchstart' in window || navigator.maxTouchPoints > 0){
     camBtn.style.display='flex';
   }
-  camBtn.addEventListener('click', function(){ window.__dbgNextSource='camera'; cameraIn.click(); });
+  camBtn.addEventListener('click', function(){ cameraIn.click(); });
   cameraIn.addEventListener('change', function(e){
     var f=e.target.files[0]; if(f) loadFile(f); e.target.value='';
   });
 }
-fileIn.addEventListener('change',function(e){ window.__dbgNextSource='roll/file'; var f=e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
+fileIn.addEventListener('change',function(e){ var f=e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
 viewport.addEventListener('dragover',function(e){ e.preventDefault(); viewport.style.outline='2px dashed #6c63ff'; });
 viewport.addEventListener('dragleave',function(){ viewport.style.outline=''; });
-viewport.addEventListener('drop',function(e){ e.preventDefault(); viewport.style.outline=''; window.__dbgNextSource='drop'; var f=e.dataTransfer.files[0]; if(f) loadFile(f); });
-
-// ── Debug: record details about the file being loaded ──────────
-window.__dbgFile = null;
-function _dbgFileInit(f, route){
-  try{
-    window.__dbgFile = {
-      name: f.name||'(no name)',
-      type: f.type||'(empty type)',
-      size: f.size||0,
-      route: route,            // 'image' | 'pdf'
-      source: window.__dbgNextSource||'?',  // 'camera' | 'roll/file' | 'drop'
-      stage: 'received',
-      heic: null,              // null=unknown, true/false after sniff
-      converted: false,        // true if HEIC→JPEG ran
-      nativeW: 0, nativeH: 0,   // decoded source dimensions
-      drawnW: 0, drawnH: 0,     // final canvas dimensions
-      capUsed: 0,              // which resolution cap actually applied
-      outcome: '',             // 'ok' | 'failed' | 'error: ...'
-      tStart: Date.now()
-    };
-    window.__dbgNextSource = null;
-  }catch(e){}
-}
-function _dbgFileSet(k, v){ try{ if(window.__dbgFile) window.__dbgFile[k]=v; }catch(e){} }
+viewport.addEventListener('drop',function(e){ e.preventDefault(); viewport.style.outline=''; var f=e.dataTransfer.files[0]; if(f) loadFile(f); });
 
 function loadFile(f){
   var name=(f.name||'').toLowerCase();
   var type=(f.type||'').toLowerCase();
-  if(type==='application/pdf'||name.endsWith('.pdf')){ _dbgFileInit(f,'pdf'); loadPDF(f); return; }
+  if(type==='application/pdf'||name.endsWith('.pdf')){ loadPDF(f); return; }
   // All image types — HEIC detection happens AFTER load via pixel check
   if(type.startsWith('image/')||
      name.match(/\.(png|jpg|jpeg|gif|webp|bmp|tiff?|svg|svgz|heic|heif)$/)||
      f.size<50*1024*1024){
-    _dbgFileInit(f,'image');
     loadImageBlob(f); return;
   }
   toast('Unsupported file type: '+(type||name.split('.').pop()),'warn');
@@ -3333,74 +3150,6 @@ function isCanvasBlank(ctx, w, h){
 // ── Core image loader ────────────────────────────────────────
 function loadImageBlob(blob, _retried){
   var name=(blob.name||'').toLowerCase();
-  var type=(blob.type||'').toLowerCase();
-  // ── HEIC/HEIF: convert to JPEG BEFORE drawing ──────────────────
-  // Photos taken with the in-app camera (capture="environment") arrive as HEIC.
-  // Safari can sometimes show HEIC in an <img> but fails to read its pixels into
-  // a <canvas> — drawImage yields a canvas that LOOKS sized right but holds
-  // broken/GPU-backed data. That corrupt canvas survives load and only detonates
-  // later when a transform:scale() composite forces a full rasterization — which
-  // is exactly why "from camera roll" (JPEG) works but "from camera" (HEIC)
-  // crashes on zoom. So we transcode HEIC up front, not as an after-the-fact
-  // fallback. (Roll images are usually JPEG already and skip this path.)
-  var looksHEIC = type.indexOf('heic')>=0 || type.indexOf('heif')>=0 ||
-                  name.endsWith('.heic') || name.endsWith('.heif');
-  // Camera-capture blobs frequently have an EMPTY or misleading type/name, so
-  // also sniff the file signature: ISO-BMFF 'ftyp' box with a HEIC/HEIF brand.
-  if(!looksHEIC && !_retried && (!type || type==='application/octet-stream' || type==='image/jpeg')){
-    _sniffHEIC(blob, function(isHeic){
-      if(isHeic){
-        _dbgFileSet('heic', true); _dbgFileSet('stage','sniffed HEIC → converting');
-        if(window.__dbgLog) window.__dbgLog('HEIC sniffed from bytes → converting');
-        convertHEIC(blob, function(err, jpegBlob){
-          _dbgFileSet('converted', !!(jpegBlob&&jpegBlob!==blob));
-          loadImageBlob((jpegBlob&&jpegBlob!==blob)?jpegBlob:blob, true);
-        });
-      } else {
-        _dbgFileSet('heic', false); _dbgFileSet('stage','not HEIC → drawing');
-        _loadImageBlobDraw(blob, _retried);  // not HEIC, proceed normally
-      }
-    });
-    return;
-  }
-  if(looksHEIC && !_retried){
-    _dbgFileSet('heic', true); _dbgFileSet('stage','HEIC by type/name → converting');
-    if(window.__dbgLog) window.__dbgLog('HEIC detected → converting to JPEG first');
-    convertHEIC(blob, function(err, jpegBlob){
-      _dbgFileSet('converted', !!(jpegBlob&&jpegBlob!==blob));
-      if(jpegBlob && jpegBlob!==blob){ loadImageBlob(jpegBlob, true); }
-      else { loadImageBlob(blob, true); }   // conversion failed — try raw as last resort
-    });
-    return;
-  }
-  _loadImageBlobDraw(blob, _retried);
-}
-
-// Read the first 32 bytes and check for an ISO-BMFF 'ftyp' box whose brand is a
-// HEIC/HEIF variant. Cheap, reliable, works even when MIME type is missing.
-function _sniffHEIC(blob, cb){
-  try{
-    var fr=new FileReader();
-    fr.onload=function(){
-      try{
-        var b=new Uint8Array(fr.result);
-        // bytes 4-7 should spell 'ftyp'
-        var ftyp=(b[4]===0x66&&b[5]===0x74&&b[6]===0x79&&b[7]===0x70);
-        if(!ftyp){ cb(false); return; }
-        // brand at bytes 8-11 (and compatible brands follow)
-        var s='';
-        for(var i=8;i<Math.min(b.length,24);i++){ s+=String.fromCharCode(b[i]); }
-        cb(/heic|heix|hevc|hevx|heif|mif1|msf1/i.test(s));
-      }catch(e){ cb(false); }
-    };
-    fr.onerror=function(){ cb(false); };
-    fr.readAsArrayBuffer(blob.slice(0,32));
-  }catch(e){ cb(false); }
-}
-
-// Original draw path (everything that was in loadImageBlob after the HEIC gate).
-function _loadImageBlobDraw(blob, _retried){
-  var name=(blob.name||'').toLowerCase();
   var url=URL.createObjectURL(blob);
   var img=new Image();
 
@@ -3411,62 +3160,35 @@ function _loadImageBlobDraw(blob, _retried){
       else showImageError(name);
       return;
     }
-    // Adaptive cap: start at the device ceiling, but if the canvas comes back
-    // blank (iOS Safari silently drops drawImage when it runs out of canvas
-    // memory), step the resolution down and retry until it fits. The ladder
-    // ends well below any device's practical ceiling.
-    var caps=[IOS_MAX_PX, 3000, 2600, 2200, 1800];
-    var drewOk=false;
-    for(var ci=0; ci<caps.length; ci++){
-      var cap=caps[ci];
-      var scale=Math.min(1, cap/Math.max(img.naturalWidth,img.naturalHeight));
-      var w=Math.round(img.naturalWidth*scale);
-      var h=Math.round(img.naturalHeight*scale);
-      pdfDoc=null; pgGrp(false);
-      resize(w,h);
-      bCtx.clearRect(0,0,w,h);
-      try{ bCtx.drawImage(img,0,0,w,h); }catch(ex){}
-      if(!isCanvasBlank(bCtx,w,h)){
-        drewOk=true;
-        _dbgFileSet('capUsed', cap); _dbgFileSet('drawnW', w); _dbgFileSet('drawnH', h);
-        if(ci>0) console.warn('[Load] Stepped down to '+cap+'px to fit canvas memory');
-        break;
-      }
-      // blank — but only treat as memory pressure if there IS image data to draw.
-      // A genuinely undecodable image (HEIC-in-img) won't draw at any size, so
-      // bail to the HEIC path rather than spinning down the whole ladder.
-      if(scale===1 && ci===0){ break; }
-    }
+    var scale=Math.min(1,IOS_MAX_PX/Math.max(img.naturalWidth,img.naturalHeight));
+    var w=Math.round(img.naturalWidth*scale);
+    var h=Math.round(img.naturalHeight*scale);
+    pdfDoc=null; pgGrp(false);
+    resize(w,h);
+    bCtx.clearRect(0,0,w,h);
+    bCtx.drawImage(img,0,0,w,h);
     URL.revokeObjectURL(url);
-
-    if(!drewOk){
-      // Couldn't render at any size — likely a decode problem (HEIC), not memory.
-      _dbgFileSet('nativeW', img.naturalWidth); _dbgFileSet('nativeH', img.naturalHeight);
-      _dbgFileSet('outcome','FAILED (blank at all caps)'); _dbgFileSet('stage','decode failed');
-      if(window.__dbgLog) window.__dbgLog('img load FAILED (blank at all caps)');
-      console.warn('[Load] Canvas blank after drawImage — retrying with heic2any');
-      if(!_retried) tryHEICFallback(blob, name);
-      else showImageError(name);
-      return;
-    }
-
     // Set the plan DPI to the SAME device default the PDF loader uses, so text
     // placed on a converted/imported image renders at the correct physical point
     // size instead of the tiny 72-DPI fallback (factor 1.0). Without this,
     // _lastLoadedDpi stayed 0 and every label came out ~half size after a convert.
     _lastLoadedDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
 
+    // ── BLANK CANVAS CHECK ──────────────────────────────────
+    // img.onload fired but canvas is still empty — common with HEIC
+    // on browsers that "support" HEIC in <img> but not in canvas.
+    if(isCanvasBlank(bCtx,w,h)){
+      console.warn('[Load] Canvas blank after drawImage — retrying with heic2any');
+      if(!_retried) tryHEICFallback(blob, name);
+      else showImageError(name);
+      return;
+    }
     // ── SUCCESS ─────────────────────────────────────────────
-    _dbgFileSet('nativeW', img.naturalWidth); _dbgFileSet('nativeH', img.naturalHeight);
-    _dbgFileSet('outcome','ok'); _dbgFileSet('stage','drawn ✓');
-    if(window.__dbgLog) window.__dbgLog('img drawn '+baseCv.width+'x'+baseCv.height+' (native '+img.naturalWidth+'x'+img.naturalHeight+')');
     afterLoad();
   };
 
   img.onerror=function(){
     URL.revokeObjectURL(url);
-    _dbgFileSet('outcome','img decode error'); _dbgFileSet('stage','onerror');
-    if(window.__dbgLog) window.__dbgLog('img onerror — decode failed');
     if(!_retried) tryHEICFallback(blob, name);
     else showImageError(name);
   };
@@ -3541,7 +3263,7 @@ function _loadPDFRasterized(f){
   }).catch(function(err){ toast('PDF error: '+err.message,'err'); URL.revokeObjectURL(url); });
 }
 
-function renderPDFPage(n, _capOverride){
+function renderPDFPage(n){
   pdfDoc.getPage(n).then(function(page){
     var vp1=page.getViewport({scale:1});
     // PDFs are 72 pts/inch at scale:1. Target DPI per device, always capped by IOS_MAX_PX.
@@ -3550,19 +3272,11 @@ function renderPDFPage(n, _capOverride){
     // Desktop:300 DPI (4.17×) — full print quality
     var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
     var dpiScale  = targetDpi / 72;
-    var effCap = _capOverride || IOS_MAX_PX;
-    var sc = Math.min(dpiScale, effCap / Math.max(vp1.width, vp1.height));
+    var sc = Math.min(dpiScale, IOS_MAX_PX / Math.max(vp1.width, vp1.height));
     var vp=page.getViewport({scale:sc});
     var w=Math.round(vp.width),h=Math.round(vp.height);
     resize(w,h);
     page.render({canvasContext:bCtx,viewport:vp}).promise.then(function(){
-      // Verify the render actually landed — iOS Safari can silently drop it
-      // under memory pressure. If blank, step the cap down and retry.
-      if(isCanvasBlank(bCtx,w,h)){
-        var ladder=[3000,2600,2200,1800];
-        var next=ladder.filter(function(c){ return c < effCap; })[0];
-        if(next){ console.warn('[PDF] Blank render — stepping down to '+next+'px'); renderPDFPage(n, next); return; }
-      }
       afterLoad();
       pgInfo.textContent=n+'/'+pdfDoc.numPages;
       btnPrev.disabled=n<=1; btnNext.disabled=n>=pdfDoc.numPages;
@@ -3571,19 +3285,14 @@ function renderPDFPage(n, _capOverride){
       var dpiIn = document.getElementById('dpi-value');
       if(dpiIn) dpiIn.value = actualDpi;
       toast('PDF loaded at '+actualDpi+' DPI · '+w+'×'+h+' px','ok',3000);
-    }).catch(function(){
-      var ladder=[3000,2600,2200,1800];
-      var next=ladder.filter(function(c){ return c < effCap; })[0];
-      if(next){ console.warn('[PDF] Render failed — stepping down to '+next+'px'); renderPDFPage(n, next); }
-      else toast('PDF too large to render on this device','err');
     });
   });
 }
 
 function resize(w,h){
-  baseCv.width=drawCv.width=tCv.width=shCv.width=w;
+  baseCv.width=drawCv.width=gridCv.width=tCv.width=shCv.width=w;
   if(typeof imgCv!=='undefined'){ imgCv.width=w; }
-  baseCv.height=drawCv.height=tCv.height=shCv.height=h;
+  baseCv.height=drawCv.height=gridCv.height=tCv.height=shCv.height=h;
   if(typeof imgCv!=='undefined'){ imgCv.height=h; }
   selCv.width=1; selCv.height=1;
   canvasWrap.style.width=w+'px'; canvasWrap.style.height=h+'px';
@@ -3602,25 +3311,13 @@ function resize(w,h){
 // Both are display-only (never read back) and overlay at w×h via CSS, so this is
 // safe. Capped for mobile canvas-area / memory limits.
 var _annoEff = 0;     // effective scale currently baked into the anno canvases
-var _annoDeferred = false; // true when a re-raster was skipped during a gesture
 function _computeAnnoEff(){
   var w = baseCv.width, h = baseCv.height;
   if(!w || !h) return 1;
   var devicePR = window.devicePixelRatio || 1;
-  // Effective resolution should cover the ON-SCREEN size of the plan, not a
-  // fixed device-pixel floor. When zoomed OUT the plan is tiny on screen, so a
-  // high-res annotation canvas is wasted memory; when zoomed IN we want detail.
-  // Tie eff to (devicePR * zoom) with no floor above 1× of the base — so zoomed
-  // all the way out it sits at 1, and only grows past 1 once zoom*DPR exceeds 1.
-  var eff = devicePR * Math.max(0.0001, zoom);
-  var _ceil = IS_IPHONE ? 1.5 : (IS_IPAD ? 2 : 2.5);    // sharpness ceiling per device
-  // Floor at 1: annotation canvases never render below base resolution, so text
-  // and shapes stay crisp at every zoom level. (An earlier experiment dropped
-  // this below 1 to lighten the "fit" zoom band, but that made labels blurry
-  // when zoomed out — and the real crash there turned out to be HEIC-corrupted
-  // base images, not this, so the floor is back to full sharpness.)
-  eff = Math.max(1, Math.min(eff, _ceil));
-  var _CAP = IS_IPHONE ? 26e6 : 40e6;                    // per-canvas device-px ceiling
+  var eff = Math.max(1, devicePR * Math.max(1, zoom));   // cover device px at zoom
+  eff = Math.min(eff, 3);                                // hard ceiling
+  var _CAP = 12e6;                                       // per-canvas device-px ceiling
   if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
   return Math.round(eff*4)/4;                            // bucket to 0.25 steps
 }
@@ -3635,11 +3332,6 @@ function _sizeAnnoCanvas(cv, ctx, eff){
 function _setAnnoRes(force){
   var w = baseCv.width, h = baseCv.height;
   if(!w || !h) return;
-  // During an active pinch/gesture the CSS transform already scales everything
-  // visually. Re-rasterizing the (large) annotation backing stores on every
-  // animation frame is what spikes GPU memory and crashes high-DPR phones, so
-  // defer it: just flag that a refresh is owed and do it once when fingers lift.
-  if(!force && (pinching || _gestZoom0!==null)){ _annoDeferred=true; return; }
   var eff = _computeAnnoEff();
   // Skip needless re-rasterization (e.g. during pan, where zoom is unchanged).
   if(!force && Math.abs(eff - _annoEff) < 0.2) return;
@@ -3678,26 +3370,10 @@ function afterLoad(){
   pgGrp(!!pdfDoc);
   drawGrid();
   fitToVP();
-  if(typeof _updateLayerVisibility==='function') _updateLayerVisibility();
   toast('File loaded — '+(IS_IPHONE?'iPhone cap applied':'ready to annotate'),'ok',2000);
   clearSave(); scheduleSave(); // start fresh save for this file
-  // Auto-detect scale from title block (non-blocking). This does a heavy
-  // toDataURL encode + network call, which can collide with the GPU work of a
-  // first pinch right after loading (notably after a camera capture, where the
-  // user zooms immediately). So wait longer AND skip while a gesture is active,
-  // retrying once things are idle.
-  _scheduleAutoDetect();
-}
-
-function _scheduleAutoDetect(){
-  setTimeout(function _try(){
-    if(pinching || _gestZoom0!==null || _xfReq){
-      // user is mid-gesture — wait and retry rather than encode/fetch now
-      setTimeout(_try, 600);
-      return;
-    }
-    autoDetectScale();
-  }, 800);
+  // Auto-detect scale from title block (non-blocking)
+  setTimeout(autoDetectScale, 100);
 }
 
 function pgGrp(show){
@@ -3719,18 +3395,17 @@ function rotateCanvas(deg){
   tc.translate(h/2,w/2); tc.rotate(deg*Math.PI/180); tc.drawImage(baseCv,-w/2,-h/2);
   // rotate each layer
   // Save old canvases for release after rotation
-var oldLayerCanvases=layers.map(function(l){ return l._alloc ? l.canvas : null; });
+var oldLayerCanvases=layers.map(function(l){ return l.canvas; });
 var layerTmps=layers.map(function(l){
-    if(!l._alloc) return null;   // unallocated layer stays lazy — nothing to rotate
     var t=document.createElement('canvas'); t.width=h; t.height=w;
     var tc2=t.getContext('2d'); tc2.translate(h/2,w/2); tc2.rotate(deg*Math.PI/180); tc2.drawImage(l.canvas,-w/2,-h/2);
     return t;
   });
   resize(h,w);
   bCtx.drawImage(tmp,0,0);
-  layers.forEach(function(l,i){ if(!l._alloc) return; l.canvas.width=h; l.canvas.height=w; l.ctx.drawImage(layerTmps[i],0,0); });
+  layers.forEach(function(l,i){ l.canvas.width=h; l.canvas.height=w; l.ctx.drawImage(layerTmps[i],0,0); });
   // Release old layer canvases on iOS
-  if(IS_IOS){ oldLayerCanvases.forEach(function(c){ if(c) releaseCanvas(c); }); layerTmps.forEach(function(c){ if(c) releaseCanvas(c); }); }
+  if(IS_IOS){ oldLayerCanvases.forEach(function(c){ releaseCanvas(c); }); layerTmps.forEach(function(c){ releaseCanvas(c); }); }
   // Rotate text object positions to match new canvas orientation
   var rw=baseCv.width, rh=baseCv.height; // after resize these are swapped
   // deg is -90 or 90; transform each text object position
@@ -3765,9 +3440,12 @@ togSnap.addEventListener('click',function(){ snapEnabled=!snapEnabled; togSnap.c
 gridSz.addEventListener('input',function(){ gridSize=parseInt(gridSz.value)||50; if(gridEnabled) drawGrid(); });
 
 function drawGrid(){
-  if(!gridEnabled){ gridCv.style.display='none'; return; }
-  gridCv.style.display='block';
-  gridCv.style.backgroundSize = gridSize+'px '+gridSize+'px';
+  gCtx.clearRect(0,0,gridCv.width,gridCv.height);
+  if(!gridEnabled||!gridCv.width) return;
+  gCtx.strokeStyle='#88aaff';
+  gCtx.lineWidth=0.5;
+  for(var x=0;x<gridCv.width;x+=gridSize){ gCtx.beginPath(); gCtx.moveTo(x,0); gCtx.lineTo(x,gridCv.height); gCtx.stroke(); }
+  for(var y=0;y<gridCv.height;y+=gridSize){ gCtx.beginPath(); gCtx.moveTo(0,y); gCtx.lineTo(gridCv.width,y); gCtx.stroke(); }
 }
 
 // ── DRAWING SETUP ──
@@ -5112,7 +4790,6 @@ function renderShapeAndMeasure(){
   stampObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; drawStampObjOnCtx(shCtx,o,1); });
   // Comment objects (sticky notes)
   renderCommentObjs(shCtx);
-  if(typeof _updateLayerVisibility==='function') _updateLayerVisibility();
 }
 
 // ── Draw helpers for live pen/polygon/leader/stamp ──────────────
@@ -6130,7 +5807,6 @@ function renderTextObjs(){
   });
   // Render markup objects on same canvas
   renderMarkupObjs();
-  if(typeof _updateLayerVisibility==='function') _updateLayerVisibility();
 }
 
 // ── Hit test: find text object at canvas position ────────────
@@ -7809,7 +7485,7 @@ drawCv.addEventListener('touchstart',function(e){
     redrawPolylinePreview(sp.x,sp.y);
     return;
   }
-  if(e.touches.length>=2){ e.preventDefault(); if(drawing){drawing=false;if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; if(!_fullyVisible()) scene.classList.add('zooming'); return; }
+  if(e.touches.length>=2){ e.preventDefault(); if(drawing){drawing=false;if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; return; }
   holdStartTouch(e);
   onDown(e);
 },{passive:false});
@@ -9212,20 +8888,10 @@ function autoDetectScale(){
   var maxPx=1024, sw=baseCv.width, sh=baseCv.height;
   var ts=Math.min(1,maxPx/Math.max(sw,sh));
   var tw=Math.round(sw*ts), th=Math.round(sh*ts);
-  var b64;
-  try{
-    if(window.__dbgLog) window.__dbgLog('autoDetect: encoding '+tw+'x'+th+' thumbnail');
-    var tmp=document.createElement('canvas');
-    tmp.width=tw; tmp.height=th;
-    tmp.getContext('2d').drawImage(baseCv,0,0,sw,sh,0,0,tw,th);
-    b64=tmp.toDataURL('image/jpeg',0.82).split(',')[1];
-    tmp.width=1; tmp.height=1;  // release the thumbnail canvas promptly
-  }catch(ex){
-    if(window.__dbgLog) window.__dbgLog('autoDetect: thumbnail encode FAILED, skipping');
-    if(spinner) spinner.style.display='none';
-    if(hint) hint.textContent='Use DPI calculator or draw a reference line';
-    return;
-  }
+  var tmp=document.createElement('canvas');
+  tmp.width=tw; tmp.height=th;
+  tmp.getContext('2d').drawImage(baseCv,0,0,sw,sh,0,0,tw,th);
+  var b64=tmp.toDataURL('image/jpeg',0.82).split(',')[1];
 
   fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
@@ -9293,7 +8959,7 @@ function compositeExport(maxPx){
   try{ ctx.drawImage(baseCv,0,0,w,h); }catch(e){ console.warn('[Export] base:',e); }
   // Layer canvases
   layers.forEach(function(l){
-    if(!l.visible || !l._alloc) return;
+    if(!l.visible) return;
     try{ ctx.drawImage(l.canvas,0,0,w,h); }catch(e){ console.warn('[Export] layer:',e); }
   });
   // Shape objects (rect/ellipse/cloud — live objects not on layer canvases)
@@ -9953,7 +9619,7 @@ function buildProjectRecord(quality, cb){
         try{
           record.layers.push({
             name:layers[i].name, color:layers[i].color, visible:layers[i].visible,
-            data: layers[i]._alloc ? layers[i].canvas.toDataURL('image/png') : ''
+            data:layers[i].canvas.toDataURL('image/png')
           });
         }catch(ex){
           record.layers.push({name:layers[i].name,color:layers[i].color,visible:layers[i].visible,data:''});
@@ -10033,7 +9699,7 @@ function encodeLayerSequential(i, record){
         name:    layers[i].name,
         color:   layers[i].color,
         visible: layers[i].visible,
-        data:    layers[i]._alloc ? layers[i].canvas.toDataURL('image/png') : ''
+        data:    layers[i].canvas.toDataURL('image/png')
       });
     } catch(ex){
       // If a layer fails to encode (memory), store empty and continue
@@ -10119,7 +9785,17 @@ function doRestore(rec){
       if(layers.length) layers.forEach(function(l){ releaseCanvas(l.canvas); });
       layers=[];
       var pending=rec.layers.length;
-      function _finalizeRestore(){
+      rec.layers.forEach(function(ld,i){
+        var c=document.createElement('canvas'); c.width=w; c.height=h;
+        var lc=c.getContext('2d');
+        var li=new Image();
+        li.onload=function(){
+          lc.globalCompositeOperation='source-over';
+          lc.clearRect(0,0,w,h);
+          lc.drawImage(li,0,0,w,h);
+          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:c,ctx:lc};
+          pending--;
+          if(pending===0){
             // All layers loaded
             activeLayerIdx=Math.min(rec.activeLayerIdx||0,layers.length-1);
             // Scale-locked text: restore the plan DPI so point sizes render at
@@ -10179,33 +9855,12 @@ function doRestore(rec){
             drawGrid(); renderLayers(); composite(); fitToVP();
             setSaveStatus('saved');
             toast('Session restored ✓','ok',3000);
-      }
-      function _layerDone(){ pending--; if(pending===0) _finalizeRestore(); }
-      rec.layers.forEach(function(ld,i){
-        // Empty layer (never drawn on) → restore it lazily at 1x1, no full-size
-        // canvas, no image decode. This is what keeps memory low on load.
-        if(!ld.data){
-          var ec=document.createElement('canvas'); ec.width=1; ec.height=1;
-          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:ec,ctx:ec.getContext('2d'),_alloc:false};
-          _layerDone();
-          return;
-        }
-        var c=document.createElement('canvas'); c.width=w; c.height=h;
-        var lc=c.getContext('2d');
-        var li=new Image();
-        li.onload=function(){
-          lc.globalCompositeOperation='source-over';
-          lc.clearRect(0,0,w,h);
-          lc.drawImage(li,0,0,w,h);
-          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:c,ctx:lc,_alloc:true};
-          _layerDone();
+          }
         };
         li.onerror=function(){
-          // decode failed — keep the layer entry but treat as empty/lazy
-          releaseCanvas(c);
-          var ec=document.createElement('canvas'); ec.width=1; ec.height=1;
-          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:ec,ctx:ec.getContext('2d'),_alloc:false};
-          _layerDone();
+          layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:c,ctx:lc};
+          pending--;
+          if(pending===0){ composite(); renderLayers(); }
         };
         li.src=ld.data;
       });
@@ -10274,7 +9929,6 @@ function renderImgOverlays(){
     if(ov===selImg) return; // selected one drawn on selCv
     _drawImgOv(imgCtx, ov);
   });
-  if(typeof _updateLayerVisibility==='function') _updateLayerVisibility();
 }
 
 function _drawImgOv(ctx, ov){
@@ -12131,130 +11785,9 @@ window.addEventListener('orientationchange', function(){
   // Dimensions settle a tick after the event on iOS/Android
   setTimeout(function(){ if(baseLoaded){ clampPan(); applyTransform(); } }, 250);
 });
-// ══════════════════════════════════════════════════════════════
-// DEBUG OVERLAY — live memory / canvas / zoom telemetry
-// Toggle with the 🐞 button. Captures the last frame before a crash.
-// ══════════════════════════════════════════════════════════════
-(function(){
-  var panel = document.getElementById('dbg-panel');
-  var btn   = document.getElementById('dbg-btn');
-  if(!panel || !btn) return;
-  var on = false;
-  var events = [];            // rolling log of recent actions
-  var peakMB = 0;
-  var maxZoomSeen = 0;
-
-  function logEvt(msg){
-    var t = new Date().toLocaleTimeString();
-    events.push(t+' '+msg);
-    if(events.length>8) events.shift();
-    if(on) render();
-  }
-  window.__dbgLog = logEvt;     // let other code report events
-
-  function canvasMB(cv){
-    if(!cv || !cv.width || !cv.height) return 0;
-    return cv.width*cv.height*4/1048576;   // RGBA bytes → MB
-  }
-
-  function gather(){
-    var list = [];
-    function add(name, cv){ list.push([name, cv]); }
-    try{ add('base', baseCv); }catch(e){}
-    try{ add('draw', drawCv); }catch(e){}
-    try{ if(typeof imgCv!=='undefined') add('img', imgCv); }catch(e){}
-    try{ add('shapes', shCv); }catch(e){}
-    try{ add('text', tCv); }catch(e){}
-    try{ add('sel', selCv); }catch(e){}
-    var totalMB = 0, lines = [];
-    list.forEach(function(p){
-      var cv = p[1]; if(!cv) return;
-      var mb = canvasMB(cv);
-      totalMB += mb;
-      lines.push('  '+p[0].padEnd(7)+cv.width+'x'+cv.height+'  '+mb.toFixed(1)+'MB');
-    });
-    // user drawing layers
-    var layerMB = 0, layerCount = 0;
-    try{ if(typeof layers!=='undefined' && layers.length){ layerCount=layers.length; layers.forEach(function(l){ layerMB += canvasMB(l.canvas); }); } }catch(e){}
-    totalMB += layerMB;
-
-    var z = (typeof zoom!=='undefined') ? zoom : 0;
-    if(z > maxZoomSeen) maxZoomSeen = z;
-    if(totalMB > peakMB) peakMB = totalMB;
-
-    var dpr = window.devicePixelRatio||1;
-    // estimated GPU composite surface at current zoom (worst case = base layer scaled)
-    var compMB = 0;
-    try{ compMB = (baseCv.width*z)*(baseCv.height*z)*4/1048576; }catch(e){}
-
-    var mem = '';
-    try{ if(performance && performance.memory){ mem = '\nJS heap: '+(performance.memory.usedJSHeapSize/1048576).toFixed(0)+' / '+(performance.memory.jsHeapSizeLimit/1048576).toFixed(0)+'MB'; } }catch(e){}
-
-    var anno = '';
-    try{ anno = '\nannoEff: '+(typeof _annoEff!=='undefined'?_annoEff:'?')+'  deferred:'+(typeof _annoDeferred!=='undefined'?_annoDeferred:'?'); }catch(e){}
-
-    // ── Loaded-file details ──
-    var fileSec = ['── FILE ──', '  (none loaded yet)'];
-    try{
-      var F=window.__dbgFile;
-      if(F){
-        function _kb(n){ return n>=1048576 ? (n/1048576).toFixed(1)+'MB' : (n/1024).toFixed(0)+'KB'; }
-        var heicStr = F.heic===true?'YES'+(F.converted?' (converted→JPEG)':' (NOT converted!)') : F.heic===false?'no' : '?';
-        fileSec = [
-          '── FILE ──',
-          '  source:   '+F.source+'   route: '+F.route,
-          '  name:     '+F.name,
-          '  type:     '+F.type+'   size: '+_kb(F.size),
-          '  HEIC:     '+heicStr,
-          '  native:   '+(F.nativeW?F.nativeW+'x'+F.nativeH:'?'),
-          '  drawn:    '+(F.drawnW?F.drawnW+'x'+F.drawnH+'  (cap '+F.capUsed+'px)':'?'),
-          '  stage:    '+F.stage+'   outcome: '+(F.outcome||'pending')
-        ];
-      }
-    }catch(e){ fileSec=['── FILE ──','  (err reading file info)']; }
-
-    return [
-      'DEVICE '+(IS_IPHONE?'iPhone':IS_IPAD?'iPad':'Desktop')+'  DPR '+dpr+'  '+window.innerWidth+'x'+window.innerHeight,
-      'ZOOM '+z.toFixed(2)+'x  (max seen '+maxZoomSeen.toFixed(2)+'x)  cap '+IOS_MAX_PX+'px',
-      'pinching:'+(typeof pinching!=='undefined'?pinching:'?')+anno,
-      fileSec.join('\n'),
-      'CANVASES (backing-store px → MB):',
-      lines.join('\n'),
-      (layerCount? '  +'+layerCount+' draw-layers  '+layerMB.toFixed(1)+'MB':'  (no draw-layers)'),
-      'CANVAS TOTAL: '+totalMB.toFixed(1)+'MB  (peak '+peakMB.toFixed(1)+'MB)',
-      'GPU composite est @zoom: '+compMB.toFixed(1)+'MB'+mem,
-      '── recent ──',
-      events.join('\n')
-    ].join('\n');
-  }
-
-  function render(){ if(on) panel.textContent = gather(); }
-  window.__dbgRender = render;
-
-  btn.addEventListener('click', function(){
-    on = !on;
-    panel.style.display = on ? 'block' : 'none';
-    btn.style.opacity = on ? '1' : '.6';
-    if(on) render();
-  });
-
-  // Refresh ~5x/sec while visible (also catches mid-pinch state)
-  setInterval(function(){ if(on) render(); }, 200);
-
-  // Capture crashes / errors into the log so the last line is visible
-  window.addEventListener('error', function(e){
-    logEvt('ERROR: '+(e.message||e.type)+' @'+(e.lineno||'?'));
-  });
-  window.addEventListener('unhandledrejection', function(e){
-    logEvt('REJECT: '+((e.reason&&e.reason.message)||e.reason||'?'));
-  });
-
-  logEvt('debug ready');
-})();
 
 })();
 </script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
