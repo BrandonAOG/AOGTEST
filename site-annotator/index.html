@@ -3141,24 +3141,49 @@ if(camBtn){
   if('ontouchstart' in window || navigator.maxTouchPoints > 0){
     camBtn.style.display='flex';
   }
-  camBtn.addEventListener('click', function(){ cameraIn.click(); });
+  camBtn.addEventListener('click', function(){ window.__dbgNextSource='camera'; cameraIn.click(); });
   cameraIn.addEventListener('change', function(e){
     var f=e.target.files[0]; if(f) loadFile(f); e.target.value='';
   });
 }
-fileIn.addEventListener('change',function(e){ var f=e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
+fileIn.addEventListener('change',function(e){ window.__dbgNextSource='roll/file'; var f=e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
 viewport.addEventListener('dragover',function(e){ e.preventDefault(); viewport.style.outline='2px dashed #6c63ff'; });
 viewport.addEventListener('dragleave',function(){ viewport.style.outline=''; });
-viewport.addEventListener('drop',function(e){ e.preventDefault(); viewport.style.outline=''; var f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+viewport.addEventListener('drop',function(e){ e.preventDefault(); viewport.style.outline=''; window.__dbgNextSource='drop'; var f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+
+// ── Debug: record details about the file being loaded ──────────
+window.__dbgFile = null;
+function _dbgFileInit(f, route){
+  try{
+    window.__dbgFile = {
+      name: f.name||'(no name)',
+      type: f.type||'(empty type)',
+      size: f.size||0,
+      route: route,            // 'image' | 'pdf'
+      source: window.__dbgNextSource||'?',  // 'camera' | 'roll/file' | 'drop'
+      stage: 'received',
+      heic: null,              // null=unknown, true/false after sniff
+      converted: false,        // true if HEIC→JPEG ran
+      nativeW: 0, nativeH: 0,   // decoded source dimensions
+      drawnW: 0, drawnH: 0,     // final canvas dimensions
+      capUsed: 0,              // which resolution cap actually applied
+      outcome: '',             // 'ok' | 'failed' | 'error: ...'
+      tStart: Date.now()
+    };
+    window.__dbgNextSource = null;
+  }catch(e){}
+}
+function _dbgFileSet(k, v){ try{ if(window.__dbgFile) window.__dbgFile[k]=v; }catch(e){} }
 
 function loadFile(f){
   var name=(f.name||'').toLowerCase();
   var type=(f.type||'').toLowerCase();
-  if(type==='application/pdf'||name.endsWith('.pdf')){ loadPDF(f); return; }
+  if(type==='application/pdf'||name.endsWith('.pdf')){ _dbgFileInit(f,'pdf'); loadPDF(f); return; }
   // All image types — HEIC detection happens AFTER load via pixel check
   if(type.startsWith('image/')||
      name.match(/\.(png|jpg|jpeg|gif|webp|bmp|tiff?|svg|svgz|heic|heif)$/)||
      f.size<50*1024*1024){
+    _dbgFileInit(f,'image');
     loadImageBlob(f); return;
   }
   toast('Unsupported file type: '+(type||name.split('.').pop()),'warn');
@@ -3251,19 +3276,24 @@ function loadImageBlob(blob, _retried){
   if(!looksHEIC && !_retried && (!type || type==='application/octet-stream' || type==='image/jpeg')){
     _sniffHEIC(blob, function(isHeic){
       if(isHeic){
+        _dbgFileSet('heic', true); _dbgFileSet('stage','sniffed HEIC → converting');
         if(window.__dbgLog) window.__dbgLog('HEIC sniffed from bytes → converting');
         convertHEIC(blob, function(err, jpegBlob){
+          _dbgFileSet('converted', !!(jpegBlob&&jpegBlob!==blob));
           loadImageBlob((jpegBlob&&jpegBlob!==blob)?jpegBlob:blob, true);
         });
       } else {
+        _dbgFileSet('heic', false); _dbgFileSet('stage','not HEIC → drawing');
         _loadImageBlobDraw(blob, _retried);  // not HEIC, proceed normally
       }
     });
     return;
   }
   if(looksHEIC && !_retried){
+    _dbgFileSet('heic', true); _dbgFileSet('stage','HEIC by type/name → converting');
     if(window.__dbgLog) window.__dbgLog('HEIC detected → converting to JPEG first');
     convertHEIC(blob, function(err, jpegBlob){
+      _dbgFileSet('converted', !!(jpegBlob&&jpegBlob!==blob));
       if(jpegBlob && jpegBlob!==blob){ loadImageBlob(jpegBlob, true); }
       else { loadImageBlob(blob, true); }   // conversion failed — try raw as last resort
     });
@@ -3324,6 +3354,7 @@ function _loadImageBlobDraw(blob, _retried){
       try{ bCtx.drawImage(img,0,0,w,h); }catch(ex){}
       if(!isCanvasBlank(bCtx,w,h)){
         drewOk=true;
+        _dbgFileSet('capUsed', cap); _dbgFileSet('drawnW', w); _dbgFileSet('drawnH', h);
         if(ci>0) console.warn('[Load] Stepped down to '+cap+'px to fit canvas memory');
         break;
       }
@@ -3336,6 +3367,8 @@ function _loadImageBlobDraw(blob, _retried){
 
     if(!drewOk){
       // Couldn't render at any size — likely a decode problem (HEIC), not memory.
+      _dbgFileSet('nativeW', img.naturalWidth); _dbgFileSet('nativeH', img.naturalHeight);
+      _dbgFileSet('outcome','FAILED (blank at all caps)'); _dbgFileSet('stage','decode failed');
       if(window.__dbgLog) window.__dbgLog('img load FAILED (blank at all caps)');
       console.warn('[Load] Canvas blank after drawImage — retrying with heic2any');
       if(!_retried) tryHEICFallback(blob, name);
@@ -3350,12 +3383,16 @@ function _loadImageBlobDraw(blob, _retried){
     _lastLoadedDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
 
     // ── SUCCESS ─────────────────────────────────────────────
+    _dbgFileSet('nativeW', img.naturalWidth); _dbgFileSet('nativeH', img.naturalHeight);
+    _dbgFileSet('outcome','ok'); _dbgFileSet('stage','drawn ✓');
     if(window.__dbgLog) window.__dbgLog('img drawn '+baseCv.width+'x'+baseCv.height+' (native '+img.naturalWidth+'x'+img.naturalHeight+')');
     afterLoad();
   };
 
   img.onerror=function(){
     URL.revokeObjectURL(url);
+    _dbgFileSet('outcome','img decode error'); _dbgFileSet('stage','onerror');
+    if(window.__dbgLog) window.__dbgLog('img onerror — decode failed');
     if(!_retried) tryHEICFallback(blob, name);
     else showImageError(name);
   };
@@ -12053,10 +12090,31 @@ window.addEventListener('orientationchange', function(){
     var anno = '';
     try{ anno = '\nannoEff: '+(typeof _annoEff!=='undefined'?_annoEff:'?')+'  deferred:'+(typeof _annoDeferred!=='undefined'?_annoDeferred:'?'); }catch(e){}
 
+    // ── Loaded-file details ──
+    var fileSec = ['── FILE ──', '  (none loaded yet)'];
+    try{
+      var F=window.__dbgFile;
+      if(F){
+        function _kb(n){ return n>=1048576 ? (n/1048576).toFixed(1)+'MB' : (n/1024).toFixed(0)+'KB'; }
+        var heicStr = F.heic===true?'YES'+(F.converted?' (converted→JPEG)':' (NOT converted!)') : F.heic===false?'no' : '?';
+        fileSec = [
+          '── FILE ──',
+          '  source:   '+F.source+'   route: '+F.route,
+          '  name:     '+F.name,
+          '  type:     '+F.type+'   size: '+_kb(F.size),
+          '  HEIC:     '+heicStr,
+          '  native:   '+(F.nativeW?F.nativeW+'x'+F.nativeH:'?'),
+          '  drawn:    '+(F.drawnW?F.drawnW+'x'+F.drawnH+'  (cap '+F.capUsed+'px)':'?'),
+          '  stage:    '+F.stage+'   outcome: '+(F.outcome||'pending')
+        ];
+      }
+    }catch(e){ fileSec=['── FILE ──','  (err reading file info)']; }
+
     return [
       'DEVICE '+(IS_IPHONE?'iPhone':IS_IPAD?'iPad':'Desktop')+'  DPR '+dpr+'  '+window.innerWidth+'x'+window.innerHeight,
       'ZOOM '+z.toFixed(2)+'x  (max seen '+maxZoomSeen.toFixed(2)+'x)  cap '+IOS_MAX_PX+'px',
       'pinching:'+(typeof pinching!=='undefined'?pinching:'?')+anno,
+      fileSec.join('\n'),
       'CANVASES (backing-store px → MB):',
       lines.join('\n'),
       (layerCount? '  +'+layerCount+' draw-layers  '+layerMB.toFixed(1)+'MB':'  (no draw-layers)'),
