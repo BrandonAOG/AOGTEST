@@ -2932,7 +2932,16 @@ function updateLegend(){
 }
 
 // ── ZOOM/PAN ──
-function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(pinching||_gestZoom0!==null){ scene.classList.add('zooming'); } if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
+function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if((pinching||_gestZoom0!==null) && !_fullyVisible()){ scene.classList.add('zooming'); } else { scene.classList.remove('zooming'); } if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
+
+// True when the whole canvas fits within (or is smaller than) the viewport —
+// i.e. zoomed out to the "fit" band or below. At those zooms every layer is
+// fully on screen, so GPU layer-promotion just pins large full-surface textures
+// instead of helping; we skip promotion there to avoid the fast-scrub spike.
+function _fullyVisible(){
+  var dispW=baseCv.width*zoom, dispH=baseCv.height*zoom;
+  return dispW <= viewport.clientWidth*1.05 && dispH <= viewport.clientHeight*1.05;
+}
 
 // rAF-throttled transform: during a fast pinch, touchmove can fire many times
 // per frame. Each synchronous applyTransform() forces the GPU to rebuild the
@@ -3430,10 +3439,17 @@ function _computeAnnoEff(){
   // all the way out it sits at 1, and only grows past 1 once zoom*DPR exceeds 1.
   var eff = devicePR * Math.max(0.0001, zoom);
   var _ceil = IS_IPHONE ? 1.5 : (IS_IPAD ? 2 : 2.5);    // sharpness ceiling per device
-  eff = Math.max(1, Math.min(eff, _ceil));              // never below base res
+  // Floor: allow eff to drop BELOW 1 when the plan is small on screen (zoomed
+  // out). At the "fit" zoom band (~0.15–0.20 here) the whole multi-layer canvas
+  // stack is 100% visible, so iOS composites every pixel of every layer at once
+  // — the peak-area zone that crashes on a fast scrub. Shrinking the annotation
+  // backing stores to roughly match the displayed size removes that spike.
+  // 0.35 keeps text legible while zoomed out; zoom-in re-rasters back to sharp.
+  var _floor = IS_IPHONE ? 0.35 : 0.5;
+  eff = Math.max(_floor, Math.min(eff, _ceil));
   var _CAP = IS_IPHONE ? 26e6 : 40e6;                    // per-canvas device-px ceiling
-  if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
-  return Math.round(eff*4)/4;                            // bucket to 0.25 steps
+  if(w*h*eff*eff > _CAP) eff = Math.max(_floor, Math.sqrt(_CAP/(w*h)));
+  return Math.round(eff*20)/20;                          // bucket to 0.05 steps
 }
 function _sizeAnnoCanvas(cv, ctx, eff){
   var w = baseCv.width, h = baseCv.height;
