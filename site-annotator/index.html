@@ -3491,6 +3491,23 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   afterLoad();
   imgOverlays=[]; textObjs=[];
 
+  // ── Drawing-heavy detection ───────────────────────────────────────────────
+  // Simple decals/diagrams have a handful of paths. CAD exports and surveys have
+  // thousands — and trying to "explode" each path into an editable object is both
+  // brutally slow and wrecks the drawing's fidelity. When a page is clearly a
+  // detailed drawing, we skip extraction entirely and keep the full page as a
+  // faithful, high-res background (the backdrop is already rendered). The user can
+  // still annotate freely on top — they just can't grab the survey's own linework.
+  var _pathOps=0;
+  try{
+    var _PC=OPS.constructPath, _fa=opList.fnArray;
+    for(var _pi=0;_pi<_fa.length;_pi++){ if(_fa[_pi]===_PC) _pathOps++; }
+  }catch(e){}
+  var _denseDrawing = (_pathOps > 1500);
+  if(_denseDrawing){
+    if(typeof toast==='function') toast('Detailed drawing ('+_pathOps.toLocaleString()+' paths) — opened as a faithful background. Annotate on top.','ok',3600);
+  }
+
   var styles=tc.styles||{};
 
   // Snapshot the backdrop (with text+images still baked in) so we can sample
@@ -3506,7 +3523,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   // its on-page rectangle and pull the decoded bitmap from page.objs. Make each
   // a movable overlay and white-out its rectangle from the backdrop.
   var imgCount=0;
-  if(EXPLODE_OTHER) try{
+  if(EXPLODE_OTHER && !_denseDrawing) try{
     var m=vp.transform.slice(), stack=[];
     function _mul(a,b){return [a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];}
     var fns=opList.fnArray, args=opList.argsArray;
@@ -3607,7 +3624,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   // arrow, axis-aligned closed quads → rectangles. Each extracted stroke is
   // painted over in white on the backdrop so it isn't duplicated.
   var vecCount=0;
-  if(EXPLODE_OTHER) try{
+  if(EXPLODE_OTHER && !_denseDrawing) try{
     vecCount=_extractVectors(opList, vp, sc, w, h);
   }catch(e){ console.warn('[Explode] vector pass failed:',e); }
 
@@ -3615,7 +3632,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   // When text is left unchecked, we skip both the white-out and the object
   // creation, so the original text simply stays baked in the backdrop.
   var txtCount=0;
-  if(EXPLODE_TEXT){
+  if(EXPLODE_TEXT && !_denseDrawing){
   // First pass: white-out the baked text on the base canvas. Per-fragment boxes
   // overlap to cover each full line. We sample the local background just outside
   // each box; if it reads close to white we snap to pure white so anti-aliased
