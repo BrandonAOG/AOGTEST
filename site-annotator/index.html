@@ -3607,10 +3607,14 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
           img:ic, cx:x0+rw/2, cy:y0+rh/2, w:rw, h:rh,
           angle:0, flipH:false, flipV:false, opacity:1, layerIdx:activeLayerIdx
         });
-        // White-out the image's footprint on the backdrop (slight inset avoids
-        // erasing adjacent vector lines that touch the image edge).
+        // White-out the image's footprint on the backdrop. Cover the FULL
+        // footprint (rounded outward to whole pixels) — the previous 1px inset
+        // left the image's own frame/border baked into the background, which
+        // showed as a faint box once the overlay was moved away.
+        var _wx=Math.floor(x0), _wy=Math.floor(y0);
+        var _ww=Math.ceil(x0+rw)-_wx, _wh=Math.ceil(y0+rh)-_wy;
         bCtx.save(); bCtx.fillStyle='#ffffff';
-        bCtx.fillRect(Math.round(x0)+1, Math.round(y0)+1, Math.round(rw)-2, Math.round(rh)-2);
+        bCtx.fillRect(_wx, _wy, Math.max(1,_ww), Math.max(1,_wh));
         bCtx.restore();
         imgCount++;
       }
