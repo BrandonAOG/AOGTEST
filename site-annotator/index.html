@@ -1211,6 +1211,18 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
         <button class="add-btn" id="btn-reset-scale" style="width:100%;margin-bottom:6px;color:#f87171;border-color:rgba(239,68,68,0.4);display:none">✕ Reset Scale</button>
         <div style="font-size:10px;color:var(--txt2)" id="scale-status">Scale not set</div>
       </div>
+      <!-- PDF open mode -->
+      <div class="prop-section">
+        <div class="prop-title">PDF open mode</div>
+        <div class="prop-row" style="align-items:flex-start">
+          <label style="flex:1;line-height:1.4">Editable text<br><span style="font-size:9px;color:var(--txt2)">Pull text off the page as objects you can retype and move</span></label>
+          <input type="checkbox" id="explode-toggle" checked style="width:18px;height:18px;accent-color:var(--acc);margin-top:2px">
+        </div>
+        <div style="font-size:9px;color:var(--txt2);margin-top:4px;line-height:1.5;border-top:1px solid var(--b1);padding-top:6px">
+          On: text becomes editable, artwork stays as a fixed background.<br>
+          Off: the whole page opens as one flat image to draw on.
+        </div>
+      </div>
       <!-- DPI + Scale Calculator -->
       <div class="prop-section">
         <div class="prop-title" style="display:flex;align-items:center;gap:5px">
@@ -3273,12 +3285,14 @@ function loadPDF(f){
           toast('Editable PDF detected — restoring project…','',0);
           if(loadProjectRecord(rec)){ toast('Editable project restored ✓','ok',3000); return; }
         }
-        _loadPDFRasterized(f); // no embedded data → normal flatten path
-      }).catch(function(){ _loadPDFRasterized(f); });
-    }).catch(function(){ _loadPDFRasterized(f); });
+        // No embedded data → explode into objects (Acrobat-style) or flatten.
+        if(EXPLODE_PDF){ _loadPDFExploded(f); }
+        else { _loadPDFRasterized(f); }
+      }).catch(function(){ EXPLODE_PDF?_loadPDFExploded(f):_loadPDFRasterized(f); });
+    }).catch(function(){ EXPLODE_PDF?_loadPDFExploded(f):_loadPDFRasterized(f); });
     return;
   }
-  _loadPDFRasterized(f);
+  if(EXPLODE_PDF){ _loadPDFExploded(f); } else { _loadPDFRasterized(f); }
 }
 
 function _loadPDFRasterized(f){
@@ -3296,6 +3310,668 @@ function _loadPDFRasterized(f){
     URL.revokeObjectURL(url);
     renderPDFPage(1);
   }).catch(function(err){ toast('PDF error: '+err.message,'err'); URL.revokeObjectURL(url); });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ACROBAT-STYLE OBJECT EDITING ("Explode PDF")
+// ----------------------------------------------------------------------
+// Instead of flattening a PDF page into one bitmap, this extracts every
+// text run as an editable text object (textObjs) and every embedded image
+// as a movable/resizable image object (imgOverlays). The base canvas is
+// left blank so each piece can be grabbed individually — like Acrobat's
+// "Edit PDF" mode. Vector strokes (if any) are rasterized onto the base as
+// a non-editable backdrop so nothing visually disappears.
+//
+// Toggle EXPLODE_PDF controls whether opening a PDF explodes (true) or
+// flattens (false, the legacy behavior). The toolbar "PDF mode" button
+// flips it. Default ON per the design brief.
+// ══════════════════════════════════════════════════════════════════════
+var EXPLODE_PDF = true;
+(function(){
+  function bind(){
+    var cb=document.getElementById('explode-toggle');
+    if(cb){ cb.checked=EXPLODE_PDF; cb.addEventListener('change',function(){ EXPLODE_PDF=cb.checked; toast(EXPLODE_PDF?'PDFs will open with editable text':'PDFs will open as a flat image','ok',2500); }); }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind); else bind();
+})();
+
+// Convert a pdf.js RGB array / int to a #rrggbb hex string.
+function _pdfColorToHex(c){
+  try{
+    if(c==null) return '#000000';
+    if(typeof c==='number'){ // packed 0xRRGGBB
+      return '#'+('000000'+(c>>>0).toString(16)).slice(-6);
+    }
+    if(c.length>=3){
+      var r=c[0],g=c[1],b=c[2];
+      // pdf.js text color comes back 0..255 ints already
+      if(r<=1 && g<=1 && b<=1){ r*=255; g*=255; b*=255; }
+      var h=function(v){ return ('0'+Math.max(0,Math.min(255,Math.round(v))).toString(16)).slice(-2); };
+      return '#'+h(r)+h(g)+h(b);
+    }
+  }catch(e){}
+  return '#000000';
+}
+
+// Main entry. Renders page, then explodes text + images into editable objects.
+function _loadPDFExploded(f){
+  if(typeof pdfjsLib==='undefined'){ toast('PDF support requires an internet connection.','warn'); return; }
+  if(pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc){
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  var url=URL.createObjectURL(f);
+  toast('Opening PDF for editing…','',0);
+  pdfjsLib.getDocument(url).promise.then(function(doc){
+    pdfDoc=doc; currentPage=1; pgGrp(true);
+    URL.revokeObjectURL(url);
+    _explodePDFPage(1);
+  }).catch(function(err){ toast('PDF error: '+err.message,'err'); URL.revokeObjectURL(url); });
+}
+
+// DPI / scale chosen exactly like renderPDFPage so coordinates line up.
+function _explodeScale(vp1){
+  var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
+  var dpiScale  = targetDpi / 72;
+  return Math.min(dpiScale, IOS_MAX_PX / Math.max(vp1.width, vp1.height));
+}
+
+function _explodePDFPage(n){
+  pdfDoc.getPage(n).then(function(page){
+    var vp1 = page.getViewport({scale:1});
+    var sc  = _explodeScale(vp1);
+    var vp  = page.getViewport({scale:sc});
+    var w=Math.round(vp.width), h=Math.round(vp.height);
+
+    resize(w,h);
+    bCtx.save(); bCtx.fillStyle='#ffffff'; bCtx.fillRect(0,0,w,h); bCtx.restore();
+
+    // Render the page TWICE conceptually, but we only need the text-free version
+    // for the backdrop. Strategy: get the operator list, strip the text-showing
+    // operators, and replay the rest onto the base canvas. That preserves every
+    // image and vector stroke (the diagram artwork) while removing the live text
+    // — which we re-add as fully editable objects. This is the Acrobat model for
+    // an image-with-text-layer PDF and avoids any baked-in/duplicated text.
+    Promise.all([
+      page.getOperatorList(),
+      page.getTextContent()
+    ]).then(function(parts){
+      var opList = parts[0], tc = parts[1];
+      _renderBackdropNoText(page, opList, vp, w, h).then(function(){
+        _explodeObjects(page, opList, tc, vp, sc, w, h, n);
+      }).catch(function(err){
+        console.warn('[Explode] backdrop render failed, full flatten:',err);
+        // Fallback: plain flatten so the user still sees their drawing.
+        page.render({canvasContext:bCtx, viewport:vp}).promise.then(function(){
+          _lastLoadedDpi=Math.round(sc*72); afterLoad(); imgOverlays=[]; textObjs=[];
+          _finishExplode(n,w,h,sc,true);
+        });
+      });
+    }).catch(function(err){
+      toast('PDF parse error: '+err.message,'err');
+    });
+  });
+}
+
+// Replay an operator list onto the base canvas with all text-showing operators
+// removed. Uses a pdf.js SVGGraphics-free approach: we build a shadow page-like
+// render by calling page.render with an intercepted operatorList. pdf.js doesn't
+// expose a public "skip text" flag, so we filter the fnArray/argsArray and feed
+// the trimmed list through the canvas renderer via page._transport-free path:
+// the simplest reliable method is to render normally to an offscreen canvas,
+// then render a TEXT-ONLY pass to a mask and subtract it. But subtraction is
+// lossy over artwork. Instead we use the documented OPS filter + a manual
+// CanvasGraphics replay through pdfjsLib's internal renderer is unavailable in
+// the minified build. So we take the robust route: render full page, then paint
+// white over each text run's box using the text geometry we already have.
+function _renderBackdropNoText(page, opList, vp, w, h){
+  return page.render({canvasContext:bCtx, viewport:vp}).promise;
+}
+
+// Extract images AND text as editable/movable objects, like Acrobat. Embedded
+// image XObjects become draggable image overlays; text runs are merged into
+// editable line objects. Both are white-outed from the backdrop so the only
+// remaining baked content is vector artwork (conduit/grounding lines).
+function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
+  var OPS=pdfjsLib.OPS;
+  var U=pdfjsLib.Util;
+  _lastLoadedDpi=Math.round(sc*72);
+  afterLoad();
+  imgOverlays=[]; textObjs=[];
+
+  var styles=tc.styles||{};
+
+  // Snapshot the backdrop (with text+images still baked in) so we can sample
+  // text color BEFORE white-out.
+  try{
+    _baseSnap=document.createElement('canvas'); _baseSnap.width=w; _baseSnap.height=h;
+    _baseSnap.getContext('2d').drawImage(baseCv,0,0);
+    _baseSnap=_baseSnap.getContext('2d');
+  }catch(e){ _baseSnap=null; }
+
+  // ── IMAGE PASS ───────────────────────────────────────────────────────────
+  // Walk the operator list tracking the CTM; for each paintImageXObject capture
+  // its on-page rectangle and pull the decoded bitmap from page.objs. Make each
+  // a movable overlay and white-out its rectangle from the backdrop.
+  var imgCount=0;
+  try{
+    var m=vp.transform.slice(), stack=[];
+    function _mul(a,b){return [a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];}
+    var fns=opList.fnArray, args=opList.argsArray;
+    var pageArea=w*h;
+    for(var i=0;i<fns.length;i++){
+      var fn=fns[i], a=args[i];
+      if(fn===OPS.save){ stack.push(m.slice()); }
+      else if(fn===OPS.restore){ if(stack.length) m=stack.pop(); }
+      else if(fn===OPS.transform){ m=_mul(m,a); }
+      else if(fn===OPS.paintImageXObject || fn===OPS.paintJpegXObject || fn===OPS.paintInlineImage){
+        var pts=[[0,0],[1,0],[1,1],[0,1]].map(function(p){return {x:m[0]*p[0]+m[2]*p[1]+m[4], y:m[1]*p[0]+m[3]*p[1]+m[5]};});
+        var xs=pts.map(function(p){return p.x;}), ys=pts.map(function(p){return p.y;});
+        var x0=Math.min.apply(null,xs), x1=Math.max.apply(null,xs);
+        var y0=Math.min.apply(null,ys), y1=Math.max.apply(null,ys);
+        var rw=x1-x0, rh=y1-y0;
+        if(rw<4||rh<4) continue;
+        if(rw*rh >= pageArea*0.92) continue;     // skip spurious full-page clip region
+        var key=(fn===OPS.paintInlineImage) ? null : (a && a[0]);
+        var bmp=_getPdfImageBitmap(page, key, a, fn);
+        var ic=document.createElement('canvas');
+        ic.width=Math.max(1,Math.round(rw)); ic.height=Math.max(1,Math.round(rh));
+        var drew=false;
+        if(bmp){
+          try{ ic.getContext('2d').drawImage(bmp, 0,0, ic.width, ic.height); drew=true; }catch(e){}
+        }
+        if(!drew && _baseSnap){
+          // Fallback: slice the image's footprint from the pre-white-out backdrop.
+          try{
+            var sx=Math.max(0,Math.round(x0)), sy=Math.max(0,Math.round(y0));
+            var sw=Math.min(w-sx,Math.round(rw)), sh=Math.min(h-sy,Math.round(rh));
+            if(sw>0&&sh>0){ ic.width=sw; ic.height=sh; ic.getContext('2d').drawImage(_baseSnap.canvas, sx,sy,sw,sh, 0,0,sw,sh); drew=true; }
+          }catch(e){}
+        }
+        if(!drew) continue;
+        imgOverlays.push({
+          img:ic, cx:x0+rw/2, cy:y0+rh/2, w:rw, h:rh,
+          angle:0, flipH:false, flipV:false, opacity:1, layerIdx:activeLayerIdx
+        });
+        // White-out the image's footprint on the backdrop (slight inset avoids
+        // erasing adjacent vector lines that touch the image edge).
+        bCtx.save(); bCtx.fillStyle='#ffffff';
+        bCtx.fillRect(Math.round(x0)+1, Math.round(y0)+1, Math.round(rw)-2, Math.round(rh)-2);
+        bCtx.restore();
+        imgCount++;
+      }
+    }
+  }catch(e){ console.warn('[Explode] image pass failed:',e); }
+
+  // ── VECTOR PASS ──────────────────────────────────────────────────────────
+  // Walk the operator list, decode each constructPath into device-space
+  // segments, and emit editable objects: straight segments → lines, 2-segment
+  // chevrons that look like arrowheads get paired with their shaft into a single
+  // arrow, axis-aligned closed quads → rectangles. Each extracted stroke is
+  // painted over in white on the backdrop so it isn't duplicated.
+  var vecCount=0;
+  try{
+    vecCount=_extractVectors(opList, vp, sc, w, h);
+  }catch(e){ console.warn('[Explode] vector pass failed:',e); }
+
+  // First pass: white-out the baked text on the base canvas. Per-fragment boxes
+  // overlap to cover each full line. We sample the local background just outside
+  // each box; if it reads close to white we snap to pure white so anti-aliased
+  // glyph edges don't leave faint gray patches.
+  bCtx.save();
+  (tc.items||[]).forEach(function(it){
+    var s=(it.str||''); if(!s.trim()) return;
+    var m=U.transform(vp.transform, it.transform);
+    var fpx=Math.hypot(m[2],m[3])||Math.hypot(m[0],m[1])||(10*sc);
+    var x=m[4], yBase=m[5];
+    var wRun=(it.width||0)*sc;
+    if(!wRun){ wRun=s.length*fpx*0.5; }
+    // Box hugging the glyph run with a little extra so neighboring fragments'
+    // patches overlap and no glyph edge peeks through.
+    var padX=fpx*0.14, padTop=fpx*0.92, padBot=fpx*0.30;
+    var bx=x-padX, by=yBase-padTop, bw=wRun+padX*2, bh=padTop+padBot;
+    var bg=_sampleBgAround(bCtx, bx, by, bw, bh);
+    // Snap to pure white when the surroundings are basically white (covers the
+    // common case cleanly); otherwise keep the sampled color for colored regions.
+    var rgb=_hexToRgb(bg);
+    if(rgb && rgb.r>=232 && rgb.g>=232 && rgb.b>=232) bg='#ffffff';
+    bCtx.fillStyle=bg;
+    bCtx.fillRect(bx, by, bw, bh);
+  });
+  bCtx.restore();
+
+  // Second pass: MERGE runs into lines, like Acrobat. The PDF stores text as
+  // many tiny runs (e.g. "2","4","kw generator…" or "200A"," ","ML"). We group
+  // runs that share a baseline and font size, order them left-to-right, and join
+  // them into a single editable line — inserting a space only where there's a
+  // real horizontal gap. This yields clean, whole-line text objects.
+
+  // Build a normalized run list first.
+  var runs=[];
+  (tc.items||[]).forEach(function(it){
+    var s=(it.str||'');
+    if(s==='') return;                 // keep spaces, drop truly empty
+    var m=U.transform(vp.transform, it.transform);
+    var fpx=Math.hypot(m[2],m[3])||Math.hypot(m[0],m[1])||(10*sc);
+    var ang=0, sk=Math.max(Math.abs(m[1]),Math.abs(m[2])), mg=Math.max(Math.abs(m[0]),Math.abs(m[3]));
+    if(mg>0.0001 && (sk/mg)>0.09){ ang=Math.atan2(m[1],m[0]); }
+    var wRun=(it.width||0)*sc;
+    runs.push({
+      s:s, x:m[4], y:m[5], fpx:fpx, w:wRun, ang:ang,
+      font:it.fontName||'', hasEOL:!!it.hasEOL,
+      fam:(styles[it.fontName] && styles[it.fontName].fontFamily) || 'Arial'
+    });
+  });
+
+  // Group into lines. Two runs share a line when their baselines are within
+  // ~45% of font size, their angle matches, and their font size is close.
+  // We process in document order (already reading order) and start a new line
+  // whenever the previous run had hasEOL, or the geometry doesn't continue.
+  var lines=[];
+  var cur=null;
+  function fontKey(r){ return Math.round(r.fpx)+'|'+r.font; }
+  runs.forEach(function(r){
+    if(cur){
+      var prev=cur.runs[cur.runs.length-1];
+      var sameRow   = Math.abs(r.y - prev.y) <= Math.max(prev.fpx,r.fpx)*0.45;
+      var sameAngle = Math.abs(r.ang - prev.ang) < 0.02;
+      var sameSize  = Math.abs(r.fpx - prev.fpx) <= Math.max(prev.fpx,r.fpx)*0.30;
+      // Continues to the right (allow small overlap/backtrack from kerning).
+      var prevEnd   = prev.x + (prev.w|| prev.s.length*prev.fpx*0.5);
+      var contRight = r.x >= prevEnd - prev.fpx*0.8;
+      if(!prev.hasEOL && sameRow && sameAngle && sameSize && contRight){
+        // Also require the gap to be small enough that this is the SAME label.
+        // A gap wider than ~2x font size means two separate labels on one row
+        // (e.g. "Outdoor" ... "Indoor") — start a new line instead of bridging.
+        var prevEnd2 = prev.x + (prev.w|| prev.s.length*prev.fpx*0.5);
+        var gap2 = r.x - prevEnd2;
+        if(gap2 <= prev.fpx*2.0){ cur.runs.push(r); return; }
+      }
+    }
+    cur={runs:[r]};
+    lines.push(cur);
+  });
+
+  // Emit one editable text object per merged line.
+  var txtCount=0;
+  lines.forEach(function(line){
+    // Sort left-to-right within the line (defensive; usually already ordered).
+    line.runs.sort(function(a,b){ return a.x-b.x; });
+    var first=line.runs[0];
+    var text='';
+    for(var i=0;i<line.runs.length;i++){
+      var r=line.runs[i];
+      if(i>0){
+        var prev=line.runs[i-1];
+        var prevEnd=prev.x+(prev.w|| prev.s.length*prev.fpx*0.5);
+        var gap=r.x-prevEnd;
+        // Insert a single space for a real word gap, unless either side already
+        // carries the space. ~25% of font size is a reliable word-gap threshold.
+        var endsSp=/\s$/.test(text), startsSp=/^\s/.test(r.s);
+        if(gap > r.fpx*0.22 && !endsSp && !startsSp){ text+=' '; }
+      }
+      text+=r.s;
+    }
+    text=text.replace(/\s+$/,'');            // trim trailing space
+    if(!text.trim()) return;
+
+    var fontPt=first.fpx/sc;
+    var bold=/bold/i.test(first.fam);
+    var ital=/italic|oblique/i.test(first.fam);
+    var col=_sampleTextColor(_baseSampleCtx(), first.x, first.y, first.fpx);
+    textObjs.push({
+      id: Date.now()+Math.floor(Math.random()*100000)+txtCount,
+      x: first.x, y: first.y, text: text, color: col, fontSize: fontPt,
+      opacity:1, layerIdx:activeLayerIdx,
+      bold:!!bold, italic:!!ital, underline:false, strike:false,
+      fontFamily:_normalizeFamily(first.fam), textAlign:'left', angle:first.ang, bgOpacity:0
+    });
+    txtCount++;
+  });
+
+  _finishExplode(n, w, h, sc, false, imgCount, txtCount, vecCount);
+}
+
+// Snapshot of the base canvas taken BEFORE white-out, so text color sampling
+// reads the original glyph pixels (after white-out they'd be gone).
+var _baseSnap=null;
+function _baseSampleCtx(){ return _baseSnap || bCtx; }
+
+// Decode vector paths from the operator list into editable objects.
+// Returns the number of objects created. Also paints white over each extracted
+// stroke on the backdrop so the artwork isn't duplicated.
+function _extractVectors(opList, vp, sc, w, h){
+  var OPS=pdfjsLib.OPS;
+  var fns=opList.fnArray, args=opList.argsArray;
+  var m=vp.transform.slice(), stack=[];
+  function _mul(a,b){return [a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];}
+  function _apply(mat,x,y){ return {x:mat[0]*x+mat[2]*y+mat[4], y:mat[1]*x+mat[3]*y+mat[5]}; }
+  function _hex(c){
+    // pdf.js setStrokeRGBColor passes 0–255 integers (not 0–1 floats).
+    var conv=function(v){ if(v<=1.0001) v=v*255; return Math.max(0,Math.min(255,Math.round(v))); };
+    var h=function(v){ return ('0'+conv(v).toString(16)).slice(-2); };
+    return '#'+h(c[0])+h(c[1])+h(c[2]);
+  }
+
+  var strokeColor=[0,0,0], fillColorV=[0,0,0], lineW=1, dashOn=false, pendingPaths=[];
+  // Collected raw subpaths in device space: {pts:[...], closed, isRect, nCurves}
+  var collected=[];
+
+  for(var i=0;i<fns.length;i++){
+    var fn=fns[i], a=args[i];
+    if(fn===OPS.save){ stack.push({m:m.slice(),c:strokeColor.slice(),fc:fillColorV.slice(),w:lineW,d:dashOn}); }
+    else if(fn===OPS.restore){ var st=stack.pop(); if(st){ m=st.m; strokeColor=st.c; fillColorV=st.fc; lineW=st.w; dashOn=st.d; } }
+    else if(fn===OPS.transform){ m=_mul(m,a); }
+    else if(fn===OPS.setStrokeRGBColor){ strokeColor=[a[0],a[1],a[2]]; }
+    else if(fn===OPS.setFillRGBColor){ fillColorV=[a[0],a[1],a[2]]; }
+    else if(fn===OPS.setLineWidth){ lineW=a[0]; }
+    else if(fn===OPS.setDash){ dashOn = !!(a[0] && a[0].length); }
+    else if(fn===OPS.constructPath){
+      // a = [opcodes[], coords[], minMax?]
+      var ops2=a[0], co=a[1], k=0, subs=[], curPts=null, curveCount=0;
+      function _endSub(){ if(curPts && curPts.length){ subs.push({pts:curPts,closed:curPts.closed||false,isRect:false,nCurves:curPts._nc||0}); } }
+      for(var oi=0; oi<ops2.length; oi++){
+        var op=ops2[oi];
+        if(op===13){ // moveTo
+          _endSub();
+          curPts=[_apply(m, co[k], co[k+1])]; curPts._nc=0; k+=2;
+        } else if(op===14){ // lineTo
+          if(!curPts){ curPts=[]; curPts._nc=0; }
+          curPts.push(_apply(m, co[k], co[k+1])); k+=2;
+        } else if(op===15){ // curveTo: 2 control + end (6 coords). Record control pts too for bounds.
+          if(curPts){ curPts.push(_apply(m,co[k],co[k+1])); curPts.push(_apply(m,co[k+2],co[k+3])); curPts.push(_apply(m,co[k+4],co[k+5])); curPts._nc++; }
+          k+=6;
+        } else if(op===16){ if(curPts){ curPts.push(_apply(m,co[k],co[k+1])); curPts.push(_apply(m,co[k+2],co[k+3])); curPts._nc++; } k+=4; }
+        else if(op===17){ if(curPts){ curPts.push(_apply(m,co[k],co[k+1])); curPts.push(_apply(m,co[k+2],co[k+3])); curPts._nc++; } k+=4; }
+        else if(op===18){ if(curPts) curPts.closed=true; } // closePath
+        else if(op===19){ // rectangle: x,y,w,h in user space
+          var rx=co[k], ry=co[k+1], rw=co[k+2], rh=co[k+3]; k+=4;
+          var p0=_apply(m,rx,ry), p1=_apply(m,rx+rw,ry), p2=_apply(m,rx+rw,ry+rh), p3=_apply(m,rx,ry+rh);
+          subs.push({pts:[p0,p1,p2,p3],closed:true,isRect:true,nCurves:0});
+        }
+      }
+      _endSub();
+      // Attach current style to each subpath.
+      subs.forEach(function(s){ s.color=_hex(strokeColor); s.fillColor=_hex(fillColorV); s.lineW=Math.max(1,lineW*sc); s.dash=dashOn; });
+      pendingPaths=subs;
+    }
+    else if(fn===OPS.stroke || fn===OPS.closeStroke){
+      pendingPaths.forEach(function(s){ s.filled=false; collected.push(s); });
+      pendingPaths=[]; dashOn=false;
+    }
+    else if(fn===OPS.fillStroke || fn===OPS.eoFillStroke){
+      pendingPaths.forEach(function(s){ s.filled=true; collected.push(s); });
+      pendingPaths=[]; dashOn=false;
+    }
+    else if(fn===OPS.fill || fn===OPS.eoFill){
+      // Filled-only paths. Keep CURVE (ellipse) fills as editable shapes; leave
+      // small rect/line fills (e.g. white pipe blocks) baked in the backdrop.
+      pendingPaths.forEach(function(s){ if(s.nCurves>=3){ s.filled=true; s.fillOnly=true; collected.push(s); } });
+      pendingPaths=[];
+    }
+  }
+
+  // Classify collected subpaths.
+  // 1) closed paths with curves → ellipses
+  // 2) rects → editable rectangles
+  // 3) 2-segment chevrons (arrowheads)
+  // 4) single segments → candidate shafts/lines
+  var rects=[], chevrons=[], segs=[], ellipses=[];
+  collected.forEach(function(s){
+    if(s.nCurves>=3){
+      // Ellipse/circle: bounding box of all recorded points.
+      var xs=s.pts.map(function(p){return p.x;}), ys=s.pts.map(function(p){return p.y;});
+      ellipses.push({
+        x0:Math.min.apply(null,xs), y0:Math.min.apply(null,ys),
+        x1:Math.max.apply(null,xs), y1:Math.max.apply(null,ys),
+        color:s.color, fillColor:s.fillColor, filled:!!s.filled, lineW:s.lineW
+      });
+      return;
+    }
+    if(s.isRect){ rects.push(s); return; }
+    var p=s.pts;
+    if(p.length===2){ segs.push({a:p[0],b:p[1],color:s.color,lineW:s.lineW,dash:s.dash}); }
+    else if(p.length===3){
+      chevrons.push({v:p[1], a:p[0], c:p[2], color:s.color, lineW:s.lineW});
+    } else if(p.length>3){
+      for(var pi=0; pi<p.length-1; pi++){ segs.push({a:p[pi],b:p[pi+1],color:s.color,lineW:s.lineW,dash:s.dash}); }
+    }
+  });
+
+  function dist(p,q){ return Math.hypot(p.x-q.x,p.y-q.y); }
+
+  // Pair each chevron with the nearest segment endpoint → that segment becomes an
+  // arrow pointing at the chevron vertex. Remaining segments stay plain lines.
+  var usedSeg={};
+  var arrows=[];
+  chevrons.forEach(function(ch){
+    var best=-1, bestD=1e9, bestEnd=null;
+    for(var si=0; si<segs.length; si++){
+      if(usedSeg[si]) continue;
+      var s=segs[si];
+      var dA=dist(s.a,ch.v), dB=dist(s.b,ch.v);
+      var d=Math.min(dA,dB);
+      if(d<bestD){ bestD=d; best=si; bestEnd=(dA<dB?'a':'b'); }
+    }
+    // Only pair if the chevron sits right at a segment end (within ~6px * scale).
+    if(best>=0 && bestD < Math.max(8, segs[best].lineW*4)){
+      usedSeg[best]=true;
+      var s=segs[best];
+      // Arrow tail = the far end; head (tip) = the chevron vertex.
+      var tail = (bestEnd==='a') ? s.b : s.a;
+      arrows.push({x1:tail.x,y1:tail.y,x2:ch.v.x,y2:ch.v.y,color:s.color,lineW:s.lineW,dash:s.dash});
+    } else {
+      // Orphan chevron — emit its two arms as plain lines so nothing vanishes.
+      segs.push({a:ch.a,b:ch.v,color:ch.color,lineW:ch.lineW,dash:false});
+      segs.push({a:ch.v,b:ch.c,color:ch.color,lineW:ch.lineW,dash:false});
+    }
+  });
+
+  var count=0;
+  // Emit rectangles as editable shapes.
+  rects.forEach(function(r){
+    var xs=r.pts.map(function(p){return p.x;}), ys=r.pts.map(function(p){return p.y;});
+    var x0=Math.min.apply(null,xs), x1=Math.max.apply(null,xs);
+    var y0=Math.min.apply(null,ys), y1=Math.max.apply(null,ys);
+    var rw=x1-x0, rh=y1-y0;
+    if(rw<3||rh<3) return;
+    shapeObjs.push({
+      id:Date.now()+count, type:'rect', cx:x0+rw/2, cy:y0+rh/2, w:rw, h:rh, angle:0,
+      color:r.color||'#000000', strokeW:Math.max(1,r.lineW), opacity:1,
+      fill:false, fillColor:'#ffffff', fillOpacity:0, lineStyle:(r.dash?'dashed':'solid'),
+      layerIdx:activeLayerIdx
+    });
+    count++;
+  });
+  // Emit ellipses (filled circles like the regulators, and outline ellipses like
+  // the tank) as editable ellipse shapes.
+  ellipses.forEach(function(el){
+    var ew=el.x1-el.x0, eh=el.y1-el.y0;
+    if(ew<3||eh<3) return;
+    shapeObjs.push({
+      id:Date.now()+count, type:'ellipse', cx:el.x0+ew/2, cy:el.y0+eh/2, w:ew, h:eh, angle:0,
+      color:el.color||'#000000', strokeW:Math.max(1,el.lineW), opacity:1,
+      fill:!!el.filled, fillColor:el.fillColor||'#000000', fillOpacity:(el.filled?1:0),
+      lineStyle:'solid', layerIdx:activeLayerIdx
+    });
+    count++;
+  });
+  // Emit arrows.
+  arrows.forEach(function(ar){
+    measureObjs.push({
+      id:Date.now()+count, x1:ar.x1,y1:ar.y1,x2:ar.x2,y2:ar.y2,
+      color:ar.color||'#000000', strokeW:Math.max(1,ar.lineW), opacity:1,
+      lineStyle:(ar.dash?'dashed':'solid'), layerIdx:activeLayerIdx,
+      showLabel:false, isArrow:true, _editing:false
+    });
+    count++;
+  });
+  // Emit remaining plain lines (including the dashed gas line).
+  segs.forEach(function(s,si){
+    if(usedSeg[si]) return;
+    if(dist(s.a,s.b) < 2) return;
+    measureObjs.push({
+      id:Date.now()+count, x1:s.a.x,y1:s.a.y,x2:s.b.x,y2:s.b.y,
+      color:s.color||'#000000', strokeW:Math.max(1,s.lineW), opacity:1,
+      lineStyle:(s.dash?'dashed':'solid'), layerIdx:activeLayerIdx,
+      showLabel:false, isArrow:false, _editing:false
+    });
+    count++;
+  });
+
+  // White-out every extracted stroke on the backdrop so it isn't doubled.
+  bCtx.save();
+  bCtx.strokeStyle='#ffffff'; bCtx.lineCap='round'; bCtx.lineJoin='round';
+  function wipe(ax,ay,bx,by,lw){ bCtx.lineWidth=Math.max(3,lw+3); bCtx.beginPath(); bCtx.moveTo(ax,ay); bCtx.lineTo(bx,by); bCtx.stroke(); }
+  rects.forEach(function(r){
+    for(var pi=0; pi<r.pts.length; pi++){ var p=r.pts[pi], q=r.pts[(pi+1)%r.pts.length]; wipe(p.x,p.y,q.x,q.y,Math.max(2,r.lineW)); }
+  });
+  arrows.forEach(function(ar){ wipe(ar.x1,ar.y1,ar.x2,ar.y2,Math.max(2,ar.lineW)); });
+  // White-out ellipses: fill the area for filled ones, stroke the rim for outlines.
+  ellipses.forEach(function(el){
+    var cx=(el.x0+el.x1)/2, cy=(el.y0+el.y1)/2, rx=(el.x1-el.x0)/2, ry=(el.y1-el.y0)/2;
+    bCtx.save(); bCtx.beginPath(); bCtx.ellipse(cx,cy,rx+1,ry+1,0,0,Math.PI*2);
+    if(el.filled){ bCtx.fillStyle='#ffffff'; bCtx.fill(); }
+    else { bCtx.strokeStyle='#ffffff'; bCtx.lineWidth=Math.max(3,el.lineW+3); bCtx.stroke(); }
+    bCtx.restore();
+  });
+  collected.forEach(function(s){ // wipe original chevron arms + polylines (NOT ellipses)
+    if(s.isRect) return;
+    if(s.nCurves>=3) return; // ellipses handled above; their control pts aren't a polyline
+    for(var pi=0; pi<s.pts.length-1; pi++){ wipe(s.pts[pi].x,s.pts[pi].y,s.pts[pi+1].x,s.pts[pi+1].y,Math.max(2,s.lineW||2)); }
+  });
+  segs.forEach(function(s){ wipe(s.a.x,s.a.y,s.b.x,s.b.y,Math.max(2,s.lineW)); });
+  bCtx.restore();
+
+  return count;
+}
+
+
+function _getPdfImageBitmap(page, key, args, fn){
+  try{
+    var obj=null;
+    if(key){
+      // Image may live in page.objs or commonObjs depending on the PDF.
+      try{ if(page.objs && page.objs.has && page.objs.has(key)) obj=page.objs.get(key); }catch(e){}
+      if(!obj){ try{ obj=page.objs.get(key); }catch(e){} }
+      if(!obj && page.commonObjs){ try{ obj=page.commonObjs.get(key); }catch(e){} }
+    } else if(fn===pdfjsLib.OPS.paintInlineImage && args && args[0]){
+      obj=args[0]; // inline image data is passed directly
+    }
+    if(!obj) return null;
+    // Case 1: already an ImageBitmap / canvas / image.
+    if(obj.bitmap) return obj.bitmap;
+    if(typeof ImageBitmap!=='undefined' && obj instanceof ImageBitmap) return obj;
+    if(obj instanceof HTMLCanvasElement || obj instanceof HTMLImageElement) return obj;
+    // Case 2: raw pixel data {data,width,height,kind}. kind: 1=GRAY,2=RGB,3=RGBA
+    if(obj.data && obj.width && obj.height){
+      var iw=obj.width, ih=obj.height;
+      var c=document.createElement('canvas'); c.width=iw; c.height=ih;
+      var cx=c.getContext('2d');
+      var id=cx.createImageData(iw,ih);
+      var src=obj.data, dst=id.data, kind=obj.kind;
+      if(kind===3 || src.length===iw*ih*4){
+        dst.set(src.subarray(0, dst.length));
+      } else if(kind===2 || src.length===iw*ih*3){
+        for(var s=0,d=0;d<dst.length;s+=3,d+=4){ dst[d]=src[s];dst[d+1]=src[s+1];dst[d+2]=src[s+2];dst[d+3]=255; }
+      } else if(kind===1 || src.length===iw*ih){
+        for(var s2=0,d2=0;d2<dst.length;s2++,d2+=4){ var v=src[s2]; dst[d2]=v;dst[d2+1]=v;dst[d2+2]=v;dst[d2+3]=255; }
+      } else {
+        return null;
+      }
+      cx.putImageData(id,0,0);
+      return c;
+    }
+  }catch(e){ /* fall through */ }
+  return null;
+}
+
+function _hexToRgb(hex){
+  var m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex||'');
+  if(!m) return null;
+  return {r:parseInt(m[1],16), g:parseInt(m[2],16), b:parseInt(m[3],16)};
+}
+
+// Sample a representative background color from the ring just outside a box.
+function _sampleBgAround(ctx, x, y, w, h){
+  try{
+    // Sample a ring of points just OUTSIDE the text box (left, right, above,
+    // below — multiple along each edge). Text glyphs are dark; the local
+    // background (white or a smooth watermark) is lighter. We take the lightest
+    // cluster so a stray sample that lands on a glyph or box edge can't drag the
+    // patch dark. This keeps the patch blended with a watermark behind it.
+    var W=ctx.canvas.width, H=ctx.canvas.height;
+    var samples=[];
+    function grab(px,py){
+      px=Math.max(0,Math.min(W-1,Math.round(px))); py=Math.max(0,Math.min(H-1,Math.round(py)));
+      var d=ctx.getImageData(px,py,1,1).data; samples.push([d[0],d[1],d[2]]);
+    }
+    var n=5;
+    for(var i=0;i<=n;i++){
+      var fx=x+(w*i/n);
+      grab(fx, y-3); grab(fx, y+h+3);          // above / below
+    }
+    for(var j=0;j<=n;j++){
+      var fy=y+(h*j/n);
+      grab(x-3, fy); grab(x+w+3, fy);          // left / right
+    }
+    if(!samples.length) return '#ffffff';
+    // Rank by luminance, take the lightest ~60% and average them.
+    samples.sort(function(a,b){ return (b[0]+b[1]+b[2])-(a[0]+a[1]+a[2]); });
+    var keep=Math.max(1, Math.round(samples.length*0.6));
+    var rs=0,gs=0,bs=0;
+    for(var k=0;k<keep;k++){ rs+=samples[k][0]; gs+=samples[k][1]; bs+=samples[k][2]; }
+    var hx=function(v){ return ('0'+Math.round(v/keep).toString(16)).slice(-2); };
+    return '#'+hx(rs)+hx(gs)+hx(bs);
+  }catch(e){ return '#ffffff'; }
+}
+
+// Sample the dominant non-white color near a baseline to recover text color.
+function _sampleTextColor(ctx, x, baselineY, fpx){
+  try{
+    var sx=Math.max(0,Math.round(x)), sy=Math.max(0,Math.round(baselineY-fpx*0.6));
+    var sw=Math.min(ctx.canvas.width-sx, Math.max(2,Math.round(fpx*0.8)));
+    var sh=Math.min(ctx.canvas.height-sy, Math.max(2,Math.round(fpx*0.8)));
+    if(sw<=0||sh<=0) return '#000000';
+    var d=ctx.getImageData(sx,sy,sw,sh).data;
+    var br,bg,bb,best=999; // pick the darkest sufficiently-opaque pixel
+    for(var i=0;i<d.length;i+=4){
+      if(d[i+3]<128) continue;
+      var lum=d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114;
+      if(lum<best && lum<230){ best=lum; br=d[i]; bg=d[i+1]; bb=d[i+2]; }
+    }
+    if(best===999) return '#000000';
+    var h=function(v){ return ('0'+v.toString(16)).slice(-2); };
+    return '#'+h(br)+h(bg)+h(bb);
+  }catch(e){ return '#000000'; }
+}
+
+function _normalizeFamily(fam){
+  fam=(fam||'').replace(/^[A-Z]{6}\+/,''); // strip subset prefix like FZAHNJ+
+  if(/calibri|carlito/i.test(fam)) return 'Calibri';
+  if(/arial|helvetica/i.test(fam)) return 'Arial';
+  if(/times/i.test(fam)) return 'Times New Roman';
+  if(/courier|mono/i.test(fam)) return 'Courier New';
+  return fam.split(',')[0].replace(/[-,].*$/,'').trim() || 'Arial';
+}
+
+function _finishExplode(n, w, h, sc, flattened, imgCount, txtCount, vecCount){
+  pgInfo.textContent=n+'/'+pdfDoc.numPages;
+  btnPrev.disabled=n<=1; btnNext.disabled=n>=pdfDoc.numPages;
+  var dpiIn=document.getElementById('dpi-value');
+  if(dpiIn) dpiIn.value=Math.round(sc*72);
+  renderImgOverlays();
+  renderTextObjs();
+  if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
+  composite();
+  if(flattened){
+    toast('PDF opened (flattened — could not explode this page)','warn',4000);
+  }else{
+    var parts=[];
+    if(txtCount) parts.push(txtCount+' text');
+    if(imgCount) parts.push(imgCount+' image');
+    if(vecCount) parts.push(vecCount+' line/shape');
+    toast('PDF exploded · '+parts.join(' + ')+' objects — tap any piece to edit','ok',4500);
+  }
 }
 
 function renderPDFPage(n){
@@ -3415,8 +4091,8 @@ function pgGrp(show){
   document.getElementById('pg-grp').style.display=show?'':'none';
 }
 
-btnPrev.addEventListener('click',function(){ if(!pdfDoc) return; var n=currentPage-1; if(n<1) return; currentPage=n; renderPDFPage(n); });
-btnNext.addEventListener('click',function(){ if(!pdfDoc) return; var n=currentPage+1; if(n>pdfDoc.numPages) return; currentPage=n; renderPDFPage(n); });
+btnPrev.addEventListener('click',function(){ if(!pdfDoc) return; var n=currentPage-1; if(n<1) return; currentPage=n; if(EXPLODE_PDF) _explodePDFPage(n); else renderPDFPage(n); });
+btnNext.addEventListener('click',function(){ if(!pdfDoc) return; var n=currentPage+1; if(n>pdfDoc.numPages) return; currentPage=n; if(EXPLODE_PDF) _explodePDFPage(n); else renderPDFPage(n); });
 
 // ── ROTATION ──
 btnRotL.addEventListener('click',function(){ rotateCanvas(-90); });
