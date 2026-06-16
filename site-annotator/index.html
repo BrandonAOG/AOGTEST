@@ -3539,6 +3539,11 @@ function onDown(e){
 
   // ── If a shape is selected, handle transform interaction first ──
   var _isTouchEvt = !!(e.touches && e.touches.length);
+  // Tools that must place/draw OVER an image rather than select it. The text
+  // tool belongs here: tapping an image with the text tool was selecting it
+  // (moving it onto the selection canvas), then the text cursor cleared that
+  // canvas — making the image vanish. Treat text like the strict draw tools.
+  var _imgInert = DRAW_STRICT[tool] || tool==='text';
 
   // ── Image overlay interaction — uses same selHandle/selDragStart pipeline as shapes ──
   if(selImg){
@@ -3578,7 +3583,7 @@ function onDown(e){
         perpW:(_imgHi===1||_imgHi===5)?_ov.w:null,perpH:(_imgHi===3||_imgHi===7)?_ov.h:null};
       return;
     }
-    if(!DRAW_STRICT[tool] && _imgHitTest(selImg, spRaw.x, spRaw.y)){
+    if(!_imgInert && _imgHitTest(selImg, spRaw.x, spRaw.y)){
       e.preventDefault();
       selImgHandle=-1;
       selImgDrag={hi:-1,startX:spRaw.x,startY:spRaw.y,cx:selImg.cx,cy:selImg.cy,angle:selImg.angle||0};
@@ -3587,16 +3592,17 @@ function onDown(e){
     // Click outside image — deselect. Drawing tools never re-select another
     // image from the same press (the press is a draw, not a pick).
     commitImgSelection();
-    var _hit2=DRAW_STRICT[tool]?null:findImgAt(spRaw.x,spRaw.y,_isTouchEvt);
+    var _hit2=_imgInert?null:findImgAt(spRaw.x,spRaw.y,_isTouchEvt);
     if(_hit2){ selImg=_hit2; renderImgOverlays(); renderImgSelection(); return; }
     // The first click off the image only deselects — it must NOT also start a
     // new shape (rect/ellipse/cloud) at the click point. Swallow this press;
     // the user's next click begins drawing.
     return;
-  } else if(!DRAW_STRICT[tool]){
-    // Fresh image pick — but NOT while a line/arrow/measure/leader-type tool is
-    // active. Pressing over an inserted picture used to select ("highlight")
-    // the picture instead of drawing, making those tools unusable over images.
+  } else if(!_imgInert){
+    // Fresh image pick — but NOT while a line/arrow/measure/leader-type tool or
+    // the text tool is active. Pressing over an inserted picture used to select
+    // ("highlight") the picture instead of drawing, making those tools unusable
+    // over images.
     var _imgHit=findImgAt(spRaw.x,spRaw.y,_isTouchEvt);
     if(_imgHit){ selImg=_imgHit; renderImgOverlays(); renderImgSelection(); return; }
   }
