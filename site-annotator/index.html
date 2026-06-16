@@ -2459,7 +2459,7 @@ document.addEventListener('gesturechange', function(e){
   e.preventDefault(); e.stopPropagation();
   if(_gestZoom0!==null && typeof e.scale==='number' && e.scale>0 && typeof zoomAt==='function'){
     var r=viewport.getBoundingClientRect();
-    var target=Math.max(0.05,Math.min(maxZoom(),_gestZoom0*e.scale));
+    var target=Math.max(minZoom(),Math.min(maxZoom(),_gestZoom0*e.scale));
     var f=target/zoom;
     if(f && isFinite(f) && Math.abs(f-1)>0.001) zoomAt(f, e.clientX-r.left, e.clientY-r.top);
   }
@@ -2995,10 +2995,17 @@ function clampPan(){
   panY=Math.max(Math.min(80-ch,0),Math.min(Math.max(vh-80,0),panY));
 }
 
+// Minimum zoom. On iPhone the deep zoomed-out range (<~0.18x) is where the
+// whole canvas stack is fully visible and the GPU composites every layer each
+// frame — the zone that crashes on a fast scrub. Floor the minimum at 0.18 on
+// iPhone to keep out of it. (Slightly crops very large plans at "fit", but most
+// photos still essentially fit.) Other devices keep the original 0.05 floor.
+function minZoom(){ return IS_IPHONE ? 0.18 : 0.05; }
+
 function fitToVP(){
   var vw=viewport.clientWidth-48,vh=viewport.clientHeight-48;
   var cw=baseCv.width,ch=baseCv.height; if(!cw||!ch) return;
-  zoom=Math.max(0.05,Math.min(1,vw/cw,vh/ch));
+  zoom=Math.max(minZoom(),Math.min(1,vw/cw,vh/ch));
   panX=Math.round((viewport.clientWidth-cw*zoom)/2);
   panY=Math.round((viewport.clientHeight-ch*zoom)/2);
   applyTransform();
@@ -3018,7 +3025,7 @@ function maxZoom(){
 }
 
 function zoomAt(f,cx,cy){
-  var nz=Math.max(0.05,Math.min(maxZoom(),zoom*f));
+  var nz=Math.max(minZoom(),Math.min(maxZoom(),zoom*f));
   var r=nz/zoom; panX=cx-r*(cx-panX); panY=cy-r*(cy-panY); zoom=nz;
   clampPan();
   if(_gestZoom0!==null) applyTransformThrottled(); else applyTransform();
@@ -3089,7 +3096,7 @@ document.addEventListener('touchmove',function(e){
     panX+=(midX-twoMidX)*PAN_DAMP; panY+=(midY-twoMidY)*PAN_DAMP;
     var r=viewport.getBoundingClientRect();
     var cx=midX-r.left,cy=midY-r.top;
-    var tz=Math.max(0.05,Math.min(maxZoom(),pinchZoom0*(dist/pinchDist0)));
+    var tz=Math.max(minZoom(),Math.min(maxZoom(),pinchZoom0*(dist/pinchDist0)));
     // Store the TARGET zoom; the actual applied zoom is advanced toward it once
     // per animation frame (in applyTransformThrottled), clamped per FRAME. Doing
     // the clamp per touch-event was useless because many events fire per frame —
