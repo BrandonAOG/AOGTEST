@@ -10728,12 +10728,22 @@ var IMG_HANDLE  = 10;          // handle size px (screen)
 // Sync img-cv size whenever canvas changes
 function syncImgCv(){
   var w=baseCv.width||1, h=baseCv.height||1;
-  if(imgCv.width!==w||imgCv.height!==h){ imgCv.width=w; imgCv.height=h; }
+  // Size the overlay canvas at the SAME effective resolution as the text/shape
+  // anno canvases so images stay crisp when zoomed and their backing store
+  // always covers the displayed area (fixes pixels dropping off during
+  // resize/drag at high zoom). Draw in plan coords via the eff transform.
+  var eff = (typeof _computeAnnoEff==='function') ? _computeAnnoEff() : 1;
+  var bw=Math.max(1,Math.round(w*eff)), bh=Math.max(1,Math.round(h*eff));
+  if(imgCv.width!==bw||imgCv.height!==bh){ imgCv.width=bw; imgCv.height=bh; }
+  imgCv.style.width=w+'px'; imgCv.style.height=h+'px';
+  imgCtx.setTransform(eff,0,0,eff,0,0);
+  imgCv._eff=eff;
 }
 
 function renderImgOverlays(){
   syncImgCv();
-  imgCtx.clearRect(0,0,imgCv.width,imgCv.height);
+  // clearRect in plan coords (transform is set); cover the whole plan area.
+  imgCtx.clearRect(0,0,baseCv.width,baseCv.height);
   imgOverlays.forEach(function(ov){
     if(ov===selImg) return; // selected one drawn on selCv
     var L=layers[ov.layerIdx]; if(L && !L.visible) return; // hide if its layer is hidden
@@ -10800,10 +10810,15 @@ function findImgAt(x,y,isTouch){
 // Draw selected image overlay + handles on sel-cv
 function renderImgSelection(){
   if(!selImg){ return; }
-  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
-    selCv.width=drawCv.width; selCv.height=drawCv.height;
-  }
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  // Size selCv at the effective (zoom-aware) resolution so the selected image
+  // and its handles stay crisp and the backing store covers the displayed area
+  // — prevents pixels dropping off while resizing/dragging at high zoom.
+  var eff = (typeof _computeAnnoEff==='function') ? _computeAnnoEff() : 1;
+  var bw=Math.max(1,Math.round(drawCv.width*eff)), bh=Math.max(1,Math.round(drawCv.height*eff));
+  if(selCv.width!==bw||selCv.height!==bh){ selCv.width=bw; selCv.height=bh; }
+  selCv.style.width=drawCv.width+'px'; selCv.style.height=drawCv.height+'px';
+  selCtx.setTransform(eff,0,0,eff,0,0);
+  selCtx.clearRect(0,0,drawCv.width,drawCv.height);
   // Draw image itself
   _drawImgOv(selCtx, selImg);
   // Dashed bounding box
