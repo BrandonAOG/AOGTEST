@@ -2950,10 +2950,35 @@ function _fullyVisible(){
 // pile up faster than they're released — the "slow=fine, fast=crash" signature.
 // Coalescing to one visual update per animation frame removes the pileup.
 var _xfReq=false;
+var _zoomTarget=null;   // desired zoom set by the gesture; advanced per frame
+var _zoomFocus=null;    // {cx,cy} screen focal point for the zoom
 function applyTransformThrottled(){
   if(_xfReq) return;
   _xfReq=true;
-  requestAnimationFrame(function(){ _xfReq=false; applyTransform(); });
+  requestAnimationFrame(function(){
+    _xfReq=false;
+    // If a gesture set a zoom target, advance the ACTUAL zoom toward it by a
+    // bounded amount THIS FRAME. This is the real fast-pinch fix: no matter how
+    // many touch events fired since the last frame, the visible scale can only
+    // change by a capped ratio per repaint, so the GPU never has to composite a
+    // huge sudden scale jump (which crashes at low zoom where the whole canvas
+    // stack is visible).
+    if(_zoomTarget!==null && _zoomFocus){
+      var maxRatio=1.22;                       // ≤22% scale change per frame
+      var nz=zoom + (_zoomTarget-zoom)*0.5;    // ease toward target
+      if(nz/zoom > maxRatio) nz=zoom*maxRatio;
+      if(zoom/nz > maxRatio) nz=zoom/maxRatio;
+      var cx=_zoomFocus.cx, cy=_zoomFocus.cy;
+      var ratio=nz/zoom;
+      panX=cx-ratio*(cx-panX); panY=cy-ratio*(cy-panY); zoom=nz;
+      clampPan();
+      // settled close enough → stop advancing
+      if(Math.abs(_zoomTarget-zoom) < 0.002){ _zoomTarget=null; }
+    }
+    applyTransform();
+    // keep advancing while a target remains (fingers may have stopped moving)
+    if(_zoomTarget!==null) applyTransformThrottled();
+  });
 }
 
 function clampPan(){
@@ -3058,17 +3083,14 @@ document.addEventListener('touchmove',function(e){
     var r=viewport.getBoundingClientRect();
     var cx=midX-r.left,cy=midY-r.top;
     var tz=Math.max(0.05,Math.min(maxZoom(),pinchZoom0*(dist/pinchDist0)));
-    var nz=zoom+(tz-zoom)*ZOOM_DAMP;
-    // Clamp how far zoom can move in a single frame. A very fast pinch can
-    // otherwise jump zoom in one step, forcing a huge GPU surface jump that
-    // can't be released in time. Limiting the per-step delta lets textures
-    // recycle between frames (this is the fix for fast-pinch crashes).
-    var _maxStep=0.18*zoom;
-    if(nz-zoom >  _maxStep) nz=zoom+_maxStep;
-    if(nz-zoom < -_maxStep) nz=zoom-_maxStep;
-    var ratio=nz/zoom; panX=cx-ratio*(cx-panX); panY=cy-ratio*(cy-panY); zoom=nz;
+    // Store the TARGET zoom; the actual applied zoom is advanced toward it once
+    // per animation frame (in applyTransformThrottled), clamped per FRAME. Doing
+    // the clamp per touch-event was useless because many events fire per frame —
+    // zoom could still leap before a single repaint, spiking the GPU composite.
+    _zoomTarget = tz;
+    _zoomFocus = {cx:cx, cy:cy};
     twoMidX=midX; twoMidY=midY;
-    clampPan(); applyTransformThrottled();
+    applyTransformThrottled();
   } else if(isPanning&&e.touches.length===1){
     movePan(e.touches[0].clientX,e.touches[0].clientY);
   }
@@ -3079,6 +3101,14 @@ document.addEventListener('touchend',function(e){
     var wasPinching=pinching;
     pinching=false;
     scene.classList.remove('zooming');
+    // Settle to the final zoom target (we were advancing toward it per-frame).
+    if(wasPinching && _zoomTarget!==null && _zoomFocus){
+      var ratio=_zoomTarget/zoom;
+      panX=_zoomFocus.cx-ratio*(_zoomFocus.cx-panX);
+      panY=_zoomFocus.cy-ratio*(_zoomFocus.cy-panY);
+      zoom=_zoomTarget;
+    }
+    _zoomTarget=null; _zoomFocus=null;
     // Pinch just ended — do the single re-rasterization we deferred during it,
     // so text/shapes return to crisp resolution at the final zoom level.
     if(wasPinching && _annoDeferred && typeof _setAnnoRes==='function'){
