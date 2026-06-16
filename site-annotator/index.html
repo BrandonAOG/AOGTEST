@@ -3503,17 +3503,15 @@ function _computeAnnoEff(){
   // all the way out it sits at 1, and only grows past 1 once zoom*DPR exceeds 1.
   var eff = devicePR * Math.max(0.0001, zoom);
   var _ceil = IS_IPHONE ? 1.5 : (IS_IPAD ? 2 : 2.5);    // sharpness ceiling per device
-  // Floor: allow eff to drop BELOW 1 when the plan is small on screen (zoomed
-  // out). At the "fit" zoom band (~0.15–0.20 here) the whole multi-layer canvas
-  // stack is 100% visible, so iOS composites every pixel of every layer at once
-  // — the peak-area zone that crashes on a fast scrub. Shrinking the annotation
-  // backing stores to roughly match the displayed size removes that spike.
-  // 0.35 keeps text legible while zoomed out; zoom-in re-rasters back to sharp.
-  var _floor = IS_IPHONE ? 0.35 : 0.5;
-  eff = Math.max(_floor, Math.min(eff, _ceil));
+  // Floor at 1: annotation canvases never render below base resolution, so text
+  // and shapes stay crisp at every zoom level. (An earlier experiment dropped
+  // this below 1 to lighten the "fit" zoom band, but that made labels blurry
+  // when zoomed out — and the real crash there turned out to be HEIC-corrupted
+  // base images, not this, so the floor is back to full sharpness.)
+  eff = Math.max(1, Math.min(eff, _ceil));
   var _CAP = IS_IPHONE ? 26e6 : 40e6;                    // per-canvas device-px ceiling
-  if(w*h*eff*eff > _CAP) eff = Math.max(_floor, Math.sqrt(_CAP/(w*h)));
-  return Math.round(eff*20)/20;                          // bucket to 0.05 steps
+  if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
+  return Math.round(eff*4)/4;                            // bucket to 0.25 steps
 }
 function _sizeAnnoCanvas(cv, ctx, eff){
   var w = baseCv.width, h = baseCv.height;
