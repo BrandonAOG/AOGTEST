@@ -3234,6 +3234,69 @@ function isCanvasBlank(ctx, w, h){
 // ── Core image loader ────────────────────────────────────────
 function loadImageBlob(blob, _retried){
   var name=(blob.name||'').toLowerCase();
+  var type=(blob.type||'').toLowerCase();
+  // ── HEIC/HEIF: convert to JPEG BEFORE drawing ──────────────────
+  // Photos taken with the in-app camera (capture="environment") arrive as HEIC.
+  // Safari can sometimes show HEIC in an <img> but fails to read its pixels into
+  // a <canvas> — drawImage yields a canvas that LOOKS sized right but holds
+  // broken/GPU-backed data. That corrupt canvas survives load and only detonates
+  // later when a transform:scale() composite forces a full rasterization — which
+  // is exactly why "from camera roll" (JPEG) works but "from camera" (HEIC)
+  // crashes on zoom. So we transcode HEIC up front, not as an after-the-fact
+  // fallback. (Roll images are usually JPEG already and skip this path.)
+  var looksHEIC = type.indexOf('heic')>=0 || type.indexOf('heif')>=0 ||
+                  name.endsWith('.heic') || name.endsWith('.heif');
+  // Camera-capture blobs frequently have an EMPTY or misleading type/name, so
+  // also sniff the file signature: ISO-BMFF 'ftyp' box with a HEIC/HEIF brand.
+  if(!looksHEIC && !_retried && (!type || type==='application/octet-stream' || type==='image/jpeg')){
+    _sniffHEIC(blob, function(isHeic){
+      if(isHeic){
+        if(window.__dbgLog) window.__dbgLog('HEIC sniffed from bytes → converting');
+        convertHEIC(blob, function(err, jpegBlob){
+          loadImageBlob((jpegBlob&&jpegBlob!==blob)?jpegBlob:blob, true);
+        });
+      } else {
+        _loadImageBlobDraw(blob, _retried);  // not HEIC, proceed normally
+      }
+    });
+    return;
+  }
+  if(looksHEIC && !_retried){
+    if(window.__dbgLog) window.__dbgLog('HEIC detected → converting to JPEG first');
+    convertHEIC(blob, function(err, jpegBlob){
+      if(jpegBlob && jpegBlob!==blob){ loadImageBlob(jpegBlob, true); }
+      else { loadImageBlob(blob, true); }   // conversion failed — try raw as last resort
+    });
+    return;
+  }
+  _loadImageBlobDraw(blob, _retried);
+}
+
+// Read the first 32 bytes and check for an ISO-BMFF 'ftyp' box whose brand is a
+// HEIC/HEIF variant. Cheap, reliable, works even when MIME type is missing.
+function _sniffHEIC(blob, cb){
+  try{
+    var fr=new FileReader();
+    fr.onload=function(){
+      try{
+        var b=new Uint8Array(fr.result);
+        // bytes 4-7 should spell 'ftyp'
+        var ftyp=(b[4]===0x66&&b[5]===0x74&&b[6]===0x79&&b[7]===0x70);
+        if(!ftyp){ cb(false); return; }
+        // brand at bytes 8-11 (and compatible brands follow)
+        var s='';
+        for(var i=8;i<Math.min(b.length,24);i++){ s+=String.fromCharCode(b[i]); }
+        cb(/heic|heix|hevc|hevx|heif|mif1|msf1/i.test(s));
+      }catch(e){ cb(false); }
+    };
+    fr.onerror=function(){ cb(false); };
+    fr.readAsArrayBuffer(blob.slice(0,32));
+  }catch(e){ cb(false); }
+}
+
+// Original draw path (everything that was in loadImageBlob after the HEIC gate).
+function _loadImageBlobDraw(blob, _retried){
+  var name=(blob.name||'').toLowerCase();
   var url=URL.createObjectURL(blob);
   var img=new Image();
 
