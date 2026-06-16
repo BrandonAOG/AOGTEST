@@ -1689,7 +1689,7 @@ var IS_IOS    = IS_IPHONE || IS_IPAD;
 // iPad gets 10000px cap.
 // iPad canvas capped at 10000px — prevents multi-layer snapshots from
 // filling Safari's memory and crashing on reload.
-var IOS_MAX_PX = IS_IPHONE ? 2900 : (IS_IPAD ? 10000 : 25000);
+var IOS_MAX_PX = IS_IPHONE ? 2200 : (IS_IPAD ? 10000 : 25000);
 // iPad undo kept at 5 — each snapshot is ~50MB+ per layer at full res.
 var MAX_UNDO   = IS_IPHONE ? 5 : (IS_IPAD ? 5 : 20);
 
@@ -3317,7 +3317,7 @@ function _computeAnnoEff(){
   var devicePR = window.devicePixelRatio || 1;
   var eff = Math.max(1, devicePR * Math.max(1, zoom));   // cover device px at zoom
   eff = Math.min(eff, 3);                                // hard ceiling
-  var _CAP = 12e6;                                       // per-canvas device-px ceiling
+  var _CAP = (IS_IPHONE ? 5e6 : 12e6);                  // per-canvas device-px ceiling
   if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
   return Math.round(eff*4)/4;                            // bucket to 0.25 steps
 }
