@@ -2964,8 +2964,15 @@ function applyTransformThrottled(){
     // huge sudden scale jump (which crashes at low zoom where the whole canvas
     // stack is visible).
     if(_zoomTarget!==null && _zoomFocus){
-      var maxRatio=1.22;                       // ≤22% scale change per frame
-      var nz=zoom + (_zoomTarget-zoom)*0.5;    // ease toward target
+      // The 0–0.25x band is fragile: the whole canvas stack is fully visible so
+      // the GPU composites every layer each frame. Move at HALF speed whenever
+      // the CURRENT zoom is in that band (regardless of direction), and resume
+      // full speed once above it. Gating on current zoom (not the target) means
+      // a fast zoom-out only slows down as it ENTERS the band, not the whole way.
+      var _slow = (zoom < 0.25);
+      var _ease    = _slow ? 0.25 : 0.5;       // fraction of remaining gap per frame
+      var maxRatio = _slow ? 1.11 : 1.22;      // ≤11% (slow) vs ≤22% (fast) per frame
+      var nz=zoom + (_zoomTarget-zoom)*_ease;  // ease toward target
       if(nz/zoom > maxRatio) nz=zoom*maxRatio;
       if(zoom/nz > maxRatio) nz=zoom/maxRatio;
       var cx=_zoomFocus.cx, cy=_zoomFocus.cy;
