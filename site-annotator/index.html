@@ -3527,7 +3527,6 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
         var key=(fn===OPS.paintInlineImage) ? null : (a && a[0]);
         var bmp=_getPdfImageBitmap(page, key, a, fn);
         var ic=document.createElement('canvas');
-        ic.width=Math.max(1,Math.round(rw)); ic.height=Math.max(1,Math.round(rh));
         var drew=false;
         if(bmp){
           try{
@@ -3544,24 +3543,39 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
             // pdf.js draws the image with an internal flip so pixel-row 0 is at the
             // TOP. Compose: device = m · (imageUnit), where imageUnit maps bitmap
             // (px) → unit square with a vertical flip: u = px/W, v = 1 - py/H.
-            // So bitmap(px,py) → unit(px/W, 1-py/H) → device. Build that combined
-            // transform and drawImage(bmp,0,0) under it.
-            var iw=bmp.width||bmp.naturalWidth||ic.width, ih=bmp.height||bmp.naturalHeight||ic.height;
+            var iw=bmp.width||bmp.naturalWidth||1, ih=bmp.height||bmp.naturalHeight||1;
             // unit-from-pixel: [1/W, 0, 0, -1/H, 0, 1]
             // combined = local_m · unit-from-pixel
             var ua=la*(1/iw), ub=lb*(1/iw);
             var uc=lc*(-1/ih), ud=ld*(-1/ih);
             var ue=lc*1 + le, uf=ld*1 + lf; // m applied to (0,1)
+            // ── Capture at the embedded image's NATIVE resolution ──────────────
+            // The on-page rectangle (rw×rh) is only the *display* size at the PDF
+            // render DPI. If the bitmap is higher-res than that box, baking the
+            // overlay at box size throws away detail and it can never sharpen on
+            // zoom. So scale the capture canvas up to match the source's native
+            // pixel density (bounded by a factor and a memory budget), keeping the
+            // exact same orientation (uniform scale commutes with the rotation/flip).
+            var devX=Math.hypot(la,lb), devY=Math.hypot(lc,ld);   // device px the bitmap spans
+            var q=1;
+            if(devX>0 && devY>0) q=Math.max(iw/devX, ih/devY);    // ×factor to reach native
+            q=Math.max(1, Math.min(q, 8));                        // never downscale; cap 8×
+            var _area=(rw*q)*(rh*q), _BUDGET=12e6;                // per-image memory ceiling
+            if(_area>_BUDGET) q=Math.max(1, q*Math.sqrt(_BUDGET/_area));
+            ic.width =Math.max(1,Math.round(rw*q));
+            ic.height=Math.max(1,Math.round(rh*q));
             ictx.save();
-            ictx.setTransform(ua, ub, uc, ud, ue, uf);
+            _imgSmooth(ictx);
+            ictx.setTransform(ua*q, ub*q, uc*q, ud*q, ue*q, uf*q);
             ictx.drawImage(bmp, 0, 0);
             ictx.restore();
             drew=true;
           }catch(e){
             // Fallback to a plain blit if anything about the matrix math fails.
-            try{ ic.getContext('2d').drawImage(bmp, 0,0, ic.width, ic.height); drew=true; }catch(e2){}
+            try{ ic.width=Math.max(1,Math.round(rw)); ic.height=Math.max(1,Math.round(rh)); ic.getContext('2d').drawImage(bmp, 0,0, ic.width, ic.height); drew=true; }catch(e2){}
           }
         }
+        if(!ic.width||ic.width<1){ ic.width=Math.max(1,Math.round(rw)); ic.height=Math.max(1,Math.round(rh)); }
         if(!drew && _baseSnap){
           // Fallback: slice the image's footprint from the pre-white-out backdrop
           // (already correctly oriented since it's the rendered page).
