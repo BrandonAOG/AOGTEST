@@ -1344,6 +1344,25 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
 </div>
 
+<!-- PDF IMPORT OPTIONS DIALOG -->
+<div class="dlg-overlay" id="pdfopt-ov" style="display:none;background:rgba(0,0,0,.55);pointer-events:auto"></div>
+<div id="pdfopt-dlg" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surf);border:1px solid var(--b2);border-radius:12px;padding:20px 22px;z-index:103;display:none;min-width:300px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.55)">
+  <h3 style="font-size:14px;margin-bottom:4px;color:var(--txt)">Open PDF for editing</h3>
+  <p style="font-size:11px;color:var(--txt2);margin-bottom:14px;line-height:1.5">Choose what to pull off the page as editable pieces. Anything you leave unchecked stays as a fixed background.</p>
+  <label style="display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;margin-bottom:8px;cursor:pointer">
+    <input type="checkbox" id="pdfopt-text" checked style="width:18px;height:18px;accent-color:var(--acc);margin-top:1px;flex-shrink:0">
+    <span style="flex:1"><span style="font-size:13px;color:var(--txt);font-weight:600">Text</span><br><span style="font-size:10px;color:var(--txt2)">Labels become editable — retype, move, recolor</span></span>
+  </label>
+  <label style="display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;margin-bottom:16px;cursor:pointer">
+    <input type="checkbox" id="pdfopt-other" checked style="width:18px;height:18px;accent-color:var(--acc);margin-top:1px;flex-shrink:0">
+    <span style="flex:1"><span style="font-size:13px;color:var(--txt);font-weight:600">Everything else</span><br><span style="font-size:10px;color:var(--txt2)">Equipment images, lines, arrows, boxes &amp; circles become movable</span></span>
+  </label>
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button class="dlg-btn sec" id="pdfopt-cancel">Cancel</button>
+    <button class="dlg-btn primary" id="pdfopt-open">Open</button>
+  </div>
+</div>
+
 <!-- SCALE DIALOG -->
 <div class="dlg-overlay" id="scale-ov"></div>
 <div id="scale-dlg">
@@ -3285,14 +3304,48 @@ function loadPDF(f){
           toast('Editable PDF detected — restoring project…','',0);
           if(loadProjectRecord(rec)){ toast('Editable project restored ✓','ok',3000); return; }
         }
-        // No embedded data → explode into objects (Acrobat-style) or flatten.
-        if(EXPLODE_PDF){ _loadPDFExploded(f); }
+        // No embedded data → ask the user what to extract, then explode/flatten.
+        if(EXPLODE_PDF){ _askPdfImportOptions(f); }
         else { _loadPDFRasterized(f); }
-      }).catch(function(){ EXPLODE_PDF?_loadPDFExploded(f):_loadPDFRasterized(f); });
-    }).catch(function(){ EXPLODE_PDF?_loadPDFExploded(f):_loadPDFRasterized(f); });
+      }).catch(function(){ EXPLODE_PDF?_askPdfImportOptions(f):_loadPDFRasterized(f); });
+    }).catch(function(){ EXPLODE_PDF?_askPdfImportOptions(f):_loadPDFRasterized(f); });
     return;
   }
-  if(EXPLODE_PDF){ _loadPDFExploded(f); } else { _loadPDFRasterized(f); }
+  if(EXPLODE_PDF){ _askPdfImportOptions(f); } else { _loadPDFRasterized(f); }
+}
+
+// What to extract as editable objects. Set by the import-options pop-up; default
+// both on. When a category is off, that content stays baked in the backdrop.
+var EXPLODE_TEXT  = true;
+var EXPLODE_OTHER = true;
+
+// Show the pop-up every time a PDF is opened (Acrobat-style import choice).
+function _askPdfImportOptions(f){
+  var ov=document.getElementById('pdfopt-ov');
+  var dlg=document.getElementById('pdfopt-dlg');
+  var cbT=document.getElementById('pdfopt-text');
+  var cbO=document.getElementById('pdfopt-other');
+  if(!ov||!dlg||!cbT||!cbO){ _loadPDFExploded(f); return; } // safety: no dialog → just explode
+  // Restore last-used choices as the starting state.
+  cbT.checked=EXPLODE_TEXT; cbO.checked=EXPLODE_OTHER;
+  ov.style.display='block'; dlg.style.display='block';
+  function cleanup(){
+    ov.style.display='none'; dlg.style.display='none';
+    btnOpen.removeEventListener('click',onOpen);
+    btnCancel.removeEventListener('click',onCancel);
+    ov.removeEventListener('click',onCancel);
+  }
+  var btnOpen=document.getElementById('pdfopt-open');
+  var btnCancel=document.getElementById('pdfopt-cancel');
+  function onOpen(){
+    EXPLODE_TEXT=cbT.checked; EXPLODE_OTHER=cbO.checked;
+    cleanup();
+    _loadPDFExploded(f);
+  }
+  function onCancel(){ cleanup(); /* abort import; nothing loaded */ }
+  btnOpen.addEventListener('click',onOpen);
+  btnCancel.addEventListener('click',onCancel);
+  ov.addEventListener('click',onCancel);
 }
 
 function _loadPDFRasterized(f){
@@ -3453,7 +3506,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   // its on-page rectangle and pull the decoded bitmap from page.objs. Make each
   // a movable overlay and white-out its rectangle from the backdrop.
   var imgCount=0;
-  try{
+  if(EXPLODE_OTHER) try{
     var m=vp.transform.slice(), stack=[];
     function _mul(a,b){return [a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];}
     var fns=opList.fnArray, args=opList.argsArray;
@@ -3477,10 +3530,41 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
         ic.width=Math.max(1,Math.round(rw)); ic.height=Math.max(1,Math.round(rh));
         var drew=false;
         if(bmp){
-          try{ ic.getContext('2d').drawImage(bmp, 0,0, ic.width, ic.height); drew=true; }catch(e){}
+          try{
+            // Honor the image's placement orientation. pdf.js maps image space
+            // (a unit square, with the bitmap's TOP-LEFT at unit (0,1) because PDF
+            // images are y-up) through the matrix m. If we just blit the raw
+            // bitmap into an axis-aligned box we drop any flip/rotation baked into
+            // m, which is what made some images come in mirrored. Instead we map
+            // the matrix into the overlay's local box and draw oriented.
+            var ictx=ic.getContext('2d');
+            // Local matrix: m expressed relative to the overlay's top-left (x0,y0).
+            // m maps unit square → device px. Local = translate(-x0,-y0) ∘ m.
+            var la=m[0], lb=m[1], lc=m[2], ld=m[3], le=m[4]-x0, lf=m[5]-y0;
+            // pdf.js draws the image with an internal flip so pixel-row 0 is at the
+            // TOP. Compose: device = m · (imageUnit), where imageUnit maps bitmap
+            // (px) → unit square with a vertical flip: u = px/W, v = 1 - py/H.
+            // So bitmap(px,py) → unit(px/W, 1-py/H) → device. Build that combined
+            // transform and drawImage(bmp,0,0) under it.
+            var iw=bmp.width||bmp.naturalWidth||ic.width, ih=bmp.height||bmp.naturalHeight||ic.height;
+            // unit-from-pixel: [1/W, 0, 0, -1/H, 0, 1]
+            // combined = local_m · unit-from-pixel
+            var ua=la*(1/iw), ub=lb*(1/iw);
+            var uc=lc*(-1/ih), ud=ld*(-1/ih);
+            var ue=lc*1 + le, uf=ld*1 + lf; // m applied to (0,1)
+            ictx.save();
+            ictx.setTransform(ua, ub, uc, ud, ue, uf);
+            ictx.drawImage(bmp, 0, 0);
+            ictx.restore();
+            drew=true;
+          }catch(e){
+            // Fallback to a plain blit if anything about the matrix math fails.
+            try{ ic.getContext('2d').drawImage(bmp, 0,0, ic.width, ic.height); drew=true; }catch(e2){}
+          }
         }
         if(!drew && _baseSnap){
-          // Fallback: slice the image's footprint from the pre-white-out backdrop.
+          // Fallback: slice the image's footprint from the pre-white-out backdrop
+          // (already correctly oriented since it's the rendered page).
           try{
             var sx=Math.max(0,Math.round(x0)), sy=Math.max(0,Math.round(y0));
             var sw=Math.min(w-sx,Math.round(rw)), sh=Math.min(h-sy,Math.round(rh));
@@ -3509,10 +3593,15 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   // arrow, axis-aligned closed quads → rectangles. Each extracted stroke is
   // painted over in white on the backdrop so it isn't duplicated.
   var vecCount=0;
-  try{
+  if(EXPLODE_OTHER) try{
     vecCount=_extractVectors(opList, vp, sc, w, h);
   }catch(e){ console.warn('[Explode] vector pass failed:',e); }
 
+  // ── TEXT PASS (only when the user asked to extract text) ─────────────────
+  // When text is left unchecked, we skip both the white-out and the object
+  // creation, so the original text simply stays baked in the backdrop.
+  var txtCount=0;
+  if(EXPLODE_TEXT){
   // First pass: white-out the baked text on the base canvas. Per-fragment boxes
   // overlap to cover each full line. We sample the local background just outside
   // each box; if it reads close to white we snap to pure white so anti-aliased
@@ -3592,7 +3681,6 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   });
 
   // Emit one editable text object per merged line.
-  var txtCount=0;
   lines.forEach(function(line){
     // Sort left-to-right within the line (defensive; usually already ordered).
     line.runs.sort(function(a,b){ return a.x-b.x; });
@@ -3627,6 +3715,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
     });
     txtCount++;
   });
+  } // end if(EXPLODE_TEXT)
 
   _finishExplode(n, w, h, sc, false, imgCount, txtCount, vecCount);
 }
