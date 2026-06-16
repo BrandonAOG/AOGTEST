@@ -2967,7 +2967,7 @@ function updateLegend(){
 }
 
 // ── ZOOM/PAN ──
-function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
+function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(typeof _setImgRes==='function') _setImgRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
 
 function clampPan(){
   var vw=viewport.clientWidth,vh=viewport.clientHeight;
@@ -10725,19 +10725,72 @@ var selImgHandle= -1;          // which handle is being dragged
 var selImgDrag  = null;        // drag start state
 var IMG_HANDLE  = 10;          // handle size px (screen)
 
+var _imgEff = 0;     // effective scale currently baked into the image overlay canvas
+
+// Image overlays get their OWN (higher) resolution than text/shape canvases.
+// Text/shapes are vectors that re-rasterize crisply at modest eff; raster images
+// need more backing-store pixels to stay readable at high zoom (like Acrobat,
+// which re-samples from the full-res source at every zoom level). We let the
+// image canvas go higher, but cap it to (a) a memory budget and (b) the native
+// resolution the placed images can actually supply — going past native wastes
+// memory without adding detail.
+function _computeImgEff(){
+  var w = baseCv.width, h = baseCv.height;
+  if(!w || !h) return 1;
+  var devicePR = window.devicePixelRatio || 1;
+  var eff = Math.max(1, devicePR * Math.max(1, zoom));
+  eff = Math.min(eff, 8);                                 // higher ceiling than text/shapes (3)
+  var _CAP = (IS_IPHONE ? 8e6 : 24e6);                    // bigger budget for the single image layer
+  if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
+  // Don't exceed what the placed images' source resolution can supply.
+  var maxNative = 1;
+  if(typeof imgOverlays!=='undefined'){
+    imgOverlays.forEach(function(ov){
+      if(!ov.img || !ov.w || !ov.h) return;
+      var sw=ov.img.naturalWidth||ov.img.width, sh=ov.img.naturalHeight||ov.img.height;
+      if(!sw||!sh) return;
+      var ratio = Math.max(sw/ov.w, sh/ov.h);             // source device-px per plan-px
+      if(ratio>maxNative) maxNative=ratio;
+    });
+  }
+  eff = Math.min(eff, Math.max(1, maxNative));
+  return Math.round(eff*4)/4;                             // bucket to 0.25 steps
+}
+
 // Sync img-cv size whenever canvas changes
 function syncImgCv(){
   var w=baseCv.width||1, h=baseCv.height||1;
-  // Size the overlay canvas at the SAME effective resolution as the text/shape
-  // anno canvases so images stay crisp when zoomed and their backing store
-  // always covers the displayed area (fixes pixels dropping off during
-  // resize/drag at high zoom). Draw in plan coords via the eff transform.
-  var eff = (typeof _computeAnnoEff==='function') ? _computeAnnoEff() : 1;
+  // Size the image overlay canvas at its own effective resolution (see
+  // _computeImgEff) so images stay crisp when zoomed instead of being CSS-stretched
+  // from a stale low-res backing store. Draw in plan coords via the eff transform.
+  var eff = (typeof _computeImgEff==='function') ? _computeImgEff() : 1;
   var bw=Math.max(1,Math.round(w*eff)), bh=Math.max(1,Math.round(h*eff));
   if(imgCv.width!==bw||imgCv.height!==bh){ imgCv.width=bw; imgCv.height=bh; }
   imgCv.style.width=w+'px'; imgCv.style.height=h+'px';
   imgCtx.setTransform(eff,0,0,eff,0,0);
   imgCv._eff=eff;
+  _imgEff=eff;
+}
+
+// Called from the zoom path (applyTransform). Re-rasterizes image overlays only
+// when their effective resolution actually changed. The heavy step-down resample
+// is debounced so continuous pinch/wheel zoom stays smooth (the view is CSS-
+// stretched in between) and snaps to full sharpness once zooming settles.
+var _imgResTimer = null;
+function _setImgRes(force){
+  if(typeof renderImgOverlays!=='function') return;
+  if(!baseCv.width || !baseCv.height) return;
+  if(typeof imgOverlays==='undefined' || !imgOverlays.length) return;
+  var eff = _computeImgEff();
+  if(!force && Math.abs(eff - _imgEff) < 0.2) return;
+  if(_imgResTimer){ clearTimeout(_imgResTimer); _imgResTimer=null; }
+  var doRender=function(){
+    _imgResTimer=null;
+    renderImgOverlays();
+    if(typeof selImg!=='undefined' && selImg && typeof renderImgSelection==='function') renderImgSelection();
+  };
+  if(force){ doRender(); }
+  else { _imgResTimer=setTimeout(doRender, 90); }
 }
 
 function renderImgOverlays(){
