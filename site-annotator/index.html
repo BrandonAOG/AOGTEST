@@ -3042,7 +3042,7 @@ document.addEventListener('touchstart',function(e){
     } else {
       _t3Active=false; _t4Active=false;
     }
-    if(!pinching){ if(drawing){drawing=false;if(compositedSnap){dCtx.putImageData(compositedSnap,0,0);}dCtx.beginPath();try{lctx().beginPath();}catch(ex){}} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; if(!_fullyVisible()) scene.classList.add('zooming'); }
+    if(!pinching){ if(drawing){drawing=false;if(compositedSnap){dCtx.putImageData(compositedSnap,0,0);}dCtx.beginPath();try{lctx().beginPath();}catch(ex){}} pinching=true; pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=zoom; twoMidX=(e.touches[0].clientX+e.touches[1].clientX)/2; twoMidY=(e.touches[0].clientY+e.touches[1].clientY)/2; if(!_fullyVisible()) scene.classList.add('zooming'); if(window.__dbgLog) window.__dbgLog('PINCH START @zoom '+zoom.toFixed(3)+' base '+baseCv.width+'x'+baseCv.height); }
   } else {
     _t3Active=false; _t4Active=false;
   }
@@ -3606,8 +3606,23 @@ function afterLoad(){
   fitToVP();
   toast('File loaded — '+(IS_IPHONE?'iPhone cap applied':'ready to annotate'),'ok',2000);
   clearSave(); scheduleSave(); // start fresh save for this file
-  // Auto-detect scale from title block (non-blocking)
-  setTimeout(autoDetectScale, 100);
+  // Auto-detect scale from title block (non-blocking). This does a heavy
+  // toDataURL encode + network call, which can collide with the GPU work of a
+  // first pinch right after loading (notably after a camera capture, where the
+  // user zooms immediately). So wait longer AND skip while a gesture is active,
+  // retrying once things are idle.
+  _scheduleAutoDetect();
+}
+
+function _scheduleAutoDetect(){
+  setTimeout(function _try(){
+    if(pinching || _gestZoom0!==null || _xfReq){
+      // user is mid-gesture — wait and retry rather than encode/fetch now
+      setTimeout(_try, 600);
+      return;
+    }
+    autoDetectScale();
+  }, 800);
 }
 
 function pgGrp(show){
@@ -9120,10 +9135,20 @@ function autoDetectScale(){
   var maxPx=1024, sw=baseCv.width, sh=baseCv.height;
   var ts=Math.min(1,maxPx/Math.max(sw,sh));
   var tw=Math.round(sw*ts), th=Math.round(sh*ts);
-  var tmp=document.createElement('canvas');
-  tmp.width=tw; tmp.height=th;
-  tmp.getContext('2d').drawImage(baseCv,0,0,sw,sh,0,0,tw,th);
-  var b64=tmp.toDataURL('image/jpeg',0.82).split(',')[1];
+  var b64;
+  try{
+    if(window.__dbgLog) window.__dbgLog('autoDetect: encoding '+tw+'x'+th+' thumbnail');
+    var tmp=document.createElement('canvas');
+    tmp.width=tw; tmp.height=th;
+    tmp.getContext('2d').drawImage(baseCv,0,0,sw,sh,0,0,tw,th);
+    b64=tmp.toDataURL('image/jpeg',0.82).split(',')[1];
+    tmp.width=1; tmp.height=1;  // release the thumbnail canvas promptly
+  }catch(ex){
+    if(window.__dbgLog) window.__dbgLog('autoDetect: thumbnail encode FAILED, skipping');
+    if(spinner) spinner.style.display='none';
+    if(hint) hint.textContent='Use DPI calculator or draw a reference line';
+    return;
+  }
 
   fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
