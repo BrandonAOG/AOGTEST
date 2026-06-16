@@ -1772,6 +1772,41 @@ var selCtx=selCv.getContext('2d');
 var tCv=document.getElementById('txt-cv');
 var tCtx=tCv.getContext('2d');
 var shCv=document.getElementById('shapes-cv');
+
+// ── GPU compositing optimization ───────────────────────────────
+// The scene stacks 6 full-size canvases; iOS composites EVERY visible one on
+// each transform (pan or zoom). Empty annotation/image canvases (often 35MB
+// each) waste that work and are the real cause of fast pan/zoom crashes. Hide
+// any layer that currently has nothing drawn on it via display:none so the GPU
+// skips it; show it again the moment it has content. Called after renders and
+// from composite(). Cheap: just checks whether the source object arrays/overlays
+// are non-empty rather than scanning pixels.
+function _layerHasContent(which){
+  try{
+    if(which==='shapes'){
+      return (typeof shapeObjs!=='undefined'&&shapeObjs.length) ||
+             (typeof measureObjs!=='undefined'&&measureObjs.length) ||
+             (typeof pathMeasureObjs!=='undefined'&&pathMeasureObjs.length) ||
+             (typeof polylineObjs!=='undefined'&&polylineObjs.length) ||
+             (typeof penObjs!=='undefined'&&penObjs.length) ||
+             (typeof polygonObjs!=='undefined'&&polygonObjs.length) ||
+             (typeof leaderObjs!=='undefined'&&leaderObjs.length) ||
+             (typeof stampObjs!=='undefined'&&stampObjs.length) ||
+             (typeof markupObjs!=='undefined'&&markupObjs.length) ||
+             (typeof commentObjs!=='undefined'&&commentObjs.length);
+    }
+    if(which==='text'){ return (typeof textObjs!=='undefined'&&textObjs.length); }
+    if(which==='img'){  return (typeof imgOverlays!=='undefined'&&imgOverlays.length); }
+  }catch(e){ return true; }   // on any doubt, keep it visible (safe)
+  return true;
+}
+function _updateLayerVisibility(){
+  try{
+    if(typeof shCv!=='undefined') shCv.style.display = _layerHasContent('shapes') ? '' : 'none';
+    if(typeof tCv!=='undefined')  tCv.style.display  = _layerHasContent('text')   ? '' : 'none';
+    if(typeof imgCv!=='undefined')imgCv.style.display = _layerHasContent('img')    ? '' : 'none';
+  }catch(e){}
+}
 var shCtx=shCv.getContext('2d');
 
 // ── Accurate text width using real canvas measurement ────────────
@@ -2995,12 +3030,7 @@ function clampPan(){
   panY=Math.max(Math.min(80-ch,0),Math.min(Math.max(vh-80,0),panY));
 }
 
-// Minimum zoom. On iPhone the deep zoomed-out range (<~0.18x) is where the
-// whole canvas stack is fully visible and the GPU composites every layer each
-// frame — the zone that crashes on a fast scrub. Floor the minimum at 0.18 on
-// iPhone to keep out of it. (Slightly crops very large plans at "fit", but most
-// photos still essentially fit.) Other devices keep the original 0.05 floor.
-function minZoom(){ return IS_IPHONE ? 0.18 : 0.05; }
+function minZoom(){ return 0.05; }
 
 function fitToVP(){
   var vw=viewport.clientWidth-48,vh=viewport.clientHeight-48;
@@ -3061,7 +3091,7 @@ viewport.addEventListener('wheel',function(e){
 },{passive:false});
 
 function startPan(x,y){ isPanning=true; lastPanX=x; lastPanY=y; }
-function movePan(x,y){ if(!isPanning) return; panX+=x-lastPanX; panY+=y-lastPanY; lastPanX=x; lastPanY=y; clampPan(); applyTransform(); }
+function movePan(x,y){ if(!isPanning) return; panX+=x-lastPanX; panY+=y-lastPanY; lastPanX=x; lastPanY=y; clampPan(); applyTransformThrottled(); }
 function endPan(){ isPanning=false; }
 
 viewport.addEventListener('mousedown',function(e){ if(spaceDown||tool==='pan'){ e.preventDefault(); startPan(e.clientX,e.clientY); viewport.style.cursor='grabbing'; } else if(e.button===1){ e.preventDefault(); startPan(e.clientX,e.clientY); } });
@@ -3648,6 +3678,7 @@ function afterLoad(){
   pgGrp(!!pdfDoc);
   drawGrid();
   fitToVP();
+  if(typeof _updateLayerVisibility==='function') _updateLayerVisibility();
   toast('File loaded — '+(IS_IPHONE?'iPhone cap applied':'ready to annotate'),'ok',2000);
   clearSave(); scheduleSave(); // start fresh save for this file
   // Auto-detect scale from title block (non-blocking). This does a heavy
@@ -5081,6 +5112,7 @@ function renderShapeAndMeasure(){
   stampObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; drawStampObjOnCtx(shCtx,o,1); });
   // Comment objects (sticky notes)
   renderCommentObjs(shCtx);
+  if(typeof _updateLayerVisibility==='function') _updateLayerVisibility();
 }
 
 // ── Draw helpers for live pen/polygon/leader/stamp ──────────────
@@ -6098,6 +6130,7 @@ function renderTextObjs(){
   });
   // Render markup objects on same canvas
   renderMarkupObjs();
+  if(typeof _updateLayerVisibility==='function') _updateLayerVisibility();
 }
 
 // ── Hit test: find text object at canvas position ────────────
@@ -10241,6 +10274,7 @@ function renderImgOverlays(){
     if(ov===selImg) return; // selected one drawn on selCv
     _drawImgOv(imgCtx, ov);
   });
+  if(typeof _updateLayerVisibility==='function') _updateLayerVisibility();
 }
 
 function _drawImgOv(ctx, ov){
