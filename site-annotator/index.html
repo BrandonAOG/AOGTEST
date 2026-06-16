@@ -101,6 +101,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .layer-name{flex:1;font-size:12px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .layer-vis{width:20px;height:20px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:4px;flex-shrink:0;padding:0}
 .layer-vis:hover{color:var(--txt)}
+.layer-solo{width:20px;height:20px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:4px;flex-shrink:0;padding:0}
+.layer-solo:hover{color:var(--txt)}
+.layer-solo.on{color:#6c63ff}
 .layer-item.hidden-layer .layer-name{opacity:.35}
 .layer-del{width:18px;height:18px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;border-radius:4px;flex-shrink:0;padding:0;opacity:0}
 .layer-item:hover .layer-del{opacity:.6}
@@ -1013,6 +1016,10 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <button class="ic-btn" id="btn-snap" title="Snap">&#9875;</button>
   </div>
   <div class="sb-group">
+    <button class="ic-btn" id="active-layer-badge" title="Active layer — tap to open Layers" style="width:auto;max-width:120px;padding:0 8px;font-size:10px;gap:5px;display:flex;align-items:center;overflow:hidden">
+      <span id="alb-dot" style="width:9px;height:9px;border-radius:50%;flex-shrink:0;background:#ef4444"></span>
+      <span id="alb-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Layer 1</span>
+    </button>
     <button class="ic-btn" id="btn-layers" title="Layers">&#9776;</button>
     <button class="ic-btn" id="btn-props" title="Properties">&#9881;</button>
   </div>
@@ -1541,6 +1548,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <div class="sc-row"><span class="sc-desc">Add layer</span><span class="sc-key">＋ button in layers panel</span></div>
       <div class="sc-row"><span class="sc-desc">Switch active layer</span><span class="sc-key">Tap layer name</span></div>
       <div class="sc-row"><span class="sc-desc">Toggle visibility</span><span class="sc-key">👁 eye icon on layer</span></div>
+      <div class="sc-row"><span class="sc-desc">Show only this layer</span><span class="sc-key">◎ solo icon (tap again to restore)</span></div>
       <div class="sc-row"><span class="sc-desc">Delete layer</span><span class="sc-key">✕ icon (hover to reveal)</span></div>
     </div>
 
@@ -1689,7 +1697,7 @@ var IS_IOS    = IS_IPHONE || IS_IPAD;
 // iPad gets 10000px cap.
 // iPad canvas capped at 10000px — prevents multi-layer snapshots from
 // filling Safari's memory and crashing on reload.
-var IOS_MAX_PX = IS_IPHONE ? 2900 : (IS_IPAD ? 10000 : 25000);
+var IOS_MAX_PX = IS_IPHONE ? 3100 : (IS_IPAD ? 10000 : 25000);
 // iPad undo kept at 5 — each snapshot is ~50MB+ per layer at full res.
 var MAX_UNDO   = IS_IPHONE ? 5 : (IS_IPAD ? 5 : 20);
 
@@ -2501,7 +2509,7 @@ document.addEventListener('touchmove', function(e){
 var tool='pan', color='#ef4444', strokeW=2, opacity=1, lineStyle='solid', fillShape=false;
 var fillColor='#ef4444', fillOpacity=0.4; // separate fill (inner) color and opacity
 var stampType='north';
-var layers=[], activeLayerIdx=0;
+var layers=[], activeLayerIdx=0, _soloIdx=-1;
 var zoom=1, panX=0, panY=0;
 var drawing=false, startX=0, startY=0, lastPenX=0, lastPenY=0;
 var compositedSnap=null;
@@ -2610,6 +2618,16 @@ function composite(){
   layers.forEach(function(l){ if(l.visible) dCtx.drawImage(l.canvas,0,0); });
   // shapes-cv and txt-cv render on their own canvases above draw-cv — no need to blit here
   // (they are separate absolutely-positioned canvases in the DOM)
+}
+
+// Full redraw of every layer-bound surface, honoring each layer's visibility.
+// Used when visibility changes (eye / solo) so shapes, text, images, etc. on a
+// hidden layer disappear too — not just the freehand strokes on the layer canvas.
+function _refreshLayersView(){
+  composite();
+  if(typeof renderTextObjs==='function')         renderTextObjs();
+  if(typeof renderShapeAndMeasure==='function')  renderShapeAndMeasure();
+  if(typeof renderImgOverlays==='function')      renderImgOverlays();
 }
 
 // ── rAF-throttled redraw for drag operations ────────────────
@@ -2861,22 +2879,37 @@ function renderLayers(){
     div.className='layer-item'+(i===activeLayerIdx?' active-layer':'')+(l.visible?'':' hidden-layer');
     div.dataset.idx=i;
     div.innerHTML='<button class="layer-vis" data-idx="'+i+'">'+(l.visible?'&#128065;':'&#128274;')+'</button>'+
+      '<button class="layer-solo'+(_soloIdx===i?' on':'')+'" data-idx="'+i+'" title="Show only this layer">&#9678;</button>'+
       '<div class="layer-dot" style="background:'+l.color+'"></div>'+
       '<span class="layer-name" contenteditable="true" data-idx="'+i+'">'+l.name+'</span>'+
       (layers.length>1?'<button class="layer-del" data-idx="'+i+'">&#10005;</button>':'');
     layersList.appendChild(div);
   });
   updateLegend();
+  _updateActiveLayerBadge();
+}
+
+// Keep the toolbar badge in sync with the active layer (color dot + name).
+function _updateActiveLayerBadge(){
+  var dot=document.getElementById('alb-dot'), nm=document.getElementById('alb-name');
+  if(!dot||!nm) return;
+  var L=layers[activeLayerIdx];
+  if(L){ dot.style.background=L.color; nm.textContent=L.name; }
 }
 
 layersList.addEventListener('click',function(e){
-  var vis=e.target.closest('.layer-vis'); if(vis){ var i=+vis.dataset.idx; layers[i].visible=!layers[i].visible; composite(); renderLayers(); return; }
-  var del=e.target.closest('.layer-del'); if(del){ var i=+del.dataset.idx; if(layers.length<=1) return; var deleted=layers.splice(i,1); if(deleted[0]) releaseCanvas(deleted[0].canvas); if(activeLayerIdx>=layers.length) activeLayerIdx=layers.length-1; composite(); renderLayers(); return; }
+  var vis=e.target.closest('.layer-vis'); if(vis){ var i=+vis.dataset.idx; layers[i].visible=!layers[i].visible; _soloIdx=-1; if(typeof _deselectImgIfHidden==='function') _deselectImgIfHidden(); _refreshLayersView(); renderLayers(); return; }
+  var solo=e.target.closest('.layer-solo'); if(solo){ var i=+solo.dataset.idx;
+    if(_soloIdx===i){ layers.forEach(function(l){ l.visible=true; }); _soloIdx=-1; }
+    else { layers.forEach(function(l,k){ l.visible=(k===i); }); _soloIdx=i; }
+    if(typeof _deselectImgIfHidden==='function') _deselectImgIfHidden();
+    _refreshLayersView(); renderLayers(); return; }
+  var del=e.target.closest('.layer-del'); if(del){ var i=+del.dataset.idx; if(layers.length<=1) return; var deleted=layers.splice(i,1); if(deleted[0]) releaseCanvas(deleted[0].canvas); if(activeLayerIdx>=layers.length) activeLayerIdx=layers.length-1; _soloIdx=-1; composite(); renderLayers(); return; }
   var item=e.target.closest('.layer-item'); if(item&&!e.target.isContentEditable){ activeLayerIdx=+item.dataset.idx; color=layers[activeLayerIdx].color; clrSwatch.style.background=color; clrInput.value=color; renderLayers(); }
 });
 
 layersList.addEventListener('blur',function(e){
-  var nm=e.target.closest('[contenteditable]'); if(nm){ var i=+nm.dataset.idx; if(layers[i]) layers[i].name=nm.textContent.trim()||'Layer '+(i+1); updateLegend(); }
+  var nm=e.target.closest('[contenteditable]'); if(nm){ var i=+nm.dataset.idx; if(layers[i]) layers[i].name=nm.textContent.trim()||'Layer '+(i+1); updateLegend(); _updateActiveLayerBadge(); }
 },true);
 
 addLayerBtn.addEventListener('click',function(){
@@ -2884,6 +2917,7 @@ addLayerBtn.addEventListener('click',function(){
   var col=cols[layers.length%cols.length];
   var l=makeLayer('Layer '+(layers.length+1),col);
   l.canvas.width=baseCv.width||1; l.canvas.height=baseCv.height||1;
+  layers.forEach(function(x){ x.visible=true; }); _soloIdx=-1;
   layers.push(l); activeLayerIdx=layers.length-1;
   color=l.color; clrSwatch.style.background=color; clrInput.value=color;
   renderLayers();
@@ -3059,15 +3093,15 @@ if(camBtn){
   }
   camBtn.addEventListener('click', function(){ cameraIn.click(); });
   cameraIn.addEventListener('change', function(e){
-    var f=e.target.files[0]; if(f) loadFile(f); e.target.value='';
+    var f=e.target.files[0]; if(f) loadFile(f, IS_IPHONE?2900:IOS_MAX_PX); e.target.value='';
   });
 }
-fileIn.addEventListener('change',function(e){ var f=e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
+fileIn.addEventListener('change',function(e){ var f=e.target.files[0]; if(f) loadFile(f, IS_IPHONE?3200:IOS_MAX_PX); e.target.value=''; });
 viewport.addEventListener('dragover',function(e){ e.preventDefault(); viewport.style.outline='2px dashed #6c63ff'; });
 viewport.addEventListener('dragleave',function(){ viewport.style.outline=''; });
-viewport.addEventListener('drop',function(e){ e.preventDefault(); viewport.style.outline=''; var f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+viewport.addEventListener('drop',function(e){ e.preventDefault(); viewport.style.outline=''; var f=e.dataTransfer.files[0]; if(f) loadFile(f, IS_IPHONE?3200:IOS_MAX_PX); });
 
-function loadFile(f){
+function loadFile(f, srcCap){
   var name=(f.name||'').toLowerCase();
   var type=(f.type||'').toLowerCase();
   if(type==='application/pdf'||name.endsWith('.pdf')){ loadPDF(f); return; }
@@ -3075,7 +3109,7 @@ function loadFile(f){
   if(type.startsWith('image/')||
      name.match(/\.(png|jpg|jpeg|gif|webp|bmp|tiff?|svg|svgz|heic|heif)$/)||
      f.size<50*1024*1024){
-    loadImageBlob(f); return;
+    loadImageBlob(f, false, srcCap); return;
   }
   toast('Unsupported file type: '+(type||name.split('.').pop()),'warn');
 }
@@ -3148,7 +3182,7 @@ function isCanvasBlank(ctx, w, h){
 }
 
 // ── Core image loader ────────────────────────────────────────
-function loadImageBlob(blob, _retried){
+function loadImageBlob(blob, _retried, srcCap){
   var name=(blob.name||'').toLowerCase();
   var url=URL.createObjectURL(blob);
   var img=new Image();
@@ -3156,11 +3190,12 @@ function loadImageBlob(blob, _retried){
   img.onload=function(){
     if(img.naturalWidth===0||img.naturalHeight===0){
       URL.revokeObjectURL(url);
-      if(!_retried) tryHEICFallback(blob, name);
+      if(!_retried) tryHEICFallback(blob, name, srcCap);
       else showImageError(name);
       return;
     }
-    var scale=Math.min(1,IOS_MAX_PX/Math.max(img.naturalWidth,img.naturalHeight));
+    var _cap = srcCap || IOS_MAX_PX;
+    var scale=Math.min(1,_cap/Math.max(img.naturalWidth,img.naturalHeight));
     var w=Math.round(img.naturalWidth*scale);
     var h=Math.round(img.naturalHeight*scale);
     pdfDoc=null; pgGrp(false);
@@ -3179,7 +3214,7 @@ function loadImageBlob(blob, _retried){
     // on browsers that "support" HEIC in <img> but not in canvas.
     if(isCanvasBlank(bCtx,w,h)){
       console.warn('[Load] Canvas blank after drawImage — retrying with heic2any');
-      if(!_retried) tryHEICFallback(blob, name);
+      if(!_retried) tryHEICFallback(blob, name, srcCap);
       else showImageError(name);
       return;
     }
@@ -3189,7 +3224,7 @@ function loadImageBlob(blob, _retried){
 
   img.onerror=function(){
     URL.revokeObjectURL(url);
-    if(!_retried) tryHEICFallback(blob, name);
+    if(!_retried) tryHEICFallback(blob, name, srcCap);
     else showImageError(name);
   };
 
@@ -3197,7 +3232,7 @@ function loadImageBlob(blob, _retried){
 }
 
 // ── HEIC fallback: convert then retry draw ───────────────────
-function tryHEICFallback(blob, name){
+function tryHEICFallback(blob, name, srcCap){
   var looksHEIC=name.endsWith('.heic')||name.endsWith('.heif')||
                 (blob.type||'').includes('heic')||(blob.type||'').includes('heif');
   if(!looksHEIC && !isCanvasBlank(bCtx,1,1)){
@@ -3210,7 +3245,7 @@ function tryHEICFallback(blob, name){
       return;
     }
     toast('Converting image format… done','ok',2000);
-    loadImageBlob(jpegBlob, true); // retry with converted blob, no more retries
+    loadImageBlob(jpegBlob, true, srcCap); // retry with converted blob, no more retries
   });
 }
 
@@ -8624,6 +8659,8 @@ document.getElementById('clear-ov').addEventListener('click', function(){
 
 // ── PANELS ──
 btnLayers.addEventListener('click',function(){ layersPanel.classList.toggle('collapsed'); btnLayers.classList.toggle('active',!layersPanel.classList.contains('collapsed')); });
+var _albBtn=document.getElementById('active-layer-badge');
+if(_albBtn) _albBtn.addEventListener('click',function(){ btnLayers.click(); });
 btnProps.addEventListener('click',function(){ propsPanel.classList.toggle('collapsed'); btnProps.classList.toggle('active',!propsPanel.classList.contains('collapsed')); });
 
 // ── SCALE ──
@@ -9606,7 +9643,7 @@ function buildProjectRecord(quality, cb){
         url=tc.toDataURL('image/png');
       }catch(ex){ url=''; }
       return {src:url,cx:ov.cx,cy:ov.cy,w:ov.w,h:ov.h,angle:ov.angle||0,
-              flipH:!!ov.flipH,flipV:!!ov.flipV,opacity:ov.opacity!==undefined?ov.opacity:1};
+              flipH:!!ov.flipH,flipV:!!ov.flipV,opacity:ov.opacity!==undefined?ov.opacity:1,layerIdx:ov.layerIdx};
     })
   };
   // Encode base image, then layers sequentially.
@@ -9670,7 +9707,7 @@ function doSave(){
         url=tc.toDataURL('image/png');
       }catch(ex){ url=''; }
       return {src:url,cx:ov.cx,cy:ov.cy,w:ov.w,h:ov.h,angle:ov.angle||0,
-              flipH:!!ov.flipH,flipV:!!ov.flipV,opacity:ov.opacity!==undefined?ov.opacity:1};
+              flipH:!!ov.flipH,flipV:!!ov.flipV,opacity:ov.opacity!==undefined?ov.opacity:1,layerIdx:ov.layerIdx};
     })
   };
 
@@ -9822,7 +9859,8 @@ function doRestore(rec){
                 oi.onload=function(){
                   imgOverlays.push({img:oi,cx:od.cx,cy:od.cy,w:od.w,h:od.h,
                     angle:od.angle||0,flipH:!!od.flipH,flipV:!!od.flipV,
-                    opacity:od.opacity!==undefined?od.opacity:1});
+                    opacity:od.opacity!==undefined?od.opacity:1,
+                    layerIdx:od.layerIdx!==undefined?od.layerIdx:0});
                   if(typeof renderImgOverlays==='function') renderImgOverlays();
                   composite();
                 };
@@ -9927,6 +9965,7 @@ function renderImgOverlays(){
   imgCtx.clearRect(0,0,imgCv.width,imgCv.height);
   imgOverlays.forEach(function(ov){
     if(ov===selImg) return; // selected one drawn on selCv
+    var L=layers[ov.layerIdx]; if(L && !L.visible) return; // hide if its layer is hidden
     _drawImgOv(imgCtx, ov);
   });
 }
@@ -9981,6 +10020,7 @@ function _imgHitTest(ov, x, y){
 
 function findImgAt(x,y,isTouch){
   for(var i=imgOverlays.length-1;i>=0;i--){
+    var L=layers[imgOverlays[i].layerIdx]; if(L && !L.visible) continue;
     if(_imgHitTest(imgOverlays[i],x,y)) return imgOverlays[i];
   }
   return null;
@@ -10334,6 +10374,15 @@ function commitImgSelection(){
   renderImgOverlays();
 }
 
+// If the currently selected image sits on a layer that just became hidden,
+// drop the selection so its handles/toolbar don't linger over an invisible image.
+function _deselectImgIfHidden(){
+  if(typeof selImg!=='undefined' && selImg){
+    var L=layers[selImg.layerIdx];
+    if(L && !L.visible){ if(typeof hideImgBar==='function') hideImgBar(); commitImgSelection(); }
+  }
+}
+
 // ── Undo integration for image overlays ──
 // Piggyback on the existing undo system by serialising imgOverlays state
 // into captureState/applySnap via monkey-patch
@@ -10491,7 +10540,7 @@ function _commitImgPlacement(cx, cy){
   if(el){ el.classList.remove('show','ok','warn','err'); }
 
   captureState();
-  var ov = {img:img, cx:cx, cy:cy, w:sz.w, h:sz.h, angle:0, flipH:false, flipV:false, opacity:1};
+  var ov = {img:img, cx:cx, cy:cy, w:sz.w, h:sz.h, angle:0, flipH:false, flipV:false, opacity:1, layerIdx:activeLayerIdx};
   imgOverlays.push(ov);
   selImg = ov;
   renderImgOverlays();
@@ -10659,6 +10708,7 @@ _imgFileInput.addEventListener('change',function(){
     // Burn overlays into baseCv at canvas coordinates.
     // _origCompExp handles all the scaling, so we just draw at natural size here.
     imgOverlays.forEach(function(ov){
+      var L=layers[ov.layerIdx]; if(L && !L.visible) return; // skip hidden-layer images
       bCtx.save();
       bCtx.globalAlpha=ov.opacity!==undefined?ov.opacity:1;
       bCtx.translate(ov.cx,ov.cy);
@@ -11638,7 +11688,8 @@ function applyWmScale(){
       captureState();
       var nov={img:_clipObj.img, cx:pos.x, cy:pos.y, w:_clipObj.w, h:_clipObj.h,
                angle:_clipObj.angle||0, flipH:!!_clipObj.flipH, flipV:!!_clipObj.flipV,
-               opacity:_clipObj.opacity!==undefined?_clipObj.opacity:1};
+               opacity:_clipObj.opacity!==undefined?_clipObj.opacity:1,
+               layerIdx:(_clipObj.layerIdx!==undefined?_clipObj.layerIdx:activeLayerIdx)};
       imgOverlays.push(nov);
       if(typeof renderImgOverlays==='function') renderImgOverlays();
       composite();
