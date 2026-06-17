@@ -231,6 +231,37 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   .category-nav { padding: 4px; gap: 5px; }
   #update-toast { left: 12px; right: 12px; bottom: 16px; max-width: 100%; width: auto; }
 }
+
+/* Narrow phones: 5 category buttons no longer fit on one row, so wrap to a grid */
+@media (max-width: 450px) {
+  .category-nav {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    padding: 6px;
+  }
+  .cat-btn {
+    flex: none;
+    width: 100%;
+    padding: 12px 8px;
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Favorites spans the full width on its own row at the top */
+  .cat-btn[data-cat="favorites"] { grid-column: 1 / -1; }
+
+  /* Status bar: 2x2 grid instead of a cramped single row */
+  .status-bar { display: grid; grid-template-columns: 1fr 1fr; }
+  .status-item { padding: 12px 10px; }
+  /* Hide the vertical dividers since the grid layout makes them misaligned */
+  .status-item + .status-item::before { display: none; }
+  /* Add subtle grid lines instead */
+  .status-item:nth-child(2n) { border-left: 1px solid rgba(255,255,255,0.07); }
+  .status-item:nth-child(n+3) { border-top: 1px solid rgba(255,255,255,0.07); }
+}
 </style>
 </head>
 <body>
