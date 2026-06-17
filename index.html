@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -146,6 +154,10 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 .cat-btn:hover { color: var(--yellow-bright); background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.18); }
 .cat-btn.active { color: var(--bg-dark); background: linear-gradient(135deg, var(--yellow-bright), var(--orange)); border-color: transparent; box-shadow: 0 0 20px rgba(251,191,36,0.28), 0 4px 12px rgba(0,0,0,0.3); }
 .category-title { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 5px; color: var(--yellow-bright); text-align: center; margin-bottom: 18px; opacity: 0.45; text-transform: uppercase; }
+.fav-star { position: absolute; top: 8px; right: 10px; z-index: 5; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 1.15rem; line-height: 1; color: var(--text-dim); background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); cursor: pointer; transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
+.fav-star:hover { color: var(--yellow-bright); border-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.1); transform: scale(1.1); }
+.fav-star.active { color: var(--yellow-bright); text-shadow: 0 0 10px rgba(251,191,36,0.7); border-color: rgba(251,191,36,0.4); }
+.favorites-empty { grid-column: 1 / -1; text-align: center; padding: 48px 20px; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; opacity: 0.6; }
 
 /* FORMS GRID — just a wrapper, groups handle their own layout */
 .forms-grid { display: block; margin-bottom: 44px; flex: 1; }
@@ -261,7 +273,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 
   <div class="status-bar">
     <div class="status-item"><span class="status-dot"></span><span>System Online</span></div>
-    <div class="status-item"><span class="status-dot yellow"></span><span>11 Tools Active</span></div>
+    <div class="status-item"><span class="status-dot yellow"></span><span>14 Tools Active</span></div>
     <div class="status-item"><span class="status-dot orange"></span><span>Field Ready</span></div>
     <div class="status-item" id="sw-status-item"><span class="status-dot blue" id="sw-status-dot"></span><span id="sw-status-label">Sync Enabled</span></div>
   </div>
@@ -269,6 +281,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   <div class="forms-section-label">Select a Category</div>
 
   <div class="category-nav" id="category-nav">
+    <button class="cat-btn" data-cat="favorites">★ Favorites</button>
     <button class="cat-btn active" data-cat="estimate">Estimate</button>
     <button class="cat-btn" data-cat="installs">Installs</button>
     <button class="cat-btn" data-cat="maintenance">Maintenance</button>
@@ -277,6 +290,11 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   <div class="category-title" id="category-title">ESTIMATE</div>
 
   <div class="forms-grid">
+    <!-- FAVORITES -->
+    <div class="card-group hidden" data-group="favorites">
+      <div id="favorites-empty" class="favorites-empty">No favorites yet. Tap the ☆ on any form to pin it here.</div>
+    </div>
+
     <!-- ESTIMATE -->
     <div class="card-group" data-group="estimate">
       <a href="#" class="form-card" data-form="estimate"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M9 2h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v0a2 2 0 0 1 2-2z"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></div><div class="form-text"><div class="form-title">Estimate Form</div><div class="form-desc">Quote &amp; pricing forms for new estimates</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
@@ -3341,8 +3359,78 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 })();
 
 
+// ===== FAVORITES SYSTEM =====
+var FAV_KEY = 'aog_favorites_v1';
+function getFavs(){ try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch(e){ return []; } }
+function saveFavs(arr){ try { localStorage.setItem(FAV_KEY, JSON.stringify(arr)); } catch(e){} }
+function isFav(key){ return getFavs().indexOf(key) !== -1; }
+function toggleFav(key){
+  var favs = getFavs(), i = favs.indexOf(key);
+  if(i === -1) favs.push(key); else favs.splice(i,1);
+  saveFavs(favs);
+  return favs.indexOf(key) !== -1;
+}
+
+// Add a star button to every real form-card (skip clones in the favorites group)
+function addStar(card){
+  if(card.querySelector('.fav-star')) return;
+  var key = card.getAttribute('data-form');
+  if(!key) return;
+  var star = document.createElement('button');
+  star.className = 'fav-star' + (isFav(key) ? ' active' : '');
+  star.type = 'button';
+  star.setAttribute('aria-label','Toggle favorite');
+  star.textContent = isFav(key) ? '★' : '☆';
+  star.addEventListener('click', function(e){
+    e.preventDefault(); e.stopPropagation();
+    var nowFav = toggleFav(key);
+    // sync every star with this key across all groups
+    document.querySelectorAll('.fav-star[data-key="'+key+'"]').forEach(function(s){
+      s.classList.toggle('active', nowFav);
+      s.textContent = nowFav ? '★' : '☆';
+    });
+    renderFavorites();
+  });
+  star.setAttribute('data-key', key);
+  card.appendChild(star);
+}
+
+// Build the favorites group by cloning favorited source cards
+function renderFavorites(){
+  var group = document.querySelector('.card-group[data-group="favorites"]');
+  if(!group) return;
+  var favs = getFavs();
+  group.innerHTML = '';
+  if(!favs.length){
+    var empty = document.createElement('div');
+    empty.className = 'favorites-empty';
+    empty.id = 'favorites-empty';
+    empty.textContent = 'No favorites yet. Tap the \u2606 on any form to pin it here.';
+    group.appendChild(empty);
+    return;
+  }
+  favs.forEach(function(key){
+    // find the first real source card with this key (not inside favorites group)
+    var src = null;
+    document.querySelectorAll('.form-card[data-form="'+key+'"]').forEach(function(c){
+      if(!src && !c.closest('.card-group[data-group="favorites"]')) src = c;
+    });
+    if(!src) return;
+    var clone = src.cloneNode(true);
+    var oldStar = clone.querySelector('.fav-star');
+    if(oldStar) oldStar.remove();
+    group.appendChild(clone);
+    addStar(clone); // restore a working star on the clone
+  });
+}
+
+// Initialize stars on all source cards
+document.querySelectorAll('.form-card').forEach(function(card){
+  if(!card.closest('.card-group[data-group="favorites"]')) addStar(card);
+});
+
 // Category Nav
-var catTitles = { estimate:'ESTIMATE', installs:'INSTALLS', maintenance:'MAINTENANCE', tools:'TOOLS' };
+var catTitles = { favorites:'FAVORITES', estimate:'ESTIMATE', installs:'INSTALLS', maintenance:'MAINTENANCE', tools:'TOOLS' };
 document.querySelectorAll('.cat-btn').forEach(function(btn) {
   btn.addEventListener('click', function() {
     var cat = this.getAttribute('data-cat');
@@ -3364,6 +3452,9 @@ document.querySelectorAll('.form-card').forEach(function(card) {
   if(url) card.setAttribute('href',url);
   card.addEventListener('click',function(e){ if(!url){e.preventDefault();alert('URL not configured for: '+this.querySelector('.form-title').textContent);} });
 });
+
+// Build favorites now that source hrefs are resolved
+renderFavorites();
 
 // Entrance
 window.addEventListener('DOMContentLoaded',function(){
