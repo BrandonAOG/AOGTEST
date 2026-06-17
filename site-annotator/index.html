@@ -4530,6 +4530,16 @@ function afterLoad(){
   penObjs=[]; polygonObjs=[]; leaderObjs=[]; stampObjs=[];
   selectedLeader=null; leaderDragHandle=-1; leaderDragStart=null;
   penPathPoints=[]; markupObjs=[];
+  // Notes + inserted images weren't being cleared, so a previous job's notes and
+  // pictures carried into the next import. Reset them too, plus any in-flight
+  // edit/drag/selection state pointing at the old objects. (Every afterLoad call
+  // runs BEFORE a PDF's own text/notes are extracted, so this never wipes the
+  // freshly imported content.)
+  commentObjs=[]; _editingComment=null; _dragComment=null; _cmtPending=null;
+  _movingComment=null; _moveCmtStart=null; _cmtHandleObj=null;
+  imgOverlays=[]; selImg=null; selImgDrag=null; selImgHandle=-1;
+  selectedShape=null; selHandle=-1; selDragStart=null;
+  if(selCv.width>1){ selCv.width=1; selCv.height=1; }
   tCtx.clearRect(0,0,tCv.width,tCv.height);
   shCtx.clearRect(0,0,shCv.width,shCv.height);
   baseLoaded=true;
