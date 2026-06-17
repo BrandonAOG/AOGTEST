@@ -1915,7 +1915,12 @@ function capturePageToCanvas() {
         (_isMobileCap ? 'html { font-size: 29.3px !important; }' : 'html { font-size: 19.3px !important; }'),
         // Footer must follow content during capture, not pin/overlap it, and
         // stay visible (it was dropping out of the capture entirely).
-        '#page { display: block !important; overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; }',
+        '#page { display: block !important; overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; border: 1.5px solid #D97706 !important; }',
+        // Keep the corner brackets (incl. the bottom edge) visible in the
+        // captured image even on mobile, where they're normally hidden — this
+        // prevents the missing bottom border on the short collapsed view.
+        '.page::before, .page::after { display: block !important; border-color: #D97706 !important; }',
+        '.page-corner-bl, .page-corner-br { display: block !important; border-color: #D97706 !important; }',
         '.content { display: block !important; overflow: visible !important; height: auto !important; }',
         '.footer { margin-top: 0 !important; position: static !important; display: flex !important; visibility: visible !important; opacity: 1 !important; padding: 8px 10px 4px 10px !important; }',
         '.footer-text, .footer span { color: #6B7280 !important; visibility: visible !important; opacity: 1 !important; }',
@@ -2060,7 +2065,11 @@ function capturePageToCanvas() {
           var _pr = page.getBoundingClientRect();
           var _ftEl = page.querySelector('.footer');
           var _ftBottom = _ftEl ? (_ftEl.getBoundingClientRect().bottom - _pr.top) : 0;
-          var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom)) + 24;
+          // Also account for the page element's own rendered bottom edge so the
+          // bottom border/corner brackets are never clipped — important for the
+          // short "power test performed" collapsed view where the page is small.
+          var _pageBottom = _pr.height;
+          var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom, _pageBottom)) + 32;
           html2canvas(page, {
             scale: 2,
             useCORS: true,
