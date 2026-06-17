@@ -11384,8 +11384,10 @@ btnPdf.addEventListener('click',function(){
         writeToTarget(handle, pdfBlob, 'site-plan.pdf').then(function(){ toast('Saved as PDF (vectors kept) ✓','ok',2800); if(AOG_DEBUG){ window.AOG.dumpDebug(); toast('DEBUG: '+_dbgLog.length+' trace records — see console','warn',4000); } });
         return;
       }
-      // Fallback: high-res flattened raster.
-      exportToBlob(0,'image/png',1.0,function(blob){
+      // Fallback: flattened raster. Embed as JPEG (visually identical to PNG for a
+      // site plan) — a lossless full-page PNG at print DPI runs 20-40 MB; JPEG is
+      // ~1-3 MB. PNG here was the main reason exported PDFs were huge.
+      exportToBlob(0,'image/jpeg',0.92,function(blob){
       if(!blob){ toast('Export failed','err'); return; }
       var JSPDF=window.jspdf?window.jspdf.jsPDF:jsPDF;
       var reader=new FileReader();
@@ -11397,7 +11399,7 @@ btnPdf.addEventListener('click',function(){
       var pw=doc.internal.pageSize.getWidth(), ph=doc.internal.pageSize.getHeight();
       var imgH=ph-4, imgW=pw-4;
       if(imgH/imgW<ch/cw) imgW=imgH/(ch/cw);
-      doc.addImage(imgData,'PNG',2,2,imgW,imgH);
+      doc.addImage(imgData,'JPEG',2,2,imgW,imgH);
       var pdfBlob=doc.output('blob');
       writeToTarget(handle, pdfBlob, 'site-plan.pdf').then(function(){ toast('Saved as PDF ✓','ok',2500); });
     };
@@ -11486,8 +11488,9 @@ if(btnPdfEdit) btnPdfEdit.addEventListener('click', function(){
           writeToTarget(handle, outBlob, name).then(function(){ toast('Editable PDF saved (vectors kept) ✓','ok',3200); if(AOG_DEBUG){ window.AOG.dumpDebug(); toast('DEBUG: '+_dbgLog.length+' trace records — see console','warn',4000); } });
           return;
         }
-        // Fallback: flattened raster PDF with the same JSON attachment.
-        exportToBlob(0,'image/png',1.0,function(blob){
+        // Fallback: flattened raster PDF with the same JSON attachment. JPEG keeps
+        // the visible page small; the attached JSON carries the true editable data.
+        exportToBlob(0,'image/jpeg',0.92,function(blob){
           if(!blob){ toast('Export failed','err'); return; }
           var JSPDF=window.jspdf?window.jspdf.jsPDF:jsPDF;
           var reader=new FileReader();
@@ -11499,7 +11502,7 @@ if(btnPdfEdit) btnPdfEdit.addEventListener('click', function(){
             var pw=doc.internal.pageSize.getWidth(), ph=doc.internal.pageSize.getHeight();
             var imgH=ph-4, imgW=pw-4;
             if(imgH/imgW<ch/cw) imgW=imgH/(ch/cw);
-            doc.addImage(imgData,'PNG',2,2,imgW,imgH);
+            doc.addImage(imgData,'JPEG',2,2,imgW,imgH);
             var pdfArrayBuffer=doc.output('arraybuffer');
             PDFLib.PDFDocument.load(pdfArrayBuffer).then(function(pdfDoc){
               var bytes=new TextEncoder().encode(json);
