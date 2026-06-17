@@ -8419,6 +8419,18 @@ function renderSelection(){
   if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
     selCv.width=drawCv.width; selCv.height=drawCv.height; _selPrevDirty=null;
   }
+  // Keep a comment's selection chrome (dashed box + handles) locked to the note's
+  // LIVE geometry. The box auto-grows to fit text while typing, snaps to fit, and
+  // can be re-sized on font/import changes — any of which leaves selectedShape
+  // holding the note's old cx/cy/w/h, so the outline drifts off the actual box.
+  // Skip while actively dragging/resizing THIS note, where the selection leads
+  // and the note follows it instead.
+  if(selectedShape.type==='comment' && selectedShape._commentObj &&
+     _dragComment!==selectedShape._commentObj){
+    var _cc=selectedShape._commentObj;
+    selectedShape.cx=_cc.cx; selectedShape.cy=_cc.cy;
+    selectedShape.w =_cc.w;  selectedShape.h =_cc.h;
+  }
   var s=selectedShape, lw=1.5/zoom;
 
   // ── Minimal clear region during a live comment drag ──
