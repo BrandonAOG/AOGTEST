@@ -3919,6 +3919,42 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
       var x0=Math.min(c1[0],c2[0]), y0=Math.min(c1[1],c2[1]);
       var x1=Math.max(c1[0],c2[0]), y1=Math.max(c1[1],c2[1]);
       _ftRects.push({x0:x0,y0:y0,x1:x1,y1:y1});
+      // ── Capture the note's REAL colors from the import ──────────────────────
+      // The colored box is baked into the backdrop; read its fill before we white
+      // it out so the imported note keeps its actual color (e.g. a green callout)
+      // instead of a hardcoded white box + whatever border color was last used in
+      // the tool. Sample a grid INSIDE the box (inset past the border) and take the
+      // dominant color — text glyphs are a minority of pixels, so the fill wins.
+      var importBg=null, importBd=null, importBw=0;
+      try{
+        var inX=Math.max(2,(x1-x0)*0.15), inY=Math.max(2,(y1-y0)*0.15);
+        var sgx=x0+inX, sgy=y0+inY, sgw=Math.max(1,(x1-x0)-2*inX), sgh=Math.max(1,(y1-y0)-2*inY);
+        var buckets={}, GN=4;
+        for(var sgi=0;sgi<=GN;sgi++){
+          for(var sgj=0;sgj<=GN;sgj++){
+            var spx=Math.max(0,Math.min(bCtx.canvas.width-1,Math.round(sgx+sgw*sgi/GN)));
+            var spy=Math.max(0,Math.min(bCtx.canvas.height-1,Math.round(sgy+sgh*sgj/GN)));
+            var spd=bCtx.getImageData(spx,spy,1,1).data;
+            var bkey=((spd[0]>>4)<<8)|((spd[1]>>4)<<4)|(spd[2]>>4);
+            var bk=buckets[bkey]||(buckets[bkey]={n:0,r:0,g:0,b:0});
+            bk.n++; bk.r+=spd[0]; bk.g+=spd[1]; bk.b+=spd[2];
+          }
+        }
+        var topBk=null;
+        for(var bkk in buckets){ if(!topBk||buckets[bkk].n>topBk.n) topBk=buckets[bkk]; }
+        if(topBk){
+          var hxb=function(v){ return ('0'+Math.round(v/topBk.n).toString(16)).slice(-2); };
+          importBg='#'+hxb(topBk.r)+hxb(topBk.g)+hxb(topBk.b);
+        }
+      }catch(e){}
+      // Border color: prefer the annotation's own /C color; width from its border style.
+      try{
+        if(an.color && an.color.length>=3){
+          var abc=an.color, cvbd=function(v){ if(v<=1.0001) v=v*255; return Math.max(0,Math.min(255,Math.round(v))); };
+          importBd='#'+[abc[0],abc[1],abc[2]].map(function(v){return ('0'+cvbd(v).toString(16)).slice(-2);}).join('');
+        }
+      }catch(e){}
+      try{ if(an.borderStyle && an.borderStyle.width>0) importBw=Math.max(1,Math.round(an.borderStyle.width*sc)); }catch(e){}
       // White out the baked FreeText from the backdrop so it isn't doubled with
       // the editable note we create. FreeText text often renders LARGER than its
       // stored rect, and these PDFs bake the annotation into the backdrop, so we
@@ -3959,6 +3995,14 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
       // If anything fails, fall back to a plain editable TEXT object so the
       // content is never lost.
       var cw=Math.max(60, x1-x0), ch=Math.max(40, y1-y0);
+      // Use the colors recovered from the import. Fill = the box's real color;
+      // border = the annotation's own color (fall back to a darker shade of the
+      // fill if the PDF didn't store one, or stored the same color as the fill so
+      // the border would be invisible). Never the carried-over tool defaults.
+      var noteBg = importBg || '#ffffff';
+      var noteBd = (importBd && importBd.toLowerCase()!==noteBg.toLowerCase())
+                     ? importBd : darkenHex(noteBg, 0.35);
+      var noteBw = importBw || 2;
       var noteOK=false;
       try{
         var nc={
@@ -3966,8 +4010,8 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
           cx:(x0+x1)/2, cy:(y0+y1)/2,
           w:cw, h:ch,
           text: txt, textColor: col,
-          bgColor:'#ffffff', bgOpacity:1,
-          borderColor:_cBorderColor, borderStrokeW:_cBorderW,
+          bgColor:noteBg, bgOpacity:1,
+          borderColor:noteBd, borderStrokeW:noteBw,
           fontSize: Math.max(8, Math.round(fpx/sc)),
           fontFamily:'Arial', bold:false, italic:false, underline:false, strike:false,
           opacity:1, layerIdx:activeLayerIdx,
