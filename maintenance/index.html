@@ -455,6 +455,26 @@ body.dark-mode .section-header::before { background: #00FFC8; box-shadow: 0 0 6p
 }
 
 .section-body { padding: 4px 8px; transition: all 0.3s ease; }
+.section-body.sim-hidden { display: none !important; }
+@media print { .section-body.sim-hidden { display: none !important; } }
+
+.section-header-toggle { cursor: pointer; user-select: none; -webkit-user-select: none; }
+.section-header-toggle .section-toggle-hint { margin-left: auto; }
+.section-header-toggle:hover { background: var(--bg4); }
+body.dark-mode .section-header-toggle:hover { background: linear-gradient(90deg,rgba(36,52,88,0.9) 0%,rgba(46,62,98,0.7) 100%); }
+.section-toggle-hint {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 1px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  color: var(--text-muted);
+  text-shadow: none;
+  flex-shrink: 0;
+}
+body.dark-mode .section-toggle-hint { color: #7DD3FC; border-color: rgba(0,255,200,0.3); }
+@media print { .section-toggle-hint { display: none !important; } }
 
 /* ── TWO-COLUMN ── */
 .two-column {
@@ -1357,9 +1377,33 @@ body.dark-mode .action-bar {
     </div>
 
     <!-- Simulated Outage Test -->
-    <div class="section">
-      <div class="section-header">Simulated Outage Test</div>
-      <div class="section-body">
+    <div class="section" id="sim-section">
+      <div class="section-header section-header-toggle" id="sim-header" role="button" tabindex="0" title="Tap to switch view">
+        <span id="sim-header-text">Simulated Power Test</span>
+        <span class="section-toggle-hint" aria-hidden="true">tap</span>
+      </div>
+
+      <!-- Collapsed view: was the test performed? -->
+      <div class="section-body sim-hidden" id="sim-body-collapsed">
+        <div class="test-grid" style="grid-template-columns:1fr;">
+          <div class="test-item">
+            <label>Was simulation power test performed?</label>
+            <div class="yn-group">
+              <input type="radio" name="simperf" id="simperf_y" value="Y" class="yn-y">
+              <label class="yn-label yn-label-y" for="simperf_y">Y</label>
+              <input type="radio" name="simperf" id="simperf_n" value="N" class="yn-n">
+              <label class="yn-label yn-label-n" for="simperf_n">N</label>
+            </div>
+          </div>
+          <div class="test-item" style="grid-column:1/-1;align-items:flex-start;">
+            <label for="simperfnotes" style="min-width:75px;">Notes</label>
+            <textarea id="simperfnotes" placeholder="Explain why..." rows="2" style="min-height:46px;flex:1;"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Full view: detailed test grid -->
+      <div class="section-body" id="sim-body-full">
         <div class="test-grid">
           <div class="test-item">
             <label>Generator Started Up?</label>
@@ -2031,6 +2075,7 @@ function capturePageToCanvas() {
             ignoreElements: el =>
               el.classList.contains('toolbar')         ||
               el.classList.contains('action-bar')      ||
+              el.classList.contains('section-toggle-hint') ||
               el.id === 'action-bar'                   ||
               el.id === 'save-status'                  ||
               el.classList.contains('theme-toggle-btn')
@@ -2193,7 +2238,41 @@ document.addEventListener('DOMContentLoaded', function () {
   applyTheme(getInitialTheme());
   setupThemeToggle();
   restoreDraft();
+  setupSimToggle();
 });
+
+function setupSimToggle() {
+  var header    = document.getElementById('sim-header');
+  var hdrText   = document.getElementById('sim-header-text');
+  var full      = document.getElementById('sim-body-full');
+  var collapsed = document.getElementById('sim-body-collapsed');
+  if (!header || !full || !collapsed) return;
+  var KEY = 'aog_sim_view';
+
+  function apply(view) {
+    if (view === 'collapsed') {
+      full.classList.add('sim-hidden');
+      collapsed.classList.remove('sim-hidden');
+    } else {
+      full.classList.remove('sim-hidden');
+      collapsed.classList.add('sim-hidden');
+    }
+    hdrText.textContent = 'Simulated Power Test';
+    try { localStorage.setItem(KEY, view); } catch (e) {}
+  }
+
+  var saved = 'full';
+  try { saved = localStorage.getItem(KEY) || 'full'; } catch (e) {}
+  apply(saved);
+
+  function toggle() {
+    apply(collapsed.classList.contains('sim-hidden') ? 'collapsed' : 'full');
+  }
+  header.addEventListener('click', toggle);
+  header.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
+}
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
