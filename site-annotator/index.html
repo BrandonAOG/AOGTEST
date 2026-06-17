@@ -3182,7 +3182,18 @@ viewport.addEventListener('dragover',function(e){ e.preventDefault(); viewport.s
 viewport.addEventListener('dragleave',function(){ viewport.style.outline=''; });
 viewport.addEventListener('drop',function(e){ e.preventDefault(); viewport.style.outline=''; var f=e.dataTransfer.files[0]; if(f) loadFile(f, IS_IPHONE?3200:IOS_MAX_PX); });
 
+// Wipe the customer + title-block form so a freshly imported file starts blank.
+// Editable PDFs / .aogplan projects repopulate the title block afterward via
+// loadProjectRecord(), so clearing here is safe — it only affects plain imports.
+function clearFormFields(){
+  ['cust-name','cust-addr','tb-proj','tb-drwn','tb-date','tb-scale'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+  if(typeof updateWatermark==='function') updateWatermark();
+}
+
 function loadFile(f, srcCap){
+  clearFormFields();   // don't carry the previous job's details into a new import
   var name=(f.name||'').toLowerCase();
   var type=(f.type||'').toLowerCase();
   if(type==='application/pdf'||name.endsWith('.pdf')){ loadPDF(f); return; }
