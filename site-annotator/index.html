@@ -10714,8 +10714,30 @@ function _downloadBlob(blob, name){
   setTimeout(function(){ URL.revokeObjectURL(url); },30000);
 }
 
+// Commit any in-progress selection/edit so it's baked into its layer before an
+// export or print. While an object is highlighted its edited geometry lives only
+// in the selection state and is drawn on the selection-overlay canvas (selCv),
+// which the export pipeline ignores — so a still-selected element silently went
+// missing until the user manually deselected. Calling the proper commit for
+// whatever is active (no early returns: handle them all) fixes that.
+function commitAllForExport(){
+  try{ if(typeof textOv!=='undefined' && textOv && textOv.style.display!=='none' && typeof commitText==='function') commitText(); }catch(e){}
+  try{ if(typeof _editingComment!=='undefined' && _editingComment && typeof commitCommentEdit==='function') commitCommentEdit(); }catch(e){}
+  try{ if(typeof selImg!=='undefined' && selImg && typeof commitImgSelection==='function') commitImgSelection(); }catch(e){}
+  try{ if(typeof selectedLeader!=='undefined' && selectedLeader && typeof commitLeaderSelection==='function') commitLeaderSelection(); }catch(e){}
+  try{ if(typeof selectedMeasure!=='undefined' && selectedMeasure && typeof commitMeasureSelection==='function') commitMeasureSelection(); }catch(e){}
+  try{ if(typeof selectedPolyline!=='undefined' && selectedPolyline && typeof commitPolylineSelection==='function') commitPolylineSelection(); }catch(e){}
+  try{ if(typeof pmActive!=='undefined' && pmActive && typeof closePathMeasure==='function') closePathMeasure(); }catch(e){}
+  try{ if(typeof plActive!=='undefined' && plActive && typeof closePolyline==='function') closePolyline(); }catch(e){}
+  try{ if(typeof polyActive!=='undefined' && polyActive && typeof closePolygon==='function') closePolygon(); }catch(e){}
+  try{ if(typeof selectedShape!=='undefined' && selectedShape && typeof commitSelection==='function') commitSelection(); }catch(e){}
+  // Clear the selection overlay so nothing left on it bleeds into a capture.
+  try{ if(typeof selCv!=='undefined' && selCv && selCv.width>1){ selCv.width=1; selCv.height=1; } }catch(e){}
+}
+
 btnPng.addEventListener('click',function(){
   if(!baseLoaded){ toast('Open a file first','warn'); return; }
+  commitAllForExport();
   // Export the flattened plan as an HD JPEG (q0.95) on every platform — visually
   // lossless for a site plan and a fraction of the size of a full-res PNG.
   var mime  = 'image/jpeg';
@@ -11381,6 +11403,7 @@ function _buildVectorPdf(attachJson, onReady){
 
 btnPdf.addEventListener('click',function(){
   if(!baseLoaded){ toast('Open a file first','warn'); return; }
+  commitAllForExport();
   if(typeof window.jspdf==='undefined'&&typeof jsPDF==='undefined'){
     toast('PDF export needs an internet connection','warn'); return;
   }
@@ -11576,6 +11599,7 @@ function extractAogFromPdf(arrayBuffer){
 
 btnPrint.addEventListener('click',function(){
   if(!baseLoaded){ toast('Open a file first','warn'); return; }
+  commitAllForExport();
   var proj=document.getElementById('tb-proj').value||'Site Plan';
   var drwn=document.getElementById('tb-drwn').value||'';
   var date=document.getElementById('tb-date').value||new Date().toISOString().slice(0,10);
