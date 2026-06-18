@@ -11273,7 +11273,12 @@ function _buildVectorPdf(attachJson, onReady){
               // patching never hid the originals. Remove them so ONLY our redrawn
               // editable objects remain, then cover any residual content-stream
               // graphics with white. Now every element is free-floating.
-              if(_FULL_REDRAW){
+              // Only blank/cover the original page when its content was ACTUALLY
+              // exploded into editable objects (_explodedFromPage). Dense drawings
+              // and surveys are rasterized on import, not extracted — covering them
+              // white would erase the site plan and leave only the markups. In that
+              // case we keep the original page intact and just stamp the overlay.
+              if(_FULL_REDRAW && _explodedFromPage){
                 try{
                   var _annCount=0;
                   try{ var _a=page.node.Annots && page.node.Annots(); _annCount=(_a&&_a.size)?_a.size():0; }catch(e){}
@@ -11282,6 +11287,8 @@ function _buildVectorPdf(attachJson, onReady){
                 }catch(e){ console.warn('[VectorExport] annot removal failed:',e); }
                 try{ page.drawRectangle({x:0,y:0,width:PW,height:PH,color:PDFLib.rgb(1,1,1),borderWidth:0}); dbg('export','full-redraw: page covered white'); }
                 catch(e){ console.warn('[VectorExport] page cover failed:',e); }
+              } else if(_FULL_REDRAW){
+                dbg('export','full-redraw skipped — page was rasterized, keeping original content');
               }
               // Patch the OLD footprint of any page-native image the user moved,
               // so its original location doesn't ghost behind the relocated copy.
@@ -13054,6 +13061,8 @@ document.addEventListener('keydown',function(e){
   // Normalise key so Shift/Caps Lock don't break combos (Cmd+Shift+Z = 'Z', not 'z')
   var _k=(e.key||'').length===1 ? e.key.toLowerCase() : e.key;
   if(e.ctrlKey||e.metaKey){
+    if(_k==='c'){ if(window.AOG_copySelected&&window.AOG_copySelected()){ e.preventDefault(); } return; }
+    if(_k==='v'){ if(window.AOG_hasClip&&window.AOG_hasClip()){ e.preventDefault(); window.AOG_pasteClip(); } return; }
     if(_k==='z'){ e.preventDefault(); e.shiftKey?redoFn():undoFn(); return; }
     if(_k==='y'){ e.preventDefault(); redoFn(); return; }
     if(_k==='s'){ e.preventDefault(); btnPng.click(); return; }
@@ -13943,6 +13952,58 @@ function applyWmScale(){
       toast('No image on clipboard','warn',2500);
     }).catch(function(){ toast('Clipboard blocked — click page first, then retry','warn',3500); });
   }
+
+  // ── Keyboard copy/paste (Ctrl/Cmd + C / V) ───────────────────
+  // The right-click Copy/Paste only reaches mouse users; expose the same
+  // clipboard so a selected shape (rect/ellipse/cloud), measure, leader,
+  // polyline or image can be duplicated with the standard shortcuts. These
+  // are called from the main keydown handler so the tool-letter map can't
+  // also fire (Ctrl+C used to switch to the cloud tool, Ctrl+V to path-measure).
+  function _selectedObj(){
+    if(typeof selectedShape!=='undefined'    && selectedShape)    return selectedShape;
+    if(typeof selectedMeasure!=='undefined'  && selectedMeasure)  return selectedMeasure;
+    if(typeof selectedLeader!=='undefined'   && selectedLeader)   return selectedLeader;
+    if(typeof selectedPolyline!=='undefined' && selectedPolyline) return selectedPolyline;
+    if(typeof selImg!=='undefined'           && selImg)           return selImg;
+    return null;
+  }
+  var _pasteSeq=0;   // cascade offset so repeated pastes don't stack exactly
+  window.AOG_copySelected=function(){
+    if(!baseLoaded) return false;
+    var obj=_selectedObj(); if(!obj) return false;
+    var kind=kindOf(obj);
+    if(kind==='imgoverlay'){
+      _clipObj={kind:'imgoverlay', img:obj.img, w:obj.w, h:obj.h, angle:obj.angle||0,
+                flipH:!!obj.flipH, flipV:!!obj.flipV, opacity:obj.opacity!==undefined?obj.opacity:1};
+    } else if(kind){
+      _clipObj={kind:kind, data:clone(obj)};
+    } else { return false; }
+    _pasteSeq=0;
+    toast('Copied — press Ctrl+V / ⌘V to paste','ok',1800);
+    return true;
+  };
+  window.AOG_hasClip=function(){ return !!_clipObj; };
+  window.AOG_pasteClip=function(){
+    if(!baseLoaded) return;
+    if(!_clipObj){ pasteClipboardImage(); return; }   // nothing internal → try system image
+    _pasteSeq++;
+    var off=18*_pasteSeq;
+    if(_clipObj.kind==='imgoverlay'){
+      captureState();
+      var cx=baseCv.width/2+off, cy=baseCv.height/2+off;
+      try{ var r=viewport.getBoundingClientRect(); var c=vpToCanvas(r.left+r.width/2, r.top+r.height/2); cx=c.x+off; cy=c.y+off; }catch(e){}
+      var nov={img:_clipObj.img, cx:cx, cy:cy, w:_clipObj.w, h:_clipObj.h,
+               angle:_clipObj.angle||0, flipH:!!_clipObj.flipH, flipV:!!_clipObj.flipV,
+               opacity:_clipObj.opacity!==undefined?_clipObj.opacity:1, layerIdx:activeLayerIdx};
+      imgOverlays.push(nov);
+      if(typeof renderImgOverlays==='function') renderImgOverlays();
+      composite();
+      if(typeof pushImgUndo==='function') pushImgUndo(); else pushUndo();
+      return;
+    }
+    var o=offsetObj(_clipObj.kind, clone(_clipObj.data), off, off);
+    pushClone(_clipObj.kind, o);
+  };
 
   // ── Ctrl/Cmd+V anywhere pastes a clipboard image as overlay ──
   window.addEventListener('paste', function(e){
