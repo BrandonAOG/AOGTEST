@@ -7825,15 +7825,30 @@ function _openTextEdit(o){
   editingObj=o;
   o._editing=true;
   renderTextObjs();
-  textX=o.x; textY=o.y;
   _textAnchorRight=(o._anchorRight===true && o._anchorX!=null);
+  // A right-anchored leader label (left-hanging callout) is positioned by its
+  // RIGHT edge, not its left. The inline editor / dashed box must anchor to that
+  // same edge or the box drifts off the visible text — which is what happens when
+  // the stored _anchorX no longer matches the glyphs (e.g. the plan DPI changed
+  // after loading another document, so the measured text width changed). Re-derive
+  // the right edge from the CURRENT rendered width and re-base the anchor to it, so
+  // the box lands exactly on the text without moving the text itself.
+  var _ovX=o.x;
+  if(_textAnchorRight){
+    var _olns=o.text.split('\n');
+    var _ofpx=ptToCanvasPx(o.fontSize);
+    var _ow=measureLinesWFull(_olns,_ofpx,o.fontFamily||'Arial',o.bold,o.italic);
+    _ovX=o.x+_ow;          // live right edge = where the glyphs actually end
+    o._anchorX=_ovX;       // keep commit pinned to the visible edge (no jump)
+  }
+  textX=_ovX; textY=o.y;
   // Load the text + formatting BEFORE showing/sizing the overlay, so the
   // auto-fit measures the real (full) content and the box grows to show every
   // line instead of clipping to the empty default height.
   textOv.value=o.text;
   _syncTextFmtFromObj(o);
   startTextCursor(o.x, o.y);
-  showTextOverlay(o.x, o.y);
+  showTextOverlay(_ovX, o.y);
   _fitTextOv();              // size to the loaded content (all lines visible)
   renderTextCursorFrame();   // draw the box + rotate handle right away
 }
