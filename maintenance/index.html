@@ -2292,7 +2292,11 @@ function setupSimToggle() {
   var yesRadio = document.getElementById('simperf_y');
   if (yesRadio) {
     yesRadio.addEventListener('change', function () {
-      if (yesRadio.checked) apply('full');
+      if (yesRadio.checked) {
+        apply('full');
+        yesRadio.checked = false;
+        if (typeof saveDraft === 'function') saveDraft();
+      }
     });
   }
 }
