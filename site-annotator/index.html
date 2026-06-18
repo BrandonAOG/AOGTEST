@@ -11705,7 +11705,13 @@ function buildProjectRecord(quality, cb){
       proj:  (document.getElementById('tb-proj')||{}).value||'',
       drwn:  (document.getElementById('tb-drwn')||{}).value||'',
       date:  (document.getElementById('tb-date')||{}).value||'',
-      scale: (document.getElementById('tb-scale')||{}).value||''
+      scale: (document.getElementById('tb-scale')||{}).value||'',
+      // Customer name + job address and where/how the watermark sits on the plan,
+      // so reopening a file you made restores the address and its placement.
+      cust:   (document.getElementById('cust-name')||{}).value||'',
+      addr:   (document.getElementById('cust-addr')||{}).value||'',
+      wmPos:  (document.getElementById('wm-pos-sel')||{}).value||'',
+      wmSize: (document.getElementById('wm-size-sel')||{}).value||''
     },
     textObjs:       JSON.parse(JSON.stringify(textObjs)),
     shapeObjs:      JSON.parse(JSON.stringify(shapeObjs)),
@@ -11771,6 +11777,16 @@ function doSave(){
     scaleUnit:      scaleUnit,
     gridEnabled:    gridEnabled,
     gridSize:       gridSize,
+    titleBlock: {
+      proj:  (document.getElementById('tb-proj')||{}).value||'',
+      drwn:  (document.getElementById('tb-drwn')||{}).value||'',
+      date:  (document.getElementById('tb-date')||{}).value||'',
+      scale: (document.getElementById('tb-scale')||{}).value||'',
+      cust:   (document.getElementById('cust-name')||{}).value||'',
+      addr:   (document.getElementById('cust-addr')||{}).value||'',
+      wmPos:  (document.getElementById('wm-pos-sel')||{}).value||'',
+      wmSize: (document.getElementById('wm-size-sel')||{}).value||''
+    },
     textObjs:       JSON.parse(JSON.stringify(textObjs)),
     shapeObjs:      JSON.parse(JSON.stringify(shapeObjs)),
     measureObjs:    JSON.parse(JSON.stringify(measureObjs)),
@@ -11970,6 +11986,12 @@ function doRestore(rec){
               var _tbd=document.getElementById('tb-drwn'); if(_tbd&&rec.titleBlock.drwn!==undefined) _tbd.value=rec.titleBlock.drwn;
               var _tbt=document.getElementById('tb-date'); if(_tbt&&rec.titleBlock.date!==undefined) _tbt.value=rec.titleBlock.date;
               var _tbs=document.getElementById('tb-scale'); if(_tbs&&rec.titleBlock.scale!==undefined) _tbs.value=rec.titleBlock.scale;
+              // Customer name + job address and watermark placement/size on the plan.
+              var _cn=document.getElementById('cust-name');   if(_cn&&rec.titleBlock.cust!==undefined)  _cn.value=rec.titleBlock.cust;
+              var _ca=document.getElementById('cust-addr');   if(_ca&&rec.titleBlock.addr!==undefined)  _ca.value=rec.titleBlock.addr;
+              var _wp=document.getElementById('wm-pos-sel');  if(_wp&&rec.titleBlock.wmPos)   _wp.value=rec.titleBlock.wmPos;
+              var _ws=document.getElementById('wm-size-sel'); if(_ws&&rec.titleBlock.wmSize)  _ws.value=rec.titleBlock.wmSize;
+              if(typeof updateWatermark==='function') updateWatermark();
             }
             undoStack=[]; redoStack=[];
             baseLoaded=true;
