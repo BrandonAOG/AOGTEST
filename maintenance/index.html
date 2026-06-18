@@ -2286,6 +2286,15 @@ function setupSimToggle() {
   header.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
   });
+
+  // If the user answers "Yes" to whether the test was performed, jump to the
+  // full form so they can fill it out.
+  var yesRadio = document.getElementById('simperf_y');
+  if (yesRadio) {
+    yesRadio.addEventListener('change', function () {
+      if (yesRadio.checked) apply('full');
+    });
+  }
 }
 
 if ('serviceWorker' in navigator) {
