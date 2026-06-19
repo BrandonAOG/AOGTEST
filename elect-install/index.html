@@ -235,6 +235,13 @@ body.dark-mode #save-status { color: #7DD3FC; }
   width: 100%; max-width: 1050px; background: var(--panel);
   padding: 24px; box-sizing: border-box; transition: all 0.3s ease;
   font-family: Arial, sans-serif; display: flex; flex-direction: column;
+  position: relative;
+}
+.form-page::before {
+  content: ''; position: absolute;
+  top: 5px; right: 5px; bottom: 5px; left: 5px;
+  border: 2px solid #D35E13; border-radius: 4px;
+  pointer-events: none; z-index: 0;
 }
 @media (max-width: 768px) { .form-page { padding: 16px; } }
 @media (max-width: 480px) { .form-page { padding: 12px; } }
@@ -452,8 +459,8 @@ body.dark-mode table.mat-table td input[type="text"] { color: #E0F7FF; }
 body.dark-mode .add-ts-btn { background: #10B981; }
 body.dark-mode .add-ts-btn:hover { background: #059669; }
 
-/* ===== FOOTER FIELDS ===== */
-.footer-fields { margin-top: 20px; padding-top: 10px; border-top: 1px solid rgba(211,94,19,0.2); font-size: 11px; width: 100%; overflow-x: hidden; font-family: Arial, sans-serif; }
+/* ===== EXTRAS FIELDS (part of body) ===== */
+.footer-fields { margin-top: 12px; padding-top: 0; border-top: none; font-size: 11px; width: 100%; overflow-x: hidden; font-family: Arial, sans-serif; }
 body.dark-mode .footer-fields { border-top-color: rgba(0,255,200,0.15); }
 .footer-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 8px; width: 100%; padding: 1px 0; }
 .footer-field { display: flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0; min-width: fit-content; }
@@ -678,7 +685,8 @@ body.dark-mode .notice { color: #7DD3FC; }
     background: #fff !important;
     color: #1F2937 !important;
     box-shadow: none !important;
-    border: none !important;
+    border: 2px solid #D35E13 !important;
+    border-radius: 4px !important;
     overflow: visible !important;
     -webkit-page-break-after: always !important;
     page-break-after: always !important;
@@ -686,10 +694,11 @@ body.dark-mode .notice { color: #7DD3FC; }
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
-    padding: 0 !important;
+    padding: 8px !important;
     margin: 0 !important;
     box-sizing: border-box !important;
   }
+  .form-page::before { display: none !important; }
 
   .form-page:last-child { page-break-after: auto !important; break-after: auto !important; }
 
@@ -802,7 +811,12 @@ body.dark-mode .notice { color: #7DD3FC; }
     width: 7.4in !important;
     transform-origin: top left !important;
     transform: scale(1.081) !important;
+    border: 2px solid #D35E13 !important;
+    border-radius: 4px !important;
+    padding: 8px !important;
+    box-sizing: border-box !important;
   }
+  #page2 { border: none !important; padding: 0 !important; }
 
   #page2 .grid-section { margin-bottom: 3px !important; overflow: visible !important; }
 
@@ -873,7 +887,7 @@ body.dark-mode .notice { color: #7DD3FC; }
   #page2 .footer-other-row { display: flex !important; align-items: flex-end !important; gap: 4px !important; width: 100% !important; margin-top: 3px !important; }
   #page2 .footer-other-label { font-size: 10px !important; font-weight: bold !important; white-space: nowrap !important; flex-shrink: 0 !important; color: #1F2937 !important; }
   #page2 .footer-other-input { flex: 1 !important; width: 100% !important; border: none !important; border-bottom: 1px solid #333 !important; background: transparent !important; font-size: 10px !important; color: #1F2937 !important; padding: 0 !important; }
-  #page2 .footer-fields { margin-top: 5px !important; padding-top: 4px !important; border-top: 1px solid #555 !important; font-size: 10px !important; }
+  #page2 .footer-fields { margin-top: 5px !important; padding-top: 0 !important; border-top: none !important; font-size: 10px !important; }
   #page2 .footer-row { display: flex !important; flex-wrap: wrap !important; gap: 2px 12px !important; margin-bottom: 3px !important; align-items: flex-end !important; padding: 1px 0 !important; }
   #page2 .footer-field { display: inline-flex !important; align-items: flex-end !important; gap: 3px !important; white-space: nowrap !important; }
   #page2 .footer-field label { font-size: 10px !important; font-weight: bold !important; color: #1F2937 !important; white-space: nowrap !important; }
@@ -1701,20 +1715,40 @@ function showRealTablesForCapture() {
   const style = document.createElement('style');
   style.id = 'capture-override';
   style.textContent = [
-    '#page2 .grid-section { display: block !important; }',
+    '#page2 .grid-section { display: block !important; overflow: visible !important; margin-bottom: 3px !important; }',
     '#page2 .footer-fields { display: block !important; }',
     '#mobile-p2-accordions { display: none !important; }',
+    // ---- Match PDF print: full-width fixed-layout tables on page 2 ----
+    '#page2 table.mat-table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; }',
+    '#page2 table.mat-table th, #page2 table.mat-table td { font-size: 13px !important; line-height: 1.3 !important; padding: 2px 2px !important; white-space: normal !important; word-break: break-word !important; }',
+    '#page2 table.mat-table th { font-size: 14px !important; }',
+    '#page2 table.mat-table td.row-label { font-size: 14px !important; line-height: 1.3 !important; padding: 2px 3px !important; }',
+    '#page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td.row-label { width: 88px !important; min-width: 0 !important; }',
+    '#page2 #fittings-table td.row-label { width: 129px !important; min-width: 0 !important; }',
+    '#page2 #wireway-table td.row-label { width: 103px !important; min-width: 0 !important; }',
+    '#page2 #polaris-table td.row-label { width: 103px !important; min-width: 0 !important; }',
+    '#page2 .wireway-polaris-row { display: flex !important; gap: 8px !important; align-items: flex-start !important; }',
+    '#page2 .wireway-polaris-row .grid-section { flex: 1 !important; min-width: 0 !important; overflow: visible !important; }',
     'table.mat-table td { overflow: visible !important; vertical-align: middle !important; }',
-    'table.mat-table td input[type="text"] { overflow: visible !important; height: 18px !important; line-height: 18px !important; display: block !important; }',
+    '#page2 table.mat-table td input[type="text"] { width: 100% !important; font-size: 13px !important; height: auto !important; line-height: 1.3 !important; overflow: visible !important; }',
+    'table.mat-table td input[type="text"] { overflow: visible !important; height: auto !important; line-height: 1.3 !important; display: block !important; }',
     '.footer-field input[type="text"] { height: 24px !important; line-height: 24px !important; overflow: visible !important; box-sizing: border-box !important; }',
+    '.footer-field label { font-size: 15px !important; line-height: 1.5 !important; }',
+    '.footer-other-label { font-size: 15px !important; line-height: 1.5 !important; }',
     '.footer-fields { overflow: visible !important; }',
     '.top-fields { grid-template-columns: 1fr 1fr !important; gap: 6px 12px !important; }',
     '.two-col { grid-template-columns: 1fr 1fr !important; gap: 8px 16px !important; }',
-    '.form-page { padding: 24px 24px 60px 24px !important; }',
-    '.logo-area { flex-wrap: nowrap !important; }',
+    '.form-page { padding: 24px !important; }',
+    '.form-page::before { display: none !important; }',
+    '.logo-area { flex-wrap: nowrap !important; gap: 24px !important; }',
+    '.logo-area img { width: 84px !important; height: 84px !important; }',
+    '.logo-text { font-size: 32px !important; }',
+    '.logo-text .logo-generators { font-size: 20px !important; letter-spacing: 2px !important; }',
     '.section-row { font-size: 13px !important; flex-wrap: wrap !important; }',
     '.needs-completed { overflow: visible !important; height: auto !important; }',
-    '.inline-input { font-size: 13px !important; width: 100px !important; }'
+    '.inline-input { font-size: 13px !important; width: 100px !important; }',
+    '.footer-other-input { font-size: 14px !important; height: 24px !important; line-height: 24px !important; overflow: visible !important; box-sizing: border-box !important; padding: 0 4px 3px !important; }',
+    '.repeat-header { display: none !important; }'
   ].join('\n');
   document.head.appendChild(style);
 }
@@ -1734,9 +1768,9 @@ function forceDesktopLayout() {
     }
     saved.push({ el, prev, props: Object.keys(styles) });
   }
-  // table text inputs — bump font 14px for capture
+  // table text inputs — match PDF print apparent size for capture (~13px at 1050px width)
   document.querySelectorAll('table.mat-table td input[type="text"]').forEach(el => {
-    setInline(el, { fontSize: '14px', height: 'auto', lineHeight: '1.6', padding: '2px 0', overflow: 'visible', display: 'block', boxSizing: 'border-box' });
+    setInline(el, { fontSize: '13px', height: 'auto', lineHeight: '1.3', padding: '1px 0', overflow: 'visible', display: 'block', boxSizing: 'border-box' });
   });
   document.querySelectorAll('table.mat-table td').forEach(el => {
     setInline(el, { overflow: 'visible', height: 'auto' });
@@ -1744,6 +1778,13 @@ function forceDesktopLayout() {
   // footer field inputs — bump font 14px for capture
   document.querySelectorAll('.footer-field input[type="text"]').forEach(el => {
     setInline(el, { fontSize: '14px', height: 'auto', lineHeight: '1.6', overflow: 'visible', boxSizing: 'border-box' });
+  });
+  // footer field labels (bottom texts) — bump for capture legibility
+  document.querySelectorAll('.footer-field label').forEach(el => {
+    setInline(el, { fontSize: '15px', lineHeight: '1.5' });
+  });
+  document.querySelectorAll('.footer-other-label').forEach(el => {
+    setInline(el, { fontSize: '15px', lineHeight: '1.5' });
   });
   document.querySelectorAll('.footer-field').forEach(el => {
     setInline(el, { alignItems: 'center', overflow: 'visible' });
@@ -1783,27 +1824,57 @@ function forceDesktopLayout() {
   };
 }
 
-// ===== FIT CAPTURE TO 8.5 x 11 (LETTER) =====
-// html2canvas gives us a canvas whose height = the content height, so tall
-// forms come out long & skinny. This re-draws that canvas onto a new canvas
-// locked to letter proportions (8.5:11), scaling the content to fit the width
-// and padding with white so the result is always a proper sheet of paper.
+// ===== FIT CAPTURE TO A SHEET WITH 0.15in MARGINS + DRAW THE ORANGE FRAME =====
+// The page is scaled to sit inside a 0.15in margin on all sides (matching the
+// print margins), so there's clean white space around it — no edge-to-edge
+// content and no oversized side bars. Output is at least letter height; taller
+// pages keep their natural height (margins preserved) so nothing is cropped.
+// The orange frame is painted onto the output canvas at the margin line, because
+// html2canvas does not render the on-page CSS frame reliably (it's hidden during
+// capture instead).
 function fitToLetter(srcCanvas) {
-  const LETTER_RATIO = 11 / 8.5;            // height / width
-  const outW = srcCanvas.width;             // keep the captured horizontal resolution
-  const fitH = Math.round(outW * LETTER_RATIO);
-  // If content is taller than a letter page, scale it down to fit (contain).
-  const scale = Math.min(1, fitH / srcCanvas.height);
-  const drawW = Math.round(srcCanvas.width * scale);
-  const drawH = Math.round(srcCanvas.height * scale);
+  const SHEET_W = 8.5, SHEET_H = 11, MARGIN_IN = 0.15;
+  const outW = srcCanvas.width;                       // image width = full sheet width
+  const pxPerIn = outW / SHEET_W;
+  const margin = Math.round(MARGIN_IN * pxPerIn);     // 0.15in in canvas pixels
+  const innerW = outW - margin * 2;                   // printable width inside margins
+  const letterH = Math.round(outW * SHEET_H / SHEET_W);
+  const innerH = letterH - margin * 2;                // printable height inside margins
+  const scaleX = innerW / srcCanvas.width;
+  const naturalH = srcCanvas.height * scaleX;         // height if aspect is kept
+
+  let drawW = innerW, drawH, outH;
+  if (naturalH <= innerH) {
+    // Fits a sheet naturally — keep aspect ratio, pad to letter height.
+    drawH = Math.round(naturalH);
+    outH = letterH;
+  } else {
+    // Taller than a sheet — compress vertically so it sits on exactly one page.
+    drawH = innerH;
+    outH = letterH;
+  }
+
   const out = document.createElement('canvas');
   out.width = outW;
-  out.height = fitH;
+  out.height = outH;
   const ctx = out.getContext('2d');
   ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, outW, fitH);
-  const dx = Math.round((outW - drawW) / 2);  // center horizontally
-  ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, dx, 0, drawW, drawH);
+  ctx.fillRect(0, 0, outW, outH);
+  ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, margin, margin, drawW, drawH);
+
+  // Orange frame sitting on the 0.15in margin line, wrapping the whole sheet.
+  const lw = 4, r = 8;
+  const x = margin, y = margin, w = outW - margin * 2, h = outH - margin * 2;
+  ctx.strokeStyle = '#D35E13';
+  ctx.lineWidth = lw;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y,     x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x,     y + h, r);
+  ctx.arcTo(x,     y + h, x,     y,     r);
+  ctx.arcTo(x,     y,     x + w, y,     r);
+  ctx.closePath();
+  ctx.stroke();
   return out;
 }
 
@@ -1816,7 +1887,52 @@ function measureFullHeight(page) {
     page.scrollHeight,
     page.offsetHeight,
     rect.height
-  )) + 40;
+  )) + 80;
+}
+
+// Size the table rows so the page fills a letter-proportioned sheet evenly.
+// We distribute the difference between the page's current height and a
+// letter-proportioned target across every visible table row as cell padding —
+// growing short pages (roomier, more legible cells) or gently tightening tall
+// ones — instead of leaving white space or shrinking the text. Returns a restore
+// function to undo the inline changes after capture.
+function fitPageToSheet(page) {
+  // Capture renders at a fixed 1050px width (see html2canvas width:1050), so the
+  // sheet target must be based on that width, not page.offsetWidth — otherwise on
+  // mobile the target is computed from the wrong width and the page under-fills,
+  // leaving white space at the bottom.
+  const CAPTURE_W = 1050;
+  const targetH = CAPTURE_W * (11 / 8.5);
+  const rows = Array.from(page.querySelectorAll('table.mat-table tr'))
+    .filter(r => r.offsetHeight > 0);
+  if (!rows.length) return function () {};
+  // Measure the page height at the capture width (1050), not the phone's narrow
+  // on-screen width — a narrower width reflows content taller, which would make us
+  // under-pad and leave white space. Temporarily pin the width, read, then restore.
+  const prevWidth = page.style.width;
+  const prevMaxWidth = page.style.maxWidth;
+  page.style.setProperty('width', CAPTURE_W + 'px', 'important');
+  page.style.setProperty('max-width', CAPTURE_W + 'px', 'important');
+  void page.offsetHeight; // force reflow
+  const curH = page.scrollHeight;
+  page.style.width = prevWidth;
+  page.style.maxWidth = prevMaxWidth;
+  const perSide = (targetH - curH) / (rows.length * 2);
+  if (perSide < 0.5) return function () {};   // only grow short pages; never shrink
+  const saved = [];
+  rows.forEach(r => {
+    Array.from(r.children).forEach(c => {
+      const cs = getComputedStyle(c);
+      const pt = Math.max(0, parseFloat(cs.paddingTop) + perSide);
+      const pb = Math.max(0, parseFloat(cs.paddingBottom) + perSide);
+      saved.push({ el: c, pt: c.style.paddingTop, pb: c.style.paddingBottom });
+      c.style.setProperty('padding-top', pt + 'px', 'important');
+      c.style.setProperty('padding-bottom', pb + 'px', 'important');
+    });
+  });
+  return function () {
+    saved.forEach(s => { s.el.style.paddingTop = s.pt; s.el.style.paddingBottom = s.pb; });
+  };
 }
 
 // Wait until web fonts are loaded and the swapped-in capture tables have had a
@@ -1852,8 +1968,10 @@ function saveForIPhone() {
     const lbl = document.createElement('div'); lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:4px;'; lbl.textContent = `Page ${idx+1} of ${pages.length}`;
     const fnlbl = document.createElement('div'); fnlbl.style.cssText = 'color:#aaa;font-size:10px;margin-bottom:8px;word-break:break-all;'; fnlbl.textContent = fname;
     const img = document.createElement('img');
+    const restoreFill = fitPageToSheet(page);
     const capH = measureFullHeight(page);
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, height: capH, windowHeight: capH }).then(canvas => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0 }).then(canvas => {
+      restoreFill();
       canvas = fitToLetter(canvas);
       img.src = canvas.toDataURL('image/jpeg', 0.85);
       img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
@@ -1862,6 +1980,7 @@ function saveForIPhone() {
       completed++;
       if (completed === pages.length) { hideRealTablesAfterCapture(); restoreLayout(); setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
     }).catch(err => {
+      restoreFill();
       completed++;
       hideRealTablesAfterCapture(); restoreLayout();
       setStatus('⚠ Could not render page ' + (idx + 1) + ' — try again.');
@@ -1883,8 +2002,10 @@ function saveForAndroid() {
   let completed = 0;
   whenReadyToCapture().then(() => {
   pages.forEach((page, idx) => {
+    const restoreFill = fitPageToSheet(page);
     const capH = measureFullHeight(page);
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, height: capH, windowHeight: capH }).then(canvas => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0 }).then(canvas => {
+      restoreFill();
       canvas = fitToLetter(canvas);
       const link = document.createElement('a');
       link.download = buildFilename('jpg', idx + 1, pages.length);
@@ -1892,6 +2013,7 @@ function saveForAndroid() {
       completed++;
       if (completed === pages.length) { hideRealTablesAfterCapture(); restoreLayout(); setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
     }).catch(err => {
+      restoreFill();
       completed++;
       hideRealTablesAfterCapture(); restoreLayout();
       setStatus('⚠ Could not render page ' + (idx + 1) + ' — try again.');
