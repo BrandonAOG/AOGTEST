@@ -279,7 +279,24 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     </div>
     <div style="padding:18px;">
       <label style="display:block;font-size:0.6rem;letter-spacing:1.5px;color:#7A8BA8;text-transform:uppercase;margin-bottom:6px;">Which tool / page?</label>
-      <input id="bug-tool" type="text" placeholder="e.g. Estimate form" style="width:100%;box-sizing:border-box;padding:11px 12px;margin-bottom:14px;background:rgba(13,20,40,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#E5E9F0;font-family:inherit;font-size:0.85rem;">
+      <select id="bug-tool" style="width:100%;box-sizing:border-box;padding:11px 12px;margin-bottom:14px;background:rgba(13,20,40,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#E5E9F0;font-family:inherit;font-size:0.85rem;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23FBBF24%22 stroke-width=%222%22><polyline points=%226 9 12 15 18 9%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;">
+        <option value="General / Home screen">General / Home screen</option>
+        <option value="Estimate Form">Estimate Form</option>
+        <option value="Site Visit Form">Site Visit Form</option>
+        <option value="Electrical Install">Electrical Install</option>
+        <option value="Gas Installation">Gas Installation</option>
+        <option value="QC Checklist">QC Checklist</option>
+        <option value="Maintenance Form">Maintenance Form</option>
+        <option value="Service Work">Service Work</option>
+        <option value="Load Calculation">Load Calculation</option>
+        <option value="Property Lookup">Property Lookup</option>
+        <option value="Conduit Fill">Conduit Fill</option>
+        <option value="Gas Calculator">Gas Calculator</option>
+        <option value="Site Plan / Annotator">Site Plan / Annotator</option>
+        <option value="Breaker &amp; Conductor">Breaker &amp; Conductor</option>
+        <option value="Spec Viewer">Spec Viewer</option>
+        <option value="Other / Not listed">Other / Not listed</option>
+      </select>
 
       <label style="display:block;font-size:0.6rem;letter-spacing:1.5px;color:#7A8BA8;text-transform:uppercase;margin-bottom:6px;">What went wrong?</label>
       <textarea id="bug-desc" rows="4" placeholder="Describe what happened, and what you expected instead…" style="width:100%;box-sizing:border-box;padding:11px 12px;margin-bottom:14px;background:rgba(13,20,40,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#E5E9F0;font-family:inherit;font-size:0.85rem;resize:vertical;"></textarea>
@@ -299,10 +316,10 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 
 <script>
 (function(){
-  var BUG_EMAIL = 'Brandon@alwaysongenerators.com';  // <-- CHANGE THIS to where reports should go
+  var BUG_EMAIL = 'YOUR_EMAIL_HERE';  // <-- CHANGE THIS to where reports should go
   var fab = document.getElementById('bug-fab');
   var modal = document.getElementById('bug-modal');
-  function open(){ modal.style.display='flex'; document.getElementById('bug-tool').focus(); }
+  function open(){ modal.style.display='flex'; document.getElementById('bug-desc').focus(); }
   function close(){ modal.style.display='none'; }
   fab.addEventListener('click', open);
   document.getElementById('bug-close').addEventListener('click', close);
@@ -311,7 +328,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal.style.display==='flex') close(); });
 
   document.getElementById('bug-send').addEventListener('click', function(){
-    var tool = document.getElementById('bug-tool').value.trim() || '(not specified)';
+    var tool = document.getElementById('bug-tool').value;
     var desc = document.getElementById('bug-desc').value.trim();
     var name = document.getElementById('bug-name').value.trim() || '(anonymous)';
     if(!desc){ document.getElementById('bug-desc').focus(); return; }
