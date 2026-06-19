@@ -1846,6 +1846,17 @@ var tCtx=tCv.getContext('2d');
 var shCv=document.getElementById('shapes-cv');
 var shCtx=shCv.getContext('2d');
 
+// ── White-out fill helper ───────────────────────────────────────
+// A filled shape whose fill colour is white (#fff / #ffffff) is treated as an
+// opaque cover (true redaction): it renders and exports at FULL opacity so it
+// actually hides the content underneath, instead of the translucent 25% default
+// used for highlighter-style fills. Any non-white fill keeps the old behaviour.
+function _whiteishFill(c){ return /^#?f{3}(?:f{3})?$/i.test(String(c||'').replace('#','')); }
+function _shFillOp(s){
+  if(_whiteishFill(s.fillColor||s.color)) return (s.opacity==null?1:s.opacity);
+  return s.fillOpacity!==undefined ? s.fillOpacity : (s.opacity==null?1:s.opacity)*0.25;
+}
+
 // ── Accurate text width using real canvas measurement ────────────
 // Replaces the inaccurate "chars * fontSize * 0.6" estimate.
 // The canvas font must match what renderTextObjs uses.
@@ -6171,14 +6182,14 @@ function renderShapeAndMeasure(){
     else if(s.lineStyle==='dotted') shCtx.setLineDash([s.strokeW,s.strokeW*2.5]);
     else shCtx.setLineDash([]);
     if(s.type==='rect'){
-      if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;shCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
+      if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=_shFillOp(s);shCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
       shCtx.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
     } else if(s.type==='ellipse'){
       shCtx.beginPath();shCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
-      if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;shCtx.fill();shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
+      if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=_shFillOp(s);shCtx.fill();shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
       shCtx.stroke();
     } else if(s.type==='cloud'){
-      drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25}:null);
+      drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:_shFillOp(s)}:null);
     }
     shCtx.restore();
   });
@@ -6914,13 +6925,13 @@ drawCv.addEventListener('mousemove',function(e){
       else if(s.lineStyle==='dotted') shCtx.setLineDash([s.strokeW,s.strokeW*2.5]);
       else shCtx.setLineDash([]);
       if(s.type==='rect'){
-        if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;shCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
+        if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=_shFillOp(s);shCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
         shCtx.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
       } else if(s.type==='ellipse'){
         shCtx.beginPath();shCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
-        if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;shCtx.fill();shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
+        if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=_shFillOp(s);shCtx.fill();shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
         shCtx.stroke();
-      } else if(s.type==='cloud'){ drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25}:null); }
+      } else if(s.type==='cloud'){ drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:_shFillOp(s)}:null); }
       shCtx.restore();
     });
     measureObjs.forEach(function(m){
@@ -8541,14 +8552,14 @@ function renderSelection(){
   else selCtx.setLineDash([]);
   selCtx.fillStyle=s.color;
   if(s.type==='rect'){
-    if(s.fill){selCtx.fillStyle=s.fillColor||s.color;selCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;selCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);selCtx.globalAlpha=s.opacity;selCtx.fillStyle=s.color;}
+    if(s.fill){selCtx.fillStyle=s.fillColor||s.color;selCtx.globalAlpha=_shFillOp(s);selCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);selCtx.globalAlpha=s.opacity;selCtx.fillStyle=s.color;}
     selCtx.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
   } else if(s.type==='ellipse'){
     selCtx.beginPath();selCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
-    if(s.fill){selCtx.fillStyle=s.fillColor||s.color;selCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;selCtx.fill();selCtx.globalAlpha=s.opacity;selCtx.fillStyle=s.color;}
+    if(s.fill){selCtx.fillStyle=s.fillColor||s.color;selCtx.globalAlpha=_shFillOp(s);selCtx.fill();selCtx.globalAlpha=s.opacity;selCtx.fillStyle=s.color;}
     selCtx.stroke();
   } else if(s.type==='cloud'){
-    drawCloud(selCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25}:null);
+    drawCloud(selCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:_shFillOp(s)}:null);
   } else if(s.type==='text'){
     // Text selection preview: draw using the SAME per-line anchor as
     // renderTextObjs(), but derive the draw ORIGIN live from the selection
@@ -10426,14 +10437,14 @@ function compositeExport(maxPx){
       else ctx.setLineDash([]);
       var sw=s.w/2*scale, sh_=s.h/2*scale;
       if(s.type==='rect'){
-        if(s.fill){ctx.fillStyle=s.fillColor||s.color;ctx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;ctx.fillRect(-sw,-sh_,sw*2,sh_*2);ctx.globalAlpha=s.opacity;ctx.fillStyle=s.color;}
+        if(s.fill){ctx.fillStyle=s.fillColor||s.color;ctx.globalAlpha=_shFillOp(s);ctx.fillRect(-sw,-sh_,sw*2,sh_*2);ctx.globalAlpha=s.opacity;ctx.fillStyle=s.color;}
         ctx.strokeRect(-sw,-sh_,sw*2,sh_*2);
       } else if(s.type==='ellipse'){
         ctx.beginPath();ctx.ellipse(0,0,Math.max(1,sw),Math.max(1,sh_),0,0,Math.PI*2);
-        if(s.fill){ctx.fillStyle=s.fillColor||s.color;ctx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;ctx.fill();ctx.globalAlpha=s.opacity;ctx.fillStyle=s.color;}
+        if(s.fill){ctx.fillStyle=s.fillColor||s.color;ctx.globalAlpha=_shFillOp(s);ctx.fill();ctx.globalAlpha=s.opacity;ctx.fillStyle=s.color;}
         ctx.stroke();
       } else if(s.type==='cloud'){
-        drawCloud(ctx,-sw,-sh_,sw,sh_,s.fill?{color:s.fillColor||s.color,opacity:s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25}:null);
+        drawCloud(ctx,-sw,-sh_,sw,sh_,s.fill?{color:s.fillColor||s.color,opacity:_shFillOp(s)}:null);
       }
       ctx.restore(); ctx.setLineDash([]); ctx.globalAlpha=1;
     });
@@ -11001,7 +11012,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     var stroke=col(s.color), sw=Math.max(0.2,W(s.strokeW||1));
     var hasFill=!!s.fill;
     var fillC=hasFill?col(s.fillColor||s.color):undefined;
-    var fillOp=hasFill?(s.fillOpacity!=null?s.fillOpacity:(s.opacity||1)*0.25):0;
+    var fillOp=hasFill?(_whiteishFill(s.fillColor||s.color)?(s.opacity==null?1:s.opacity):(s.fillOpacity!=null?s.fillOpacity:(s.opacity||1)*0.25)):0;
     var dash=dashArr(s);
     if(s.type==='rect'){
       // pdf-lib rectangle origin = bottom-left corner. Compute the canvas-space
@@ -14173,6 +14184,238 @@ window.addEventListener('orientationchange', function(){
   // Dimensions settle a tick after the event on iOS/Android
   setTimeout(function(){ if(baseLoaded){ clampPan(); applyTransform(); } }, 250);
 });
+
+// ════════════════════════════════════════════════════════════════
+// PER-PAGE PERSISTENCE  +  MULTI-PAGE EXPORT  (patch)
+// ----------------------------------------------------------------
+// Problem this fixes:
+//   The editor kept ONE global set of annotation arrays. Every page flip
+//   ran afterLoad(), which wiped those arrays, then rebuilt the page fresh
+//   from the source PDF. So edits/deletions made on a page were thrown away
+//   on navigation (a "deleted" note reappeared because the page was rebuilt
+//   from the untouched original), and export only ever carried the page you
+//   were currently viewing.
+//
+//   This module gives each page its own saved state: leaving a page snapshots
+//   it; returning restores it instead of re-exploding. Export then stamps
+//   EVERY visited page's edits, not just the current one.
+// ════════════════════════════════════════════════════════════════
+var _pageStore = {};   // pageNumber -> saved state
+
+function _copyCanvas(src){
+  var c=document.createElement('canvas');
+  c.width=Math.max(1,src.width); c.height=Math.max(1,src.height);
+  try{ c.getContext('2d').drawImage(src,0,0); }catch(e){}
+  return c;
+}
+
+// Snapshot the live editor state for page `p`. Stores array REFERENCES (each
+// page owns its own arrays; only one page is live at a time, so no copying or
+// aliasing is needed — object identity and cross-references stay intact). The
+// base backdrop and freehand layer canvases are pixel-copied.
+function _snapshotPage(p){
+  if(p==null || !baseLoaded) return;
+  try{ if(typeof commitAllForExport==='function') commitAllForExport(); }catch(e){}
+  var layerSnap=[];
+  try{
+    layerSnap=layers.map(function(l){
+      return {name:l.name,color:l.color,visible:l.visible,canvas:_copyCanvas(l.canvas)};
+    });
+  }catch(e){}
+  _pageStore[p]={
+    w:baseCv.width, h:baseCv.height,
+    base:_copyCanvas(baseCv),
+    layers:layerSnap,
+    activeLayerIdx:(typeof activeLayerIdx!=='undefined'?activeLayerIdx:0),
+    textObjs:textObjs, shapeObjs:shapeObjs, measureObjs:measureObjs,
+    pathMeasureObjs:pathMeasureObjs, polylineObjs:polylineObjs, penObjs:penObjs,
+    polygonObjs:polygonObjs, leaderObjs:leaderObjs, stampObjs:stampObjs,
+    commentObjs:commentObjs, markupObjs:markupObjs, imgOverlays:imgOverlays,
+    dpi:(typeof _lastLoadedDpi!=='undefined'?_lastLoadedDpi:0),
+    vecOK:(typeof _vectorBackdropOK!=='undefined'?_vectorBackdropOK:false),
+    vecPage:(typeof _vecPageNum!=='undefined'?_vecPageNum:p),
+    exploded:(typeof _explodedFromPage!=='undefined'?_explodedFromPage:false),
+    annots:(typeof _pageAnnots!=='undefined'?_pageAnnots:[]),
+    undo:(typeof undoStack!=='undefined'?undoStack.slice():[]),
+    redo:(typeof redoStack!=='undefined'?redoStack.slice():[])
+  };
+}
+
+// Restore a saved page state WITHOUT re-exploding the PDF.
+function _restorePage(st){
+  if(!st) return;
+  resize(st.w, st.h);
+  try{ bCtx.clearRect(0,0,st.w,st.h); bCtx.drawImage(st.base,0,0); }catch(e){}
+  // rebuild freehand layers from the snapshot's pixels
+  try{ if(layers.length) layers.forEach(function(l){ try{ releaseCanvas(l.canvas); }catch(_){}}); }catch(e){}
+  layers=st.layers.map(function(ls){
+    var c=document.createElement('canvas'); c.width=st.w; c.height=st.h;
+    var cx=c.getContext('2d'); try{ cx.drawImage(ls.canvas,0,0); }catch(_){}
+    return {name:ls.name,color:ls.color,visible:ls.visible,canvas:c,ctx:cx};
+  });
+  if(!layers.length){ initLayers(st.w,st.h); }
+  activeLayerIdx=Math.min(st.activeLayerIdx||0, layers.length-1);
+  // swap array ownership back to this page
+  textObjs=st.textObjs; shapeObjs=st.shapeObjs; measureObjs=st.measureObjs;
+  pathMeasureObjs=st.pathMeasureObjs; polylineObjs=st.polylineObjs; penObjs=st.penObjs;
+  polygonObjs=st.polygonObjs; leaderObjs=st.leaderObjs; stampObjs=st.stampObjs;
+  commentObjs=st.commentObjs; markupObjs=st.markupObjs; imgOverlays=st.imgOverlays;
+  _lastLoadedDpi=st.dpi; _vectorBackdropOK=st.vecOK; _vecPageNum=st.vecPage;
+  _explodedFromPage=st.exploded; _pageAnnots=st.annots;
+  undoStack=st.undo?st.undo.slice():[]; redoStack=st.redo?st.redo.slice():[];
+  // clear any stale selection / in-progress edit pointing at old objects
+  try{ selectedShape=null; selHandle=-1; }catch(e){}
+  try{ selImg=null; }catch(e){}
+  try{ editingObj=null; }catch(e){}
+  try{ editShapeObj=null; }catch(e){}
+  try{ selectedMeasure=null; }catch(e){}
+  try{ selectedLeader=null; }catch(e){}
+  try{ selectedPolyline=null; }catch(e){}
+  try{ if(selCv.width>1){ selCv.width=1; selCv.height=1; } }catch(e){}
+  baseLoaded=true;
+  // repaint everything
+  try{ drawGrid(); }catch(e){}
+  try{ composite(); }catch(e){}
+  try{ renderLayers(); }catch(e){}
+  try{ if(typeof renderImgOverlays==='function') renderImgOverlays(); }catch(e){}
+  try{ if(typeof renderTextObjs==='function') renderTextObjs(); }catch(e){}
+  try{ if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure(); }catch(e){}
+  try{ if(typeof renderMarkupObjs==='function') renderMarkupObjs(); }catch(e){}
+}
+
+// Navigate to page n: snapshot the page we're leaving, then either restore a
+// saved state or (first visit) explode/render it fresh.
+function _gotoPage(n){
+  if(!pdfDoc) return;
+  if(n<1 || n>pdfDoc.numPages) return;
+  if(n===currentPage) return;
+  _snapshotPage(currentPage);
+  currentPage=n;
+  if(_pageStore[n]){
+    _restorePage(_pageStore[n]);
+    try{ pgInfo.textContent=n+'/'+pdfDoc.numPages; }catch(e){}
+    try{ btnPrev.disabled=n<=1; btnNext.disabled=n>=pdfDoc.numPages; }catch(e){}
+    try{ fitToVP(); }catch(e){}
+  } else {
+    if(typeof EXPLODE_PDF!=='undefined' && EXPLODE_PDF) _explodePDFPage(n);
+    else renderPDFPage(n);
+  }
+}
+
+function _multipageApplies(){
+  return !!(pdfDoc && pdfDoc.numPages>1 &&
+            typeof _vectorBackdropOK!=='undefined' && _vectorBackdropOK &&
+            typeof _pdfBytes!=='undefined' && _pdfBytes &&
+            typeof window.PDFLib!=='undefined');
+}
+
+// Build a single PDF whose pages each carry their own page's edits. Reuses the
+// proven single-page vector builder (_buildVectorPdf), once per visited page,
+// and copies each freshly-stamped page into one final document.
+function _buildAllPagesPdf(attachJson, onReady){
+  if(!_multipageApplies()){ onReady(null); return; }
+  _snapshotPage(currentPage);
+  var savedPage=currentPage;
+  var pageNums=Object.keys(_pageStore).map(Number)
+                  .filter(function(p){ return p>=1 && p<=pdfDoc.numPages; })
+                  .sort(function(a,b){ return a-b; });
+  if(!pageNums.length){ onReady(null); return; }
+
+  function restoreActive(){
+    try{
+      if(_pageStore[savedPage]){
+        _restorePage(_pageStore[savedPage]);
+        currentPage=savedPage; _vecPageNum=savedPage;
+        pgInfo.textContent=savedPage+'/'+pdfDoc.numPages;
+        btnPrev.disabled=savedPage<=1; btnNext.disabled=savedPage>=pdfDoc.numPages;
+        fitToVP();
+      }
+    }catch(e){}
+  }
+
+  PDFLib.PDFDocument.load(_pdfBytes.slice(0)).then(function(finalDoc){
+    var i=0;
+    function step(){
+      if(i>=pageNums.length){
+        var save=function(){ return finalDoc.save(); };
+        var done=function(bytes){ restoreActive(); onReady(bytes||null); };
+        if(attachJson){
+          try{
+            var jb=new TextEncoder().encode(attachJson);
+            finalDoc.attach(jb, (typeof AOG_PDF_ATTACH!=='undefined'?AOG_PDF_ATTACH:'aogplan.json'), {
+              mimeType:'application/json', description:'AOG editable annotation data',
+              creationDate:new Date(), modificationDate:new Date()
+            }).then(save).then(done).catch(function(){ done(null); });
+          }catch(e){ save().then(done).catch(function(){ done(null); }); }
+        } else {
+          save().then(done).catch(function(){ done(null); });
+        }
+        return;
+      }
+      var p=pageNums[i++];
+      // make page p the live page, then build a vector PDF stamped on page p
+      _restorePage(_pageStore[p]);
+      currentPage=p; _vecPageNum=p;
+      _buildVectorPdf(null, function(vbytes){
+        if(!vbytes){ step(); return; }   // build failed → keep original page p
+        PDFLib.PDFDocument.load(vbytes).then(function(srcDoc){
+          if(p-1>=srcDoc.getPageCount()){ step(); return; }
+          return finalDoc.copyPages(srcDoc,[p-1]).then(function(cp){
+            try{ finalDoc.removePage(p-1); finalDoc.insertPage(p-1, cp[0]); }catch(e){}
+            step();
+          });
+        }).catch(function(){ step(); });
+      });
+    }
+    step();
+  }).catch(function(){ restoreActive(); onReady(null); });
+}
+
+function _exportAllFlat(){
+  if(!baseLoaded){ toast('Open a file first','warn'); return; }
+  try{ if(typeof commitAllForExport==='function') commitAllForExport(); }catch(e){}
+  pickSaveTarget('site-plan.pdf','application/pdf','PDF Document',['.pdf']).then(function(handle){
+    if(handle==='cancelled'){ toast('Save cancelled'); return; }
+    toast('Preparing all pages…','',0);
+    _buildAllPagesPdf(null,function(bytes){
+      if(!bytes){ toast('Multi-page build failed — try again','err',4000); return; }
+      writeToTarget(handle,new Blob([bytes],{type:'application/pdf'}),'site-plan.pdf')
+        .then(function(){ toast('Saved all pages (vectors kept) ✓','ok',2800); });
+    });
+  });
+}
+
+function _exportAllEditable(){
+  if(!baseLoaded){ toast('Open a file first','warn'); return; }
+  try{ if(typeof commitAllForExport==='function') commitAllForExport(); }catch(e){}
+  var name=(typeof _projFileName==='function')?_projFileName('pdf'):'site-plan.pdf';
+  pickSaveTarget(name,'application/pdf','PDF Document',['.pdf']).then(function(handle){
+    if(handle==='cancelled'){ toast('Save cancelled'); return; }
+    toast('Preparing editable PDF (all pages)…','',0);
+    buildProjectRecord(0.92,function(rec){
+      if(!rec){ toast('Editable PDF failed — try again','err',4000); return; }
+      var json; try{ json=JSON.stringify(rec); }catch(e){ toast('Project too large to embed','err',4000); return; }
+      _buildAllPagesPdf(json,function(bytes){
+        if(!bytes){ toast('Multi-page build failed — try again','err',4000); return; }
+        writeToTarget(handle,new Blob([bytes],{type:'application/pdf'}),name)
+          .then(function(){ toast('Editable PDF saved (all pages) ✓','ok',3200); });
+      });
+    });
+  });
+}
+
+// Intercept the relevant buttons in the CAPTURE phase on document, BEFORE the
+// original target-phase handlers run, so we can replace navigation and (when it
+// applies) multi-page export. When multi-page doesn't apply we don't stop the
+// event, so the original single-page behaviour runs unchanged.
+document.addEventListener('click', function(ev){
+  var t = ev.target && ev.target.closest ? ev.target.closest('button') : null;
+  if(!t) return;
+  if(t.id==='btn-prev'){ if(pdfDoc){ ev.stopPropagation(); ev.preventDefault(); _gotoPage(currentPage-1); } return; }
+  if(t.id==='btn-next'){ if(pdfDoc){ ev.stopPropagation(); ev.preventDefault(); _gotoPage(currentPage+1); } return; }
+  if(t.id==='btn-pdf'    && _multipageApplies()){ ev.stopPropagation(); ev.preventDefault(); _exportAllFlat();     return; }
+  if(t.id==='btn-pdfedit'&& _multipageApplies()){ ev.stopPropagation(); ev.preventDefault(); _exportAllEditable(); return; }
+}, true);
 
 })();
 </script>
