@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -533,6 +541,10 @@ body{font-family:'Exo 2','Inter',sans-serif;background:var(--bg);color:var(--tex
     <div class="card-head">
       <div class="card-title">Pool Panel Feeder Calculation</div>
       <div class="card-sub">NEC 680 · Largest continuous motor @ 125% (NEC 430.24) · Phase A &amp; B split · Pool VA included in Step 3</div>
+      <label class="chk-row" style="width:100%;margin-bottom:0;margin-top:4px;">
+        <input type="checkbox" id="has_pool" checked onchange="calc()">
+        <span>This home has a pool / pool sub-panel</span>
+      </label>
     </div>
 
     <!-- Inner sub-tabs -->
@@ -1328,6 +1340,14 @@ function calc(){
     if(pexV_===120) pexVA120_+=gv('pexva_'+n);
     else            pexVA240_+=gv('pexva_'+n);
   }
+  // ── No-pool toggle: zero out every pool source load so nothing flows
+  //    into the feeder calc or Step 3 service demand ──
+  if(!gc('has_pool')){
+    spaVA_=0; h35VA_=0; h5VA_=0; heaterVA_=0; blowerVA_=0; lightVA_=0;
+    pmVA240_=0; pmVA120_=0; pmVA_=0;
+    pncVA240_=0; pncVA120_=0; pncVA_=0;
+    pexVA240_=0; pexVA120_=0;
+  }
   // Total pool sub-panel feeder VA = sum of all pool loads
   // Per NEC, the feeder must carry the total demand of the sub-panel
   // Pool phase currents (raw VA/120, NO 125% multiplier — that's for conductor sizing)
@@ -1656,7 +1676,7 @@ window.addEventListener('load',function(){
   }
   addDryer(false,5000,1);
   addCookItem('cooktop',false,0);
-  addCookItem('oven',false,0);
+  addCookItem('oven',false,8000);
   calc();
 });
 </script>
@@ -1686,6 +1706,7 @@ function printReport(){
   var addr  = iv('j_addr');
   var city  = iv('j_city');
   var phone = iv('j_phone');
+  var sqftVal = iv('sqft');
 
   // ── Collect managed loads list ──
   var managedLines = [];
@@ -1839,7 +1860,8 @@ function printReport(){
   <!-- Left: load inputs -->
   <div>
     <div class="sh">Step 1 — Lighting &amp; Circuits</div>
-    <table class="dt"><tr><td>General Lighting (3VA/ft²)</td><td class="r">${tv('r1_gl')} VA</td></tr>
+    <table class="dt"><tr><td>Floor Area Entered</td><td class="r">${sqftVal||'—'} sq ft</td></tr>
+    <tr><td>General Lighting (3VA/ft²)</td><td class="r">${tv('r1_gl')} VA</td></tr>
     <tr><td>Small Appliance Circuits</td><td class="r">${tv('r1_sa')} VA</td></tr>
     <tr><td>Laundry Circuits</td><td class="r">${tv('r1_lc')} VA</td></tr>
     <tr class="tot"><td>Step 1 Total</td><td class="r">${s1} VA</td></tr></table>
