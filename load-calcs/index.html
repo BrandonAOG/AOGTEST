@@ -256,25 +256,24 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
   .sum-panel{background:#1C2333!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .main{padding:0;}
 }
-/* ── REPORT OVERLAY (on-screen; avoids popup/print hang on iOS) ── */
+/* ── PRINT REPORT sheet ── */
 #print-report{display:none;}
-#report-overlay{position:fixed;inset:0;z-index:9999;background:rgba(20,25,40,.72);display:none;flex-direction:column;}
-#report-overlay.open{display:flex;}
-#report-toolbar{flex:0 0 auto;display:flex;gap:8px;align-items:center;padding:10px 12px;background:#1C2333;border-bottom:1px solid rgba(217,119,6,.35);flex-wrap:wrap;}
-#report-toolbar .rb{display:inline-flex;align-items:center;gap:5px;padding:9px 15px;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;}
-#report-toolbar .rb.primary{background:#D97706;border-color:#D97706;}
-#report-toolbar .rb.close{margin-right:auto;background:transparent;}
-#report-toolbar .rb:disabled{opacity:.6;cursor:default;}
-#report-scroll{flex:1 1 auto;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;justify-content:center;}
-#report-paper{background:#fff;color:#000;width:8.5in;max-width:100%;padding:.35in .4in .3in .4in;box-sizing:border-box;font-family:'Share Tech Mono',monospace;font-size:9.5pt;box-shadow:0 6px 30px rgba(0,0,0,.45);}
-@media(max-width:900px){#report-paper{padding:18px;font-size:11px;}}
 @media print{
-  body.printing-report > *:not(#report-overlay){display:none!important;}
-  body.printing-report #report-overlay{position:static!important;background:#fff!important;display:block!important;}
-  body.printing-report #report-toolbar{display:none!important;}
-  body.printing-report #report-scroll{overflow:visible!important;padding:0!important;display:block!important;}
-  body.printing-report #report-paper{box-shadow:none!important;width:8.5in!important;max-width:none!important;padding:.35in .4in .3in .4in!important;}
-  body.printing-report *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  body.printing-report > *:not(#print-report){display:none!important;}
+  #print-report{
+    display:block!important;
+    font-family:'Share Tech Mono',monospace;
+    font-size:9.5pt;
+    color:#000;
+    background:#fff;
+    width:8.5in;
+    min-height:11in;
+    margin:0;
+    padding:.35in .4in .3in .4in;
+    box-sizing:border-box;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
   @page{size:8.5in 11in;margin:0;}
 }
 
@@ -1850,13 +1849,6 @@ window.addEventListener('load',function(){
   document.addEventListener('change', aogScheduleSave, true);
   document.addEventListener('focusout', aogBlankZeros, true);
 
-  // Report overlay: tap the dark area or press Esc to close
-  var _ov=document.getElementById('report-overlay');
-  if(_ov) _ov.addEventListener('click',function(e){ if(e.target===_ov||e.target.id==='report-scroll') reportClose(); });
-  document.addEventListener('keydown',function(e){
-    if(e.key==='Escape'){ var o=document.getElementById('report-overlay'); if(o&&o.classList.contains('open')) reportClose(); }
-  });
-
   calc();
   aogBlankZeros();
 });
@@ -1864,16 +1856,6 @@ window.addEventListener('load',function(){
 
 <!-- ═══ PRINT REPORT DIV (hidden on screen, shown when printing) ═══ -->
 <div id="print-report"></div>
-<div id="report-overlay" role="dialog" aria-modal="true" aria-label="Load calculation report">
-  <div id="report-toolbar">
-    <button class="rb close" onclick="reportClose()">✕ Close</button>
-    <button class="rb" onclick="reportPrint()">⎙ Print</button>
-    <button class="rb primary" onclick="reportSaveImage(event)">📷 Save Image</button>
-  </div>
-  <div id="report-scroll">
-    <div id="report-paper"></div>
-  </div>
-</div>
 
 <script>
 function tv(id){
@@ -2123,89 +2105,72 @@ ${managedLines.length>0?'<div style="margin-top:10pt;border:1.5pt solid #D97706;
   .dt .tot td{font-weight:700;border-top:1pt solid #ccc;border-bottom:1pt solid #ccc;background:#fafafa;}
 </style>`;
 
-  // Render into the on-screen overlay — no popup window, so nothing can get
-  // "stuck" on iPad if a print dialog is dismissed.
-  var paper = document.getElementById('report-paper');
-  paper.innerHTML = html;
-  var ov = document.getElementById('report-overlay');
-  ov.classList.add('open');
-  document.getElementById('report-scroll').scrollTop = 0;
-  document.body.style.overflow = 'hidden';
+  // Detect installed-PWA / standalone mode. window.open() is unreliable there
+  // (the blank _blank page can get stuck if the print dialog is cancelled),
+  // so always use the inline print path inside the current page.
+  var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                     || window.navigator.standalone === true
+                     || document.referrer.indexOf('android-app://') === 0;
+
+  function inlinePrint(){
+    var div = document.getElementById('print-report');
+    div.innerHTML = html;
+    document.body.classList.add('printing-report');
+    var cleaned = false;
+    var cleanup = function(){
+      if(cleaned) return;
+      cleaned = true;
+      document.body.classList.remove('printing-report');
+      div.innerHTML = '';
+      window.removeEventListener('afterprint', cleanup);
+    };
+    // Clean up whether the user prints OR cancels/ignores the dialog
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(cleanup, 3000); // safety net so the page can never get stuck
+    window.print();
+  }
+
+  if(isStandalone){
+    inlinePrint();
+    return;
+  }
+
+  // Browser tab: open a separate window for the report
+  var printWin = window.open('', '_blank', 'width=900,height=700');
+  if(!printWin){
+    // Popup blocked — fall back to inline print
+    inlinePrint();
+    return;
+  }
+  // Embed afterprint listener + auto-print inside the new window itself
+  printWin.document.write(
+    '<!DOCTYPE html><html><head>'
+    +'<meta charset="UTF-8">'
+    +'<meta name="viewport" content="width=device-width,initial-scale=1">'
+    +'<title>AOG Load Calculation Report</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">'
+    +'<style>'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:\'Share Tech Mono\',monospace;font-size:9.5pt;color:#000;background:#fff;'
+    +'  width:8.5in;margin:0 auto;padding:.35in .4in .3in .4in;}'
+    +'@media print{'
+    +'  @page{size:8.5in 11in;margin:0;}'
+    +'  body{width:8.5in;padding:.35in .4in .3in .4in;}'
+    +'  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}'
+    +'}'
+    +'</style>'
+    +'<script>'
+    +'window.onafterprint=function(){window.close();};'
+    +'window.addEventListener(\'afterprint\',function(){window.close();});'
+    +'window.onload=function(){setTimeout(function(){window.focus();window.print();},400);};'
+    +'<\/script>'
+    +'</head><body>'
+    +html
+
+    +'</body></html>'
+  );
+  printWin.document.close();
   } catch(e){ console.error('printReport error:', e); alert('Report error: '+e.message); }
-}
-
-function reportClose(){
-  var ov=document.getElementById('report-overlay');
-  if(ov) ov.classList.remove('open');
-  document.body.classList.remove('printing-report');
-  document.body.style.overflow='';
-}
-
-function reportPrint(){
-  // In-page print of the overlay. If the user cancels/ignores, the overlay is
-  // still right there with a Close button — the app never gets stuck.
-  document.body.classList.add('printing-report');
-  var cleanup=function(){
-    document.body.classList.remove('printing-report');
-    window.removeEventListener('afterprint',cleanup);
-    window.removeEventListener('focus',cleanup);
-  };
-  window.addEventListener('afterprint',cleanup);
-  window.addEventListener('focus',cleanup);   // fires when returning from the print sheet
-  setTimeout(cleanup,60000);                  // hard safety net
-  setTimeout(function(){ try{ window.print(); }catch(e){} },60);
-}
-
-function _aogDownloadBlob(blob,fname){
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url; a.download=fname; document.body.appendChild(a); a.click();
-  setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); },1500);
-}
-
-function _aogLoadHtml2Canvas(cb){
-  if(window.html2canvas){ cb(); return; }
-  var s=document.createElement('script');
-  s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-  s.onload=function(){ cb(); };
-  s.onerror=function(){ cb(new Error('load failed')); };
-  document.head.appendChild(s);
-}
-
-function reportSaveImage(ev){
-  var btn=ev&&ev.target?ev.target:null;
-  var reset=function(){ if(btn){ btn.disabled=false; btn.textContent='📷 Save Image'; } };
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Rendering…'; }
-  var paper=document.getElementById('report-paper');
-  _aogLoadHtml2Canvas(function(err){
-    if(err||!window.html2canvas){
-      reset();
-      alert('Image capture needs an internet connection the first time so it can load. Please connect once and try again — Print works offline in the meantime.');
-      return;
-    }
-    // Force a consistent letter-width layout during capture (so phones don't make a skinny image)
-    var sv={w:paper.style.width,mw:paper.style.maxWidth,p:paper.style.padding,fs:paper.style.fontSize};
-    paper.style.width='816px'; paper.style.maxWidth='none'; paper.style.padding='34px 38px'; paper.style.fontSize='9.5pt';
-    var restore=function(){ paper.style.width=sv.w; paper.style.maxWidth=sv.mw; paper.style.padding=sv.p; paper.style.fontSize=sv.fs; };
-    window.html2canvas(paper,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:1100,width:816}).then(function(canvas){
-      restore();
-      var co=(iv('j_co')||'AOG').replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,40)||'AOG';
-      var fname='AOG_Load_Report_'+co+'_'+new Date().toISOString().slice(0,10)+'.png';
-      canvas.toBlob(function(blob){
-        if(!blob){ reset(); alert('Could not create image.'); return; }
-        var file;
-        try{ file=new File([blob],fname,{type:'image/png'}); }catch(e){ file=null; }
-        // On iPad/iPhone this opens the share sheet → Save to Photos / Files / message
-        if(file && navigator.canShare && navigator.canShare({files:[file]})){
-          navigator.share({files:[file],title:'AOG Load Report'})
-            .then(reset)
-            .catch(function(){ _aogDownloadBlob(blob,fname); reset(); });
-        } else {
-          _aogDownloadBlob(blob,fname); reset();
-        }
-      },'image/png');
-    }).catch(function(e){ restore(); reset(); alert('Could not capture image: '+(e&&e.message?e.message:e)); });
-  });
 }
 </script>
   <script>
