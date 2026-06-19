@@ -150,6 +150,30 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 
 /* SECTION LABEL */
 .forms-section-label { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 5px; color: var(--text-dim); text-align: center; margin-bottom: 18px; text-transform: uppercase; opacity: 0.45; }
+.jobs-panel { background: rgba(13,20,40,0.45); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; margin-bottom: 34px; overflow: hidden; }
+.jobs-header { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: transparent; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.jobs-title { font-family: var(--font-display); font-size: 0.7rem; font-weight: 700; letter-spacing: 2px; color: var(--yellow-bright); text-transform: uppercase; }
+.jobs-count { color: var(--text-dim); font-size: 0.62rem; letter-spacing: 1px; margin-left: 4px; }
+.jobs-chevron { color: var(--text-dim); font-size: 0.9rem; transition: transform 0.25s ease; }
+.jobs-panel.collapsed .jobs-chevron { transform: rotate(-90deg); }
+.jobs-body { padding: 0 16px 16px; max-height: 600px; transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease; overflow: hidden; }
+.jobs-panel.collapsed .jobs-body { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; }
+.jobs-add { display: flex; gap: 8px; margin-bottom: 12px; }
+.jobs-add input { flex: 1; box-sizing: border-box; padding: 11px 12px; background: rgba(6,9,19,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text); font-family: var(--font-mono); font-size: 16px; }
+.jobs-add input::placeholder { color: rgba(122,139,168,0.7); }
+.jobs-add button { flex-shrink: 0; width: 44px; border: none; border-radius: 8px; background: linear-gradient(135deg, var(--yellow-bright), var(--orange)); color: var(--bg-dark); font-size: 1.4rem; font-weight: 700; cursor: pointer; line-height: 1; }
+.jobs-list { list-style: none; margin: 0; padding: 0; }
+.jobs-item { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.jobs-item:last-child { border-bottom: none; }
+.jobs-check { flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid rgba(251,191,36,0.5); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--bg-dark); font-size: 0.85rem; font-weight: 700; transition: all 0.18s; }
+.jobs-item.done .jobs-check { background: linear-gradient(135deg, var(--yellow-bright), var(--orange)); border-color: transparent; }
+.jobs-text { flex: 1; font-family: var(--font-mono); font-size: 0.82rem; color: var(--text); word-break: break-word; }
+.jobs-item.done .jobs-text { color: var(--text-dim); text-decoration: line-through; opacity: 0.65; }
+.jobs-del { flex-shrink: 0; background: none; border: none; color: var(--text-dim); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 4px 6px; opacity: 0.5; }
+.jobs-del:hover { opacity: 1; color: var(--orange-bright); }
+.jobs-empty { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); text-align: center; padding: 14px 0; opacity: 0.5; }
+.jobs-clear { display: none; margin-top: 12px; width: 100%; padding: 9px; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-dim); font-family: var(--font-display); font-size: 0.58rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; }
+.jobs-clear:hover { border-color: rgba(251,191,36,0.3); color: var(--yellow-bright); }
 
 /* CATEGORY NAV */
 .category-nav { display: flex; gap: 6px; margin-bottom: 24px; justify-content: center; flex-wrap: wrap; padding: 5px; background: rgba(13,20,40,0.45); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; }
@@ -364,27 +388,117 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 <!-- ===== GREETING + DATE ===== -->
 <script>
 (function(){
-  var el = document.getElementById('greeting-bar');
-  if(!el) return;
-  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  var MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  function greet(h){
-    if(h < 12) return 'Good morning';
-    if(h < 17) return 'Good afternoon';
-    if(h < 21) return 'Good evening';
-    return 'Working late';
+  function init(){
+    var el = document.getElementById('greeting-bar');
+    if(!el) return;
+    var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    function greet(h){
+      if(h < 12) return 'Good morning';
+      if(h < 17) return 'Good afternoon';
+      if(h < 21) return 'Good evening';
+      return 'Working late';
+    }
+    function render(){
+      var now = new Date();
+      var hi = greet(now.getHours());
+      var date = DAYS[now.getDay()] + ', ' + MON[now.getMonth()] + ' ' + now.getDate();
+      el.innerHTML = '<span class="greet-hi">' + hi + '</span><span class="greet-dot">&middot;</span>' + date;
+    }
+    render();
+    setInterval(render, 60000); // keep it fresh if app stays open
   }
-  function render(){
-    var now = new Date();
-    var hi = greet(now.getHours());
-    var date = DAYS[now.getDay()] + ', ' + MON[now.getMonth()] + ' ' + now.getDate();
-    el.innerHTML = '<span class="greet-hi">' + hi + '</span><span class="greet-dot">&middot;</span>' + date;
-  }
-  render();
-  setInterval(render, 60000); // keep it fresh if app stays open
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
 </script>
 <!-- ===== END GREETING ===== -->
+
+<!-- ===== JOBS TODAY ===== -->
+<script>
+(function(){
+ function init(){
+  var KEY = 'aog_jobs_v1';
+  var COLLAPSE_KEY = 'aog_jobs_collapsed';
+  var panel = document.getElementById('jobs-panel');
+  var listEl = document.getElementById('jobs-list');
+  var emptyEl = document.getElementById('jobs-empty');
+  var countEl = document.getElementById('jobs-count');
+  var clearBtn = document.getElementById('jobs-clear');
+  var input = document.getElementById('jobs-input');
+  if(!panel) return;
+
+  function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } }
+  function save(arr){ try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch(e){} }
+
+  var jobs = load();
+
+  function render(){
+    listEl.innerHTML = '';
+    var doneCount = 0;
+    jobs.forEach(function(job, i){
+      if(job.done) doneCount++;
+      var li = document.createElement('li');
+      li.className = 'jobs-item' + (job.done ? ' done' : '');
+
+      var chk = document.createElement('button');
+      chk.className = 'jobs-check';
+      chk.type = 'button';
+      chk.setAttribute('aria-label', job.done ? 'Mark not done' : 'Mark done');
+      chk.textContent = job.done ? '✓' : '';
+      chk.addEventListener('click', function(){ jobs[i].done = !jobs[i].done; save(jobs); render(); });
+
+      var txt = document.createElement('span');
+      txt.className = 'jobs-text';
+      txt.textContent = job.text;
+
+      var del = document.createElement('button');
+      del.className = 'jobs-del';
+      del.type = 'button';
+      del.setAttribute('aria-label', 'Delete stop');
+      del.innerHTML = '&times;';
+      del.addEventListener('click', function(){ jobs.splice(i,1); save(jobs); render(); });
+
+      li.appendChild(chk); li.appendChild(txt); li.appendChild(del);
+      listEl.appendChild(li);
+    });
+    emptyEl.style.display = jobs.length ? 'none' : 'block';
+    clearBtn.style.display = doneCount ? 'block' : 'none';
+    countEl.textContent = jobs.length ? '(' + (jobs.length - doneCount) + ' left)' : '';
+  }
+
+  function add(){
+    var v = input.value.trim();
+    if(!v) return;
+    jobs.push({ text: v, done: false });
+    save(jobs); input.value = ''; render(); input.focus();
+  }
+
+  document.getElementById('jobs-add-btn').addEventListener('click', add);
+  input.addEventListener('keydown', function(e){ if(e.key === 'Enter') add(); });
+  clearBtn.addEventListener('click', function(){
+    jobs = jobs.filter(function(j){ return !j.done; });
+    save(jobs); render();
+  });
+
+  // Collapse / expand, state remembered
+  var header = document.getElementById('jobs-header');
+  if(localStorage.getItem(COLLAPSE_KEY) === '1') panel.classList.add('collapsed');
+  header.setAttribute('aria-expanded', panel.classList.contains('collapsed') ? 'false' : 'true');
+  header.addEventListener('click', function(){
+    panel.classList.toggle('collapsed');
+    var collapsed = panel.classList.contains('collapsed');
+    header.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    try { localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0'); } catch(e){}
+  });
+
+  render();
+ }
+ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+ else init();
+})();
+</script>
+<!-- ===== END JOBS TODAY ===== -->
 <div id="offline-banner">No network connection · Hub available offline</div>
 
 <!-- CACHE PROGRESS TOAST -->
@@ -428,6 +542,22 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     <div class="status-item"><span class="status-dot yellow"></span><span>14 Tools Active</span></div>
     <div class="status-item"><span class="status-dot orange"></span><span>Field Ready</span></div>
     <div class="status-item" id="sw-status-item"><span class="status-dot blue" id="sw-status-dot"></span><span id="sw-status-label">Sync Enabled</span></div>
+  </div>
+
+  <div class="jobs-panel" id="jobs-panel">
+    <button class="jobs-header" id="jobs-header" type="button" aria-expanded="true" aria-controls="jobs-body">
+      <span class="jobs-title">📋 Jobs Today <span class="jobs-count" id="jobs-count"></span></span>
+      <span class="jobs-chevron" id="jobs-chevron">▾</span>
+    </button>
+    <div class="jobs-body" id="jobs-body">
+      <div class="jobs-add">
+        <input id="jobs-input" type="text" placeholder="Add a stop…" autocomplete="off" />
+        <button id="jobs-add-btn" type="button" aria-label="Add stop">+</button>
+      </div>
+      <ul class="jobs-list" id="jobs-list"></ul>
+      <div class="jobs-empty" id="jobs-empty">No stops yet. Add your first job above.</div>
+      <button class="jobs-clear" id="jobs-clear" type="button">Clear completed</button>
+    </div>
   </div>
 
   <div class="forms-section-label">Select a Category</div>
