@@ -1783,6 +1783,52 @@ function forceDesktopLayout() {
   };
 }
 
+// ===== FIT CAPTURE TO 8.5 x 11 (LETTER) =====
+// html2canvas gives us a canvas whose height = the content height, so tall
+// forms come out long & skinny. This re-draws that canvas onto a new canvas
+// locked to letter proportions (8.5:11), scaling the content to fit the width
+// and padding with white so the result is always a proper sheet of paper.
+function fitToLetter(srcCanvas) {
+  const LETTER_RATIO = 11 / 8.5;            // height / width
+  const outW = srcCanvas.width;             // keep the captured horizontal resolution
+  const fitH = Math.round(outW * LETTER_RATIO);
+  // If content is taller than a letter page, scale it down to fit (contain).
+  const scale = Math.min(1, fitH / srcCanvas.height);
+  const drawW = Math.round(srcCanvas.width * scale);
+  const drawH = Math.round(srcCanvas.height * scale);
+  const out = document.createElement('canvas');
+  out.width = outW;
+  out.height = fitH;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, outW, fitH);
+  const dx = Math.round((outW - drawW) / 2);  // center horizontally
+  ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, dx, 0, drawW, drawH);
+  return out;
+}
+
+// Robust full height of a page — html2canvas clips to whatever height we pass,
+// so under-measuring (e.g. before fonts load) chops the bottom rows off. Take
+// the largest of every height signal the browser gives us, plus a safety pad.
+function measureFullHeight(page) {
+  const rect = page.getBoundingClientRect();
+  return Math.ceil(Math.max(
+    page.scrollHeight,
+    page.offsetHeight,
+    rect.height
+  )) + 40;
+}
+
+// Wait until web fonts are loaded and the swapped-in capture tables have had a
+// chance to reflow, so the height we measure reflects the final layout.
+function whenReadyToCapture() {
+  const fonts = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  return fonts.then(() => new Promise(resolve => {
+    // two RAFs ensures the just-injected capture styles have been laid out
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  }));
+}
+
 function saveForIPhone() {
   setStatus('Rendering pages, please wait…');
   const pages = document.querySelectorAll('.form-page');
@@ -1799,13 +1845,16 @@ function saveForIPhone() {
   container.style.cssText = 'display:flex;flex-direction:column;gap:12px;width:100%;max-width:600px;';
   overlay.appendChild(closeBtn); overlay.appendChild(container); document.body.appendChild(overlay);
   let completed = 0;
+  whenReadyToCapture().then(() => {
   pages.forEach((page, idx) => {
     const wrapper = document.createElement('div'); wrapper.style.cssText = 'text-align:center;';
     const fname = buildFilename('jpg', idx + 1, pages.length);
     const lbl = document.createElement('div'); lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:4px;'; lbl.textContent = `Page ${idx+1} of ${pages.length}`;
     const fnlbl = document.createElement('div'); fnlbl.style.cssText = 'color:#aaa;font-size:10px;margin-bottom:8px;word-break:break-all;'; fnlbl.textContent = fname;
     const img = document.createElement('img');
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, height: page.scrollHeight + 40, windowHeight: page.scrollHeight + 40 }).then(canvas => {
+    const capH = measureFullHeight(page);
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, height: capH, windowHeight: capH }).then(canvas => {
+      canvas = fitToLetter(canvas);
       img.src = canvas.toDataURL('image/jpeg', 0.85);
       img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
       img.alt = fname;
@@ -1819,6 +1868,7 @@ function saveForIPhone() {
       if (wasDark) document.body.classList.add('dark-mode');
     });
   });
+  });
   closeBtn.onclick = () => { hideRealTablesAfterCapture(); restoreLayout(); setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
 }
 
@@ -1831,8 +1881,11 @@ function saveForAndroid() {
   showRealTablesForCapture();
   const restoreLayout = forceDesktopLayout();
   let completed = 0;
+  whenReadyToCapture().then(() => {
   pages.forEach((page, idx) => {
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, height: page.scrollHeight + 40, windowHeight: page.scrollHeight + 40 }).then(canvas => {
+    const capH = measureFullHeight(page);
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, height: capH, windowHeight: capH }).then(canvas => {
+      canvas = fitToLetter(canvas);
       const link = document.createElement('a');
       link.download = buildFilename('jpg', idx + 1, pages.length);
       link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
@@ -1845,6 +1898,7 @@ function saveForAndroid() {
       setTimeout(() => setStatus(''), 5000);
       if (wasDark) document.body.classList.add('dark-mode');
     });
+  });
   });
 }
 
