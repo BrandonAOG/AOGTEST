@@ -1746,13 +1746,39 @@ function forceDesktopLayout() {
   document.querySelectorAll('.footer-field').forEach(el => {
     setInline(el, { alignItems: 'center', overflow: 'visible' });
   });
-  return () => saved.forEach(({ el, prev, props }) => {
-    props.forEach(k => {
-      const cssProp = k.replace(/([A-Z])/g, '-$1').toLowerCase();
-      el.style.removeProperty(cssProp);
-      if (prev[k]) el.style[k] = prev[k];
-    });
+  // html2canvas (1.4.1) renders <textarea> as a single non-wrapping line,
+  // which makes "Needs Completed" run off the page. Swap each textarea for a
+  // wrapping div mirror during capture, then remove the mirrors on restore.
+  const mirrors = [];
+  document.querySelectorAll('textarea.needs-completed').forEach(ta => {
+    const div = document.createElement('div');
+    div.className = 'needs-completed-mirror';
+    const cs = window.getComputedStyle(ta);
+    div.style.cssText = [
+      'flex:1 1 100%', 'width:100%', 'max-width:100%', 'box-sizing:border-box',
+      'border-bottom:1px solid ' + cs.borderBottomColor,
+      'font-family:Arial, sans-serif', 'font-size:14px', 'line-height:1.6',
+      'padding:2px 4px', 'min-height:44px', 'white-space:pre-wrap',
+      'word-break:break-word', 'overflow-wrap:anywhere', 'color:' + cs.color
+    ].join(';');
+    div.textContent = ta.value;
+    ta.style.setProperty('display', 'none', 'important');
+    ta.parentNode.insertBefore(div, ta.nextSibling);
+    mirrors.push({ ta, div });
   });
+  return () => {
+    mirrors.forEach(({ ta, div }) => {
+      if (div.parentNode) div.parentNode.removeChild(div);
+      ta.style.removeProperty('display');
+    });
+    saved.forEach(({ el, prev, props }) => {
+      props.forEach(k => {
+        const cssProp = k.replace(/([A-Z])/g, '-$1').toLowerCase();
+        el.style.removeProperty(cssProp);
+        if (prev[k]) el.style[k] = prev[k];
+      });
+    });
+  };
 }
 
 function saveForIPhone() {
