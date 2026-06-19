@@ -1821,6 +1821,26 @@ function forceDesktopLayout() {
     ta.parentNode.insertBefore(div, ta.nextSibling);
     mirrors.push({ ta, div });
   });
+  // Same html2canvas single-line quirk affects the bordered ".textarea-field"
+  // (e.g. "Any Miscues or Delays during the job") — swap it for a wrapping div
+  // mirror that keeps its boxed look during capture.
+  document.querySelectorAll('textarea.textarea-field').forEach(ta => {
+    const div = document.createElement('div');
+    div.className = 'textarea-field-mirror';
+    const cs = window.getComputedStyle(ta);
+    div.style.cssText = [
+      'width:100%', 'max-width:100%', 'box-sizing:border-box',
+      'border:1px solid ' + cs.borderTopColor, 'border-radius:3px',
+      'font-family:Arial, sans-serif', 'font-size:16px', 'line-height:1.6',
+      'padding:8px', 'min-height:' + cs.minHeight, 'white-space:pre-wrap',
+      'word-break:break-word', 'overflow-wrap:anywhere',
+      'background:' + cs.backgroundColor, 'color:' + cs.color
+    ].join(';');
+    div.textContent = ta.value;
+    ta.style.setProperty('display', 'none', 'important');
+    ta.parentNode.insertBefore(div, ta.nextSibling);
+    mirrors.push({ ta, div });
+  });
   return () => {
     mirrors.forEach(({ ta, div }) => {
       if (div.parentNode) div.parentNode.removeChild(div);
