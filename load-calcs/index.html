@@ -164,7 +164,42 @@ body{font-family:'Exo 2','Inter',sans-serif;background:var(--bg);color:var(--tex
 .appl-tbl .tot-cell{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;text-align:right;white-space:nowrap;}
 .appl-tbl .gas-cell label{display:flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--amber);cursor:pointer;justify-content:center;}
 .appl-tbl .gas-cell input{width:13px;height:13px;accent-color:var(--amber);}
-.appl-tbl .volt-cell select{font-size:10px;padding:4px 3px;}
+.appl-tbl .volt-cell select{font-size:10px;}
+/* Replace native select up/down toggle with a single clean chevron + reserve space so text never overlaps */
+.appl-tbl select{
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23667085' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;background-size:9px;
+  padding-right:22px;
+}
+.appl-tbl select::-ms-expand{display:none;}
+.appl-tbl .volt-cell select{padding:4px 15px 4px 6px;background-position:right 4px center;background-size:8px;text-align:left;}
+
+/* Remove native up/down toggle on EVERY voltage select (pool + appliance), single clean chevron */
+select[id^="pvolt_"],
+select[id^="ppvolt_"],
+select[id^="pncvolt_"],
+select[id^="pexvolt_"]{
+  -webkit-appearance:none!important;-moz-appearance:none!important;appearance:none!important;
+  background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23667085' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
+  background-repeat:no-repeat!important;background-position:right 5px center!important;background-size:8px!important;
+  padding-right:18px!important;
+}
+select[id^="pvolt_"]::-ms-expand,
+select[id^="ppvolt_"]::-ms-expand,
+select[id^="pncvolt_"]::-ms-expand,
+select[id^="pexvolt_"]::-ms-expand{display:none;}
+
+/* Remove native up/down number spinners on the typeable VA inputs */
+input[type=number][id^="va_"],
+input[type=number][id^="xva_"],
+input[type=number][id^="pexva_"]{-moz-appearance:textfield;appearance:textfield;}
+input[type=number][id^="va_"]::-webkit-outer-spin-button,
+input[type=number][id^="va_"]::-webkit-inner-spin-button,
+input[type=number][id^="xva_"]::-webkit-outer-spin-button,
+input[type=number][id^="xva_"]::-webkit-inner-spin-button,
+input[type=number][id^="pexva_"]::-webkit-outer-spin-button,
+input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 
 /* ── COOKING SECTION ── */
 .cook-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px;margin-bottom:10px;}
@@ -480,7 +515,7 @@ body{font-family:'Exo 2','Inter',sans-serif;background:var(--bg);color:var(--tex
             <th style="width:38px;text-align:center">GAS</th>
             <th style="width:42px;text-align:center">Qty</th>
             <th style="min-width:140px">VA</th>
-            <th style="width:48px;text-align:center">Volt</th>
+            <th style="width:64px;text-align:center">Volt</th>
             <th style="width:68px;text-align:right">Total VA</th>
           </tr></thead>
           <tbody id="appl_rows"></tbody>
@@ -916,7 +951,7 @@ function buildAppl(){
     var gasCell=a.canGas
       ?'<label class="gas-cell" style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;color:var(--amber);cursor:pointer;"><input type="checkbox" id="gas_'+a.id+'" onchange="calc()" style="accent-color:var(--amber);width:13px;height:13px;">GAS</label>'
       :'<span style="color:var(--border2);">—</span>';
-    var voltCell='<select class="volt-cell" id="volt_'+a.id+'" onchange="calc()" style="font-size:10px;padding:4px 3px;">'
+    var voltCell='<select class="volt-cell" id="volt_'+a.id+'" onchange="calc()" style="font-size:10px;">'
       +'<option value="120"'+(a.volt==="120"?" selected":"")+'>120V</option>'
       +'<option value="240"'+(a.volt==="240"?" selected":"")+'>240V</option>'
       +'</select>';
@@ -954,7 +989,7 @@ function addExtraAppl(){
     +"<td style='text-align:center;'><label style='display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;color:var(--amber);cursor:pointer;'><input type='checkbox' id='xgas_"+n+"' onchange='calc()' style='accent-color:var(--amber);width:13px;height:13px;'>GAS</label></td>"
     +"<td><input type='number' id='xqty_"+n+"' value='1' min='0' oninput='calc()' style='text-align:center;width:45px;'></td>"
     +"<td><input type='number' id='xva_"+n+"' value='0' min='0' oninput='calc()' style='width:100%;border:1px solid var(--border);border-radius:4px;padding:5px 7px;font-family:JetBrains Mono,monospace;font-size:12px;text-align:right;'></td>"
-    +"<td><select id='xvolt_"+n+"' onchange='calc()' style='font-size:10px;padding:4px 3px;border:1px solid var(--border);border-radius:4px;width:100%;'><option value='120'>120V</option><option value='240' selected>240V</option></select></td>"
+    +"<td class='volt-cell'><select id='xvolt_"+n+"' onchange='calc()' style='font-size:10px;'><option value='120'>120V</option><option value='240' selected>240V</option></select></td>"
     +"<td class='tot-cell' id='xtot_"+n+"'>0</td>"
     +"<td><button class='btn btn-remove' onclick='removeExtraAppl("+n+")' style='padding:2px 6px;font-size:11px;'>✕</button></td>";
   var anchor=document.getElementById("addload_row");
@@ -1651,6 +1686,7 @@ function calc(){
     +'<div class="calc-line"><span>Pool EGC (NEC 250.122)</span><span class="cv">'+egcWire(poolSvc,isAl)+'</span></div>'
     +'<div class="calc-line"><span>Pool feeder VA → Step 3</span><span class="cv">'+fmt(Math.round(poolFdrVA))+' VA</span></div>';
 
+  if(typeof aogBlankZeros==='function') aogBlankZeros();
   if(typeof aogScheduleSave==='function') aogScheduleSave();
 }
 
@@ -1779,6 +1815,14 @@ function aogClearSaved(){
   try{ localStorage.removeItem(AOG_SAVE_KEY); }catch(e){}
 }
 
+// Show blank instead of 0 in the typeable VA boxes (skips the field being edited)
+function aogBlankZeros(){
+  document.querySelectorAll('input[type=number][id^="va_"],input[type=number][id^="xva_"],input[type=number][id^="pexva_"]').forEach(function(el){
+    if(el===document.activeElement) return;
+    if(el.value!=='' && parseFloat(el.value)===0) el.value='';
+  });
+}
+
 // ══ INIT ══
 window.addEventListener('load',function(){
   buildAHU();
@@ -1802,8 +1846,10 @@ window.addEventListener('load',function(){
   aogRestore();
   document.addEventListener('input', aogScheduleSave, true);
   document.addEventListener('change', aogScheduleSave, true);
+  document.addEventListener('focusout', aogBlankZeros, true);
 
   calc();
+  aogBlankZeros();
 });
 </script>
 
