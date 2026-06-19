@@ -486,7 +486,6 @@ body{font-family:'Exo 2','Inter',sans-serif;background:var(--bg);color:var(--tex
           <tbody id="appl_rows"></tbody>
         </table>
       </div>
-      <div style="padding:8px 14px;border-top:1px solid var(--border);"><button class="btn btn-add btn-sm" onclick="addExtraAppl()">+ Add Load</button></div>
       <div style="display:flex;justify-content:flex-end;gap:16px;padding:10px 14px;background:var(--surface2);border-top:1px solid var(--border);flex-wrap:wrap;">
         <span style="font-size:12px;color:var(--text3);">Connected Total: <strong id="r3_tot">—</strong> VA</span>
         <span style="font-size:12px;color:var(--blue);">Total = <strong id="r3_dem">—</strong> VA</span>
@@ -931,7 +930,10 @@ function buildAppl(){
       +"<td class='tot-cell' id='tot_"+a.id+"'>—</td>"
       +"</tr>";
   }
-  // Pool panel — read-only, auto-filled from Pool tab
+  // Add Load button row — sits directly above the Pool Equip. Panel row
+  h+='<tr id="addload_row"><td colspan="7" style="padding:8px 14px;border-top:1px solid var(--border);">'
+    +'<button class="btn btn-add btn-sm" onclick="addExtraAppl()">+ Add Load</button></td></tr>';
+  // Pool panel — read-only, auto-filled from Pool tab (kept last in the list)
   h+='<tr id="row_pool_panel" style="background:var(--blue-lt);">'
     +'<td><span style="font-size:12px;font-weight:600;color:var(--blue);">Pool Equip. Panel</span><br><span style="font-size:10px;color:var(--text3);">← from Pool tab</span></td>'
     +'<td style="text-align:center;">—</td>'
@@ -955,7 +957,8 @@ function addExtraAppl(){
     +"<td><select id='xvolt_"+n+"' onchange='calc()' style='font-size:10px;padding:4px 3px;border:1px solid var(--border);border-radius:4px;width:100%;'><option value='120'>120V</option><option value='240' selected>240V</option></select></td>"
     +"<td class='tot-cell' id='xtot_"+n+"'>0</td>"
     +"<td><button class='btn btn-remove' onclick='removeExtraAppl("+n+")' style='padding:2px 6px;font-size:11px;'>✕</button></td>";
-  tbody.appendChild(tr);
+  var anchor=document.getElementById("addload_row");
+  if(anchor) tbody.insertBefore(tr, anchor); else tbody.appendChild(tr);
   calc();
 }
 function removeExtraAppl(n){var r=document.getElementById("xrow_"+n);if(r)r.remove();calc();}
@@ -1694,6 +1697,7 @@ function aogSnapshot(){
   return {
     fields:fields,
     rows:{
+      xappl:   aogRowIndices('appl_rows','tr[id^="xrow_"]'),
       dryer:   aogRowIndices('dryer_list','.dryer-item'),
       cooktop: aogRowIndices('cook_cooktops','.cook-item'),
       oven:    aogRowIndices('cook_ovens','.cook-item'),
@@ -1728,6 +1732,8 @@ function aogSetEl(id, rec){
 }
 
 function aogClearDyn(){
+  var ar=document.getElementById('appl_rows');
+  if(ar) ar.querySelectorAll('tr[id^="xrow_"]').forEach(function(x){x.remove();});
   var c=document.getElementById('dryer_list'); if(c) c.innerHTML='';
   ['cook_cooktops','cook_ovens'].forEach(function(id){
     var k=document.getElementById(id);
@@ -1738,10 +1744,12 @@ function aogClearDyn(){
   c=document.getElementById('pool_extra_loads'); if(c) c.innerHTML='';
   dryerCount=0; ctCount=0; ovCount=0;
   poolPumpCount=0; poolNcCount=0; poolExtraCount=0;
+  extraApplCount=0;
 }
 
 function aogRebuildRows(rows){
   if(!rows) return;
+  (rows.xappl||[]).forEach(function(n){ extraApplCount=n-1; addExtraAppl(); });
   (rows.dryer||[]).forEach(function(n){ dryerCount=n-1; addDryer(); });
   (rows.cooktop||[]).forEach(function(n){ ctCount=n-1; addCookItem('cooktop'); });
   (rows.oven||[]).forEach(function(n){ ovCount=n-1; addCookItem('oven'); });
