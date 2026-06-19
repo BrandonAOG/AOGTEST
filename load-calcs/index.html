@@ -284,7 +284,8 @@ body{font-family:'Exo 2','Inter',sans-serif;background:var(--bg);color:var(--tex
   <a class="ab-btn" href="../">🏠 HOME</a>
   <button class="ab-btn" onclick="printReport()">⎙ REPORT</button>
   <a class="ab-btn" onclick="window.print()" style="cursor:pointer;">⎙ FULL</a>
-  <a class="ab-btn" onclick="if(confirm('Reset all fields?'))location.reload()" style="cursor:pointer;">↺ RESET</a>
+  <a class="ab-btn" onclick="if(confirm('Start a new job? This clears all saved entries on this device.')){aogClearSaved();location.reload();}" style="cursor:pointer;">↺ NEW JOB</a>
+  <span id="aog-save-status" style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(255,255,255,0.45);letter-spacing:.5px;align-self:center;white-space:nowrap;padding:0 4px;"></span>
 </div>
 
 <div class="topbar" style="padding:10px 16px;display:flex;align-items:center;gap:10px;background:#1C2333;border-bottom:1px solid rgba(217,119,6,0.2);">
@@ -1646,6 +1647,8 @@ function calc(){
     +'<div class="calc-line"><span>Min. panel breaker</span><span class="cv">'+poolSvc+' A</span></div>'
     +'<div class="calc-line"><span>Pool EGC (NEC 250.122)</span><span class="cv">'+egcWire(poolSvc,isAl)+'</span></div>'
     +'<div class="calc-line"><span>Pool feeder VA → Step 3</span><span class="cv">'+fmt(Math.round(poolFdrVA))+' VA</span></div>';
+
+  if(typeof aogScheduleSave==='function') aogScheduleSave();
 }
 
 // ══ TABS ══
@@ -1658,6 +1661,115 @@ document.querySelectorAll('.tab').forEach(function(t){
     if(panel) panel.classList.add('active');
   });
 });
+
+// ══ BROWSER AUTOSAVE (localStorage, per-device) ══
+var AOG_SAVE_KEY='aog_loadcalc_autosave_v1';
+var _aogRestoring=false, _aogSaveTimer=null;
+
+function aogUpdateSaveStatus(txt){
+  var el=document.getElementById('aog-save-status');
+  if(!el) return;
+  el.textContent=txt||('✓ Saved '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+}
+
+function aogRowIndices(containerId, itemSelector){
+  var c=document.getElementById(containerId);
+  if(!c) return [];
+  var out=[];
+  c.querySelectorAll(itemSelector).forEach(function(el){
+    var m=(el.id||'').match(/(\d+)$/);
+    if(m) out.push(parseInt(m[1],10));
+  });
+  return out;
+}
+
+function aogSnapshot(){
+  var fields={};
+  document.querySelectorAll('input,select,textarea').forEach(function(el){
+    if(!el.id) return;
+    if(el.type==='checkbox') fields[el.id]={c:el.checked};
+    else if(el.type==='radio'){ if(el.checked) fields[el.id]={v:el.value}; }
+    else fields[el.id]={v:el.value};
+  });
+  return {
+    fields:fields,
+    rows:{
+      dryer:   aogRowIndices('dryer_list','.dryer-item'),
+      cooktop: aogRowIndices('cook_cooktops','.cook-item'),
+      oven:    aogRowIndices('cook_ovens','.cook-item'),
+      ppump:   aogRowIndices('pool_pumps_section','.pool-row'),
+      pnc:     aogRowIndices('pool_nc_section','.pool-row'),
+      pex:     aogRowIndices('pool_extra_loads','tr')
+    },
+    ts:Date.now()
+  };
+}
+
+function aogScheduleSave(){
+  if(_aogRestoring) return;
+  if(_aogSaveTimer) clearTimeout(_aogSaveTimer);
+  _aogSaveTimer=setTimeout(function(){
+    try{ localStorage.setItem(AOG_SAVE_KEY, JSON.stringify(aogSnapshot())); aogUpdateSaveStatus(); }
+    catch(e){ aogUpdateSaveStatus('⚠ Save off'); }
+  },400);
+}
+
+function aogSetEl(id, rec){
+  var el=document.getElementById(id);
+  if(!el) return;
+  if(el.type==='checkbox'){ el.checked=!!rec.c; return; }
+  if('v' in rec){
+    if(el.tagName==='SELECT'){
+      var has=Array.prototype.some.call(el.options,function(o){return o.value===rec.v;});
+      if(!has){ var o=document.createElement('option'); o.value=rec.v; o.textContent=rec.v; el.appendChild(o); }
+    }
+    el.value=rec.v;
+  }
+}
+
+function aogClearDyn(){
+  var c=document.getElementById('dryer_list'); if(c) c.innerHTML='';
+  ['cook_cooktops','cook_ovens'].forEach(function(id){
+    var k=document.getElementById(id);
+    if(k) k.querySelectorAll('.cook-item').forEach(function(x){x.remove();});
+  });
+  c=document.getElementById('pool_pumps_section'); if(c) c.innerHTML='';
+  c=document.getElementById('pool_nc_section'); if(c) c.innerHTML='';
+  c=document.getElementById('pool_extra_loads'); if(c) c.innerHTML='';
+  dryerCount=0; ctCount=0; ovCount=0;
+  poolPumpCount=0; poolNcCount=0; poolExtraCount=0;
+}
+
+function aogRebuildRows(rows){
+  if(!rows) return;
+  (rows.dryer||[]).forEach(function(n){ dryerCount=n-1; addDryer(); });
+  (rows.cooktop||[]).forEach(function(n){ ctCount=n-1; addCookItem('cooktop'); });
+  (rows.oven||[]).forEach(function(n){ ovCount=n-1; addCookItem('oven'); });
+  (rows.ppump||[]).forEach(function(n){ poolPumpCount=n-1; addPoolPump(); });
+  (rows.pnc||[]).forEach(function(n){ poolNcCount=n-1; addPoolNC(); });
+  (rows.pex||[]).forEach(function(n){ poolExtraCount=n-1; addPoolExtra(); });
+}
+
+function aogRestore(){
+  var raw;
+  try{ raw=localStorage.getItem(AOG_SAVE_KEY); }catch(e){ return false; }
+  if(!raw) return false;
+  var data;
+  try{ data=JSON.parse(raw); }catch(e){ return false; }
+  if(!data||!data.fields) return false;
+  _aogRestoring=true;
+  try{
+    aogClearDyn();
+    aogRebuildRows(data.rows);
+    Object.keys(data.fields).forEach(function(id){ aogSetEl(id,data.fields[id]); });
+  }catch(e){ console.warn('AOG restore error',e); }
+  _aogRestoring=false;
+  return true;
+}
+
+function aogClearSaved(){
+  try{ localStorage.removeItem(AOG_SAVE_KEY); }catch(e){}
+}
 
 // ══ INIT ══
 window.addEventListener('load',function(){
@@ -1677,6 +1789,12 @@ window.addEventListener('load',function(){
   addDryer(false,5000,1);
   addCookItem('cooktop',false,0);
   addCookItem('oven',false,8000);
+
+  // Restore any autosaved job from this device, then begin autosaving
+  aogRestore();
+  document.addEventListener('input', aogScheduleSave, true);
+  document.addEventListener('change', aogScheduleSave, true);
+
   calc();
 });
 </script>
