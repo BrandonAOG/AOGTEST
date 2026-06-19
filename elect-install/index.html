@@ -547,6 +547,9 @@ body.dark-mode .inline-input { border-bottom-color: #00FFC8; color: #E0F7FF; }
 body.dark-mode .textarea-field { border-color: rgba(0,255,200,0.15); background: rgba(10,14,39,0.6); color: #E0F7FF; }
 .textarea-field:focus { border-color: var(--cyan); }
 body.dark-mode .textarea-field:focus { border-color: #00FFC8; }
+.needs-completed-row { align-items: flex-start; }
+.needs-completed { flex: 1 1 100%; width: 100%; max-width: 100%; box-sizing: border-box; resize: vertical; border: none; border-bottom: 1px solid var(--text); outline: none; font-family: Arial, sans-serif; font-size: 13px; line-height: 1.6; padding: 2px 4px; background: transparent; color: var(--text); min-height: 44px; overflow: hidden; }
+body.dark-mode .needs-completed { border-bottom-color: #00FFC8; color: #E0F7FF; }
 hr.section-hr { border: none; border-top: 1px solid rgba(211,94,19,0.15); margin: 10px 0; }
 body.dark-mode hr.section-hr { border-top-color: rgba(0,255,200,0.15); }
 
@@ -1248,7 +1251,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
           <div class="section-row"><label>Generator Electrical Made Up:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row"><label>Generator Set to NG or LP in Controller:</label><input type="checkbox"> NG <input type="checkbox"> LP <input type="checkbox"> NOT SET</div>
           <div class="section-row"><label>Generator Manual:</label><input type="checkbox"> Transfer Switch <input type="checkbox"> Homeowner</div>
-          <div class="section-row"><label>Needs Completed:</label><input type="text" style="width:100%;border:none;border-bottom:1px solid var(--text);"></div>
+          <div class="section-row needs-completed-row"><label>Needs Completed:</label><textarea class="needs-completed" rows="2"></textarea></div>
         </div>
         <hr class="section-hr">
         <div class="ts-container" id="ts-container"></div>
@@ -1569,7 +1572,7 @@ function buildTSBlock(num) {
     <div class="section-row"><label>Surge Protector(s):</label><input type="checkbox"> YES <input type="checkbox"> NO <label>Quantity:</label><input class="inline-input xshort" type="text"></div>
     <div class="section-row"><label>Panel Lugs Torqued to Spec:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
     <div class="section-row"><label>Generator Electrical Run Torqued to Spec In Generator &amp; TS:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-    <div class="section-row"><label>Needs Completed:</label><input type="text" style="width:100%;border:none;border-bottom:1px solid var(--text);"></div>
+    <div class="section-row needs-completed-row"><label>Needs Completed:</label><textarea class="needs-completed" rows="2"></textarea></div>
   `;
   block.appendChild(header); block.appendChild(body);
   return block;
@@ -1705,9 +1708,10 @@ function showRealTablesForCapture() {
     '.footer-fields { overflow: visible !important; }',
     '.top-fields { grid-template-columns: 1fr 1fr !important; gap: 6px 12px !important; }',
     '.two-col { grid-template-columns: 1fr 1fr !important; gap: 8px 16px !important; }',
-    '.form-page { padding: 24px !important; }',
+    '.form-page { padding: 24px 24px 60px 24px !important; }',
     '.logo-area { flex-wrap: nowrap !important; }',
     '.section-row { font-size: 13px !important; flex-wrap: wrap !important; }',
+    '.needs-completed { overflow: visible !important; height: auto !important; }',
     '.inline-input { font-size: 13px !important; width: 100px !important; }'
   ].join('\n');
   document.head.appendChild(style);
@@ -1773,7 +1777,7 @@ function saveForIPhone() {
     const lbl = document.createElement('div'); lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:4px;'; lbl.textContent = `Page ${idx+1} of ${pages.length}`;
     const fnlbl = document.createElement('div'); fnlbl.style.cssText = 'color:#aaa;font-size:10px;margin-bottom:8px;word-break:break-all;'; fnlbl.textContent = fname;
     const img = document.createElement('img');
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, height: page.scrollHeight + 40, windowHeight: page.scrollHeight + 40 }).then(canvas => {
       img.src = canvas.toDataURL('image/jpeg', 0.85);
       img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
       img.alt = fname;
@@ -1800,7 +1804,7 @@ function saveForAndroid() {
   const restoreLayout = forceDesktopLayout();
   let completed = 0;
   pages.forEach((page, idx) => {
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, height: page.scrollHeight + 40, windowHeight: page.scrollHeight + 40 }).then(canvas => {
       const link = document.createElement('a');
       link.download = buildFilename('jpg', idx + 1, pages.length);
       link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
