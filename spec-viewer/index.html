@@ -289,15 +289,15 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
 .se-badge.nonse{background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.4);color:var(--ob)}
 
 /* ── ATS PICK GRID ────────────────────────────────────────────────────── */
-.ats-pick-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.ats-pick-grid{display:grid;grid-template-columns:1fr;gap:8px;min-width:0}
 @media(min-width:480px){.ats-pick-grid{grid-template-columns:repeat(2,1fr)}}
 @media(min-width:768px){.ats-pick-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}}
-.ats-pick{position:relative;padding:12px 14px;background:linear-gradient(135deg,var(--panel-bg),var(--panel-bg2));border:1.5px solid var(--border);border-radius:4px;cursor:pointer;transition:all .25s;text-align:left;-webkit-tap-highlight-color:transparent}
+.ats-pick{position:relative;padding:12px 14px;background:linear-gradient(135deg,var(--panel-bg),var(--panel-bg2));border:1.5px solid var(--border);border-radius:4px;cursor:pointer;transition:all .25s;text-align:left;-webkit-tap-highlight-color:transparent;min-width:0;overflow:hidden}
 .ats-pick:hover{border-color:var(--o);transform:translateY(-2px);box-shadow:0 6px 18px rgba(249,115,22,.14)}
 .ats-pick.active{border-color:var(--yb);background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(249,115,22,.08));box-shadow:0 0 16px rgba(251,191,36,.2)}
-.aps-amps{font-family:var(--fd);font-size:.88rem;font-weight:900;letter-spacing:2px;color:var(--yb);margin-bottom:3px}
-.aps-name{font-family:var(--fm);font-size:.63rem;color:var(--text);letter-spacing:.5px;margin-bottom:4px;line-height:1.4}
-.aps-pn{font-family:var(--fm);font-size:.56rem;color:var(--be);letter-spacing:.8px;opacity:.8}
+.aps-amps{font-family:var(--fd);font-size:.88rem;font-weight:900;letter-spacing:2px;color:var(--yb);margin-bottom:3px;word-break:break-word;overflow-wrap:break-word}
+.aps-name{font-family:var(--fm);font-size:.63rem;color:var(--text);letter-spacing:.5px;margin-bottom:4px;line-height:1.4;word-break:break-word;overflow-wrap:break-word}
+.aps-pn{font-family:var(--fm);font-size:.56rem;color:var(--be);letter-spacing:.8px;opacity:.8;word-break:break-word;overflow-wrap:break-word}
 .aps-tag{position:absolute;top:7px;right:7px;font-family:var(--fm);font-size:.5rem;letter-spacing:1px;padding:2px 6px;border-radius:2px;text-transform:uppercase}
 .aps-tag.new{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#10B981}
 .aps-tag.spd{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.4);color:var(--bb)}
@@ -599,7 +599,7 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
         <div class="fnote" id="fn"></div>
       </div>
 
-      <div class="ss"><div class="st">▸ Rated Power Output by Voltage Configuration</div><div style="overflow-x:auto"><table class="ot"><thead><tr><th>Voltage Config</th><th class="nc">NG kW</th><th class="nc">NG Amps</th><th class="lc">LP kW</th><th class="lc">LP Amps</th></tr></thead><tbody id="pt"></tbody></table></div></div>
+      <div class="ss"><div class="st">▸ Rated Power Output by Voltage Configuration</div><div style="overflow-x:auto"><table class="ot"><thead><tr><th>Voltage Config</th><th class="lc">LP kW</th><th class="lc">LP Amps</th><th class="nc">NG kW</th><th class="nc">NG Amps</th></tr></thead><tbody id="pt"></tbody></table></div></div>
       <div class="ss"><div class="st">▸ Key Specifications</div><div class="ig" id="ks"></div></div>
       <div class="ss"><div class="st">▸ Engine &amp; Mechanical</div><div class="eg" id="es"></div></div>
       <div class="ss"><div class="st">▸ Dimensions &amp; Weight</div><div class="dd" id="dw"></div></div>
@@ -645,26 +645,9 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
 <div class="panel hidden" id="panel-manual">
   <div class="ph"><div class="pn">03</div><div><div class="pt">Installation Manuals</div><div class="pd">Select a transfer switch series to view its manual</div></div></div>
   <div class="pb">
-
-    <!-- Manual series selector -->
-    <div class="fw" style="margin-bottom:20px">
-      <label class="fl">Transfer Switch Series</label>
-      <select class="fsel" id="manual-sel" onchange="showManual(this.value)">
-        <option value="">— Select a series —</option>
-        <option value="man-sr-100-200-spd">Service Rated ATS 100/200A + SPD · RXSW100A3SPD / RXSW200A3SPD</option>
-        <option value="man-owner-100-200">Owner's Manual — 100–200A SE &amp; Non-SE ATS · G0099280–G0099350</option>
-        <option value="man-rxg16">Owner's Manual — 100A Limited Circuit ATS · RXG16EZA3</option>
-        <option value="man-rxuw-rbu">Owner's Manual — 150–200A Integrated Meter Transfer Switch · RXUW200A3 / RXUW150A3 / RBU200A3 / RBU150A3</option>
-        <option value="man-rtsw300-400">Owner's Manual — 300–400A Service Entrance &amp; Non-SE ATS · RTSW300A3 / RTSW400A3 / RTSC400A3</option>
-        <option value="man-rxgw20sha3">Owner's Manual — 200A Service Rated Load Center ATS w/ Pass-Through Lugs · RXGW20SHA3</option>
-        <option value="man-rtsc600-800">Owner's Manual — 600–800A Non-Service Entrance ATS · RTSC600A3 / RTSC800A3</option>
-        <option value="man-rtsn600-800">Owner's Manual — RTS 600–800A Non-Service Entrance ATS (1-Phase &amp; 3-Phase) · RTSN600/800 · RTSZ600/800</option>
-      </select>
-    </div>
-
-    <!-- Manual content area -->
-    <div id="manual-content" class="hidden"></div>
-
+    <div class="card-group-hd"><span class="card-group-hd-label">Select Series</span></div>
+    <div class="ats-pick-grid" id="ats-manual-cards"></div>
+    <div id="manual-content" class="hidden" style="margin-top:20px"></div>
   </div>
 </div>
 
@@ -725,6 +708,11 @@ function setAtsMode(mode){
   setHidden('panel-manual',   mode!=='manual');
   setHidden('panel-model',true);
   setHidden('panel-specs',true);
+  if(mode==='manual'){
+    renderAtsManualCards();
+    var c = document.getElementById('manual-content');
+    c.classList.add('hidden'); c.innerHTML='';
+  }
 }
 
 function setHidden(id,hide){document.getElementById(id).classList.toggle('hidden',hide)}
@@ -805,13 +793,13 @@ function buildFuelCards(g){
   ].join('');
 
   return `
-    <div class="fuel-row-card ng-row">
-      <div class="fuel-tag">NG</div>
-      <div class="fuel-cells">${ngCells}</div>
-    </div>
     <div class="fuel-row-card lp-row">
       <div class="fuel-tag">LP</div>
       <div class="fuel-cells">${lpCells}</div>
+    </div>
+    <div class="fuel-row-card ng-row">
+      <div class="fuel-tag">NG</div>
+      <div class="fuel-cells">${ngCells}</div>
     </div>`;
 }
 
@@ -850,6 +838,43 @@ var GEN_MANUALS = [
   { key:'man-rg-22-60kw',      cooling:'liq', kw:'22–60 kW', name:'Protector RG', sub:'Installation Guidelines', pn:'0K8419' },
   { key:'man-rg-100-150kw',    cooling:'liq', kw:'100–150 kW', name:'Protector RG/HG', sub:'Installation Manual · RG10090 / RG13090 / RG15090', pn:'A0001525181' }
 ];
+
+// ATS manual card definitions
+var ATS_MANUALS = [
+  { key:'man-sr-100-200-spd', amps:'100 / 200A',     name:'Service Rated ATS + SPD',              sub:'RXSW100A3SPD / RXSW200A3SPD',                           pn:'A0006690325' },
+  { key:'man-owner-100-200',  amps:'100–200A',        name:"Owner's Manual — SE &amp; Non-SE ATS", sub:'G0099280 / G0099290 / G0099300 / G0099320 / G0099340 / G0099350', pn:'A0006813756' },
+  { key:'man-rxg16',          amps:'100A',            name:"Owner's Manual — Limited Circuit ATS",  sub:'RXG16EZA3',                                             pn:'0L3434' },
+  { key:'man-rxuw-rbu',       amps:'150 / 200A',      name:"Owner's Manual — Integrated Meter Transfer Switch", sub:'RXUW200A3 / RXUW150A3 / RBU200A3 / RBU150A3', pn:'0L3371' },
+  { key:'man-rtsw300-400',    amps:'300 / 400A',      name:"Owner's Manual — Heavy Duty SE &amp; Non-SE ATS", sub:'RTSW300A3 / RTSW400A3 / RTSC400A3',          pn:'0L3370' },
+  { key:'man-rxgw20sha3',     amps:'200A',            name:"Owner's Manual — Service Rated Load Center ATS", sub:'RXGW20SHA3',                                   pn:'0L3435' },
+  { key:'man-rtsc600-800',    amps:'600 / 800A',      name:"Owner's Manual — Non-SE ATS",           sub:'RTSC600A3 / RTSC800A3',                                pn:'0L3372' },
+  { key:'man-rtsn600-800',    amps:'600 / 800A',      name:"Owner's Manual — RTS Non-SE ATS 1-Ph &amp; 3-Ph", sub:'RTSN600/800 · RTSZ600/800',                  pn:'0L3373' }
+];
+
+function renderAtsManualCards(){
+  var grid  = document.getElementById('ats-manual-cards');
+  var cards = '';
+  ATS_MANUALS.forEach(function(m, i){
+    cards += '<div class="ats-pick" id="ampick-' + i + '" onclick="selectAtsManual(' + i + ')">'
+           + '<div class="aps-amps">' + m.amps + '</div>'
+           + '<div class="aps-name">' + m.name + '</div>'
+           + '<div class="aps-pn">' + m.sub + '</div>'
+           + '</div>';
+  });
+  grid.innerHTML = cards;
+}
+
+function selectAtsManual(i){
+  var m = ATS_MANUALS[i];
+  if(!m) return;
+  document.querySelectorAll('#ats-manual-cards .ats-pick').forEach(function(el){ el.classList.remove('active'); });
+  var card = document.getElementById('ampick-' + i);
+  if(card) card.classList.add('active');
+  var content = document.getElementById('manual-content');
+  content.classList.add('hidden');
+  content.innerHTML = '';
+  showManual(m.key);
+}
 
 function renderGenManualCards(){
   var grid = document.getElementById('gen-manual-cards');
@@ -891,14 +916,14 @@ function popGenModels(){
   var f    = GENS.filter(function(g){ return g.c === cooling; });
   var grps = [];
   f.forEach(function(g){ if(grps.indexOf(g.grp) === -1) grps.push(g.grp); });
+  window._genGrps = grps;
 
   var html = '';
-  grps.forEach(function(grp){
+  grps.forEach(function(grp, i){
     var meta     = GEN_SERIES[grp] || {};
     var grpLabel = grp.replace(/\s*\[.*?\]/, '').trim();
-    var models   = f.filter(function(g){ return g.grp === grp; });
-    var cnt      = models.length;
-    html += '<div class="ats-pick" id="spick-' + grp.replace(/[^a-z0-9]/gi,'_') + '" onclick="selectGenSeries(' + JSON.stringify(grp) + ')">'
+    var cnt      = f.filter(function(g){ return g.grp === grp; }).length;
+    html += '<div class="ats-pick" id="spick-' + i + '" onclick="selectGenSeries(' + i + ')">'
           + '<div class="aps-amps">' + (meta.kw || '') + '</div>'
           + '<div class="aps-name">' + grpLabel + '</div>'
           + '<div class="aps-pn">' + (meta.eng || '') + ' &nbsp;&middot;&nbsp; ' + cnt + ' model' + (cnt !== 1 ? 's' : '') + '</div>'
@@ -917,24 +942,23 @@ function popGenModels(){
   clearSpecs();
 }
 
-function selectGenSeries(grp){
-  // highlight selected series card
+function selectGenSeries(i){
+  var grp = (window._genGrps || [])[i];
+  if(!grp) return;
+
   document.querySelectorAll('#series-card-grid .ats-pick').forEach(function(el){ el.classList.remove('active'); });
-  var sid = 'spick-' + grp.replace(/[^a-z0-9]/gi,'_');
-  var sc = document.getElementById(sid);
+  var sc = document.getElementById('spick-' + i);
   if(sc) sc.classList.add('active');
 
-  // clear any selected model
   clearSpecs();
 
-  // build model cards for this series
-  var f      = GENS.filter(function(g){ return g.c === cooling && g.grp === grp; });
+  var f        = GENS.filter(function(g){ return g.c === cooling && g.grp === grp; });
   var grpLabel = grp.replace(/\s*\[.*?\]/, '').trim();
   document.getElementById('model-sub-label').textContent = grpLabel;
 
   var cards = '';
   f.forEach(function(g){
-    var kwLine   = (g.kng !== g.klp) ? g.kng + ' kW NG / ' + g.klp + ' kW LP' : g.kng + ' kW';
+    var kwLine   = (g.kng !== g.klp) ? g.klp + ' kW LP / ' + g.kng + ' kW NG' : g.klp + ' kW';
     var engShort = g.eng.split(',')[0];
     cards += '<div class="ats-pick" id="gpick-' + g.id + '" onclick="selectGenModel(\'' + g.id + '\')">'
            + '<div class="aps-amps">' + kwLine + '</div>'
@@ -1021,7 +1045,7 @@ function showGen(id){
   document.getElementById('mm').textContent=g.mdl;
   document.getElementById('mn').textContent='▸ '+g.num;
   document.getElementById('md').textContent=`${g.eng} · ${g.disp} · ${g.cyl}-cyl · ${g.rpm} RPM · ${g.color}`;
-  const kw=g.kng!==g.klp?`NG: ${g.kng}kW · LP: ${g.klp}kW`:`${g.kng}kW`;
+  const kw=g.kng!==g.klp?`LP: ${g.klp}kW · NG: ${g.kng}kW`:`${g.klp}kW`;
   document.getElementById('mb').innerHTML=[
     `<span class="b by">${kw}</span>`,
     `<span class="b ${g.c==='air'?'bb':'bo'}">${g.c==='air'?'Air Cooled':'Liquid Cooled'}</span>`,
@@ -1044,7 +1068,7 @@ function showGen(id){
   }else{estNote.textContent='';estNote.style.display='none';}
 
   document.getElementById('fn').textContent=`BTU content: NG = ${g.bng} · LP = ${g.blp}`;
-  document.getElementById('pt').innerHTML=g.po.map(r=>`<tr><td>${r.v}</td><td class="nc">${r.nk} kW</td><td>${r.na}A</td><td class="lc">${r.lk} kW</td><td>${r.la}A</td></tr>`).join('');
+  document.getElementById('pt').innerHTML=g.po.map(r=>`<tr><td>${r.v}</td><td class="lc">${r.lk} kW</td><td>${r.la}A</td><td class="nc">${r.nk} kW</td><td>${r.na}A</td></tr>`).join('');
 
   const cbVal = g.cb3
     ? [`${g.cb}`,`${g.cb3.g}`,`${g.cb3.j}`,`${g.cb3.k}`]
