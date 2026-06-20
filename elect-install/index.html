@@ -549,6 +549,7 @@ body.dark-mode .section-row label { color: #E0F7FF; }
 body.dark-mode .inline-input { border-bottom-color: #00FFC8; color: #E0F7FF; }
 .inline-input.short { width: 70px; }
 .inline-input.xshort { width: 56px; }
+.inline-input.xshort-plus { width: 85px; }
 .inline-input.long { width: 160px; }
 .textarea-field { width: 100%; border: 1px solid rgba(211,94,19,0.2); resize: vertical; font-family: Arial, sans-serif; font-size: 13px; padding: 8px; min-height: 60px; outline: none; background: var(--panel); color: var(--text); transition: all 0.3s ease; max-width: 100%; border-radius: 3px; }
 body.dark-mode .textarea-field { border-color: rgba(0,255,200,0.15); background: rgba(10,14,39,0.6); color: #E0F7FF; }
@@ -778,6 +779,7 @@ body.dark-mode .notice { color: #7DD3FC; }
   #page1 .ts-remove-btn { display: none !important; }
   #page1 .textarea-field { border-color: #aaa !important; min-height: 30px !important; font-size: 9px !important; }
   #page1 .needs-completed { font-size: 10.5px !important; line-height: 1.2 !important; }
+  #page1 textarea::placeholder, #page1 input::placeholder { color: transparent !important; opacity: 0 !important; }
   #page1 .yn-checkbox-wrap { border-color: #bbb !important; font-size: 9px !important; padding: 1px 3px !important; min-height: 0 !important; min-width: 0 !important; }
   #page1 .yn-checkbox-wrap.yn-yes.checked { background: #059669 !important; color: #fff !important; }
   #page1 .yn-checkbox-wrap.yn-no.checked  { background: #DC2626 !important; color: #fff !important; }
@@ -1257,7 +1259,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
       <div>
         <div class="section">
           <div class="section-title">Generator</div>
-          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
+          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort-plus" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort-plus" type="text"></div>
           <div class="section-row"><label>Generator Size:</label><input class="inline-input short" type="text"></div>
           <div class="section-row"><label>Pad or Stand Installed:</label><input type="checkbox"> YES <input type="checkbox"> NO <input type="checkbox"> Existing</div>
           <div class="section-row"><label>Generator Set &amp; Mounted:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
@@ -1276,7 +1278,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
       <div>
         <div class="section">
           <div class="section-title">Walk Through</div>
-          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
+          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort-plus" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort-plus" type="text"></div>
           <div class="section-row"><label>Service Change:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row"><label>Harness Plugged In Transfer Switch(es):</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row"><label>Grounding Updated:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
@@ -1291,7 +1293,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
         <hr class="section-hr">
         <div class="section">
           <div class="section-title">Inspection(s)</div>
-          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
+          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort-plus" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort-plus" type="text"></div>
           <div class="section-row"><label>Private Provider:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row"><label>County:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
           <div class="section-row"><label>Service Change:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
@@ -1310,10 +1312,10 @@ body.dark-mode .ft-label { color: #7DD3FC; }
         <hr class="section-hr">
         <div class="section">
           <div class="section-title">Clean Up</div>
-          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
+          <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort-plus" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort-plus" type="text"></div>
           <div class="section-row"><b>EVERYTHING PICKED UP AND CLEAN:</b><input type="checkbox"> YES</div>
           <div class="section-row"><label>Ready for H/O Training:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-          <div class="section-row"><label>Why Not:</label><input class="inline-input long" type="text"></div>
+          <textarea class="textarea-field" rows="2" placeholder="Why Not:"></textarea>
         </div>
       </div>
     </div>
@@ -1581,7 +1583,7 @@ function buildTSBlock(num) {
   });
   const body = document.createElement("div"); body.className = "ts-body";
   body.innerHTML = `
-    <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort" type="text"></div>
+    <div class="section-row"><label><b>Team Member:</b></label><input class="inline-input xshort-plus" type="text"><label><b>Double Checked By:</b></label><input class="inline-input xshort-plus" type="text"></div>
     <div class="section-row"><label>Transfer Switch Type:</label><input type="checkbox"> ASE <input type="checkbox"> NSE <input type="checkbox"> Existing</div>
     <div class="section-row"><input type="checkbox"> 16space <input type="checkbox"> 20space <input type="checkbox"> 100A <input type="checkbox"> 200A <input type="checkbox"> 300A <input type="checkbox"> 400A <input type="checkbox"> 600A <label>Quantity:</label><input class="inline-input xshort" type="text"></div>
     <div class="section-row"><label>Transfer Switch Location:</label><input type="checkbox"> INSIDE <input type="checkbox"> OUTSIDE</div>
