@@ -595,7 +595,7 @@ body.dark-mode .permit-input:focus {
 .permit-textarea {
   width: 100%; border: 1px solid rgba(217,119,6,0.25);
   resize: vertical; font-family: Arial, sans-serif; font-size: 12px;
-  padding: 6px 8px; min-height: 50px; outline: none;
+  padding: 6px 8px; min-height: 50px; outline: none; line-height: 1.25;
   background: #ffffff; color: #1F2937; -webkit-text-fill-color: #1F2937;
   transition: all 0.3s ease; max-width: 100%; border-radius: 2px;
   color-scheme: light;
@@ -643,7 +643,17 @@ body.dark-mode .notice { color: #7DD3FC; }
 /* ==========================================================
    PRINT STYLES — desktop (untouched from original)
    ========================================================== */
-@page { size: 8.5in 11in; margin: 0 0.15in; }
+@page { size: 8.5in 11in; margin: 0.1in 0.15in; }
+
+/* "@media print, body.printing" below has an invalid body.printing media query
+   that never matches on screen, so the print preview kept showing screen padding.
+   These standalone body.printing rules apply the correct page margins/border to
+   the on-screen print preview so it matches the real printed output. */
+body.printing .page-wrapper { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; }
+body.printing .form-page,
+body.printing #page1,
+body.printing #page2 { padding: 0.1in 0.15in !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
+body.printing #page1 { border: 1.5px solid #D97706 !important; }
 
 @media print, body.printing {
 
@@ -746,7 +756,7 @@ body.dark-mode .notice { color: #7DD3FC; }
 
   .page-wrapper {
     display: block; width: 100%;
-    max-width: 100%; margin: 0; padding: 0;
+    max-width: 100%; margin: 0 !important; padding: 0 !important; padding-top: 0 !important;
   }
 
   .form-page {
@@ -755,7 +765,7 @@ body.dark-mode .notice { color: #7DD3FC; }
     max-width: 100%;
     background: #ffffff;
     color: #1F2937;
-    padding: 0;
+    padding: 0 !important;
     margin: 0;
     box-sizing: border-box;
     box-shadow: none;
@@ -788,7 +798,7 @@ body.dark-mode .notice { color: #7DD3FC; }
   #page1 .logo-area img { width: 50px; height: 50px; }
   #page1 .logo-text { font-size: 12px; color: #111; line-height: 1.1; }
 
-  #page1 { border: 1.5px solid #D97706; padding: 0 0.15in 0.15in 0.15in; box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #page1 { border: 1.5px solid #D97706; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   #page1 .checklist-title {
     border-top: 2px solid #1F2937; color: #1F2937;
     font-size: 12px; padding-top: 12px;
@@ -1031,7 +1041,7 @@ body.dark-mode .notice { color: #7DD3FC; }
 /* ===== MOBILE PRINT — Safari honors @media print + max-width natively.
    This block (copied from the proven-working sibling page) tightens page 2
    so it fits on phones. No body.mobile-print class, no JS injection. ===== */
-@page { size: 8.5in 11in; margin: 0 0.15in; }
+@page { size: 8.5in 11in; margin: 0.1in 0.15in; }
 
 @media print and (max-width: 767px), body.printing.mobile-printing {
 
@@ -1096,9 +1106,9 @@ body.dark-mode .notice { color: #7DD3FC; }
 
 @media print and (min-width: 768px) {
 
-  /* Top padding — match iPhone Safari spacing on both pages */
-  #page1 { padding-top: 0.15in !important; }
-  #page2 { padding-top: 0.15in !important; box-sizing: border-box !important; }
+  /* Margins come from @page (0.1in top/bottom, 0.15in sides) */
+  #page1 { padding: 0 !important; box-sizing: border-box !important; }
+  #page2 { padding: 0 !important; box-sizing: border-box !important; }
 
   /* PAGE 1 — tighten to match mobile Safari output */
   #page1 .checklist-title          { font-size: 12px !important; padding-top: 3.75px !important; margin-bottom: 3.75px !important; }
@@ -2130,7 +2140,7 @@ function getPrintDevice() {
 }
 
 const MOBILE_PRINT_CSS = `
-  @page { size: 8.5in 11in; margin: 0 0.15in; }
+  @page { size: 8.5in 11in; margin: 0.1in 0.15in; }
   /* Rules moved to stylesheet @media print body.mobile-print block */
 `;
 
@@ -2391,7 +2401,7 @@ function generatePDF() {
         ostat(`Rendering page ${i + 1} of ${pages.length}…`);
         // Yield so the overlay paints before the heavy render.
         await new Promise(r => setTimeout(r, 30));
-        const rawCanvas = await html2canvas(pages[i], {
+        const canvas = await html2canvas(pages[i], {
           scale: 2, useCORS: true, backgroundColor: '#fff',
           logging: false, width: 1050, windowWidth: 1050,
           ignoreElements: (el) => el.id === 'pdf-overlay' || el.classList.contains('action-bar'),
@@ -2403,7 +2413,6 @@ function generatePDF() {
             clonedDoc.body.classList.remove('dark-mode');
           }
         });
-        const canvas = addSheetMargins(rawCanvas);
         canvases.push(canvas);
         // Show each page image in the overlay as it finishes.
         const lbl = document.createElement('div');
@@ -2424,19 +2433,18 @@ function generatePDF() {
           const pdf = new JsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
           const pageW = pdf.internal.pageSize.getWidth();
           const pageH = pdf.internal.pageSize.getHeight();
-          const SIDE_MARGIN = 0.15 * 72; // 0.15in in PDF points
           canvases.forEach((canvas, i) => {
             const imgData = canvas.toDataURL('image/jpeg', 0.9);
-            const availW = pageW - SIDE_MARGIN * 2;     // width inside side margins
-            const imgW = availW;
-            const imgH = canvas.height * (availW / canvas.width);
+            const imgW = pageW;
+            const imgH = canvas.height * (pageW / canvas.width);
+
             if (i > 0) pdf.addPage();
             if (imgH > pageH) {
               // Too tall: fit to full page height, keep aspect, center horizontally.
               const fitW = canvas.width * (pageH / canvas.height);
               pdf.addImage(imgData, 'JPEG', (pageW - fitW) / 2, 0, fitW, pageH);
             } else {
-              pdf.addImage(imgData, 'JPEG', SIDE_MARGIN, 0, imgW, imgH);
+              pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH);
             }
           });
           const blob = pdf.output('blob');
@@ -2509,25 +2517,19 @@ function hideRealTablesAfterCapture() {
   if (style) style.remove();
 }
 
-// Scale a captured page canvas to fill an 8.5x11 letter sheet within a 0.15in
-// margin on all sides. The content is stretched to fill the printable area so the
-// page looks full top-to-bottom (even margins all around).
+// Add a 0.15in white margin on all four sides of a captured page canvas.
+// The capture renders at full sheet width, so the margin is derived from that.
 function addSheetMargins(srcCanvas) {
-  const SHEET_W = 8.5, SHEET_H = 11, MARGIN_IN = 0.15;
-  const pxPerIn = srcCanvas.width / SHEET_W;     // capture width = full sheet width
-  const margin  = Math.round(MARGIN_IN * pxPerIn);
-  const outW = srcCanvas.width;
-  const outH = Math.round(outW * SHEET_H / SHEET_W);   // full letter height in px
-  const innerW = outW - margin * 2;              // printable width
-  const innerH = outH - margin * 2;              // printable height
+  const SHEET_W = 8.5, MARGIN_IN = 0.15;
+  const pxPerIn = srcCanvas.width / SHEET_W;
+  const margin = Math.round(MARGIN_IN * pxPerIn);
   const out = document.createElement('canvas');
-  out.width  = outW;
-  out.height = outH;
+  out.width  = srcCanvas.width  + margin * 2;
+  out.height = srcCanvas.height + margin * 2;
   const ctx = out.getContext('2d');
   ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, outW, outH);
-  // Stretch the captured content to fill the printable area inside the margins.
-  ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, margin, margin, innerW, innerH);
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.drawImage(srcCanvas, margin, margin);
   return out;
 }
 
@@ -2591,13 +2593,23 @@ function forceDesktopLayout() {
   document.querySelectorAll('.footer-field').forEach(el => {
     setInline(el, { alignItems: 'center', overflow: 'visible' });
   });
-  return () => saved.forEach(({ el, prev, props }) => {
-    props.forEach(k => {
-      const cssProp = k.replace(/([A-Z])/g, '-$1').toLowerCase();
-      el.style.removeProperty(cssProp);
-      if (prev[k]) el.style[k] = prev[k];
-    });
+  // Hide placeholder hint text in capture: remove the attribute, remember it,
+  // and restore on cleanup so the live form keeps its placeholders.
+  const _savedPlaceholders = [];
+  document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {
+    _savedPlaceholders.push([el, el.getAttribute('placeholder')]);
+    el.removeAttribute('placeholder');
   });
+  return () => {
+    _savedPlaceholders.forEach(([el, ph]) => { if (ph !== null) el.setAttribute('placeholder', ph); });
+    saved.forEach(({ el, prev, props }) => {
+      props.forEach(k => {
+        const cssProp = k.replace(/([A-Z])/g, '-$1').toLowerCase();
+        el.style.removeProperty(cssProp);
+        if (prev[k]) el.style[k] = prev[k];
+      });
+    });
+  };
 }
 // ===== iPHONE =====
 function saveForIPhone() {
