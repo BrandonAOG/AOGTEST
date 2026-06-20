@@ -1683,6 +1683,11 @@ function buildTSBlock(num) {
   return block;
 }
 function addTransferSwitch() {
+  const current = document.querySelectorAll('.ts-block').length;
+  if (current >= 4) {
+    if (typeof setStatus === 'function') setStatus('Maximum of 4 transfer switches.');
+    return;
+  }
   tsCount++;
   document.getElementById("ts-container").appendChild(buildTSBlock(tsCount));
   renumberTS(); applyYNColors(); attachAutosave(); saveFormData();
@@ -2306,11 +2311,11 @@ function restoreFormData() {
     // input position, so the block count must match before restoring.
     let wantTS = parseInt(data._ts || '1', 10);
     if (!Number.isFinite(wantTS) || wantTS < 1) wantTS = 1;
-    if (wantTS > 10) wantTS = 10;
+    if (wantTS > 4) wantTS = 4;
     let haveTS = document.querySelectorAll('.ts-block').length;
     const tsContainer = document.getElementById('ts-container');
     let _tsGuard = 0;
-    while (tsContainer && haveTS < wantTS && _tsGuard < 10) {
+    while (tsContainer && haveTS < wantTS && _tsGuard < 4) {
       tsContainer.appendChild(buildTSBlock(haveTS + 1));
       haveTS++;
       _tsGuard++;
