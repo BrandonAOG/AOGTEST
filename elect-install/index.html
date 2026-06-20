@@ -153,8 +153,12 @@ body.dark-mode {
 /* Under 395px: put "Team Member" + input on one line, and "Double Checked By" + input on the next line */
 @media screen and (max-width: 394px) {
   .tm-dc-row { row-gap: 6px !important; }
-  .tm-dc-row > .inline-input { flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; }
-  .tm-dc-row > .dc-label { flex-basis: 100% !important; }
+  .tm-dc-row > .inline-input { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
+  /* Force a line break BEFORE the Double Checked By label (full-width zero-height spacer),
+     so the label and its input stay together on the new line. */
+  .tm-dc-row > .dc-label { order: 3 !important; }
+  .tm-dc-row > .dc-label + .inline-input { order: 4 !important; }
+  .tm-dc-row::before { content: ""; flex-basis: 100% !important; height: 0 !important; order: 2 !important; }
 }
 
 @media screen {
