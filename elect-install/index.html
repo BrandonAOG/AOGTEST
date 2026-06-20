@@ -2513,8 +2513,8 @@ if (document.readyState === 'loading') {
     [/\bautomatic transfer switch\b/g, 'transfer switch'],
     [/\ba ?t ?s\b|\ba\.t\.s\b|\bat and s\b|\bat s\b/g, 'transfer switch'],
     // bare "switch" -> "transfer switch", but NOT when "transfer" already precedes it
-    // (avoids "transfer transfer switch"). Also leaves "load shed"/"disconnect" etc. alone.
-    [/\b(?<!transfer )switch\b/g, 'transfer switch'],
+    // (avoids "transfer transfer switch"). Rewritten without lookbehind for older iOS Safari.
+    [/(transfer\s+)?\bswitch\b/g, function(_m, pre){ return pre ? pre + 'switch' : 'transfer switch'; }],
     // "service changed" -> "service change" (tense), and inspection/walkthrough section cues
     [/\bservice changed\b/g, 'service change'],
     [/\binspections?\b|\binspect\b/g, 'inspected'],
