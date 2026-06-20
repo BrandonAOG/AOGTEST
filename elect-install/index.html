@@ -115,6 +115,10 @@ body.dark-mode {
   z-index: 99999;
   width: 100%;
   background: var(--panel); padding: 4px 8px;
+  /* iOS standalone (PWA) safe-area: keep the toolbar below the status bar / notch / island.
+     constant() is the iOS 11.0–11.2 / older-WebKit spelling; env() is the modern one.
+     Larger fallback so the bar still clears the status bar if the inset fails to resolve. */
+  padding-top: constant(safe-area-inset-top, 4px);
   padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
@@ -1511,6 +1515,22 @@ function adjustTopPadding() {
   const bar = document.getElementById('action-bar');
   const wrapper = document.querySelector('.page-wrapper');
   const status = document.getElementById('save-status');
+  // iOS standalone (added to Home Screen) with a translucent status bar overlaps the top
+  // of the page. On older iOS (e.g. 14.5) env(safe-area-inset-top) may not resolve, so the
+  // toolbar can hide behind the clock / island. Enforce a minimum top inset in that mode.
+  if (bar) {
+    var isStandalone = (window.navigator.standalone === true) ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);';
+    document.body.appendChild(probe);
+    var inset = probe.offsetHeight || 0;
+    document.body.removeChild(probe);
+    if (isStandalone && inset < 20) {
+      // env() did not provide a usable inset; use a sensible default that clears the status bar.
+      bar.style.paddingTop = '44px';
+    }
+  }
   if (bar && wrapper) wrapper.style.paddingTop = bar.offsetHeight + 'px';
   if (bar && status) status.style.top = bar.offsetHeight + 'px';
 }
