@@ -2230,7 +2230,8 @@ function buildMobileAccordions() {
       const rows = Array.from(table.querySelectorAll('tbody tr'));
 
       rows.forEach(tr => {
-        const rowLabel = tr.querySelector('td.row-label')?.textContent.trim() || '';
+        var _rl = tr.querySelector('td.row-label');
+        const rowLabel = (_rl && _rl.textContent ? _rl.textContent.trim() : '');
         const realInputs = Array.from(tr.querySelectorAll('input'));
 
         // Sub-accordion wrapper
@@ -3385,7 +3386,8 @@ if (document.readyState === 'loading') {
       } else {
         target = blocks[blocks.length - 1];
       }
-      const label = (target.querySelector('.ts-header-left')?.textContent || 'Transfer Switch').trim();
+      var _hl = target.querySelector('.ts-header-left');
+      const label = ((_hl && _hl.textContent ? _hl.textContent : 'Transfer Switch')).trim();
       target.remove();
       if (typeof renumberTS === 'function') renumberTS();
       if (typeof saveFormData === 'function') saveFormData();
