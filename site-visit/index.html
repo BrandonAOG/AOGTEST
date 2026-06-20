@@ -643,7 +643,7 @@ body.dark-mode .notice { color: #7DD3FC; }
 /* ==========================================================
    PRINT STYLES — desktop (untouched from original)
    ========================================================== */
-@page { size: 8.5in 11in; margin: 0 0.2in; }
+@page { size: 8.5in 11in; margin: 0 0.15in; }
 
 @media print, body.printing {
 
@@ -842,7 +842,7 @@ body.dark-mode .notice { color: #7DD3FC; }
   /* Other/Special notes: print at exactly the on-screen size — no padding/resize
      changes — on desktop and mobile. Only the color is forced for legibility. */
   #page1 .other-special-notes {
-    font-size: 12px !important;
+    font-size: 10.5px !important;
     padding: 6px 8px !important;
     min-height: 50px !important;
     height: auto !important;
@@ -1031,7 +1031,7 @@ body.dark-mode .notice { color: #7DD3FC; }
 /* ===== MOBILE PRINT — Safari honors @media print + max-width natively.
    This block (copied from the proven-working sibling page) tightens page 2
    so it fits on phones. No body.mobile-print class, no JS injection. ===== */
-@page { size: 8.5in 11in; margin: 0 0.2in; }
+@page { size: 8.5in 11in; margin: 0 0.15in; }
 
 @media print and (max-width: 767px), body.printing.mobile-printing {
 
@@ -1485,7 +1485,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   html.windows #page1 .permit-row label         { font-size: 12px !important; }  /* 10 + 2 */
   html.windows #page1 .permit-input             { font-size: 12px !important; }  /* 10 + 2 */
   html.windows #page1 .permit-textarea:not(.other-special-notes) { font-size: 12px !important; } /* 10 + 2 */
-  html.windows #page1 .other-special-notes      { font-size: 14px !important; }  /* 12 + 2 */
+  html.windows #page1 .other-special-notes      { font-size: 12.5px !important; }  /* 10.5 + 2 */
   html.windows #page1 .permit-note              { font-size: 11px !important; }  /*  9 + 2 */
   html.windows #page1 .yn-checkbox-wrap         { font-size: 10px !important; }  /*  8 + 2 */
 }
@@ -1500,7 +1500,7 @@ html.windows body.printing:not(.mobile-printing) #page1 .permit-row            {
 html.windows body.printing:not(.mobile-printing) #page1 .permit-row label      { font-size: 12px !important; }
 html.windows body.printing:not(.mobile-printing) #page1 .permit-input          { font-size: 12px !important; }
 html.windows body.printing:not(.mobile-printing) #page1 .permit-textarea:not(.other-special-notes) { font-size: 12px !important; }
-html.windows body.printing:not(.mobile-printing) #page1 .other-special-notes   { font-size: 14px !important; }
+html.windows body.printing:not(.mobile-printing) #page1 .other-special-notes   { font-size: 12.5px !important; }
 html.windows body.printing:not(.mobile-printing) #page1 .permit-note           { font-size: 11px !important; }
 html.windows body.printing:not(.mobile-printing) #page1 .yn-checkbox-wrap      { font-size: 10px !important; }
 
@@ -1675,8 +1675,19 @@ html.windows body.printing:not(.mobile-printing) #page1 .yn-checkbox-wrap      {
         <input class="permit-input medium" type="text">
       </div>
       <div class="permit-row permit-row-column" style="flex-direction:column;align-items:flex-start;gap:4px;">
-        <label>Please list connections (pool heater, grill, cooktop etc.) — please draw locations on site plan for connections:</label>
-        <input class="permit-input w-full" type="text">
+        <label>Please list connections — please draw locations on site plan for connections:</label>
+        <div class="permit-row" style="gap:4px 12px;margin-bottom:2px;">
+          <input type="checkbox"> Range
+          <input type="checkbox"> Cooktop
+          <input type="checkbox"> Oven
+          <input type="checkbox"> Water Heater
+          <input type="checkbox"> Dryer
+          <input type="checkbox"> Fireplace
+          <input type="checkbox"> Grill
+          <input type="checkbox"> Pool Heater
+          <input type="checkbox"> Generator
+        </div>
+        <input class="permit-input w-full" type="text" placeholder="Other / notes:">
       </div>
     </div>
 
@@ -1697,11 +1708,9 @@ html.windows body.printing:not(.mobile-printing) #page1 .yn-checkbox-wrap      {
       <div class="permit-note">Let Kade know if he needs the mini.</div>
       <div class="permit-row" style="flex-direction:column;align-items:flex-start;gap:4px;">
         <label>Please list any special circumstances about job:</label>
-        <input type="text" class="permit-input w-full" maxlength="300">
+        <textarea class="permit-textarea other-special-notes" rows="3"></textarea>
       </div>
     </div>
-
-    <hr class="permit-divider">
 
     <div class="permit-section">
       <div class="permit-section-header">Other / Special</div>
@@ -2121,7 +2130,7 @@ function getPrintDevice() {
 }
 
 const MOBILE_PRINT_CSS = `
-  @page { size: 8.5in 11in; margin: 0 0.2in; }
+  @page { size: 8.5in 11in; margin: 0 0.15in; }
   /* Rules moved to stylesheet @media print body.mobile-print block */
 `;
 
@@ -2356,10 +2365,17 @@ function generatePDF() {
   if (wasDark) document.body.classList.remove('dark-mode');
   showRealTablesForCapture();
   const restoreLayout = forceDesktopLayout();
+  // Apply the desktop print layout (tight section spacing) so the captured image
+  // matches the PDF instead of the looser on-screen spacing. Capture renders at
+  // 1050px (desktop width), so we use the desktop print rules — NOT mobile-printing.
+  document.body.classList.add('printing');
+  document.body.classList.remove('mobile-printing');
+  void document.body.offsetHeight;
 
   let cleanedUp = false;
   function cleanup() {
     if (cleanedUp) return; cleanedUp = true;
+    document.body.classList.remove('printing');
     hideRealTablesAfterCapture();
     restoreLayout();
     if (wasDark) document.body.classList.add('dark-mode');
@@ -2375,11 +2391,19 @@ function generatePDF() {
         ostat(`Rendering page ${i + 1} of ${pages.length}…`);
         // Yield so the overlay paints before the heavy render.
         await new Promise(r => setTimeout(r, 30));
-        const canvas = await html2canvas(pages[i], {
+        const rawCanvas = await html2canvas(pages[i], {
           scale: 2, useCORS: true, backgroundColor: '#fff',
           logging: false, width: 1050, windowWidth: 1050,
-          ignoreElements: (el) => el.id === 'pdf-overlay' || el.classList.contains('action-bar')
+          ignoreElements: (el) => el.id === 'pdf-overlay' || el.classList.contains('action-bar'),
+          onclone: (clonedDoc) => {
+            // html2canvas does not reliably carry body classes into its clone,
+            // so the body.printing print-layout rules never match. Force them here.
+            clonedDoc.body.classList.add('printing');
+            clonedDoc.body.classList.remove('mobile-printing');
+            clonedDoc.body.classList.remove('dark-mode');
+          }
         });
+        const canvas = addSheetMargins(rawCanvas);
         canvases.push(canvas);
         // Show each page image in the overlay as it finishes.
         const lbl = document.createElement('div');
@@ -2400,16 +2424,19 @@ function generatePDF() {
           const pdf = new JsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
           const pageW = pdf.internal.pageSize.getWidth();
           const pageH = pdf.internal.pageSize.getHeight();
+          const SIDE_MARGIN = 0.15 * 72; // 0.15in in PDF points
           canvases.forEach((canvas, i) => {
             const imgData = canvas.toDataURL('image/jpeg', 0.9);
-            const imgW = pageW;
-            const imgH = canvas.height * (pageW / canvas.width);
+            const availW = pageW - SIDE_MARGIN * 2;     // width inside side margins
+            const imgW = availW;
+            const imgH = canvas.height * (availW / canvas.width);
             if (i > 0) pdf.addPage();
             if (imgH > pageH) {
+              // Too tall: fit to full page height, keep aspect, center horizontally.
               const fitW = canvas.width * (pageH / canvas.height);
               pdf.addImage(imgData, 'JPEG', (pageW - fitW) / 2, 0, fitW, pageH);
             } else {
-              pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH);
+              pdf.addImage(imgData, 'JPEG', SIDE_MARGIN, 0, imgW, imgH);
             }
           });
           const blob = pdf.output('blob');
@@ -2482,6 +2509,28 @@ function hideRealTablesAfterCapture() {
   if (style) style.remove();
 }
 
+// Scale a captured page canvas to fill an 8.5x11 letter sheet within a 0.15in
+// margin on all sides. The content is stretched to fill the printable area so the
+// page looks full top-to-bottom (even margins all around).
+function addSheetMargins(srcCanvas) {
+  const SHEET_W = 8.5, SHEET_H = 11, MARGIN_IN = 0.15;
+  const pxPerIn = srcCanvas.width / SHEET_W;     // capture width = full sheet width
+  const margin  = Math.round(MARGIN_IN * pxPerIn);
+  const outW = srcCanvas.width;
+  const outH = Math.round(outW * SHEET_H / SHEET_W);   // full letter height in px
+  const innerW = outW - margin * 2;              // printable width
+  const innerH = outH - margin * 2;              // printable height
+  const out = document.createElement('canvas');
+  out.width  = outW;
+  out.height = outH;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, outW, outH);
+  // Stretch the captured content to fill the printable area inside the margins.
+  ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, margin, margin, innerW, innerH);
+  return out;
+}
+
 function forceDesktopLayout() {
   const saved = [];
   function setInline(el, styles) {
@@ -2493,10 +2542,37 @@ function forceDesktopLayout() {
     saved.push({ el, prev, props: Object.keys(styles) });
   }
   document.querySelectorAll('.permit-input').forEach(el => {
-    setInline(el, { height: '22px', lineHeight: '22px', overflow: 'visible', boxSizing: 'border-box' });
+    setInline(el, { overflow: 'visible', boxSizing: 'border-box', fontSize: '13.5px', padding: '0.75px 4px', lineHeight: '1.3', whiteSpace: 'normal' });
   });
-  document.querySelectorAll('.permit-row').forEach(el => {
+  // Compact page-1 layout inline (html2canvas does not apply the body.printing
+  // print rules, so we replicate the key tightening directly on the elements).
+  document.querySelectorAll('#page1 .permit-divider').forEach(el => {
+    setInline(el, { display: 'none' });
+  });
+  document.querySelectorAll('#page1 .permit-section').forEach(el => {
+    setInline(el, { marginBottom: '4px' });
+  });
+  document.querySelectorAll('#page1 .permit-section-header').forEach(el => {
+    setInline(el, { fontSize: '14.5px', margin: '2px 0 2px', whiteSpace: 'normal', wordBreak: 'break-word' });
+  });
+  document.querySelectorAll('#page1 .permit-note').forEach(el => {
+    setInline(el, { fontSize: '11.5px', margin: '1px 0', padding: '1px 0 1px 7px', lineHeight: '1.25', whiteSpace: 'normal', wordBreak: 'break-word' });
+  });
+  document.querySelectorAll('#page1 .permit-row').forEach(el => {
+    setInline(el, { overflow: 'visible', flexWrap: 'wrap', marginBottom: '2px', lineHeight: '1.3', fontSize: '13.5px', whiteSpace: 'normal', wordBreak: 'break-word' });
+  });
+  // Ensure every label and inline text in rows can wrap (prevents clipping like
+  // the "Please list any special circumstances..." header in the tank section).
+  document.querySelectorAll('#page1 .permit-row label, #page1 .permit-row b, #page1 .permit-row span, #page1 .permit-section-header, #page1 .permit-note').forEach(el => {
+    setInline(el, { whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible', fontSize: '13.5px' });
+  });
+  document.querySelectorAll('#page2 .permit-row').forEach(el => {
     setInline(el, { overflow: 'visible', flexWrap: 'wrap' });
+  });
+  // Page-1 textareas (special circumstances + other/special): give them real
+  // height and wrapping in capture so typed text shows fully instead of clipping.
+  document.querySelectorAll('#page1 .permit-textarea').forEach(el => {
+    setInline(el, { fontSize: '13.5px', minHeight: '52px', height: 'auto', padding: '5px 7px', lineHeight: '1.35', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflow: 'visible', boxSizing: 'border-box' });
   });
   document.querySelectorAll('.form-page').forEach(el => {
     setInline(el, { padding: '24px', boxSizing: 'border-box' });
@@ -2546,7 +2622,8 @@ function saveForIPhone() {
     lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:8px;';
     lbl.textContent = `Page ${idx+1} of ${pages.length}`;
     const img = document.createElement('img');
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(rawCanvas => {
+      const canvas = addSheetMargins(rawCanvas);
       img.src = canvas.toDataURL('image/jpeg', 0.85);
       img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
       img.alt = `Form page ${idx+1}`;
@@ -2575,7 +2652,8 @@ function saveForAndroid() {
   const restoreLayout = forceDesktopLayout();
   let completed = 0;
   pages.forEach((page, idx) => {
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(canvas => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(rawCanvas => {
+      const canvas = addSheetMargins(rawCanvas);
       const link = document.createElement('a');
       link.download = pages.length === 1
         ? 'AlwaysOn_Generators_Form.jpg'
