@@ -1414,7 +1414,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
     <div class="grid-section">
       <table class="mat-table" id="cu-wire-table">
         <thead><tr>
-          <th style="width:80px;">CU Wire /<br>Length</th>
+          <th style="width:80px;">CU Wire</th>
           <th>500 CU</th><th>350 CU</th><th>250 CU</th>
           <th>4/0 CU</th><th>3/0 CU</th><th>2/0 CU</th><th>1/0 CU</th>
           <th>#1 CU</th><th>#2 CU</th><th>#3 CU</th><th>#4 CU</th>
@@ -1434,7 +1434,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
     <div class="grid-section">
       <table class="mat-table" id="al-wire-table">
         <thead><tr>
-          <th style="width:80px;">AL Wire /<br>Length</th>
+          <th style="width:80px;">AL Wire</th>
           <th>500 AL</th><th>350 AL</th><th>250 AL</th>
           <th>4/0 AL</th><th>3/0 AL</th><th>2/0 AL</th><th>1/0 AL</th>
           <th>#1 AL</th><th>#2 AL</th><th>#3 AL</th><th>#4 AL</th>
@@ -1453,7 +1453,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
     <div class="grid-section">
       <table class="mat-table" id="thhn-table">
         <thead><tr>
-          <th style="width:80px;">THHN /<br>Length</th>
+          <th style="width:80px;">THWN /<br>Cable</th>
           <th>14 AWG</th><th>12 AWG</th><th>10 AWG</th>
           <th>OMNI Cable</th><th>22-24kw Al</th><th>22-24kw Cu</th>
           <th>26kw Cu</th><th>26kw Al</th><th>28kw Al</th>
@@ -2624,7 +2624,7 @@ function buildMobileAccordions() {
 
     addSimpleTableByRef('CU Wire', '13 sizes', findTableByHeader('CU Wire'));
     addSimpleTableByRef('AL Wire', '12 sizes', findTableByHeader('AL Wire'));
-    addSimpleTableByRef('THHN Wire', '9 sizes', findTableByHeader('THHN'));
+    addSimpleTableByRef('THWN Wire', '9 sizes', findTableByHeader('THWN'));
 
     // Multi-row tables
     addMultiRowTableAccordion('Fittings', '24 types × 11 sizes', 'fittings-table');
@@ -3018,9 +3018,9 @@ if (document.readyState === 'loading') {
   // 0:14 AWG  1:12 AWG  2:10 AWG  3:Gen-Pro  4:22-24kw Al  5:22-24kw Cu
   // 6:26kw Cu  7:26kw Al  8:28kw Al
   const THHN_COLS = [
-    { idx:0, label:'14 AWG', metal:null, phrases:['14 awg','14 gauge','fourteen gauge','fourteen awg','number 14','number fourteen','#14','14 thhn','fourteen thhn'] },
-    { idx:1, label:'12 AWG', metal:null, phrases:['12 awg','12 gauge','twelve gauge','twelve awg','number 12','number twelve','#12','12 thhn','twelve thhn'] },
-    { idx:2, label:'10 AWG', metal:null, phrases:['10 awg','10 gauge','ten gauge','ten awg','number 10','number ten','#10','10 thhn','ten thhn'] },
+    { idx:0, label:'14 AWG', metal:null, phrases:['14 awg','14 gauge','fourteen gauge','fourteen awg','number 14','number fourteen','#14','14 thhn','fourteen thhn','14 thwn','fourteen thwn'] },
+    { idx:1, label:'12 AWG', metal:null, phrases:['12 awg','12 gauge','twelve gauge','twelve awg','number 12','number twelve','#12','12 thhn','twelve thhn','12 thwn','twelve thwn'] },
+    { idx:2, label:'10 AWG', metal:null, phrases:['10 awg','10 gauge','ten gauge','ten awg','number 10','number ten','#10','10 thhn','ten thhn','10 thwn','ten thwn'] },
     { idx:3, label:'OMNI Cable', metal:null, phrases:['omni','omni cable','omnicable','genpro','genpro wire','gen pro wire'] },
     { idx:4, label:'22-24kw Al', metal:'al', phrases:['22kw','24kw','22 24kw','22 to 24kw','2224kw','twenty two kw','twenty four kw'] },
     { idx:5, label:'22-24kw Cu', metal:'cu', phrases:['22kw','24kw','22 24kw','22 to 24kw','2224kw','twenty two kw','twenty four kw'] },
@@ -3078,7 +3078,7 @@ if (document.readyState === 'loading') {
     // quantity = a number that isn't part of the size token
     let rem = td;
     sizeTok.split(/\s+/).forEach(w => { rem = rem.replace(new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b'), ' '); });
-    rem = rem.replace(/\bawg\b|\bgauge\b|\bthhn\b|\bkw\b|\bcopper\b|\bcu\b|\baluminum\b|\baluminium\b|\bal\b|\bwire\b|\bfeet\b|\bfoot\b|\bgenpro\b|\bomni\b|\bcable\b|\bnumber\b/g, ' ');
+    rem = rem.replace(/\bawg\b|\bgauge\b|\bthhn\b|\bthwn\b|\bkw\b|\bcopper\b|\bcu\b|\baluminum\b|\baluminium\b|\bal\b|\bwire\b|\bfeet\b|\bfoot\b|\bgenpro\b|\bomni\b|\bcable\b|\bnumber\b/g, ' ');
     const nums = rem.match(/\b\d+\b/g);
     if (!nums) return { err: chosen.label + ' — say a length' };
     return { table: 'thhn', col: chosen, qty: parseInt(nums[nums.length-1], 10) };
@@ -3088,7 +3088,7 @@ if (document.readyState === 'loading') {
     let target = null;
     tables.forEach(tb => {
       const th = tb.querySelector('thead th');
-      if (th && th.textContent.toUpperCase().indexOf('THHN') !== -1) target = tb;
+      if (th && th.textContent.toUpperCase().indexOf('THWN') !== -1) target = tb;
     });
     if (!target) return false;
     const inputs = target.querySelectorAll('tbody input[type="text"]');
