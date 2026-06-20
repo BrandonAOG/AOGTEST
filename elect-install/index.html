@@ -570,6 +570,7 @@ body.dark-mode .logo-generators { color: #ffffff !important; }
 .field-row label { font-weight: bold; white-space: nowrap; font-size: 12px; color: var(--text); flex-shrink: 0; font-family: Arial, sans-serif; }
 body.dark-mode .field-row label { color: #E0F7FF; }
 .field-row input[type="text"] { flex: 1; min-width: 0; font-size: 14px; padding: 4px 4px; }
+.field-row input[type="date"] { flex: 1; min-width: 0; font-size: 14px; padding: 4px 4px; height: auto; line-height: 1.1; -webkit-appearance: none; appearance: none; }
 /* On-screen: drop input values onto their underline instead of floating above it. */
 @media screen {
   #page1 .field-row input[type="text"], #page1 .field-row input[type="date"] {
@@ -593,7 +594,7 @@ body.dark-mode .section-row label { color: #E0F7FF; }
 body.dark-mode .inline-input { border-bottom-color: #00FFC8; color: #E0F7FF; }
 .inline-input.short { width: 70px; }
 .inline-input.xshort { width: 56px; }
-.inline-input.xshort-plus { width: 85px; }
+.inline-input.xshort-plus { width: 78px; }
 .inline-input.long { width: 160px; }
 .textarea-field { width: 100%; border: 1px solid rgba(211,94,19,0.2); resize: vertical; font-family: Arial, sans-serif; font-size: 13px; padding: 8px; min-height: 60px; outline: none; background: var(--panel); color: var(--text); transition: all 0.3s ease; max-width: 100%; border-radius: 3px; }
 body.dark-mode .textarea-field { border-color: rgba(0,255,200,0.15); background: rgba(10,14,39,0.6); color: #E0F7FF; }
@@ -1268,11 +1269,9 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 <div class="action-bar" id="action-bar">
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
   <button class="btn" id="btn-pdf" onclick="openPrintPreview()">📄 PDF</button>
+  <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="btn" id="btn-voice" onclick="toggleVoiceEntry()">🎤 VOICE</button>
-  <button class="btn" id="btn-iphone" onclick="saveForIPhone()">📱 iPhone</button>
-  <button class="btn" id="btn-android" onclick="saveForAndroid()">🤖 Android</button>
-
 
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1510,7 +1509,6 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   </div>
 </div>
 
-<p class="notice">📱 iPhone: press &amp; hold images to save  |  🤖 Android: images download to gallery</p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -1666,7 +1664,7 @@ function buildTSBlock(num) {
     <div class="section-row"><label>Transfer Switch Mounted:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
     <div class="section-row"><label>Surge Protector(s):</label><input type="checkbox"> YES <input type="checkbox"> NO <label>Quantity:</label><input class="inline-input xshort" type="text"></div>
     <div class="section-row"><label>Panel Lugs Torqued to Spec:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
-    <div class="section-row"><label>Generator Electrical Run Torqued to Spec In Generator &amp; TS:</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
+    <div class="section-row"><label>Gen Run Torqued to Spec (Generator &amp; TS):</label><input type="checkbox"> YES <input type="checkbox"> NO</div>
     <div class="section-row needs-completed-row"><label>Needs Completed:</label><textarea class="needs-completed" rows="2"></textarea></div>
   `;
   block.appendChild(header); block.appendChild(body);
@@ -1922,6 +1920,32 @@ function forceDesktopLayout() {
     mirrors.push({ ta, div });
   });
   // (textarea-field mirror end)
+  // Native <input type="date"> stores YYYY-MM-DD and html2canvas renders that raw
+  // ISO value (year first). Swap it for a text mirror showing MM/DD/YYYY for capture.
+  document.querySelectorAll('input[type="date"]').forEach(function (di) {
+    var span = document.createElement('span');
+    span.className = 'date-capture-mirror';
+    var cs = window.getComputedStyle(di);
+    var formatted = '';
+    var v = di.value; // YYYY-MM-DD
+    if (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      var p = v.split('-');
+      formatted = p[1] + '/' + p[2] + '/' + p[0]; // MM/DD/YYYY
+    }
+    span.textContent = formatted;
+    span.style.cssText = [
+      'display:inline-block', 'flex:' + (cs.flex || '1'),
+      'min-width:0', 'width:' + (cs.width || 'auto'),
+      'font-family:Arial, sans-serif', 'font-size:17px',
+      'line-height:1.2', 'color:#111111',
+      'border-bottom:1px solid ' + (cs.borderBottomColor || '#1F2937'),
+      'padding:' + cs.padding, 'text-align:left', 'box-sizing:border-box',
+      'white-space:nowrap'
+    ].join(';');
+    di.style.setProperty('display', 'none', 'important');
+    di.parentNode.insertBefore(span, di.nextSibling);
+    mirrors.push({ ta: di, div: span });
+  });
   return () => {
     mirrors.forEach(({ ta, div }) => {
       if (div.parentNode) div.parentNode.removeChild(div);
@@ -2058,13 +2082,126 @@ function whenReadyToCapture() {
   }));
 }
 
-function saveForIPhone() {
+// ===== SMART CAPTURE =====
+// One button for all devices. We prefer the native Share Sheet (works on iOS and
+// modern Android Chrome) — it lets the user save to Photos/Gallery, AirDrop, email,
+// message, etc. in one tap. If the browser can't share files, we fall back to a
+// direct download (Android/desktop) or the long-press overlay (older iOS).
+function isIOSDevice() {
+  var ua = navigator.userAgent || '';
+  var iOS = /iPad|iPhone|iPod/.test(ua);
+  // iPadOS 13+ reports as Mac; detect by touch points on a Mac-like UA.
+  var iPadOS = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return iOS || iPadOS;
+}
+// Quick capability probe: can this browser share files at all?
+function canShareFiles() {
+  try {
+    if (!navigator.canShare) return false;
+    var probe = new File(['x'], 'probe.jpg', { type: 'image/jpeg' });
+    return navigator.canShare({ files: [probe] });
+  } catch (e) { return false; }
+}
+function saveSmart() {
+  if (canShareFiles()) {
+    captureAndShare();      // native Share Sheet (iOS + modern Android)
+  } else if (isIOSDevice()) {
+    captureAndShare();      // iOS with no file-share support → falls back to overlay internally
+  } else {
+    saveForAndroid();       // download to Downloads (older Android/desktop)
+  }
+}
+
+function captureAndShare() {
   setStatus('Rendering pages, please wait…');
   const pages = document.querySelectorAll('.form-page');
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
   showRealTablesForCapture();
   const restoreLayout = forceDesktopLayout();
+
+  function cleanup() {
+    hideRealTablesAfterCapture();
+    restoreLayout();
+    if (wasDark) document.body.classList.add('dark-mode');
+  }
+  function dataURLtoFile(dataURL, filename) {
+    var parts = dataURL.split(',');
+    var mime = parts[0].match(/:(.*?);/)[1];
+    var bin = atob(parts[1]);
+    var len = bin.length;
+    var arr = new Uint8Array(len);
+    for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+    return new File([arr], filename, { type: mime });
+  }
+
+  // Render every page to a File, then open the native iOS Share Sheet.
+  function renderAll() {
+    return whenReadyToCapture().then(function () {
+      var jobs = Array.prototype.map.call(pages, function (page, idx) {
+        var fname = buildFilename('jpg', idx + 1, pages.length);
+        var restoreFill = fitPageToSheet(page);
+        var capH = measureFullHeight(page);
+        return html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0 })
+          .then(function (canvas) {
+            restoreFill();
+            canvas = fitToLetter(canvas);
+            return { file: dataURLtoFile(canvas.toDataURL('image/jpeg', 0.85), fname), dataURL: canvas.toDataURL('image/jpeg', 0.85), fname: fname };
+          })
+          .catch(function (err) { restoreFill(); throw err; });
+      });
+      return Promise.all(jobs);
+    });
+  }
+
+  renderAll().then(function (results) {
+    var files = results.map(function (r) { return r.file; });
+    function fallback() {
+      // If sharing isn't available/failed: overlay on iOS (downloads are blocked),
+      // direct download everywhere else.
+      if (isIOSDevice()) { showImageOverlay(results, wasDark); }
+      else { downloadResults(results); }
+    }
+    // Prefer the native Share Sheet (Save to Photos/Gallery, AirDrop, Drive, email…).
+    // NOTE: share ONLY the files — no title/text. If a title is included, iOS writes
+    // that text out as a separate .txt document when "Save to Files" is used.
+    if (navigator.canShare && navigator.canShare({ files: files })) {
+      navigator.share({
+        files: files
+      }).then(function () {
+        cleanup(); setStatus('');
+      }).catch(function (err) {
+        cleanup();
+        // User dismissed the sheet — do nothing. Any other error → fallback.
+        if (err && err.name === 'AbortError') { setStatus(''); }
+        else { fallback(); }
+      });
+    } else {
+      cleanup();
+      fallback();
+    }
+  }).catch(function () {
+    cleanup();
+    setStatus('⚠ Could not render pages — try again.');
+  });
+}
+
+// Direct-download fallback (Android/desktop without file sharing).
+function downloadResults(results) {
+  results.forEach(function (r) {
+    var link = document.createElement('a');
+    link.download = r.fname;
+    link.href = r.dataURL;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+  setStatus(results.length + ' image(s) saved to your Downloads folder.');
+  setTimeout(function () { setStatus(''); }, 4000);
+}
+
+// Fallback overlay (older iOS): show images, long-press to save to Photos.
+function showImageOverlay(results, wasDark) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;overflow-y:auto;';
   const closeBtn = document.createElement('button');
@@ -2073,35 +2210,18 @@ function saveForIPhone() {
   const container = document.createElement('div');
   container.style.cssText = 'display:flex;flex-direction:column;gap:12px;width:100%;max-width:600px;';
   overlay.appendChild(closeBtn); overlay.appendChild(container); document.body.appendChild(overlay);
-  let completed = 0;
-  whenReadyToCapture().then(() => {
-  pages.forEach((page, idx) => {
+  results.forEach(function (r, idx) {
     const wrapper = document.createElement('div'); wrapper.style.cssText = 'text-align:center;';
-    const fname = buildFilename('jpg', idx + 1, pages.length);
-    const lbl = document.createElement('div'); lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:4px;'; lbl.textContent = `Page ${idx+1} of ${pages.length}`;
-    const fnlbl = document.createElement('div'); fnlbl.style.cssText = 'color:#aaa;font-size:10px;margin-bottom:8px;word-break:break-all;'; fnlbl.textContent = fname;
+    const lbl = document.createElement('div'); lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:4px;'; lbl.textContent = 'Page ' + (idx + 1) + ' of ' + results.length;
+    const fnlbl = document.createElement('div'); fnlbl.style.cssText = 'color:#aaa;font-size:10px;margin-bottom:8px;word-break:break-all;'; fnlbl.textContent = r.fname;
     const img = document.createElement('img');
-    const restoreFill = fitPageToSheet(page);
-    const capH = measureFullHeight(page);
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0 }).then(canvas => {
-      restoreFill();
-      canvas = fitToLetter(canvas);
-      img.src = canvas.toDataURL('image/jpeg', 0.85);
-      img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
-      img.alt = fname;
-      wrapper.appendChild(lbl); wrapper.appendChild(fnlbl); wrapper.appendChild(img); container.appendChild(wrapper);
-      completed++;
-      if (completed === pages.length) { hideRealTablesAfterCapture(); restoreLayout(); setStatus('Images ready. Long-press each to save to Photos.'); if (wasDark) document.body.classList.add('dark-mode'); }
-    }).catch(err => {
-      restoreFill();
-      completed++;
-      hideRealTablesAfterCapture(); restoreLayout();
-      setStatus('⚠ Could not render page ' + (idx + 1) + ' — try again.');
-      if (wasDark) document.body.classList.add('dark-mode');
-    });
+    img.src = r.dataURL;
+    img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
+    img.alt = r.fname;
+    wrapper.appendChild(lbl); wrapper.appendChild(fnlbl); wrapper.appendChild(img); container.appendChild(wrapper);
   });
-  });
-  closeBtn.onclick = () => { hideRealTablesAfterCapture(); restoreLayout(); setStatus(''); if (wasDark) document.body.classList.add('dark-mode'); document.body.removeChild(overlay); };
+  setStatus('Images ready. Long-press each to save to Photos.');
+  closeBtn.onclick = function () { setStatus(''); document.body.removeChild(overlay); };
 }
 
 // ===== ANDROID =====
@@ -2226,7 +2346,7 @@ if (document.readyState === 'loading') {
 window.addEventListener('beforeprint', () => {
   // Inject compact style for page1 when multiple transfer switches are present
   const tsCount = document.querySelectorAll('.ts-block').length;
-  if (tsCount > 1) {
+  if (tsCount > 2) {
     const s = document.createElement('style');
     s.id = 'multi-ts-print';
     s.textContent = `
