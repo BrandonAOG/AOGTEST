@@ -175,6 +175,11 @@ body.dark-mode {
   0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
   50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
 }
+#btn-voice.voice-offline {
+  opacity: 0.4 !important;
+  filter: grayscale(1);
+  animation: none !important;
+}
 #voice-status {
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: 18px; z-index: 99999; max-width: 92vw;
@@ -3727,6 +3732,11 @@ if (document.readyState === 'loading') {
     clearTimeout(idleTimer); idleTimer = null;
     showStatus(reason || 'Voice off', '', 6000);
   }
+  // Called by the offline watcher: if the mic is on when the connection drops,
+  // shut it down (recognition can't reach Apple/Google servers offline).
+  window.__voiceHandleOffline = function() {
+    if (listening) turnVoiceOff('🎤 Voice stopped — lost internet connection');
+  };
   function armIdleTimer() {
     clearTimeout(idleTimer);
     if (!listening) return;
@@ -3787,6 +3797,11 @@ if (document.readyState === 'loading') {
   window.toggleVoiceEntry = function() {
     const btn = document.getElementById('btn-voice');
     if (!SR) { showStatus('Voice not supported in this browser — try Chrome or Safari', 'err', 5000); return; }
+    // Speech recognition streams audio to Apple/Google servers, so it can't work offline.
+    if (navigator.onLine === false) {
+      showStatus('🎤 Voice needs an internet connection — it won\u2019t work offline', 'err', 5000);
+      return;
+    }
 
     if (listening) {
       restartOnEnd = false;
@@ -3942,6 +3957,32 @@ if (document.readyState === 'loading') {
       }
     }, 400);
   });
+})();
+
+// ===== VOICE OFFLINE WATCHER =====
+// Speech recognition needs the internet, so reflect connection state on the VOICE
+// button: grey it out + relabel when offline, restore when back online.
+(function () {
+  function updateVoiceOnlineState() {
+    var b = document.getElementById('btn-voice');
+    if (!b) return;
+    var offline = (navigator.onLine === false);
+    if (offline) {
+      b.classList.add('voice-offline');
+      b.setAttribute('title', 'Voice needs internet — unavailable offline');
+      b.setAttribute('aria-disabled', 'true');
+      if (typeof window.__voiceHandleOffline === 'function') window.__voiceHandleOffline();
+    } else {
+      b.classList.remove('voice-offline');
+      b.setAttribute('title', 'Voice entry');
+      b.removeAttribute('aria-disabled');
+    }
+  }
+  window.addEventListener('online', updateVoiceOnlineState);
+  window.addEventListener('offline', updateVoiceOnlineState);
+  window.addEventListener('load', updateVoiceOnlineState);
+  // run once now in case load already fired
+  updateVoiceOnlineState();
 })();
 
 // ===== SERVICE WORKER =====
