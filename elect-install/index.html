@@ -2304,12 +2304,16 @@ function restoreFormData() {
     const data = JSON.parse(raw);
     // Rebuild extra Transfer Switch blocks FIRST — saved values are keyed by
     // input position, so the block count must match before restoring.
-    const wantTS = parseInt(data._ts || '1', 10);
+    let wantTS = parseInt(data._ts || '1', 10);
+    if (!Number.isFinite(wantTS) || wantTS < 1) wantTS = 1;
+    if (wantTS > 10) wantTS = 10;
     let haveTS = document.querySelectorAll('.ts-block').length;
     const tsContainer = document.getElementById('ts-container');
-    while (tsContainer && haveTS < wantTS) {
+    let _tsGuard = 0;
+    while (tsContainer && haveTS < wantTS && _tsGuard < 10) {
       tsContainer.appendChild(buildTSBlock(haveTS + 1));
       haveTS++;
+      _tsGuard++;
     }
     if (typeof renumberTS === 'function') renumberTS();
     document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
