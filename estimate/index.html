@@ -5211,17 +5211,51 @@ setTimeout(adjustTopPadding, 100);
 
 // ── PRINT: strip inline padding-top so Safari iPad doesn't generate a blank page 2 ──
 var _savedPagePaddingTop = '';
+var _savedNativePrintState = null;
 window.addEventListener('beforeprint', function() {
   var page = document.getElementById('page');
   if (page) {
     _savedPagePaddingTop = page.style.paddingTop;
     page.style.paddingTop = '';
   }
+  // Native browser print (Cmd/Ctrl+P or "Save as PDF") does NOT run printForm(), so the
+  // JS dark-mode/seasonal strip never fires. Some print paths (notably when a real printer
+  // is enumerated and a live preview is rendered) capture a mid-transition or color-scheme:dark
+  // state, letting dark mode bleed into the output. If printForm() already handled this pass
+  // (dark class is gone), skip. Otherwise strip here and restore on afterprint.
+  if (_savedNativePrintState) return;                       // re-entrant guard
+  if (document.documentElement.classList.contains('desktop-print') ||
+      document.documentElement.classList.contains('ipad-print')) return;  // printForm path
+  var wasDark = document.body.classList.contains('dark-mode');
+  var seasonal = [];
+  document.body.classList.forEach(function(c){ if (c.indexOf('seasonal-') === 0) seasonal.push(c); });
+  if (!wasDark && seasonal.length === 0) return;            // nothing to strip
+  _savedNativePrintState = { wasDark: wasDark, seasonal: seasonal, colorScheme: document.documentElement.style.colorScheme };
+  // Kill transitions so the dark->light flip is instant (a 0.3s background fade can otherwise
+  // be snapshotted mid-transition, which is exactly how dark bleeds into the printed page).
+  var instant = document.getElementById('native-print-instant');
+  if (!instant) {
+    instant = document.createElement('style');
+    instant.id = 'native-print-instant';
+    instant.textContent = '*, *::before, *::after { transition: none !important; animation: none !important; }';
+    document.head.appendChild(instant);
+  }
+  document.body.classList.remove('dark-mode');
+  seasonal.forEach(function(c){ document.body.classList.remove(c); });
+  document.documentElement.style.colorScheme = 'light';
 });
 window.addEventListener('afterprint', function() {
   var page = document.getElementById('page');
   if (page) {
     page.style.paddingTop = _savedPagePaddingTop;
+  }
+  if (_savedNativePrintState) {
+    if (_savedNativePrintState.wasDark) document.body.classList.add('dark-mode');
+    _savedNativePrintState.seasonal.forEach(function(c){ document.body.classList.add(c); });
+    document.documentElement.style.colorScheme = _savedNativePrintState.colorScheme || '';
+    _savedNativePrintState = null;
+    var instant = document.getElementById('native-print-instant');
+    if (instant) instant.parentNode.removeChild(instant);
   }
 });
 </script>
