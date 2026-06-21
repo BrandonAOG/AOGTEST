@@ -2202,6 +2202,8 @@ function openPrintPreview() {
         el.style.removeProperty('line-height');
         el.style.removeProperty('margin-bottom');
         el.style.removeProperty('width');
+        el.style.removeProperty('min-width');
+        el.style.removeProperty('white-space');
         el.style.removeProperty('transform');
         el.style.removeProperty('transform-origin');
       });
@@ -2262,6 +2264,16 @@ function openPrintPreview() {
         el.style.setProperty('margin-bottom', '4px', 'important');
         window._mobileP2Inline.push(el);
       });
+      // Wider fittings title column so labels fit on one line (less wrapping = shorter).
+      var ft = document.getElementById('fittings-table');
+      if (ft) {
+        ft.querySelectorAll('td.row-label, th:first-child').forEach(function (el) {
+          el.style.setProperty('width', '150px', 'important');
+          el.style.setProperty('min-width', '150px', 'important');
+          el.style.setProperty('white-space', 'normal', 'important');
+          window._mobileP2Inline.push(el);
+        });
+      }
       const inner = document.getElementById('page2-inner');
       if (inner) {
         inner.style.setProperty('width', '100%', 'important');
