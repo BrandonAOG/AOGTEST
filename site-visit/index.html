@@ -2238,17 +2238,40 @@ function openPrintPreview() {
     document.body.style.width    = origWidth;
     // Restore the wrapper's top padding that we cleared before printing.
     if (wrapper) wrapper.style.paddingTop = origWrapperPaddingTop;
-    window.removeEventListener('afterprint', restore);
+    window.removeEventListener('afterprint', onAfterPrint);
     if (mql && mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
   }
 
-  // Only restore the dark background once the print preview/dialog actually
-  // CLOSES — not on a timer — so it stays white the entire time the preview is
-  // open. afterprint fires when the user exits the dialog.
-  window.addEventListener('afterprint', restore);
+  // Tear down ONLY after printing has truly ended. Selecting a printer makes the
+  // browser briefly exit and re-enter print mode to re-render the preview for that
+  // device, which fires afterprint / the print-media change early. Restoring on
+  // that first signal would strip the print styles and re-add dark mode mid-render,
+  // bleeding dark mode into the printer's pass. So debounce: wait, then verify
+  // we're no longer in print media before restoring; if print mode came back
+  // (printer was selected and it's re-rendering), cancel the teardown.
+  let restoreTimer = null;
+  function scheduleRestore() {
+    if (restored) return;
+    if (restoreTimer) clearTimeout(restoreTimer);
+    restoreTimer = setTimeout(function () {
+      restoreTimer = null;
+      if (mql && mql.matches) return;   // still / again in print — don't tear down
+      restore();
+    }, 700);
+  }
+  function onAfterPrint() { scheduleRestore(); }
+  window.addEventListener('afterprint', onAfterPrint);
   // Backup signal: the print media query flips back to non-matching on close.
   const mql = window.matchMedia ? window.matchMedia('print') : null;
-  function onMqlChange(e) { if (!e.matches) restore(); }
+  function onMqlChange(e) {
+    if (!e.matches) {
+      scheduleRestore();
+    } else if (restoreTimer) {
+      // Re-entered print mode (e.g. printer selected) — abort a pending teardown.
+      clearTimeout(restoreTimer);
+      restoreTimer = null;
+    }
+  }
   if (mql && mql.addEventListener) mql.addEventListener('change', onMqlChange);
 
   // iOS Safari measures page count BEFORE the above layout changes have reflowed,
