@@ -359,6 +359,17 @@ table.mat-table th {
   font-size: 9px;
 }
 @media (max-width: 480px) { table.mat-table th { font-size: 8px; } }
+/* Mobile screen: widen the wire-table (CU/AL/THWN) data columns so values like
+   "3 x 999" fit when typing. The grid-section already scrolls horizontally. */
+@media (max-width: 767px) {
+  #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) {
+    table-layout: fixed !important; width: auto !important; min-width: 100% !important;
+  }
+  #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) td:not(.row-label),
+  #page2 table.mat-table:not(#fittings-table):not(#wireway-table):not(#polaris-table) th:not(.row-label) {
+    min-width: 54px !important;
+  }
+}
 body.dark-mode table.mat-table th { background: #1E3A5F; color: #00FFC8; }
 body.dark-mode table.mat-table td {
   border-color: rgba(0,255,200,0.2);
@@ -2256,12 +2267,12 @@ function openPrintPreview() {
     if (p2) {
       p2.querySelectorAll('table.mat-table td, table.mat-table th').forEach(function (el) {
         const isLabel = el.classList.contains('row-label');
-        el.style.setProperty('padding', isLabel ? '3px 3px' : '3px 2px', 'important');
-        el.style.setProperty('line-height', '1.2', 'important');
+        el.style.setProperty('padding', isLabel ? '1.5px 3px' : '1.5px 2px', 'important');
+        el.style.setProperty('line-height', '1.15', 'important');
         window._mobileP2Inline.push(el);
       });
       p2.querySelectorAll('.grid-section').forEach(function (el) {
-        el.style.setProperty('margin-bottom', '4px', 'important');
+        el.style.setProperty('margin-bottom', '2px', 'important');
         window._mobileP2Inline.push(el);
       });
       // Wider fittings title column so labels fit on one line (less wrapping = shorter).
