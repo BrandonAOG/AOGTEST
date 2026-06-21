@@ -5260,5 +5260,64 @@ window.addEventListener('afterprint', function() {
   }
 });
 </script>
+<script>
+/* ============================================================
+   STANDALONE PWA SAFE-AREA FIX
+   On iOS Home-Screen apps with a black-translucent status bar,
+   env(safe-area-inset-top) reports 0 on non-notched devices (e.g.
+   iPhone 8 / SE), even though the translucent status bar still
+   overlays the top of the screen. That left the action bar and the
+   page header tucked underneath it.
+
+   This measures the real inset at runtime and, when running standalone
+   with no reported inset, reserves a sensible minimum so the status bar
+   is cleared. The page is then pushed down by the bar's true height.
+   ============================================================ */
+(function () {
+  function px(v) { return Math.ceil(v) + 'px'; }
+
+  // Read the actual safe-area-inset-top the browser computes.
+  function measureInset() {
+    var probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);' +
+      'visibility:hidden;pointer-events:none;';
+    document.body.appendChild(probe);
+    var h = probe.getBoundingClientRect().height || 0;
+    document.body.removeChild(probe);
+    return h;
+  }
+
+  function isStandalone() {
+    return (window.navigator && window.navigator.standalone === true) ||
+           (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  }
+
+  function fixBars() {
+    var bar = document.getElementById('action-bar');
+    if (!bar) return;
+    var inset = measureInset();
+    // Standalone + translucent status bar but a 0 inset (non-notched
+    // devices): reserve the status-bar height so content isn't covered.
+    if (isStandalone() && inset < 20) inset = 20;
+    bar.style.paddingTop = px(Math.max(4, inset));
+
+    var barH = px(bar.getBoundingClientRect().height);
+    var page = document.getElementById('page');
+    if (page) page.style.paddingTop = barH;
+    var status = document.getElementById('save-status');
+    if (status) status.style.top = barH;
+  }
+
+  window.addEventListener('load', fixBars);
+  window.addEventListener('resize', fixBars);
+  window.addEventListener('orientationchange', function () { setTimeout(fixBars, 200); });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fixBars);
+  } else {
+    fixBars();
+  }
+})();
+</script>
 </body>
 </html>
