@@ -2195,6 +2195,18 @@ function openPrintPreview() {
     if (status) status.style.display = '';
     if (wasDark) document.body.classList.add('dark-mode');
     document.body.classList.remove('printing', 'mobile-printing');
+    // Remove the mobile-only inline page-2 row styles applied before printing.
+    if (window._mobileP2Inline) {
+      window._mobileP2Inline.forEach(function (el) {
+        el.style.removeProperty('padding');
+        el.style.removeProperty('line-height');
+        el.style.removeProperty('margin-bottom');
+        el.style.removeProperty('width');
+        el.style.removeProperty('transform');
+        el.style.removeProperty('transform-origin');
+      });
+      window._mobileP2Inline = [];
+    }
     restoreInlineStyles();
     document.documentElement.style.background = origHtmlBg;
     document.body.style.background = origBodyBg;
@@ -2232,6 +2244,33 @@ function openPrintPreview() {
   const isMobilePrint = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
   document.body.classList.add('printing');
   if (isMobilePrint) document.body.classList.add('mobile-printing');
+
+  // Mobile (iPhone Safari) only: make page-2 table rows taller to match desktop,
+  // applied as inline styles so it can't leak into desktop print via the CSS
+  // media-query cascade. Tracked for removal in restore().
+  window._mobileP2Inline = [];
+  if (isMobilePrint) {
+    const p2 = document.getElementById('page2');
+    if (p2) {
+      p2.querySelectorAll('table.mat-table td, table.mat-table th').forEach(function (el) {
+        const isLabel = el.classList.contains('row-label');
+        el.style.setProperty('padding', isLabel ? '6.5px 3px' : '6.5px 2px', 'important');
+        el.style.setProperty('line-height', '1.2', 'important');
+        window._mobileP2Inline.push(el);
+      });
+      p2.querySelectorAll('.grid-section').forEach(function (el) {
+        el.style.setProperty('margin-bottom', '8px', 'important');
+        window._mobileP2Inline.push(el);
+      });
+      const inner = document.getElementById('page2-inner');
+      if (inner) {
+        inner.style.setProperty('width', '100%', 'important');
+        inner.style.setProperty('transform', 'none', 'important');
+        inner.style.setProperty('transform-origin', 'top left', 'important');
+        window._mobileP2Inline.push(inner);
+      }
+    }
+  }
 
   void document.body.offsetHeight;            // force reflow
   const wrapper = document.querySelector('.page-wrapper');
