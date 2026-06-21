@@ -1361,6 +1361,18 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   .repeat-header { display: none !important; }
 }
 
+/* ===== FITTINGS COLUMN COLLAPSE — MOBILE SCREEN ONLY =====
+   Tapping the orange FITTINGS header hides/shows the 5"–3" columns
+   (columns 2-5). Default collapsed on mobile. Never affects print/PDF
+   (those render at desktop width, so this screen-only rule won't match). */
+.ft-toggle-caret { display: none; }
+@media screen and (max-width: 767px) {
+  #fittings-toggle { cursor: pointer; -webkit-user-select: none; user-select: none; }
+  .ft-toggle-caret { display: inline-block; margin-left: 4px; font-weight: bold; color: #fff; }
+  #fittings-table.cols-collapsed th:nth-child(n+2):nth-child(-n+5),
+  #fittings-table.cols-collapsed td:nth-child(n+2):nth-child(-n+5) { display: none; }
+}
+
 /* ===== MOBILE TABLE VIEW — SCREEN ONLY (max-width: 767px) =====
    Shows real tables directly on mobile with compact styling.
    ============================================================ */
@@ -1840,7 +1852,7 @@ html.windows body.printing:not(.mobile-printing) #page1 .yn-checkbox-wrap      {
     <div class="grid-section">
       <table class="mat-table" id="fittings-table">
         <thead><tr>
-          <th style="width:110px;">FITTINGS</th>
+          <th id="fittings-toggle" style="width:110px;" title="Tap to show/hide 5&quot;–3&quot; columns">FITTINGS<span class="ft-toggle-caret">▸</span></th>
           <th>5"</th><th>4"</th><th>3-1/2"</th><th>3"</th><th>2-1/2"</th>
           <th>2"</th><th>1-1/2"</th><th>1-1/4"</th><th>1"</th><th>¾"</th><th>½"</th>
         </tr></thead>
@@ -3167,6 +3179,27 @@ function initMobileAccordions() {
     buildMobileAccordions();
   }
 }
+function setupFittingsCollapse() {
+  var ft  = document.getElementById('fittings-table');
+  var tgl = document.getElementById('fittings-toggle');
+  if (!ft || !tgl || ft._collapseWired) return;
+  ft._collapseWired = true;
+  function isMobile() {
+    return window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
+  }
+  function updateCaret() {
+    var c = tgl.querySelector('.ft-toggle-caret');
+    if (c) c.textContent = ft.classList.contains('cols-collapsed') ? '▸' : '◂';
+  }
+  // Default: collapsed on mobile so the 5"–3" columns are hidden on load.
+  if (isMobile()) ft.classList.add('cols-collapsed');
+  updateCaret();
+  tgl.addEventListener('click', function () {
+    ft.classList.toggle('cols-collapsed');
+    updateCaret();
+  });
+}
+
 // Ensure real inputs hold restored values BEFORE accordions mirror from them,
 // then attach autosave (idempotent), then build the mobile UI.
 function initFormAndAccordions() {
@@ -3174,6 +3207,7 @@ function initFormAndAccordions() {
   restoreFormData();
   attachAutosave();
   initMobileAccordions();
+  setupFittingsCollapse();
   // After accordions exist, restrict numeric fields (real inputs + mirrors).
   if (typeof applyNumericOnlyToPage2 === 'function') applyNumericOnlyToPage2();
 }
