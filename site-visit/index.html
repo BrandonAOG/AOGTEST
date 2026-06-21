@@ -1128,6 +1128,19 @@ body.printing.mobile-printing #page2 table.mat-table { width: 100% !important; t
   }
   #page2 .footer-field input.short { width: 32px !important; }
   #page2 .footer-field input.wide  { width: 65px !important; }
+
+  /* Kill the phantom blank 3rd page on mobile Safari: ensure no break is emitted
+     after the final page, and that page 2 never spills onto another sheet. */
+  .form-page:last-child,
+  #page2 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+  #page2 { overflow: hidden !important; }
+  .page-wrapper > *:last-child {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
 }
 
 
