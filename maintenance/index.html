@@ -1099,6 +1099,8 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
+  padding-top: max(4px, constant(safe-area-inset-top, 4px));
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border);
@@ -2395,11 +2397,16 @@ function adjustTopPadding() {
   const bar    = document.getElementById('action-bar');
   const page   = document.getElementById('page');
   const status = document.getElementById('save-status');
-  if (bar && page)   page.style.marginTop = bar.offsetHeight + 'px';
-  if (bar && status) status.style.top     = bar.offsetHeight + 'px';
+  // The bar now folds the iOS safe-area / status-bar inset into its own
+  // top padding, so its rendered height is exactly how far content must be
+  // pushed down. getBoundingClientRect().height includes that inset.
+  const h = bar ? Math.ceil(bar.getBoundingClientRect().height) : 0;
+  if (bar && page)   page.style.marginTop = h + 'px';
+  if (bar && status) status.style.top     = h + 'px';
 }
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load',   adjustTopPadding);
+window.addEventListener('orientationchange', function () { setTimeout(adjustTopPadding, 150); });
 setTimeout(adjustTopPadding, 100);
 </script>
 
