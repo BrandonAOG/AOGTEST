@@ -2542,11 +2542,17 @@ function generatePDF() {
             clonedDoc.body.classList.remove('dark-mode');
             // Double the logo + company name on capture. Set inline so iOS Safari
             // / html2canvas can't override it via the cascade or text-size-adjust.
+            var cImg = clonedDoc.querySelector('#page1 .logo-area img');
+            if (cImg) cImg.style.setProperty('height', '46px', 'important');
             var cTxt = clonedDoc.querySelector('#page1 .logo-text');
             if (cTxt) {
               cTxt.style.setProperty('font-size', '64px', 'important');
+              cTxt.style.setProperty('line-height', '1', 'important');
               cTxt.style.setProperty('-webkit-text-size-adjust', 'none', 'important');
             }
+            clonedDoc.querySelectorAll('#page1 .logo-text, #page1 .logo-text .logo-on, #page1 .logo-text .logo-always').forEach(function(el){
+              el.style.setProperty('font-size', '64px', 'important');
+            });
             var cGen = clonedDoc.querySelector('#page1 .logo-text .logo-generators');
             if (cGen) cGen.style.setProperty('font-size', '40px', 'important');
           }
@@ -2643,7 +2649,8 @@ function showRealTablesForCapture() {
     '.permit-input { height: 22px !important; line-height: 22px !important; overflow: visible !important; box-sizing: border-box !important; }',
     '.permit-row { overflow: visible !important; align-items: center !important; }',
     '.permit-section { overflow: visible !important; }',
-    // --- Double the company name on image capture only ---
+    // --- Double the logo image and company name on image capture only ---
+    'html.windows body.printing:not(.mobile-printing) #page1 .logo-area img, html body.printing #page1 .logo-area img { height: 46px !important; }',
     'html.windows body.printing:not(.mobile-printing) #page1 .logo-text, html body.printing #page1 .logo-text { font-size: 64px !important; }',
     'html.windows body.printing:not(.mobile-printing) #page1 .logo-text .logo-generators, html body.printing #page1 .logo-text .logo-generators { font-size: 40px !important; }',
     // --- Crash-proofing for html2canvas: it chokes on filters/animations and
@@ -2761,6 +2768,14 @@ function forceDesktopLayout() {
   // height and wrapping in capture so typed text shows fully instead of clipping.
   document.querySelectorAll('#page1 .permit-textarea').forEach(el => {
     setInline(el, { fontSize: '13.5px', minHeight: '52px', height: 'auto', padding: '5px 7px', lineHeight: '1.35', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflow: 'visible', boxSizing: 'border-box' });
+  });
+  // Enlarge the company name on capture (live-DOM inline, same path html2canvas
+  // honors for all other page-1 sizing). Logo image is enlarged in onclone.
+  document.querySelectorAll('#page1 .logo-text, #page1 .logo-text .logo-on, #page1 .logo-text .logo-always').forEach(el => {
+    setInline(el, { fontSize: '64px', lineHeight: '1' });
+  });
+  document.querySelectorAll('#page1 .logo-text .logo-generators').forEach(el => {
+    setInline(el, { fontSize: '40px' });
   });
   document.querySelectorAll('.form-page').forEach(el => {
     setInline(el, { padding: '24px', boxSizing: 'border-box' });
