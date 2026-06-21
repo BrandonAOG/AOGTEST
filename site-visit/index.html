@@ -2218,6 +2218,9 @@ function openPrintPreview() {
     restoreInlineStyles();
     document.documentElement.style.background = origHtmlBg;
     document.body.style.background = origBodyBg;
+    // Restore the temporarily-cleared body width used to size the print canvas.
+    document.body.style.maxWidth = origMaxWidth;
+    document.body.style.width    = origWidth;
     // Restore the wrapper's top padding that we cleared before printing.
     if (wrapper) wrapper.style.paddingTop = origWrapperPaddingTop;
     window.removeEventListener('afterprint', restore);
@@ -2397,16 +2400,14 @@ function openPrintPreview() {
 
       setTimeout(() => {
         window.print();
-        // Mobile Safari blocks on window.print() so the class is already active
-        // the whole time the dialog is open — safe to remove immediately after return.
-        // Desktop browsers render asynchronously, so we leave the class on and let
-        // restore() (afterprint) remove it once the dialog actually closes.
-        if (isMobilePrint) {
-          document.body.classList.remove('printing', 'mobile-printing');
-          restoreInlineStyles();
-        }
-        document.body.style.maxWidth = origMaxWidth;
-        document.body.style.width    = origWidth;
+        // Do NOT tear down the print styles here. window.print() does not block on
+        // modern mobile browsers — it returns immediately while the print sheet
+        // renders asynchronously. Removing the classes/inline styles now means that
+        // when the user selects or changes the printer, the sheet re-rasterizes
+        // against the bare screen layout (the "stale" output). All cleanup is
+        // deferred to restore(), which fires on 'afterprint' (with the
+        // matchMedia('print') change as a backup) once the dialog actually closes —
+        // the same path desktop already uses.
       }, 1500); // 1.5 s in light mode before print dialog opens
     });
   });
