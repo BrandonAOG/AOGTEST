@@ -277,6 +277,7 @@ body.dark-mode .form-page {
   background: linear-gradient(135deg, rgba(15,21,53,0.95) 0%, rgba(10,14,39,0.98) 100%);
   box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15);
 }
+body.dark-mode .form-page::before { border-color: #00FFC8; }
 }
 
 input[type="text"], input[type="email"], input[type="tel"],
@@ -397,7 +398,7 @@ table.mat-table th, table.mat-table td {
 table.mat-table th { background: #D35E13; color: #FFFFFF; font-weight: bold; font-size: 9px; }
 @media (max-width: 480px) { table.mat-table th { font-size: 8px; } }
 @media screen {
-body.dark-mode table.mat-table th { background: #1E3A5F; color: #00FFC8; }
+body.dark-mode table.mat-table th { background: #1E3A5F; color: #00FFC8; border-color: rgba(0,255,200,0.2); }
 body.dark-mode table.mat-table td { border-color: rgba(0,255,200,0.2); background: rgba(15,21,53,0.6); color: #E0F7FF; }
 }
 
@@ -412,9 +413,19 @@ body.dark-mode table.mat-table td.row-label { background: rgba(36,52,88,0.6); co
 }
 
 #fittings-table td.row-label { font-size: 10px; min-width: 130px; }
-#fittings-table tr.repeat-header th { background: #D35E13; color: #fff; font-size: 9px; padding: 3px 2px; text-align: center; border: 1px solid #4B5563; }
-#fittings-table tr.repeat-header th.row-label { background: #D35E13; }
+#fittings-table tr.repeat-header th { background: #374151; color: #fff; font-size: 9px; padding: 3px 2px; text-align: center; border: 1px solid #4B5563; }
+#fittings-table tr.repeat-header th.row-label { background: #374151; }
 body.dark-mode #fittings-table tr.repeat-header th { background: #1E3A5F; color: #00FFC8; border-color: rgba(0,255,200,0.2); }
+
+/* Mobile: collapsible large fitting sizes (5", 4", 3-1/2", 3") */
+#fittings-toggle-th { cursor: pointer; -webkit-user-select: none; user-select: none; }
+.big-toggle-ind { display: none; }
+@media screen and (max-width: 480px) {
+  .big-toggle-ind { display: inline-block; margin-left: 4px; font-size: 9px; opacity: 0.85; }
+  .big-toggle-ind::after { content: "\25C0"; } /* left triangle = tap to hide */
+  #fittings-table.big-collapsed .big-toggle-ind::after { content: "\25B6"; } /* right triangle = tap to show */
+  #fittings-table.big-collapsed .big-col { display: none; }
+}
 #wireway-table  td.row-label { font-size: 10px; min-width: 110px; }
 #polaris-table  td.row-label { font-size: 10px; min-width: 110px; }
 
@@ -656,6 +667,7 @@ body.dark-mode .notice { color: #7DD3FC; }
   /* Force light-mode CSS variables for Safari, which fires the print
      renderer before JS can strip the dark-mode class from <body> */
   html, body, body.dark-mode {
+    color-scheme: light !important;
     --bg: #FFFFFF !important;
     --bg2: #FFFFFF !important;
     --bg3: #F8F8F8 !important;
@@ -1471,8 +1483,8 @@ body.dark-mode .ft-label { color: #7DD3FC; }
     <div class="grid-section">
       <table class="mat-table" id="fittings-table">
         <thead><tr>
-          <th style="width:110px;">FITTINGS</th>
-          <th>5"</th><th>4"</th><th>3-1/2"</th><th>3"</th><th>2-1/2"</th>
+          <th style="width:110px;" id="fittings-toggle-th">FITTINGS<span class="big-toggle-ind no-print"></span></th>
+          <th class="big-col">5"</th><th class="big-col">4"</th><th class="big-col">3-1/2"</th><th class="big-col">3"</th><th>2-1/2"</th>
           <th>2"</th><th>1-1/2"</th><th>1-1/4"</th><th>1"</th><th>¾"</th><th>½"</th>
         </tr></thead>
         <tbody id="fittings-body"></tbody>
@@ -1612,9 +1624,10 @@ fittings.forEach((name, idx) => {
     const emptyTh = document.createElement("th");
     emptyTh.className = "row-label";
     repeatHeader.appendChild(emptyTh);
-    fittingSizes.forEach(size => {
+    fittingSizes.forEach((size, sIdx) => {
       const th = document.createElement("th");
       th.textContent = size;
+      if (sIdx < 4) th.classList.add("big-col");
       repeatHeader.appendChild(th);
     });
     document.getElementById("fittings-body").appendChild(repeatHeader);
@@ -1624,14 +1637,24 @@ fittings.forEach((name, idx) => {
   lbl.className = "row-label"; lbl.textContent = name;
   tr.appendChild(lbl);
   const allowAlpha = (name === "PVC Pipe" || name === "Seal Tight Car-Flex Hose");
-  fittingSizes.forEach(() => {
+  fittingSizes.forEach((size, sIdx) => {
     const td = document.createElement("td");
+    if (sIdx < 4) td.classList.add("big-col");
     const inp = document.createElement("input"); inp.type = "text";
     if (allowAlpha) { inp.inputMode = "text"; } else { inp.inputMode = "numeric"; inp.pattern = "[0-9]*"; }
     td.appendChild(inp); tr.appendChild(td);
   });
   document.getElementById("fittings-body").appendChild(tr);
 });
+
+// Collapsible large fitting sizes — mobile only, default collapsed
+(function(){
+  const tbl = document.getElementById("fittings-table");
+  const th  = document.getElementById("fittings-toggle-th");
+  if (!tbl || !th) return;
+  if (window.matchMedia("(max-width: 480px)").matches) tbl.classList.add("big-collapsed");
+  th.addEventListener("click", () => tbl.classList.toggle("big-collapsed"));
+})();
 
 ['4" x 4"','6" x 6"','8" x 8"','10" x 10"','12" x 12"'].forEach(name => {
   const tr = document.createElement("tr");
@@ -2385,6 +2408,19 @@ if (document.readyState === 'loading') {
 
 // ===== BEFORE/AFTER PRINT =====
 window.addEventListener('beforeprint', () => {
+  // Strip dark-mode for ALL print paths (native Ctrl+P / printer-triggered preview,
+  // not just the Print button). openPrintPreview() may have already done this; guard against double-add.
+  if (!document.getElementById('no-transitions')) {
+    wasDarkAtPrint = document.body.classList.contains('dark-mode');
+    if (wasDarkAtPrint) {
+      const noTrans = document.createElement('style');
+      noTrans.id = 'no-transitions';
+      noTrans.textContent = '* { transition: none !important; animation: none !important; }';
+      document.head.appendChild(noTrans);
+      document.body.classList.remove('dark-mode');
+      void document.body.offsetHeight;
+    }
+  }
   // Inject compact style for page1 when multiple transfer switches are present
   const tsCount = document.querySelectorAll('.ts-block').length;
   if (tsCount > 1) {
