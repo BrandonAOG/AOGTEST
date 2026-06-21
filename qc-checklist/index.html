@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1052,8 +1060,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 <div class="action-bar" id="action-bar">
   <a class="ab-btn" href="../">🏠 HOME</a>
   <a class="ab-btn" onclick="printForm()" style="cursor:pointer;">📄 PDF</a>
-  <a class="ab-btn" id="btn-iphone" onclick="saveForIPhone()" style="cursor:pointer;">📱 iPHONE</a>
-  <a class="ab-btn" id="btn-android" onclick="saveForAndroid()" style="cursor:pointer;">🤖 ANDROID</a>
+  <a class="ab-btn" id="btn-capture" onclick="saveSmart()" style="cursor:pointer;">📸 CAPTURE</a>
   <a class="ab-btn" onclick="clearForm()" style="cursor:pointer;">🗑 CLEAR</a>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode" onclick="toggleTheme()">
     <svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1881,7 +1888,7 @@ function capturePageToCanvas(pageEl) {
             // on a white sheet — the page's own border stays fully visible.
             const LETTER_W = 1632;
             const LETTER_H = Math.round(LETTER_W * PAPER_RATIO); // 8.5:11
-            const MARGIN   = Math.round(LETTER_W * 0.1 / 8.5);   // 0.1in margin in px (~19px)
+            const MARGIN   = Math.round(LETTER_W * 0.15 / 8.5);  // 0.15in margin in px (~29px)
             const letterCanvas = document.createElement('canvas');
             letterCanvas.width  = LETTER_W;
             letterCanvas.height = LETTER_H;
@@ -1921,6 +1928,74 @@ function captureAllPages() {
     if (!el) return acc;
     return capturePageToCanvas(el).then(c => { acc.push(c); return acc; });
   }), Promise.resolve([]));
+}
+
+// ===== SMART CAPTURE =====
+// One button for all devices. Prefer the native Share Sheet (works on iOS and
+// modern Android Chrome) — Save to Photos/Gallery, AirDrop, email, Drive, etc.
+// in one tap. Falls back to the long-press overlay (older iOS) or direct
+// download (Android/desktop). This form has two pages, so we share both files.
+function isIOSDevice() {
+  var ua = navigator.userAgent || '';
+  var iOS = /iPad|iPhone|iPod/.test(ua);
+  var iPadOS = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return iOS || iPadOS;
+}
+function canShareFiles() {
+  try {
+    if (!navigator.canShare) return false;
+    var probe = new File(['x'], 'probe.jpg', { type: 'image/jpeg' });
+    return navigator.canShare({ files: [probe] });
+  } catch (e) { return false; }
+}
+function buildQCBaseName() {
+  var nm = (document.getElementById('cust_name') && document.getElementById('cust_name').value || '').trim();
+  var ad = (document.getElementById('cust_addr') && document.getElementById('cust_addr').value || '').trim();
+  return ([nm, ad, 'QC Checklist'].filter(Boolean).join(' ') || 'AOG_QC_Checklist')
+           .replace(/[\/\\:*?"<>|]+/g, '').replace(/\s+/g, '_').slice(0, 110);
+}
+function dataURLtoFile(dataURL, filename) {
+  var parts = dataURL.split(',');
+  var mime = parts[0].match(/:(.*?);/)[1];
+  var bin = atob(parts[1]);
+  var arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], filename, { type: mime });
+}
+function saveSmart() {
+  if (canShareFiles())     captureAndShare();   // native Share Sheet (iOS + modern Android)
+  else if (isIOSDevice())  saveForIPhone();     // older iOS → long-press overlay
+  else                     saveForAndroid();    // Android/desktop → download
+}
+function captureAndShare() {
+  setStatus('Rendering... please wait');
+  var wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+  setTimeout(function () {
+    captureAllPages().then(function (canvases) {
+      var base = buildQCBaseName();
+      var files = canvases.map(function (canvas, i) {
+        return dataURLtoFile(canvas.toDataURL('image/jpeg', 0.92), base + '_Page' + (i + 1) + '.jpg');
+      });
+      if (wasDark) document.body.classList.add('dark-mode');
+      // Share ONLY the files — no title/text (a title makes iOS write a stray
+      // .txt file when "Save to Files" is used).
+      if (files.length && navigator.canShare && navigator.canShare({ files: files })) {
+        navigator.share({ files: files }).then(function () {
+          setStatus('');
+        }).catch(function (err) {
+          if (err && err.name === 'AbortError') { setStatus(''); }      // user dismissed
+          else if (isIOSDevice()) { saveForIPhone(); }                  // fall back
+          else { saveForAndroid(); }
+        });
+      } else {
+        if (isIOSDevice()) saveForIPhone(); else saveForAndroid();
+      }
+    }).catch(function () {
+      if (wasDark) document.body.classList.add('dark-mode');
+      setStatus('Render failed. Try the PDF button instead.');
+    });
+  }, 250);
 }
 
 function saveForIPhone() {
