@@ -1358,7 +1358,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   background: var(--panel);
   padding: 4px 8px;
   padding-top: max(4px, env(safe-area-inset-top, 4px));
-  display: flex; gap: 4px; flex-wrap: nowrap; align-items: center;
+  display: flex; gap: 4px; flex-wrap: nowrap; align-items: center; justify-content: safe center;
   overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border-bright);
@@ -4577,21 +4577,77 @@ function createSeasonalCanvas(theme) {
       }
     },
     hotsummer: {
-      count: 60,
-      make: function() {
-        var types=['flame','flame','flame','sun','heat'];
+      count: 78,
+      make: function(i) {
+        // First 48 particles = 12 flame tongues anchored in each of the 4 corners.
+        // Remaining particles = rising embers/heat drifting up the page.
+        if (i !== undefined && i < 48) {
+          var corner = Math.floor(i/12);            // 0=TL,1=TR,2=BL,3=BR
+          return {
+            type:'corner', corner:corner,
+            jx: (Math.random()-0.5)*46,             // jitter within the corner cluster
+            jy: (Math.random()-0.5)*46,
+            size: 16+Math.random()*22,
+            life: 1, decay: 0,
+            phase: Math.random()*Math.PI*2,
+            flick: 0.12+Math.random()*0.18,        // flicker speed
+            sway: Math.random()*Math.PI*2,
+            swaySpeed: 0.03+Math.random()*0.05
+          };
+        }
+        var types=['flame','flame','sun','heat'];
         return {
           x: Math.random()*W, y: H+20,
           vx: (Math.random()-0.5)*1.5, vy: -(0.8+Math.random()*2.0),
           life: 0.8+Math.random()*0.2, decay: 0.008+Math.random()*0.008,
-          size: 8+Math.random()*20,
+          size: 8+Math.random()*16,
           type: types[Math.floor(Math.random()*types.length)],
           wobble: Math.random()*Math.PI*2, wobbleSpeed: 0.04+Math.random()*0.06,
           hue: 10+Math.random()*40
         };
       },
+      drawFlame: function(s, alpha, squish) {
+        // a single upward-pointing flame tongue, origin at its base (0,0)
+        ctx.globalAlpha = alpha;
+        var grad=ctx.createRadialGradient(0,-s*0.2,0,0,-s*0.3,s);
+        grad.addColorStop(0,'#FFFFFF');
+        grad.addColorStop(0.25,'#FFD700');
+        grad.addColorStop(0.6,'#FF6600');
+        grad.addColorStop(1,'rgba(220,0,0,0)');
+        ctx.fillStyle=grad;
+        var w = s*0.6*squish;
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.bezierCurveTo(-w,-s*0.4,-w*0.9,-s*1.0,-s*0.12,-s*1.5);
+        ctx.bezierCurveTo(0,-s*1.1,0,-s*1.1,s*0.12,-s*1.5);
+        ctx.bezierCurveTo(w*0.9,-s*1.0,w,-s*0.4,0,0);
+        ctx.fill();
+      },
       draw: function(p) {
-        ctx.save(); ctx.globalAlpha=p.life*0.7;
+        ctx.save();
+        if(p.type==='corner'){
+          var margin = 26;
+          var cx = (p.corner===1||p.corner===3) ? W-margin : margin;
+          var cy = (p.corner>=2)                ? H-margin : margin;
+          ctx.translate(cx + p.jx, cy + p.jy);
+          // flames always point "up" toward page interior-ish; tongues lean with sway
+          var lean = Math.sin(p.sway)*0.25;
+          ctx.rotate(lean);
+          // flicker: size + brightness pulse
+          var fl = 0.78 + Math.sin(p.phase)*0.22;
+          var glow = ctx.createRadialGradient(0,-p.size*0.4,0,0,-p.size*0.4,p.size*1.4);
+          glow.addColorStop(0,'rgba(255,120,0,0.18)');
+          glow.addColorStop(1,'rgba(255,120,0,0)');
+          ctx.fillStyle=glow;
+          ctx.beginPath(); ctx.arc(0,-p.size*0.4,p.size*1.4,0,Math.PI*2); ctx.fill();
+          this.drawFlame(p.size*fl, 0.78, 1+Math.sin(p.phase*1.7)*0.12);
+          // inner brighter core
+          ctx.fillStyle='rgba(255,235,150,0.85)';
+          this.drawFlame(p.size*fl*0.5, 0.6, 1);
+          ctx.restore();
+          return;
+        }
+        ctx.globalAlpha=p.life*0.7;
         ctx.translate(p.x,p.y);
         var s=p.size;
         if(p.type==='flame'){
@@ -4631,11 +4687,16 @@ function createSeasonalCanvas(theme) {
         ctx.restore();
       },
       tick: function(p) {
+        if(p.type==='corner'){
+          p.phase += p.flick;
+          p.sway  += p.swaySpeed;
+          return;                         // anchored — never recycled
+        }
         p.wobble+=p.wobbleSpeed;
         p.x+=p.vx+Math.sin(p.wobble)*0.8;
         p.y+=p.vy;
         p.life-=p.decay;
-        if(p.life<=0||p.y<-s){
+        if(p.life<=0||p.y<-p.size){
           p.y=H+20; p.x=Math.random()*W;
           p.life=0.8+Math.random()*0.2;
           p.vy=-(0.8+Math.random()*2.0);
@@ -4837,7 +4898,7 @@ function createSeasonalCanvas(theme) {
   var cfg = configs[theme];
   if (!cfg) return;
 
-  for (var i=0;i<cfg.count;i++) particles.push(cfg.make());
+  for (var i=0;i<cfg.count;i++) particles.push(cfg.make(i));
 
   function loop() {
     if (isDead()) { cancelAnimationFrame(animId); document.removeEventListener('visibilitychange', onVis); return; }
@@ -5032,7 +5093,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   if (!navigator.onLine) { document.body.classList.add('offline'); }
   injectSeasonalStyles();
-  applySeasonalTheme(getCurrentSeasonalTheme());
+  // Optional manual override for previewing themes, e.g. ?season=hotsummer (?season=off disables)
+  var _seasonParam = (new URLSearchParams(location.search)).get('season');
+  if (_seasonParam === 'off') { applySeasonalTheme('default'); }
+  else if (_seasonParam && SEASONAL_THEMES[_seasonParam]) { applySeasonalTheme(_seasonParam); }
+  else { applySeasonalTheme(getCurrentSeasonalTheme()); }
   applyTheme(getInitialTheme());
   setupThemeToggle();
   setupAddressAutocomplete();
