@@ -1061,13 +1061,18 @@ body.dark-mode .miscues-textarea {
     overflow: visible !important;
   }
 
-  /* ── 13. Material tables — compact but readable ── */
+  /* ── 13. Material tables — compact but readable ──
+     Safari drops borders on border-collapse:collapse tables in print/PDF.
+     Use border-collapse:separate with border-spacing:0 and draw single
+     lines via cell right+bottom + table top+left. Renders in Safari. ── */
   table.mat-table {
     font-size: 9.5pt !important;
     width: 100% !important;
     table-layout: fixed !important;
-    border-collapse: collapse !important;
-    border: 1px solid #333 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-top: 1px solid #333 !important;
+    border-left: 1px solid #333 !important;
     page-break-inside: auto !important;
     break-inside: auto !important;
     display: table !important;
@@ -1089,7 +1094,9 @@ body.dark-mode .miscues-textarea {
 
   table.mat-table th,
   table.mat-table td {
-    border: 1px solid #333 !important;
+    border: none !important;
+    border-right: 1px solid #333 !important;
+    border-bottom: 1px solid #333 !important;
     padding: 0.75pt 1pt !important;
     text-align: center !important;
     font-size: 9.5pt !important;
@@ -1388,8 +1395,9 @@ body.dark-mode .miscues-textarea {
 
   table.mat-table {
     font-size: 7.5pt !important; width: 100% !important;
-    table-layout: fixed !important; border-collapse: collapse !important;
-    border: 1px solid #333 !important;
+    table-layout: fixed !important; border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-top: 1px solid #333 !important; border-left: 1px solid #333 !important;
     display: table !important; visibility: visible !important;
     -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
@@ -1400,7 +1408,9 @@ body.dark-mode .miscues-textarea {
     display: table-row !important; visibility: visible !important;
   }
   table.mat-table th, table.mat-table td {
-    font-size: 7.5pt !important; border: 1px solid #333 !important;
+    font-size: 7.5pt !important;
+    border: none !important;
+    border-right: 1px solid #333 !important; border-bottom: 1px solid #333 !important;
     padding: 0.5pt 1pt !important; display: table-cell !important;
     visibility: visible !important; opacity: 1 !important; line-height: 1.15 !important;
     overflow: hidden !important;
@@ -2693,7 +2703,7 @@ function setStatus(msg) {
 
     // ── mat-tables ──
     document.querySelectorAll('table.mat-table').forEach(el =>
-      save(el, 'display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;border:1px solid #333!important;visibility:visible!important;font-size:7.5pt!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:separate!important;border-spacing:0!important;border-top:1px solid #333!important;border-left:1px solid #333!important;visibility:visible!important;font-size:7.5pt!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table thead').forEach(el =>
       save(el, 'display:table-header-group!important;visibility:visible!important;'));
     document.querySelectorAll('table.mat-table tbody').forEach(el =>
@@ -2701,13 +2711,13 @@ function setStatus(msg) {
     document.querySelectorAll('table.mat-table tr').forEach(el =>
       save(el, 'display:table-row!important;visibility:visible!important;'));
     document.querySelectorAll('table.mat-table th').forEach(el =>
-      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:1px solid #333!important;background:#D35E13!important;color:#fff!important;white-space:nowrap!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:none!important;border-right:1px solid #333!important;border-bottom:1px solid #333!important;background:#D35E13!important;color:#fff!important;white-space:nowrap!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td').forEach(el =>
-      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:1px solid #333!important;line-height:1.15!important;overflow:hidden!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:none!important;border-right:1px solid #333!important;border-bottom:1px solid #333!important;line-height:1.15!important;overflow:hidden!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td.row-label').forEach(el =>
-      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:1px solid #333!important;text-align:left!important;font-weight:bold!important;background:#fafafa!important;color:#1F2937!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:none!important;border-right:1px solid #333!important;border-bottom:1px solid #333!important;text-align:left!important;font-weight:bold!important;background:#fafafa!important;color:#1F2937!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td.row-label.section-header').forEach(el =>
-      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:1px solid #333!important;background:#D35E13!important;color:#fff!important;text-align:center!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:none!important;border-right:1px solid #333!important;border-bottom:1px solid #333!important;background:#D35E13!important;color:#fff!important;text-align:center!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td input[type="number"]').forEach(el =>
       save(el, 'font-size:7.5pt!important;color:#1F2937!important;background:transparent!important;border:none!important;box-shadow:none!important;outline:none!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;text-align:center!important;padding:0!important;display:block!important;-webkit-appearance:none!important;-webkit-print-color-adjust:exact!important;'));
   }
