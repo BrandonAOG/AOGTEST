@@ -644,6 +644,23 @@ body.dark-mode .miscues-textarea {
     print-color-adjust: exact !important;
   }
 
+  /* ── 1a. BULLETPROOF dark-mode kill ──
+     When a hardware printer is detected, WebKit's native print sheet can
+     snapshot the page before the JS removes the .dark-mode class (the
+     events race the OS sheet). With print-color-adjust:exact, any dark
+     background that slipped through gets printed verbatim → "bleed".
+     This wipes every dark background/shadow regardless of the class state.
+     The intended light surfaces (orange headers, zebra rows, YN pills) are
+     re-applied by the higher-specificity rules below, so they survive. ── */
+  body.dark-mode,
+  body.dark-mode * {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+  }
+
   /* ── 1b. Neutralize dark-mode's hardcoded (non-variable) colors so
      print is always light even if the dark-mode class is still on the
      body when the print/preview renders (some printers fire events that
@@ -1050,6 +1067,7 @@ body.dark-mode .miscues-textarea {
     width: 100% !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
+    border: 1px solid #333 !important;
     page-break-inside: auto !important;
     break-inside: auto !important;
     display: table !important;
@@ -1071,7 +1089,7 @@ body.dark-mode .miscues-textarea {
 
   table.mat-table th,
   table.mat-table td {
-    border: 0.5pt solid #333 !important;
+    border: 1px solid #333 !important;
     padding: 0.75pt 1pt !important;
     text-align: center !important;
     font-size: 9.5pt !important;
@@ -1371,7 +1389,7 @@ body.dark-mode .miscues-textarea {
   table.mat-table {
     font-size: 7.5pt !important; width: 100% !important;
     table-layout: fixed !important; border-collapse: collapse !important;
-    border: 0.5pt solid #333 !important;
+    border: 1px solid #333 !important;
     display: table !important; visibility: visible !important;
     -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
@@ -1382,7 +1400,7 @@ body.dark-mode .miscues-textarea {
     display: table-row !important; visibility: visible !important;
   }
   table.mat-table th, table.mat-table td {
-    font-size: 7.5pt !important; border: 0.5pt solid #333 !important;
+    font-size: 7.5pt !important; border: 1px solid #333 !important;
     padding: 0.5pt 1pt !important; display: table-cell !important;
     visibility: visible !important; opacity: 1 !important; line-height: 1.15 !important;
     overflow: hidden !important;
@@ -1970,7 +1988,7 @@ function injectCaptureStyles() {
     .tables-split { display:flex!important; flex-direction:row!important; gap:0 6pt!important; width:100%!important; }
     .tables-split .tables-col { flex:1 1 50%!important; min-width:0!important; width:50%!important; }
     table.mat-table { font-size:9.5pt!important; width:100%!important; border-collapse:collapse!important; table-layout:fixed!important; }
-    table.mat-table th, table.mat-table td { font-size:9.5pt!important; border:0.5pt solid #333!important; padding:0.75pt 1pt!important; overflow:visible!important; }
+    table.mat-table th, table.mat-table td { font-size:9.5pt!important; border:1px solid #333!important; padding:0.75pt 1pt!important; overflow:visible!important; }
     table.mat-table th { background:#D35E13!important; color:#fff!important; }
     table.mat-table td { overflow:visible!important; vertical-align:middle!important; height:auto!important; padding:3px!important; }
     table.mat-table td input[type="number"] { height:auto!important; line-height:1.2!important; overflow:visible!important; display:block!important; box-sizing:border-box!important; padding:0!important; font-size:9pt!important; }
@@ -2675,7 +2693,7 @@ function setStatus(msg) {
 
     // ── mat-tables ──
     document.querySelectorAll('table.mat-table').forEach(el =>
-      save(el, 'display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;border:0.5pt solid #333!important;visibility:visible!important;font-size:7.5pt!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table!important;width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;border:1px solid #333!important;visibility:visible!important;font-size:7.5pt!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table thead').forEach(el =>
       save(el, 'display:table-header-group!important;visibility:visible!important;'));
     document.querySelectorAll('table.mat-table tbody').forEach(el =>
@@ -2683,13 +2701,13 @@ function setStatus(msg) {
     document.querySelectorAll('table.mat-table tr').forEach(el =>
       save(el, 'display:table-row!important;visibility:visible!important;'));
     document.querySelectorAll('table.mat-table th').forEach(el =>
-      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;background:#D35E13!important;color:#fff!important;white-space:nowrap!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:1px solid #333!important;background:#D35E13!important;color:#fff!important;white-space:nowrap!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td').forEach(el =>
-      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;line-height:1.15!important;overflow:hidden!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:1px solid #333!important;line-height:1.15!important;overflow:hidden!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td.row-label').forEach(el =>
-      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;text-align:left!important;font-weight:bold!important;background:#fafafa!important;color:#1F2937!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:1px solid #333!important;text-align:left!important;font-weight:bold!important;background:#fafafa!important;color:#1F2937!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td.row-label.section-header').forEach(el =>
-      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:0.5pt solid #333!important;background:#D35E13!important;color:#fff!important;text-align:center!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
+      save(el, 'display:table-cell!important;visibility:visible!important;font-size:7.5pt!important;padding:0.5pt 1pt!important;border:1px solid #333!important;background:#D35E13!important;color:#fff!important;text-align:center!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;'));
     document.querySelectorAll('table.mat-table td input[type="number"]').forEach(el =>
       save(el, 'font-size:7.5pt!important;color:#1F2937!important;background:transparent!important;border:none!important;box-shadow:none!important;outline:none!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;text-align:center!important;padding:0!important;display:block!important;-webkit-appearance:none!important;-webkit-print-color-adjust:exact!important;'));
   }
@@ -2748,13 +2766,16 @@ function setStatus(msg) {
 
   // Safari fires beforeprint/afterprint unreliably (especially when a real
   // printer is detected and a richer preview sheet is shown). matchMedia
-  // 'print' is the more dependable signal in WebKit — use it to force light
-  // when print starts and restore when it ends.
+  // 'print' is the more dependable signal in WebKit for ENTERING print.
+  // We deliberately do NOT restore dark on the matchMedia 'false' edge:
+  // the printer's native sheet can transiently flip 'matches' to false
+  // while the preview is still on screen, which would re-add dark mode and
+  // bleed into the printout. Restore is handled only by afterprint and the
+  // safety timer, which fire after the preview is truly dismissed.
   if (window.matchMedia) {
     var mql = window.matchMedia('print');
     var mqlHandler = function(m) {
-      if (m.matches) forceLightForPrint();   // entering print/preview
-      else restoreDark();                    // leaving print/preview
+      if (m.matches) forceLightForPrint();   // entering print/preview only
     };
     if (mql.addEventListener) mql.addEventListener('change', mqlHandler);
     else if (mql.addListener) mql.addListener(mqlHandler);   // older WebKit
