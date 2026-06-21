@@ -305,6 +305,21 @@ input[type="date"] {
   -webkit-appearance: none; appearance: none;
   caret-color: var(--cyan); max-width: 100%; flex: 1; min-width: 80px;
   cursor: pointer; text-align: left;
+  display: inline-flex; align-items: center; justify-content: flex-start;
+}
+/* Safari/WebKit: the date value lives in a shadow editor that centers by
+   default — pin it to the left so it matches other fields */
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+input[type="date"]::-webkit-datetime-edit {
+  text-align: left;
+  -webkit-flex: 0 1 auto;
+  flex: 0 1 auto;
+}
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  text-align: left;
+  justify-content: flex-start;
 }
 input[type="date"]:focus {
   border-bottom-color: var(--cyan); background: rgba(211,94,19,0.04);
@@ -1544,7 +1559,7 @@ body.dark-mode .miscues-textarea {
 
     <div class="other-section">
       <div class="other-title">OTHER / NOTES</div>
-      <textarea class="multiline" rows="5" placeholder="Enter other notes here…" style="width:100%;resize:none;min-height:90px;"></textarea>
+      <textarea class="multiline" rows="5" placeholder="Enter other notes here…" style="width:100%;resize:none;min-height:90px;"></textarea><div class="print-proxy"></div>
     </div>
 
   </div><!-- end page2 -->
@@ -1749,7 +1764,7 @@ const SAVE_KEY = 'aog_gas_install_v1';
 let saveTimer = null;
 
 function collectState() {
-  const d = { inputs: {}, numbers: {}, checks: {} };
+  const d = { inputs: {}, numbers: {}, checks: {}, dates: {} };
   document.querySelectorAll('input[type="text"], textarea').forEach((el, i) => {
     d.inputs['i' + i] = el.value;
   });
@@ -1758,6 +1773,9 @@ function collectState() {
   });
   document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
     d.checks['c' + i] = el.checked;
+  });
+  document.querySelectorAll('input[type="date"]').forEach((el, i) => {
+    d.dates['d' + i] = el.value;
   });
   return d;
 }
@@ -1777,6 +1795,9 @@ function restoreState(d) {
         w.classList.toggle('checked', el.checked);
     }
   });
+  document.querySelectorAll('input[type="date"]').forEach((el, i) => {
+    if (d.dates && d.dates['d' + i] !== undefined) el.value = d.dates['d' + i];
+  });
 }
 function doSave() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(collectState())); } catch(e) {}
@@ -1784,12 +1805,12 @@ function doSave() {
   setTimeout(() => setStatus(''), 2000);
 }
 document.addEventListener('input', e => {
-  if (e.target.matches('input[type="text"], textarea, input[type="number"]')) {
+  if (e.target.matches('input[type="text"], textarea, input[type="number"], input[type="date"]')) {
     clearTimeout(saveTimer); saveTimer = setTimeout(doSave, 1200);
   }
 });
 document.addEventListener('change', e => {
-  if (e.target.matches('input[type="checkbox"]')) {
+  if (e.target.matches('input[type="checkbox"], input[type="date"]')) {
     clearTimeout(saveTimer); saveTimer = setTimeout(doSave, 1200);
   }
 });
@@ -1808,7 +1829,7 @@ window.addEventListener('DOMContentLoaded', () => {
 ================================================================ */
 function clearForm() {
   if (!confirm('Clear all fields? This cannot be undone.')) return;
-  document.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(el => el.value = '');
+  document.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], textarea').forEach(el => el.value = '');
   document.querySelectorAll('input[type="checkbox"]').forEach(el => {
     el.checked = false;
     const w = el.parentElement;
@@ -1863,6 +1884,8 @@ function injectCaptureStyles() {
     .section { margin-bottom:0.5pt!important; }
     .inline-input, .full-line-input { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding:1pt 2pt 0 2pt!important; overflow:visible!important; background:transparent!important; border-top:none!important; border-left:none!important; border-right:none!important; border-bottom:0.5pt solid #999!important; }
     input[type="text"], input[type="date"] { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding:1pt 2pt 0 2pt!important; overflow:visible!important; background:transparent!important; color:#1F2937!important; }
+    input[type="date"] { text-align:left!important; display:inline-flex!important; justify-content:flex-start!important; }
+    input[type="date"]::-webkit-datetime-edit, input[type="date"]::-webkit-date-and-time-value, input[type="date"]::-webkit-datetime-edit-fields-wrapper { text-align:left!important; justify-content:flex-start!important; }
     .full-line-input { width:100%!important; box-sizing:border-box!important; }
     .field-row input[type="text"], .field-row input[type="date"] { flex:1 1 auto!important; width:auto!important; min-width:0!important; box-sizing:border-box!important; }
     .section-row .inline-input:not(.xshort) { flex:1 1 auto!important; width:auto!important; min-width:40px!important; box-sizing:border-box!important; }
@@ -1892,8 +1915,57 @@ function injectCaptureStyles() {
     .reg-row { font-size:8.5pt!important; line-height:1.35!important; }
   `;
   document.head.appendChild(el);
+  populateCaptureProxies();
+}
+/* ----------------------------------------------------------------
+   html2canvas can't wrap <textarea> text — it renders on one line.
+   Swap each textarea for its sibling .print-proxy <div> (which wraps
+   normally) during capture, then swap back afterward.
+---------------------------------------------------------------- */
+function populateCaptureProxies() {
+  document.querySelectorAll('textarea.multiline, .miscues-textarea').forEach(ta => {
+    const proxy = ta.nextElementSibling;
+    if (proxy && proxy.classList.contains('print-proxy')) {
+      proxy.textContent = ta.value;
+      const cs = window.getComputedStyle(ta);
+      const s = proxy.style;
+      s.setProperty('display', 'block', 'important');
+      s.setProperty('white-space', 'pre-wrap', 'important');
+      s.setProperty('word-wrap', 'break-word', 'important');
+      s.setProperty('overflow-wrap', 'break-word', 'important');
+      s.setProperty('word-break', 'break-word', 'important');
+      s.setProperty('width', '100%', 'important');
+      s.setProperty('min-height', ta.offsetHeight + 'px', 'important');
+      s.setProperty('box-sizing', 'border-box', 'important');
+      s.setProperty('font-size', cs.fontSize, 'important');
+      s.setProperty('font-family', cs.fontFamily, 'important');
+      s.setProperty('line-height', '1.4', 'important');
+      s.setProperty('padding', '4px 6px', 'important');
+      s.setProperty('border', '1px solid #999', 'important');
+      s.setProperty('border-radius', '3px', 'important');
+      s.setProperty('background', '#fff', 'important');
+      s.setProperty('color', '#1F2937', 'important');
+      s.setProperty('text-align', 'left', 'important');
+      // hide the textarea while its proxy stands in
+      ta.dataset._captureHidden = '1';
+      ta.style.setProperty('display', 'none', 'important');
+    }
+  });
+}
+function clearCaptureProxies() {
+  document.querySelectorAll('textarea.multiline, .miscues-textarea').forEach(ta => {
+    if (ta.dataset._captureHidden) {
+      ta.style.removeProperty('display');
+      delete ta.dataset._captureHidden;
+    }
+  });
+  document.querySelectorAll('.print-proxy').forEach(p => {
+    p.textContent = '';
+    p.removeAttribute('style');
+  });
 }
 function removeCaptureStyles() {
+  clearCaptureProxies();
   const el = document.getElementById('capture-print-styles');
   if (el) el.remove();
 }
