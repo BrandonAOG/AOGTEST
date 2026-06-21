@@ -112,7 +112,6 @@ body.dark-mode {
    ============================================================ */
 .action-bar {
   position: fixed !important;
-  top: constant(safe-area-inset-top, 0px) !important;
   top: env(safe-area-inset-top, 0px) !important; left: 0 !important; right: 0 !important;
   z-index: 99999;
   width: 100%;
@@ -183,7 +182,6 @@ body.dark-mode .theme-icon.theme-icon-moon { opacity:1; transform:rotate(0deg); 
 .page-wrapper {
   width: 100%; max-width: 1050px; margin: 0 auto;
   display: flex; flex-direction: column;
-  padding-top: calc(44px + constant(safe-area-inset-top, 0px));
   padding-top: calc(44px + env(safe-area-inset-top, 0px));
 }
 .form-page {
@@ -1011,29 +1009,35 @@ body.dark-mode .miscues-textarea {
 
   /* ── 12. Table splits ── */
   .tables-split {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 0 4pt !important;
+    display: table !important;
+    table-layout: fixed !important;
     width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 4pt 0 !important;
   }
-  /* ── Tables split (page 2) ── */
+  .tables-split .tables-col {
+    display: table-cell !important;
+    width: 50% !important;
+    vertical-align: top !important;
+    min-width: 0 !important;
+  }
+  /* ── Tables split (page 2) ──
+     Use CSS table layout, NOT flexbox. Old iOS Safari collapses flex
+     containers in the print/PDF pipeline (columns overlap or stack).
+     CSS tables print reliably across old Safari. ── */
   .page2-tables-split {
-    display: -webkit-box !important;
-    display: -webkit-flex !important;
-    display: flex !important;
-    -webkit-flex-direction: row !important;
-    flex-direction: row !important;
-    gap: 0 6pt !important;
+    display: table !important;
+    table-layout: fixed !important;
     width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 6pt 0 !important;
     margin-bottom: 3pt !important;
   }
   .page2-tables-split .tables-col {
-    -webkit-box-flex: 1 !important;
-    -webkit-flex: 1 1 50% !important;
-    flex: 1 1 50% !important;
-    min-width: 0 !important;
+    display: table-cell !important;
     width: 50% !important;
-    display: block !important;
+    vertical-align: top !important;
+    min-width: 0 !important;
   }
   .grid-section {
     margin-bottom: 3.5pt !important;
@@ -2848,14 +2852,8 @@ function adjustTopPadding() {
   const bar = document.getElementById('action-bar');
   const wrapper = document.querySelector('.page-wrapper');
   const status = document.getElementById('save-status');
-  // Use the bar's actual bottom edge (relative to the viewport) rather than
-  // just its height. Because the bar is fixed at top:env(safe-area-inset-top),
-  // getBoundingClientRect().bottom = inset + barHeight, so this also clears the
-  // status-bar inset in a standalone PWA / on older iOS. offsetHeight alone
-  // dropped the inset and let the header slide under the bar.
-  const barBottom = bar ? Math.ceil(bar.getBoundingClientRect().bottom) : 0;
-  if (bar && wrapper) wrapper.style.paddingTop = barBottom + 'px';
-  if (bar && status) status.style.top = barBottom + 'px';
+  if (bar && wrapper) wrapper.style.paddingTop = bar.offsetHeight + 'px';
+  if (bar && status) status.style.top = bar.offsetHeight + 'px';
 }
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load', adjustTopPadding);
