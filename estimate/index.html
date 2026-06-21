@@ -17,7 +17,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#FBBF24">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AOG Forms">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
@@ -1357,6 +1357,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; gap: 4px; flex-wrap: nowrap; align-items: center;
   overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
@@ -2048,8 +2049,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 <div class="action-bar" id="action-bar">
   <a class="ab-btn" href="../">🏠 HOME</a>
   <a class="ab-btn" onclick="printForm()" style="cursor:pointer;">📄 PDF</a>
-  <a class="ab-btn" id="btn-iphone" onclick="saveForIPhone()" style="cursor:pointer;">📱 iPHONE</a>
-  <a class="ab-btn" id="btn-android" onclick="saveForAndroid()" style="cursor:pointer;">🤖 ANDROID</a>
+  <a class="ab-btn" id="btn-capture" onclick="saveSmart()" style="cursor:pointer;">📸 CAPTURE</a>
   <a class="ab-btn" onclick="sendEmail()" style="cursor:pointer;">✉ EMAIL</a>
   <a class="ab-btn" onclick="confirmClear()" style="cursor:pointer;">🗑 CLEAR</a>
   <a class="ab-btn" onclick="saveAsExcel()" style="cursor:pointer;">📊 EXCEL</a>
@@ -3139,8 +3139,18 @@ function cropCanvasToContent(canvas) {
   }
 }
 
-function capturePageToCanvas() {
+function capturePageToCanvas(_fontsReady) {
   return new Promise(function(resolve, reject) {
+    // Wait for web fonts to finish loading before rendering. Without this, a
+    // capture fired before 'Share Tech Mono' loads falls back to the heavier
+    // system monospace — which is why the footer "© 2026…" line came out bold.
+    if (!_fontsReady && document.fonts && document.fonts.ready) {
+      var fontPromises = [document.fonts.ready];
+      try { fontPromises.push(document.fonts.load("12px 'Share Tech Mono'")); } catch (e) {}
+      var rerun = function () { capturePageToCanvas(true).then(resolve, reject); };
+      Promise.all(fontPromises).then(rerun, rerun);
+      return;
+    }
     if (typeof html2canvas === 'undefined') {
       reject(new Error('html2canvas not loaded'));
       return;
@@ -3570,7 +3580,7 @@ function capturePageToCanvas() {
           }
         }).then(function(canvas) {
           restore();
-          resolve(addCaptureMargin(cropCanvasToContent(canvas)));
+          resolve(padCanvasToLetter(addCaptureMargin(cropCanvasToContent(canvas))));
         }).catch(function(err) {
           restore();
           reject(err);
@@ -3582,6 +3592,31 @@ function capturePageToCanvas() {
     }); });
     });
   });
+}
+
+// Pad a captured canvas with white to exact US-Letter proportions (8.5:11) so
+// that printing/placing the image on a Letter page fills it without cropping the
+// top/bottom. The form is taller than Letter, so this pads the WIDTH (white side
+// bars) until height/width matches 11/8.5; content stays centered.
+function padCanvasToLetter(canvas) {
+  try {
+    var targetRatio = 11 / 8.5;            // height / width for US Letter (portrait)
+    var w = canvas.width, h = canvas.height;
+    var nw = w, nh = h;
+    if (h / w > targetRatio) {             // too tall → add width (side margins)
+      nw = Math.round(h / targetRatio);
+    } else {                               // too wide → add height (top/bottom margins)
+      nh = Math.round(w * targetRatio);
+    }
+    if (nw === w && nh === h) return canvas;
+    var out = document.createElement('canvas');
+    out.width = nw; out.height = nh;
+    var ctx = out.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, nw, nh);
+    ctx.drawImage(canvas, Math.round((nw - w) / 2), Math.round((nh - h) / 2));
+    return out;
+  } catch (e) { return canvas; }
 }
 
 // Wrap a captured canvas in a uniform 0.15in white margin on all sides.
@@ -3601,6 +3636,81 @@ function addCaptureMargin(canvas) {
 }
 
 // ── iPHONE SAVE ──
+// ── SMART CAPTURE — one button, auto-detects device (iPhone + Android) ──
+// Works like the Permitting Info form: renders the page once, then uses the
+// native Share sheet when available, falling back to a long-press overlay on
+// iOS or a direct download on Android/desktop.
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function canShareFiles() {
+  try {
+    var probe = new File([new Blob(['x'], { type: 'text/plain' })], 'x.txt', { type: 'text/plain' });
+    return !!(navigator.canShare && navigator.canShare({ files: [probe] }));
+  } catch (e) { return false; }
+}
+function dataURLtoFile(dataURL, filename) {
+  var arr = dataURL.split(','), mime = (arr[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+  var bstr = atob(arr[1]), n = bstr.length, u8 = new Uint8Array(n);
+  while (n--) u8[n] = bstr.charCodeAt(n);
+  return new File([u8], filename, { type: mime });
+}
+function smartDirectDownload(dataURL, filename) {
+  var link = document.createElement('a');
+  link.download = filename; link.href = dataURL;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  setStatus('Saved: ' + filename);
+  setTimeout(function () { setStatus(''); }, 4000);
+}
+function showSmartOverlay(dataURL, filename) {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:999999;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch;box-sizing:border-box;';
+  var closeBtn = document.createElement('button');
+  closeBtn.style.cssText = 'position:sticky;top:60px;background:#DC2626;color:#fff;border:none;border-radius:6px;padding:12px 28px;font-size:15px;cursor:pointer;font-weight:bold;z-index:1000000;align-self:center;margin-top:60px;margin-bottom:12px;';
+  closeBtn.textContent = 'X Close';
+  var lbl = document.createElement('div');
+  lbl.style.cssText = 'color:#4ade80;font-size:13px;margin:8px 0;text-align:center;line-height:1.6;padding:0 12px;flex-shrink:0;';
+  lbl.innerHTML = '<b>' + filename + '</b><br>Long-press the image below, then tap "Add to Photos"';
+  var img = document.createElement('img');
+  img.style.cssText = 'width:100%;display:block;border:none;';
+  img.src = dataURL; img.alt = filename.replace(/\.jpg$/, '');
+  overlay.appendChild(closeBtn); overlay.appendChild(lbl); overlay.appendChild(img);
+  document.body.appendChild(overlay);
+  closeBtn.onclick = function () { document.body.removeChild(overlay); setStatus(''); };
+  setStatus('Ready — long-press image to save.');
+}
+function saveSmart() {
+  // Older Android / desktop without file sharing → direct download path.
+  if (!canShareFiles() && !isIOSDevice()) { saveForAndroid(); return; }
+  setStatus('Rendering… please wait');
+  var filename = getEstimateFilename('jpg');
+  setTimeout(function () {
+    capturePageToCanvas().then(function (canvas) {
+      var dataURL = canvas.toDataURL('image/jpeg', 0.92);
+      if (canShareFiles()) {
+        var file = dataURLtoFile(dataURL, filename);
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file] }).then(function () {
+            setStatus('');
+          }).catch(function (err) {
+            if (err && err.name === 'AbortError') { setStatus(''); }       // user cancelled
+            else if (isIOSDevice()) { showSmartOverlay(dataURL, filename); }
+            else { smartDirectDownload(dataURL, filename); }
+          });
+          return;
+        }
+      }
+      if (isIOSDevice()) { showSmartOverlay(dataURL, filename); }
+      else { smartDirectDownload(dataURL, filename); }
+    }).catch(function (err) {
+      setStatus(typeof html2canvas === 'undefined'
+        ? 'Image library failed to load. Try the PDF button instead.'
+        : 'Render failed. Try the PDF button instead.');
+    });
+  }, 250);
+}
+
 function saveForIPhone() {
   setStatus('Rendering… please wait');
 
