@@ -1094,7 +1094,7 @@ body.dark-mode .miscues-textarea {
     overflow: hidden !important;
     opacity: 0 !important;
   }
-  .print-proxy {
+  #page1 .print-proxy {
     font-size: 9pt !important;
     line-height: 1.1 !important;
     height: 59pt !important;
@@ -1110,6 +1110,7 @@ body.dark-mode .miscues-textarea {
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
   }
+  #page2 .print-proxy { display: none !important; }
 
   /* ── 15. Other/Notes (page 2) — compact ── */
   .other-section { padding-top: 3pt !important; }
@@ -1259,7 +1260,7 @@ body.dark-mode .miscues-textarea {
     overflow: hidden !important;
     opacity: 0 !important;
   }
-  .print-proxy {
+  #page1 .print-proxy {
     font-size: 9pt !important;
     line-height: 1.1 !important;
     height: 59pt !important;
@@ -1271,6 +1272,7 @@ body.dark-mode .miscues-textarea {
     background: #fff !important; border: 0.5pt solid #bbb !important;
     white-space: pre-wrap !important; word-wrap: break-word !important;
   }
+  #page2 .print-proxy { display: none !important; }
 
   .reg-title {
     width: 100% !important; font-size: 9.5pt !important;
@@ -2359,9 +2361,11 @@ function setStatus(msg) {
     document.querySelectorAll('#page1 textarea.multiline, .miscues-textarea').forEach(el => {
       save(el, 'display:none!important;visibility:hidden!important;position:absolute!important;height:0!important;width:0!important;overflow:hidden!important;opacity:0!important;');
     });
-    document.querySelectorAll('.print-proxy').forEach(el =>
+    document.querySelectorAll('#page1 .print-proxy').forEach(el =>
       save(el, 'font-size:9pt!important;line-height:1.1!important;height:59pt!important;min-height:59pt!important;max-height:59pt!important;padding:1pt 2pt!important;overflow:hidden!important;display:block!important;width:100%!important;background:#fff!important;border:0.5pt solid #bbb!important;white-space:pre-wrap!important;word-wrap:break-word!important;'));
-    document.querySelectorAll('.print-proxy').forEach(el => {
+    document.querySelectorAll('#page2 .print-proxy').forEach(el =>
+      save(el, 'display:none!important;'));
+    document.querySelectorAll('#page1 .print-proxy').forEach(el => {
       el.style.setProperty('font-size', '9pt', 'important');
     });
 
@@ -2477,7 +2481,7 @@ function setStatus(msg) {
 ================================================================ */
 (function() {
   function populateProxies() {
-    document.querySelectorAll('textarea.multiline, .miscues-textarea').forEach(ta => {
+    document.querySelectorAll('#page1 textarea.multiline, #page1 .miscues-textarea').forEach(ta => {
       const proxy = ta.nextElementSibling;
       if (proxy && proxy.classList.contains('print-proxy')) {
         proxy.textContent = ta.value;
@@ -2504,7 +2508,7 @@ function setStatus(msg) {
     });
   }
   function clearProxies() {
-    document.querySelectorAll('textarea.multiline, .miscues-textarea').forEach(ta => {
+    document.querySelectorAll('#page1 textarea.multiline, #page1 .miscues-textarea').forEach(ta => {
       if (ta._printVal !== undefined) {
         ta.value = ta._printVal;
         delete ta._printVal;
