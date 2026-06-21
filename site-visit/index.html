@@ -647,6 +647,10 @@ body.dark-mode .notice { color: #7DD3FC; }
    PRINT STYLES — desktop (untouched from original)
    ========================================================== */
 @page { size: 8.5in 11in; margin: 0.1in 0.15in; }
+/* MOBILE PRINT ONLY: drop paper top/bottom margin, keep 0.15in sides. */
+@media print and (max-width: 767px) {
+  @page { margin: 0 0.15in; }
+}
 
 /* "@media print, body.printing" below has an invalid body.printing media query
    that never matches on screen, so the print preview kept showing screen padding.
@@ -676,6 +680,10 @@ body.printing.mobile-printing #page2 table.mat-table td.row-label { padding: 6.5
    border — use full width and no scale on mobile so it fits the page. */
 body.printing.mobile-printing #page2-inner { width: 100% !important; max-width: 100% !important; transform: none !important; transform-origin: top left !important; margin: 0 !important; }
 body.printing.mobile-printing #page2 { width: 100% !important; max-width: 100% !important; transform: none !important; overflow: visible !important; }
+/* MOBILE PRINT ONLY: remove top/bottom page margins (keep side margins). */
+body.printing.mobile-printing .form-page,
+body.printing.mobile-printing #page1,
+body.printing.mobile-printing #page2 { padding-top: 0 !important; padding-bottom: 0 !important; }
 body.printing.mobile-printing #page2 table.mat-table { width: 100% !important; table-layout: fixed !important; }
 
 @media print, body.printing {
