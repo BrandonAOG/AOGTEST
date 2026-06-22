@@ -1766,7 +1766,7 @@ body.dark-mode .miscues-textarea {
 <!-- ========== ACTION BAR ========== -->
 <div class="action-bar" id="action-bar">
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
-  <button class="btn" onclick="document.body.classList.add('printing'); document.title = buildFileName('pdf', null).replace('.pdf',''); setTimeout(function(){ document.body.classList.remove('printing'); }, 10000); window.print();">📄 PDF</button>
+  <button class="btn" onclick="triggerPrint()">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
@@ -2200,6 +2200,44 @@ if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
     document.body.style.webkitTextSizeAdjust = '';
     document.body.style.textSizeAdjust = '';
   });
+
+  /* ----------------------------------------------------------------
+     triggerPrint() — fixes the "first print is wrong" bug on Mobile
+     Safari. Instead of calling window.print() immediately (which lets
+     Safari snapshot the page BEFORE the print viewport/layout has been
+     applied on the first tap), we:
+       1. force the print layout (.printing class + filename),
+       2. apply the 1050px print viewport/width up front (don't wait for
+          the beforeprint event, which fires too late the first time),
+       3. wait two animation frames so Safari commits the new layout,
+       4. THEN print.
+     Result: the first print matches every subsequent print.
+  ---------------------------------------------------------------- */
+  window.triggerPrint = function() {
+    document.body.classList.add('printing');
+    try { document.title = buildFileName('pdf', null).replace('.pdf',''); } catch (e) {}
+
+    // Pre-apply the same print viewport/width the beforeprint handler uses,
+    // so the very first print already renders at full desktop width.
+    if (isIOS) {
+      if (metaViewport) metaViewport.setAttribute('content', 'width=1050, initial-scale=1.0');
+      document.body.style.width = '1050px';
+      document.body.style.maxWidth = '1050px';
+      document.body.style.webkitTextSizeAdjust = 'none';
+      document.body.style.textSizeAdjust = 'none';
+    }
+
+    // Safety: drop the printing class after a while in case afterprint
+    // never fires (Mobile Safari sometimes skips it).
+    setTimeout(function(){ document.body.classList.remove('printing'); }, 10000);
+
+    // Wait two frames so the layout above is actually committed, then print.
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        window.print();
+      });
+    });
+  };
 })();
 const SAVE_KEY = 'aog_gas_install_v1';
 let saveTimer = null;
