@@ -1467,6 +1467,107 @@ body.dark-mode .miscues-textarea {
 @media print {
   .action-bar { display: none !important; }
 }
+
+/* ===== MOBILE PAGE-1 — CARD + STACKED ROWS (screen only) =====
+   Each section becomes a card; each row stacks its label on its own line with
+   checkboxes/inputs flowing below. Labels are wrapped by labelPage1Rows() in
+   JS. Desktop and print are untouched. Page-2 matrix tables are left as-is. */
+@media screen and (max-width: 767px) {
+  #page1 hr.section-hr { display: none !important; }
+
+  /* Section = card. */
+  #page1 .section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  body.dark-mode #page1 .section { border-color: var(--border-bright); }
+
+  #page1 .section-title {
+    font-size: 13px !important;
+    margin: 0 0 10px !important;
+    padding-bottom: 6px !important;
+  }
+
+  /* Stack rows: label full-width line, controls wrap beneath. */
+  #page1 .section-row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px 8px !important;
+    margin-bottom: 14px !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+  }
+  #page1 .section-row:last-child { margin-bottom: 0 !important; }
+
+  /* The wrapped leading label gets its own full-width line. */
+  #page1 .section-row .row-label-text {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+    font-weight: 600 !important;
+  }
+  /* Bold labels (<b>) inside the wrap shouldn't double up weight oddly. */
+  #page1 .section-row .row-label-text b { font-weight: 700 !important; }
+
+  /* Free-text inputs full width (override inline style widths). */
+  #page1 .section-row .inline-input {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    border: 1px solid var(--border-bright) !important;
+    border-radius: 6px !important;
+    padding: 2px 10px !important;
+    background: var(--bg) !important;
+    font-size: 16px !important;
+  }
+  #page1 .section-row .full-line-input {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    height: 40px !important;
+    border: 1px solid var(--border-bright) !important;
+    border-radius: 6px !important;
+    padding: 2px 10px !important;
+    background: var(--bg) !important;
+    font-size: 16px !important;
+  }
+
+  /* Checkbox pills: bigger, easy to tap, flow below the label. */
+  #page1 .section-row .yn-checkbox-wrap {
+    font-size: 13px !important;
+    padding: 6px 12px 6px 8px !important;
+    border-radius: 6px !important;
+  }
+  #page1 .section-row .yn-checkbox-wrap input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 5px 0 0 !important;
+  }
+
+  /* Multiline textareas (Needs Completed / Why Not) full width. */
+  #page1 .section-row .multiline {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border: 1px solid var(--border-bright) !important;
+    border-radius: 6px !important;
+    padding: 8px 10px !important;
+    min-height: 90px !important;
+    font-size: 16px !important;
+    background: var(--bg) !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -1800,6 +1901,41 @@ function applyYNColors() {
     sync();
   });
 }
+
+// ===== MOBILE PAGE-1 — WRAP ROW LABELS =====
+// Each .section-row begins with bare label text (e.g. "Natural Gas: ") before
+// its checkboxes/inputs. To put the label on its own line in the mobile card
+// layout, wrap that leading text in <span class="row-label-text">. Runs BEFORE
+// applyYNColors so it only touches the question label, not the YES/NO text.
+function labelPage1Rows() {
+  var p1 = document.getElementById('page1');
+  if (!p1) return;
+  p1.querySelectorAll('.section-row').forEach(function (row) {
+    if (row.querySelector('.row-label-text')) return;            // already done
+    // Skip rows that are just a full-width input or textarea with no label.
+    var first = row.firstChild;
+    // Walk leading nodes, collecting text/<b> until we hit an input/checkbox/textarea.
+    var labelNodes = [];
+    var n = first;
+    while (n) {
+      if (n.nodeType === 1 && /^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName)) break;
+      if (n.nodeType === 1 && n.classList && n.classList.contains('yn-checkbox-wrap')) break;
+      labelNodes.push(n);
+      n = n.nextSibling;
+    }
+    if (!labelNodes.length) return;
+    // Only wrap if there's actual label text (not just whitespace).
+    var txt = labelNodes.map(function (x) { return x.textContent; }).join('').trim();
+    if (!txt) return;
+    var span = document.createElement('span');
+    span.className = 'row-label-text';
+    row.insertBefore(span, labelNodes[0]);
+    labelNodes.forEach(function (x) { span.appendChild(x); });
+  });
+}
+document.addEventListener('DOMContentLoaded', labelPage1Rows);
+if (document.readyState !== 'loading') labelPage1Rows();
+
 document.addEventListener('DOMContentLoaded', applyYNColors);
 if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
 
