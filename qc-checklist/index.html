@@ -525,8 +525,6 @@ body.offline { padding-top: 0; }
 /* ── WRAPPER ── */
 .wrapper {
   padding-top: 54px;
-  padding-top: calc(54px + constant(safe-area-inset-top, 0px));
-  padding-top: calc(54px + env(safe-area-inset-top, 0px));
   padding-bottom: 20px;
   display: flex; flex-direction: column; align-items: center; gap: 20px;
 }
@@ -1054,6 +1052,80 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
 }
 
 body.mobile-safari { -webkit-print-color-adjust: exact; }
+</style>
+<style>
+/* ============================================================
+   MOBILE — STYLISH CARDS (screen only; off during capture & print)
+   Each section and the header info block become rounded panel cards.
+   ============================================================ */
+@media screen and (max-width: 600px) {
+  /* Let the page act as a transparent frame so the cards stand on their own. */
+  body:not(.capturing) .page {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 4px 10px !important;
+  }
+  body.dark-mode:not(.capturing) .page {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Header / customer-info block = card. */
+  body:not(.capturing) .page-header {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel);
+    padding: 12px 14px !important;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  body.dark-mode:not(.capturing) .page-header { border-color: var(--border-bright); }
+  /* The info grid was pulled left to sit under the logo; inside a padded card
+     it should align normally. */
+  body:not(.capturing) .info-grid { margin-left: 0 !important; }
+
+  /* Each section = card. */
+  body:not(.capturing) .section {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel);
+    margin-bottom: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  body.dark-mode:not(.capturing) .section { border-color: var(--border-bright); }
+
+  /* Section title becomes the card's header band. */
+  body:not(.capturing) .section-header {
+    border-left: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    border-radius: 10px 10px 0 0;
+    margin-bottom: 0 !important;
+    padding: 10px 14px !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Roomier checklist rows inside the card; divider lines between them. */
+  body:not(.capturing) .check-item {
+    padding: 10px 14px !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  body:not(.capturing) .check-item:last-child { border-bottom: none !important; }
+
+  /* Notes field: align to the card padding (drop the old indent). */
+  body:not(.capturing) .notes-line {
+    margin-left: 0 !important;
+    background: var(--bg) !important;
+    border: 1px solid var(--border-bright) !important;
+    border-radius: 6px !important;
+    padding: 6px 8px !important;
+  }
+
+  /* Summary section body sits flush inside its card. */
+  body:not(.capturing) .summary-body { padding: 12px 14px !important; }
+}
 </style>
 </head>
 
@@ -1771,6 +1843,7 @@ function capturePageToCanvas(pageEl) {
         '}'
       ].join('\n');
       document.head.appendChild(forceStyle);
+      document.body.classList.add('capturing');
       // Allow wrapping (a prior print may have left wrap="off").
       page.querySelectorAll('.notes-line').forEach(function(el){ el.setAttribute('wrap','soft'); });
 
@@ -1852,6 +1925,7 @@ function capturePageToCanvas(pageEl) {
         document.body.style.padding = prevBodyPad;
         const fs = document.getElementById('capture-force-style');
         if (fs) fs.remove();
+        document.body.classList.remove('capturing');
         removeNoteProxies();
         removeBoxProxies();
         _phSaved.forEach(function(p){ if (p[1] != null) p[0].setAttribute('placeholder', p[1]); });
@@ -2483,27 +2557,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-</script>
-<script>
-/* Keep the content clear of the fixed action bar, including the iOS
-   safe-area / status-bar inset in standalone (PWA) mode. The bar sits at
-   top:0 and folds the inset into its own padding-top, so offsetHeight is
-   the exact amount the wrapper must be pushed down by. The CSS calc above
-   is the pre-JS fallback; this refines it to the bar's real height. */
-(function () {
-  function adjustTopPadding() {
-    var bar = document.getElementById('action-bar');
-    var wrapper = document.querySelector('.wrapper');
-    if (!bar || !wrapper) return;
-    if (document.body.classList.contains('offline')) return; // offline banner mode handles its own spacing
-    var h = Math.ceil(bar.getBoundingClientRect().height);
-    if (h > 0) wrapper.style.paddingTop = h + 'px';
-  }
-  window.addEventListener('load', adjustTopPadding);
-  window.addEventListener('resize', adjustTopPadding);
-  window.addEventListener('orientationchange', function () { setTimeout(adjustTopPadding, 150); });
-  setTimeout(adjustTopPadding, 100);
-})();
 </script>
 </body>
 </html>
