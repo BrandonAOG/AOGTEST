@@ -360,9 +360,6 @@ table.mat-table th {
 }
 @media (max-width: 480px) { table.mat-table th { font-size: 8px; } }
 body.dark-mode table.mat-table th { background: #1E3A5F; color: #00FFC8; }
-/* Repeat-header rows stay orange in both light and dark mode */
-#fittings-table tr.repeat-header th,
-body.dark-mode #fittings-table tr.repeat-header th { background: #D35E13; color: #FFFFFF; }
 body.dark-mode table.mat-table td {
   border-color: rgba(0,255,200,0.2);
   background: rgba(15,21,53,0.6);
@@ -480,6 +477,37 @@ body.dark-mode .footer-field label { color: #E0F7FF; }
 
 /* ===== PAGE 1 PERMITTING STYLES ===== */
 .page1-header { text-align: center; margin-bottom: 14px; }
+
+/* ===== LANDSCAPE PHONE FIX =====
+   A phone in landscape has a width (~640-950px) that escapes the
+   max-width:480px breakpoints, so the desktop layout returns and
+   overflows the short landscape height. This re-applies the compact
+   sizing whenever the viewport is short (a phone on its side). */
+@media (max-height: 600px) and (orientation: landscape) {
+  .action-bar { padding: 4px 4px; gap: 3px; }
+  .btn { padding: 6px 4px; font-size: 9px; }
+  #save-status { font-size: 10px; }
+  .form-page { padding: 12px; }
+  table.mat-table { font-size: 9px; }
+  table.mat-table th { font-size: 8px; }
+  table.mat-table td.row-label { font-size: 8px; min-width: 80px; }
+  table.mat-table td input[type="text"] { font-size: 9px; }
+  .logo-area { gap: 8px; margin-bottom: 12px; }
+  .logo-area img { height: 22px; }
+  .checklist-title { font-size: 12px; margin-bottom: 12px; }
+
+  /* Fittings + footer: keep them from overflowing the short height */
+  .footer-fields { font-size: 10px; }
+  .footer-row { gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+  .footer-field label { font-size: 9px; }
+  .footer-field input[type="text"] { width: 70px; }
+  .footer-field input.wide  { width: 100px; }
+  .footer-field input.short { width: 50px; }
+  .footer-other-input { font-size: 10px; }
+
+  /* Wireway/Polaris stay readable side-by-side */
+  .wireway-polaris-row { gap: 8px; }
+}
 
 
 .logo-area img {
