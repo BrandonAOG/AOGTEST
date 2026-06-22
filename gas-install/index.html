@@ -1473,26 +1473,26 @@ body.dark-mode .miscues-textarea {
    checkboxes/inputs flowing below. Labels are wrapped by labelPage1Rows() in
    JS. Desktop and print are untouched. Page-2 matrix tables are left as-is. */
 @media screen and (max-width: 767px) {
-  body:not(.capturing) #page1 hr.section-hr { display: none !important; }
+  body:not(.capturing):not(.printing) #page1 hr.section-hr { display: none !important; }
 
   /* Section = card. */
-  body:not(.capturing) #page1 .section {
+  body:not(.capturing):not(.printing) #page1 .section {
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--panel);
     padding: 12px 14px;
     margin-bottom: 12px;
   }
-  body.dark-mode:not(.capturing) #page1 .section { border-color: var(--border-bright); }
+  body.dark-mode:not(.capturing):not(.printing) #page1 .section { border-color: var(--border-bright); }
 
-  body:not(.capturing) #page1 .section-title {
+  body:not(.capturing):not(.printing) #page1 .section-title {
     font-size: 13px !important;
     margin: 0 0 10px !important;
     padding-bottom: 6px !important;
   }
 
   /* Stack rows: label full-width line, controls wrap beneath. */
-  body:not(.capturing) #page1 .section-row {
+  body:not(.capturing):not(.printing) #page1 .section-row {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: wrap !important;
@@ -1502,10 +1502,10 @@ body.dark-mode .miscues-textarea {
     font-size: 14px !important;
     line-height: 1.4 !important;
   }
-  body:not(.capturing) #page1 .section-row:last-child { margin-bottom: 0 !important; }
+  body:not(.capturing):not(.printing) #page1 .section-row:last-child { margin-bottom: 0 !important; }
 
   /* The wrapped leading label gets its own full-width line. */
-  body:not(.capturing) #page1 .section-row .row-label-text {
+  body:not(.capturing):not(.printing) #page1 .section-row .row-label-text {
     flex: 0 0 100% !important;
     max-width: 100% !important;
     white-space: normal !important;
@@ -1514,10 +1514,10 @@ body.dark-mode .miscues-textarea {
     font-weight: 600 !important;
   }
   /* Bold labels (<b>) inside the wrap shouldn't double up weight oddly. */
-  body:not(.capturing) #page1 .section-row .row-label-text b { font-weight: 700 !important; }
+  body:not(.capturing):not(.printing) #page1 .section-row .row-label-text b { font-weight: 700 !important; }
 
   /* Free-text inputs full width (override inline style widths). */
-  body:not(.capturing) #page1 .section-row .inline-input {
+  body:not(.capturing):not(.printing) #page1 .section-row .inline-input {
     flex: 1 1 100% !important;
     width: 100% !important;
     min-width: 0 !important;
@@ -1531,7 +1531,7 @@ body.dark-mode .miscues-textarea {
     background: var(--bg) !important;
     font-size: 16px !important;
   }
-  body:not(.capturing) #page1 .section-row .full-line-input {
+  body:not(.capturing):not(.printing) #page1 .section-row .full-line-input {
     flex: 1 1 100% !important;
     width: 100% !important;
     box-sizing: border-box !important;
@@ -1544,19 +1544,19 @@ body.dark-mode .miscues-textarea {
   }
 
   /* Checkbox pills: bigger, easy to tap, flow below the label. */
-  body:not(.capturing) #page1 .section-row .yn-checkbox-wrap {
+  body:not(.capturing):not(.printing) #page1 .section-row .yn-checkbox-wrap {
     font-size: 13px !important;
     padding: 6px 12px 6px 8px !important;
     border-radius: 6px !important;
   }
-  body:not(.capturing) #page1 .section-row .yn-checkbox-wrap input[type="checkbox"] {
+  body:not(.capturing):not(.printing) #page1 .section-row .yn-checkbox-wrap input[type="checkbox"] {
     width: 18px !important;
     height: 18px !important;
     margin: 0 5px 0 0 !important;
   }
 
   /* Multiline textareas (Needs Completed / Why Not) full width. */
-  body:not(.capturing) #page1 .section-row .multiline {
+  body:not(.capturing):not(.printing) #page1 .section-row .multiline {
     flex: 1 1 100% !important;
     width: 100% !important;
     box-sizing: border-box !important;
@@ -1569,52 +1569,6 @@ body.dark-mode .miscues-textarea {
   }
 }
 
-/* ===== PRINT OVERRIDE — neutralize the mobile card layout in print =====
-   iOS Safari can keep applying the @media screen card rules while generating
-   the PDF. Because those rules use an ID (#page1) they out-rank the normal
-   print rules, which inflates page-1 height (spills to a 2nd page) and paints
-   dark input backgrounds (black boxes in dark mode). These resets mirror the
-   card selectors' specificity and sit AFTER them in source order, so they win
-   the cascade and restore the compact, light print layout. */
-@media print {
-  body:not(.capturing) #page1 .section {
-    border: none !important; background: transparent !important;
-    border-radius: 0 !important; padding: 0 !important; margin-bottom: 0 !important;
-  }
-  body:not(.capturing) #page1 hr.section-hr { display: block !important; }
-  body:not(.capturing) #page1 .section-title {
-    font-size: 9pt !important; margin: 0 0 0 !important; padding-bottom: 0 !important;
-  }
-  body:not(.capturing) #page1 .section-row {
-    display: block !important; gap: 0 !important; margin-bottom: 0 !important;
-    font-size: 9pt !important; line-height: 1.2 !important;
-  }
-  body:not(.capturing) #page1 .section-row .row-label-text {
-    display: inline !important; flex: none !important; max-width: none !important;
-    font-size: 9pt !important; font-weight: bold !important; line-height: 1.2 !important;
-  }
-  body:not(.capturing) #page1 .section-row .inline-input,
-  body:not(.capturing) #page1 .section-row .full-line-input {
-    flex: none !important; height: auto !important; min-height: 0 !important;
-    border: none !important; border-bottom: 0.5pt solid #999 !important;
-    border-radius: 0 !important; background: transparent !important;
-    color: #1F2937 !important; -webkit-text-fill-color: #1F2937 !important;
-    padding: 0 2pt !important; font-size: 9pt !important;
-  }
-  body:not(.capturing) #page1 .section-row .inline-input { width: 7ch !important; }
-  body:not(.capturing) #page1 .section-row .inline-input[style*="25ch"],
-  body:not(.capturing) #page1 .section-row .inline-input[style*="20ch"],
-  body:not(.capturing) #page1 .section-row .inline-input[style*="15ch"] { width: 17ch !important; }
-  body:not(.capturing) #page1 .section-row .inline-input[style*="10ch"] { width: 10ch !important; }
-  body:not(.capturing) #page1 .section-row .full-line-input { width: 100% !important; }
-  body:not(.capturing) #page1 .section-row .multiline {
-    border: none !important; border-radius: 0 !important;
-    background: transparent !important; min-height: 0 !important;
-  }
-  body:not(.capturing) #page1 .section-row .yn-checkbox-wrap {
-    font-size: 9pt !important; padding: 0 1.5pt !important; border-radius: 0 !important;
-  }
-}
 </style>
 </head>
 <body>
@@ -1622,7 +1576,7 @@ body.dark-mode .miscues-textarea {
 <!-- ========== ACTION BAR ========== -->
 <div class="action-bar" id="action-bar">
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
-  <button class="btn" onclick="document.title = buildFileName('pdf', null).replace('.pdf',''); window.print();">📄 PDF</button>
+  <button class="btn" onclick="document.body.classList.add('printing'); document.title = buildFileName('pdf', null).replace('.pdf',''); setTimeout(function(){ document.body.classList.remove('printing'); }, 10000); window.print();">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
@@ -2937,6 +2891,9 @@ function setStatus(msg) {
     wasDark = document.body.classList.contains('dark-mode');
     restored = false;
     if (wasDark) document.body.classList.remove('dark-mode');
+    // Disable the mobile card layout so page 1 prints as the compact
+    // 1-page form (and inputs aren't dark-filled boxes in dark mode).
+    document.body.classList.add('printing');
     // Safety fallback in case all events fail
     clearTimeout(restoreTimer);
     restoreTimer = setTimeout(restoreDark, 8000);
@@ -2947,6 +2904,7 @@ function setStatus(msg) {
     restored = true;
     active = false;
     clearTimeout(restoreTimer);
+    document.body.classList.remove('printing');
     if (wasDark) {
       document.body.classList.add('dark-mode');
       wasDark = false;
