@@ -1203,6 +1203,43 @@ body.dark-mode .notice { color: #7DD3FC; }
   #page2 .footer-field input.wide  { width: 65px !important; }
 }
 
+/* ===================================================================
+   PRINT — LANDSCAPE-PHONE FIX
+   A phone in LANDSCAPE reports width >767px, so the (max-width:767px)
+   block above never fires and the desktop print layout reflows against
+   the wide canvas -> overflows to 3 pages. openPrintPreview() detects a
+   phone by its SHORTER viewport side and adds body.mobile-printing,
+   which re-applies the same compact rules below AND pins the layout to
+   portrait-letter width so it cannot reflow wide.
+   =================================================================== */
+@media print {
+  body.mobile-printing,
+  body.mobile-printing html { width: 8.2in !important; max-width: 8.2in !important; }
+  body.mobile-printing .page-wrapper { width: 8.2in !important; max-width: 8.2in !important; margin: 0 auto !important; }
+  body.mobile-printing .form-page    { width: 8.2in !important; max-width: 8.2in !important; margin: 0 auto !important; box-sizing: border-box !important; }
+
+  body.mobile-printing #page2 .grid-section { margin-bottom: 2px !important; }
+  body.mobile-printing #page2 table.mat-table th,
+  body.mobile-printing #page2 table.mat-table td {
+    padding: 1px 1px !important; font-size: 11px !important; line-height: 1.2 !important;
+  }
+  body.mobile-printing #page2 table.mat-table th { font-size: 10px !important; }
+  body.mobile-printing #page2 table.mat-table td.row-label { font-size: 11px !important; padding: 1px 2px !important; }
+  body.mobile-printing #page2 table.mat-table td input[type="text"] { font-size: 9px !important; }
+  body.mobile-printing #page2 #fittings-table td.row-label { width: 125px !important; }
+  body.mobile-printing #page2 #wireway-table  td.row-label { width: 70px !important; }
+  body.mobile-printing #page2 #polaris-table  td.row-label { width: 70px !important; }
+  body.mobile-printing #page2 .footer-fields { margin-top: 1.3px !important; padding-top: 1.3px !important; font-size: 10.9px !important; }
+  body.mobile-printing #page2 .footer-row { gap: 1px 8px !important; margin-bottom: 2px !important; }
+  body.mobile-printing #page2 .footer-field label { font-size: 10.9px !important; }
+  body.mobile-printing #page2 .footer-field input[type="text"] {
+    font-size: 10.9px !important; height: auto !important; line-height: 1.0 !important;
+    vertical-align: bottom !important; padding-bottom: 1px !important; width: 45px !important;
+  }
+  body.mobile-printing #page2 .footer-field input.short { width: 32px !important; }
+  body.mobile-printing #page2 .footer-field input.wide  { width: 65px !important; }
+}
+
 
 
 
@@ -1827,6 +1864,16 @@ function openPrintPreview() {
   const origTitle = document.title;
   document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
 
+  // Detect a phone by its SHORTER viewport side so a phone in LANDSCAPE
+  // (e.g. 844x390 -> short side 390) is still treated as mobile. Width alone
+  // would read >767px in landscape and fall through to the desktop print
+  // layout, which overflows to 3 pages. iPads (short side ~768px+) are excluded.
+  const ua = navigator.userAgent;
+  const isIpad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const shortSide = Math.min(window.innerWidth || 0, window.innerHeight || 0);
+  const isPhonePrint = !isIpad && shortSide > 0 && shortSide <= 767;
+  if (isPhonePrint) document.body.classList.add('mobile-printing');
+
   wasDarkAtPrint = document.body.classList.contains('dark-mode');
   if (wasDarkAtPrint) {
     const noTrans = document.createElement('style');
@@ -2437,6 +2484,17 @@ if (document.readyState === 'loading') {
 
 // ===== BEFORE/AFTER PRINT =====
 window.addEventListener('beforeprint', () => {
+  // Landscape-phone fix for ALL print paths (native Ctrl+P / OS print menu,
+  // not just the Print button). Detect a phone by its SHORTER viewport side
+  // so landscape (width >767px) is still treated as mobile. Idempotent.
+  (function () {
+    const ua = navigator.userAgent;
+    const isIpad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const shortSide = Math.min(window.innerWidth || 0, window.innerHeight || 0);
+    if (!isIpad && shortSide > 0 && shortSide <= 767) {
+      document.body.classList.add('mobile-printing');
+    }
+  })();
   // Strip dark-mode for ALL print paths (native Ctrl+P / printer-triggered preview,
   // not just the Print button). openPrintPreview() may have already done this; guard against double-add.
   if (!document.getElementById('no-transitions')) {
@@ -2482,6 +2540,7 @@ window.addEventListener('afterprint', () => {
   if (nt) nt.remove();
   const mts = document.getElementById('multi-ts-print');
   if (mts) mts.remove();
+  document.body.classList.remove('mobile-printing');
   if (wasDarkAtPrint) document.body.classList.add('dark-mode');
 });
 
