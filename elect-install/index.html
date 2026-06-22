@@ -413,8 +413,8 @@ body.dark-mode table.mat-table td.row-label { background: rgba(36,52,88,0.6); co
 }
 
 #fittings-table td.row-label { font-size: 10px; min-width: 130px; }
-#fittings-table tr.repeat-header th { background: #374151; color: #fff; font-size: 9px; padding: 3px 2px; text-align: center; border: 1px solid #4B5563; }
-#fittings-table tr.repeat-header th.row-label { background: #374151; }
+#fittings-table tr.repeat-header th { background: #D35E13; color: #fff; font-size: 9px; padding: 3px 2px; text-align: center; border: 1px solid #4B5563; }
+#fittings-table tr.repeat-header th.row-label { background: #D35E13; }
 body.dark-mode #fittings-table tr.repeat-header th { background: #1E3A5F; color: #00FFC8; border-color: rgba(0,255,200,0.2); }
 
 /* Mobile: collapsible large fitting sizes (5", 4", 3-1/2", 3") */
@@ -1850,6 +1850,13 @@ function showRealTablesForCapture() {
     '#mobile-p2-accordions { display: none !important; }',
     // ---- Match PDF print: full-width fixed-layout tables on page 2 ----
     '#page2 table.mat-table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; }',
+    // Neutralize the mobile (max-width:767px) wire-table sizing that otherwise
+    // wins on specificity and leaves these tables at width:max-content — which
+    // renders wider than the sheet and gets CLIPPED on the right during capture.
+    '#page2 #cu-wire-table, #page2 #al-wire-table, #page2 #thhn-table { width: 100% !important; min-width: 0 !important; max-width: 100% !important; table-layout: fixed !important; }',
+    '#page2 #cu-wire-table td:not(.row-label), #page2 #al-wire-table td:not(.row-label), #page2 #thhn-table td:not(.row-label) { min-width: 0 !important; }',
+    '#page2 #cu-wire-table td input[type="text"], #page2 #al-wire-table td input[type="text"], #page2 #thhn-table td input[type="text"] { min-width: 0 !important; width: 100% !important; height: auto !important; font-size: 13px !important; }',
+    '#page2 table.mat-table td input[type="text"] { height: auto !important; min-width: 0 !important; }',
     '#page2 table.mat-table th, #page2 table.mat-table td { font-size: 13px !important; line-height: 1.3 !important; padding: 2px 2px !important; white-space: normal !important; word-break: break-word !important; }',
     '#page2 table.mat-table th { font-size: 14px !important; }',
     '#page2 table.mat-table td.row-label { font-size: 14px !important; line-height: 1.3 !important; padding: 2px 3px !important; }',
@@ -1898,7 +1905,14 @@ function showRealTablesForCapture() {
     '.footer-other-input { font-size: 15.5px !important; height: 24px !important; line-height: 24px !important; overflow: visible !important; box-sizing: border-box !important; padding: 0 4px 3px !important; }',
     '.repeat-header { display: none !important; }',
     '#page1 .add-ts-btn { display: none !important; }',
-    '#page1 .ts-remove-btn { display: none !important; }'
+    '#page1 .ts-remove-btn { display: none !important; }',
+    // ---- Page-2 taller rows during capture (matches the other AOG form) ----
+    // Grows every page-2 table row with fixed padding so the page fills the letter
+    // sheet to the bottom frame evenly — instead of stretching the canvas. Values
+    // copied from the working form: 6.5px cells, 6.5px row-labels, 8px section gap.
+    '#page2 .grid-section { margin-bottom: 8px !important; }',
+    '#page2 table.mat-table th, #page2 table.mat-table td { padding: 6.5px 2px !important; line-height: 1.2 !important; }',
+    '#page2 table.mat-table td.row-label { padding: 6.5px 3px !important; line-height: 1.2 !important; }'
   ].join('\n');
   document.head.appendChild(style);
 }
@@ -2040,15 +2054,14 @@ function fitToLetter(srcCanvas) {
   const scaleX = innerW / srcCanvas.width;
   const naturalH = srcCanvas.height * scaleX;         // height if aspect is kept
 
-  let drawW = innerW, drawH, outH;
+  // Match the working form's fillSheet: keep aspect ratio; the page fills the sheet
+  // because the page-2 rows are grown via fixed CSS padding during capture (see the
+  // taller-row rules added in showRealTablesForCapture), not by stretching here.
+  let drawW = innerW, drawH, outH = letterH;
   if (naturalH <= innerH) {
-    // Fits a sheet naturally — keep aspect ratio, pad to letter height.
-    drawH = Math.round(naturalH);
-    outH = letterH;
+    drawH = Math.round(naturalH);   // fits — keep aspect, minimal pad below
   } else {
-    // Taller than a sheet — compress vertically so it sits on exactly one page.
-    drawH = innerH;
-    outH = letterH;
+    drawH = innerH;                 // too tall — compress to one page
   }
 
   const out = document.createElement('canvas');
@@ -2084,7 +2097,7 @@ function measureFullHeight(page) {
     page.scrollHeight,
     page.offsetHeight,
     rect.height
-  )) + 80;
+  )) + 40;
 }
 
 // Size the table rows so the page fills a letter-proportioned sheet evenly.
@@ -2094,12 +2107,22 @@ function measureFullHeight(page) {
 // ones — instead of leaving white space or shrinking the text. Returns a restore
 // function to undo the inline changes after capture.
 function fitPageToSheet(page) {
-  // Capture renders at a fixed 1050px width (see html2canvas width:1050), so the
-  // sheet target must be based on that width, not page.offsetWidth — otherwise on
-  // mobile the target is computed from the wrong width and the page under-fills,
-  // leaving white space at the bottom.
-  const CAPTURE_W = 1050;
-  const targetH = CAPTURE_W * (11 / 8.5);
+  // No-op: even page fill is now done in fitToLetter() by stretching the captured
+  // content vertically to the printable box, rather than padding table rows. This
+  // keeps the layout untouched and lets the whole page grow evenly to the frame.
+  return function () {};
+}
+function fitPageToSheet_unused(page) {
+  const SHEET_W = 8.5, SHEET_H = 11, MARGIN_IN = 0.15;
+  const pxPerIn = CAPTURE_W / SHEET_W;
+  const margin = Math.round(MARGIN_IN * pxPerIn);
+  const innerW = CAPTURE_W - margin * 2;
+  const letterH = Math.round(CAPTURE_W * SHEET_H / SHEET_W);
+  const innerH = letterH - margin * 2;
+  // fitToLetter scales the 1050-wide capture down to innerW, so a source pixel
+  // maps by scaleX. The source height that fills innerH after that scale is:
+  const scaleX = innerW / CAPTURE_W;
+  const targetH = innerH / scaleX;   // source-space height that exactly fills the frame
   const rows = Array.from(page.querySelectorAll('table.mat-table tr'))
     .filter(r => r.offsetHeight > 0);
   if (!rows.length) return function () {};
@@ -2334,7 +2357,13 @@ function saveFormData() {
     const data = {};
     data._ts = document.querySelectorAll('.ts-block').length;
     // Text inputs and textareas — keyed by index among all saveable fields
-    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
+    // NOTE: exclude dynamically-built mobile accordion inputs (.mob-card-input).
+    // They are created/destroyed by screen width + build timing, so including them
+    // makes the position-based f_<i> keys unstable — saved values then restore into
+    // the WRONG inputs (or into accordion inputs), leaving the real page-2 table
+    // cells empty. The accordion syncs into the real inputs on its own, so saving
+    // only the real inputs is correct and keeps indices stable.
+    document.querySelectorAll('input[type="text"]:not(.mob-card-input), input[type="email"], input[type="tel"], input[type="date"], input[type="number"]:not(.mob-card-input), textarea').forEach((el, i) => {
       data['f_' + i] = el.value;
     });
     // Checkboxes
@@ -2364,7 +2393,7 @@ function restoreFormData() {
       _tsGuard++;
     }
     if (typeof renumberTS === 'function') renumberTS();
-    document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach((el, i) => {
+    document.querySelectorAll('input[type="text"]:not(.mob-card-input), input[type="email"], input[type="tel"], input[type="date"], input[type="number"]:not(.mob-card-input), textarea').forEach((el, i) => {
       if (data['f_' + i] !== undefined) el.value = data['f_' + i];
     });
     document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
@@ -2380,7 +2409,7 @@ function restoreFormData() {
 }
 
 function attachAutosave() {
-  document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea').forEach(el => {
+  document.querySelectorAll('input[type="text"]:not(.mob-card-input), input[type="email"], input[type="tel"], input[type="date"], input[type="number"]:not(.mob-card-input), textarea').forEach(el => {
     if (el.dataset.autosave) return;
     el.dataset.autosave = '1';
     el.addEventListener('input', saveFormData);
@@ -2553,6 +2582,7 @@ function buildMobileAccordions() {
             inp.value = realInput.value;
             inp.addEventListener('input', () => {
               realInput.value = inp.value;
+              if (typeof saveFormData === 'function') saveFormData();
               const hasRow = Array.from(subBody.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
               subDot.style.display = hasRow ? 'inline-block' : 'none';
               const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
@@ -2607,6 +2637,7 @@ function buildMobileAccordions() {
 
         inp.addEventListener('input', () => {
           realInput.value = inp.value;
+          if (typeof saveFormData === 'function') saveFormData();
           const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
           headerBtn.classList.toggle('has-data', hasAny);
         });
@@ -2647,6 +2678,7 @@ function buildMobileAccordions() {
             inp.value = realInput.value;
             inp.addEventListener('input', () => {
               realInput.value = inp.value;
+              if (typeof saveFormData === 'function') saveFormData();
               const hasAny = Array.from(body.querySelectorAll('.mob-card-input')).some(el => el.value.trim() !== '');
               headerBtn.classList.toggle('has-data', hasAny);
             });
