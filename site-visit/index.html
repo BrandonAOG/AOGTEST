@@ -2231,7 +2231,11 @@ function getPrintDevice() {
   // Width-based fallback: a narrow viewport means the user is filling out the
   // mobile layout, so they need the mobile-print styling regardless of UA.
   // This fixes desktop-devtools mobile emulation and any UA that doesn't match.
-  const narrow = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
+  // Use the SHORTER viewport side so a phone in LANDSCAPE (e.g. 844x390) still
+  // counts as narrow — otherwise its wide side (>767px) wrongly selects the
+  // desktop print layout, which overflows to 3 pages.
+  const shortSide = Math.min(window.innerWidth || 0, window.innerHeight || 0);
+  const narrow = shortSide > 0 && shortSide <= 767;
   if (isMobileUA || (narrow && !isIpad)) return 'mobile';
   if (isIpad)   return 'ipad';
   return 'desktop';
@@ -2346,7 +2350,11 @@ function openPrintPreview() {
   // Apply print styles directly to the DOM so Safari's preview renderer sees
   // the correct layout — not the screen layout. body.printing triggers the same
   // rules as @media print; body.printing.mobile-printing adds the mobile overrides.
-  const isMobilePrint = window.matchMedia && window.matchMedia('screen and (max-width: 767px)').matches;
+  // Decide mobile-print path the SAME way getPrintDevice() does, so a phone in
+  // landscape (wide side >767px) is still treated as mobile. Using the raw
+  // screen-width media query here would mis-detect landscape as desktop and
+  // overflow the layout to 3 pages.
+  const isMobilePrint = getPrintDevice() === 'mobile';
   document.body.classList.add('printing');
   if (isMobilePrint) document.body.classList.add('mobile-printing');
 
