@@ -1569,9 +1569,104 @@ body.dark-mode .miscues-textarea {
   }
 }
 
+/* ===== MOBILE — MATERIAL TABLES, NATIVE LAYOUT (screen only) =====
+   Keep the real desktop table look (orange titles, section bands, striping)
+   and just shrink it to fit the phone, with bigger inputs so they're easy to
+   tap and >=16px text so iOS doesn't zoom on focus. The table already uses
+   table-layout:fixed/width:100%, so it fits without horizontal scroll. */
+@media screen and (max-width: 767px) {
+  body:not(.printing):not(.capturing) .grid-section {
+    overflow-x: visible !important; margin-bottom: 14px !important;
+  }
+  body:not(.printing):not(.capturing) table.mat-table {
+    width: 100% !important; table-layout: auto !important; font-size: 12px !important;
+  }
+  body:not(.printing):not(.capturing) table.mat-table col.col-data { width: 40px !important; }
+  body:not(.printing):not(.capturing) table.mat-table td:not(.row-label),
+  body:not(.printing):not(.capturing) table.mat-table th:not(:first-child) {
+    width: 40px !important;
+  }
+
+  body:not(.printing):not(.capturing) table.mat-table th {
+    font-size: 12px !important; padding: 7px 2px !important;
+  }
+  body:not(.printing):not(.capturing) table.mat-table td.row-label {
+    font-size: 12px !important; padding: 6px 8px !important; line-height: 1.2 !important;
+    text-align: left !important; white-space: nowrap !important;
+  }
+  body:not(.printing):not(.capturing) table.mat-table td.row-label.section-header {
+    font-size: 12px !important; padding: 7px 4px !important;
+  }
+  body:not(.printing):not(.capturing) table.mat-table td { padding: 2px !important; }
+  body:not(.printing):not(.capturing) table.mat-table td input[type="number"] {
+    width: 100% !important; height: 30px !important; text-align: center !important;
+    font-size: 16px !important;                 /* >=16px stops iOS zoom-on-focus */
+    padding: 0 !important; box-sizing: border-box !important;
+  }
+}
+
+/* ===== PRINT — DETERMINISTIC CARD KILL (does not rely on .printing) =====
+   iOS Safari can apply the @media screen card rules while building the PDF.
+   These rules use IDs (#page1 / #page2), so they outrank every screen card
+   rule (which have no ID) no matter the .printing-class timing. They force
+   inputs to print white with dark text and snap the material tables back to
+   real table layout. This is the safety net behind the .printing toggle. */
+@media print {
+  /* Page-1 field inputs: white fill, dark text, underline (not a box).
+     The :not(#_) raises specificity above the screen card rule, which also
+     carries #page1, so this wins even if .printing hasn't been applied. */
+  body:not(.capturing) #page1 .section-row .inline-input:not(#_),
+  body:not(.capturing) #page1 .section-row .full-line-input:not(#_) {
+    background: #fff !important;
+    color: #1F2937 !important; -webkit-text-fill-color: #1F2937 !important;
+    border: none !important; border-bottom: 0.5pt solid #999 !important;
+    border-radius: 0 !important; box-shadow: none !important;
+    height: auto !important; min-height: 0 !important;
+  }
+  body:not(.capturing) #page1 .section-row .multiline:not(#_) {
+    background: #fff !important; color: #1F2937 !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+  body:not(.capturing) #page1 .section-row .row-label-text:not(#_) { display: inline !important; }
+
+  /* Page-2 material tables: restore table layout, hide injected size labels */
+  #page2 table.mat-table,
+  #page2 table.mat-table tbody { display: table !important; width: 100% !important; }
+  #page2 table.mat-table thead { display: table-header-group !important; }
+  #page2 table.mat-table thead tr { display: table-row !important; }
+  #page2 table.mat-table thead th { display: table-cell !important; }
+  #page2 table.mat-table tbody tr {
+    display: table-row !important;
+    border: 0 !important; border-radius: 0 !important;
+    padding: 0 !important; margin: 0 !important;
+    background: transparent !important; box-shadow: none !important;
+    grid-template-columns: none !important; gap: 0 !important;
+  }
+  #page2 table.mat-table tbody td { display: table-cell !important; }
+  #page2 table.mat-table tbody td:not(.row-label) {
+    flex-direction: row !important;
+  }
+  #page2 table.mat-table tbody td:not(.row-label)::before {
+    content: "" !important; display: none !important;
+  }
+  #page2 table.mat-table tbody td input[type="number"] {
+    background: #fff !important;
+    color: #1F2937 !important; -webkit-text-fill-color: #1F2937 !important;
+    border: none !important; border-radius: 0 !important;
+    box-shadow: none !important; height: auto !important;
+  }
+}
+
 </style>
 </head>
 <body>
+<style>
+.build-badge{position:fixed;bottom:8px;left:8px;z-index:99999;
+  font:600 11px/1 -apple-system,system-ui,sans-serif;
+  background:#D35E13;color:#fff;padding:5px 9px;border-radius:6px;
+  box-shadow:0 1px 4px rgba(0,0,0,.3);opacity:.9;pointer-events:none;}
+@media print{.build-badge{display:none !important;}}
+</style>
 
 <!-- ========== ACTION BAR ========== -->
 <div class="action-bar" id="action-bar">
@@ -1873,6 +1968,23 @@ const MISC_ROWS = [
 (function() {
   const b = document.getElementById('nipples-right-body');
   MISC_ROWS.forEach(r => addRow(b, r.label, 5, r.isHeader || false));
+})();
+
+/* Copy each table's size headers onto its data cells (data-size) so the
+   mobile card layout can label every number input. Screen-only CSS reads it;
+   it has no effect on desktop or print. */
+(function labelMatTableCells() {
+  document.querySelectorAll('table.mat-table').forEach(function(t) {
+    var sizes = Array.prototype.slice.call(t.querySelectorAll('thead th'))
+      .slice(1)                                   // drop the title cell
+      .map(function(th) { return th.textContent.trim(); });
+    t.querySelectorAll('tbody tr').forEach(function(tr) {
+      var dataCells = tr.querySelectorAll('td:not(.row-label)');
+      Array.prototype.forEach.call(dataCells, function(td, i) {
+        if (sizes[i]) td.setAttribute('data-size', sizes[i]);
+      });
+    });
+  });
 })();
 
 /* ================================================================
