@@ -2211,15 +2211,12 @@ function capturePageToCanvas() {
             const MARGIN_Y = Math.round(LETTER_W * 0.15 / 8.5); // top/bottom ~29px
             const availW   = LETTER_W - MARGIN_X * 2;
             const availH   = LETTER_H - MARGIN_Y * 2;
-            // Fill the FULL available width edge-to-edge (no side gutters). This
-            // is the actual fix — the old logic fit-by-height and left white
-            // gutters on the sides. For height, fill the sheet to match the
-            // target's edge-to-edge look, but cap how far we stretch beyond the
-            // content's natural (proportional) height so the short collapsed
-            // view never looks vertically warped.
+            // Fill the FULL printable area — edge-to-edge width AND full height —
+            // inside a uniform 0.15in margin on all four sides, so the output is
+            // always a complete portrait letter page with no blank band at the
+            // bottom regardless of how short the form content is.
             const drawW = availW;
-            const propH = Math.round(srcCanvas.height * (availW / srcCanvas.width)); // proportional height at full width
-            const drawH = Math.min(availH, Math.round(propH * 1.06));                // fill, but no more than +6% stretch
+            const drawH = availH;
             const letterCanvas = document.createElement('canvas');
             letterCanvas.width  = LETTER_W;
             letterCanvas.height = LETTER_H;
