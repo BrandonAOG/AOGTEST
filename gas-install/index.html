@@ -2214,6 +2214,11 @@ if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
      Result: the first print matches every subsequent print.
   ---------------------------------------------------------------- */
   window.triggerPrint = function() {
+    // Force light mode UP FRONT (not via beforeprint) so the dark-mode
+    // fill can't bleed into the text boxes during the pre-print delay.
+    if (typeof window.__forceLightForPrint === 'function') {
+      window.__forceLightForPrint();
+    }
     document.body.classList.add('printing');
     try { document.title = buildFileName('pdf', null).replace('.pdf',''); } catch (e) {}
 
@@ -3138,6 +3143,9 @@ function setStatus(msg) {
   function forceLightForPrint() {
     if (active) return;            // already forced light this print cycle
     active = true;
+    // (exposed below as window.__forceLightForPrint so triggerPrint can
+    //  force light UP FRONT, before its pre-print delay, preventing the
+    //  dark-mode fill from bleeding into text boxes on the first print.)
     wasDark = document.body.classList.contains('dark-mode');
     restored = false;
     if (wasDark) document.body.classList.remove('dark-mode');
@@ -3163,6 +3171,10 @@ function setStatus(msg) {
 
   // afterprint — the reliable signal that printing/preview is done.
   window.addEventListener('afterprint', restoreDark);
+
+  // Expose so triggerPrint() can force light mode up front (before its
+  // pre-print delay) rather than waiting for the beforeprint event.
+  window.__forceLightForPrint = forceLightForPrint;
 
   // beforeprint — force light. CSS @media print also forces light, so even
   // if restore races a printer's dialog events, the output stays light.
