@@ -393,6 +393,55 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
   }
 }
 
+/* ============================================================
+   MOBILE — STYLISH CARDS (screen only; off during capture & print)
+   Round every section into a panel card with a header band.
+   ============================================================ */
+@media screen and (max-width: 600px) {
+  /* Even spacing between the top-level cards. */
+  body:not(.capturing) .content { gap: 12px !important; }
+
+  /* Each section = rounded card. */
+  body:not(.capturing) .section {
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    background: var(--panel) !important;
+    margin-bottom: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+  }
+  body.dark-mode:not(.capturing) .section { border-color: var(--border-bright) !important; }
+  /* Drop the sharp top hairline — the rounded corners are the accent now. */
+  body:not(.capturing) .section::before { display: none !important; }
+
+  /* Sections inside a two-column block are spaced by the grid gap instead. */
+  body:not(.capturing) .two-column { gap: 12px !important; margin-bottom: 12px !important; }
+  body:not(.capturing) .two-column .section { margin-bottom: 0 !important; }
+
+  /* Section title = card header band. */
+  body:not(.capturing) .section-header {
+    border-radius: 10px 10px 0 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding: 10px 14px !important;
+    font-size: 0.7rem !important;
+  }
+
+  /* Roomier card body. */
+  body:not(.capturing) .section-body { padding: 12px 14px !important; }
+
+  /* Customer & Job Info: boxed, easy-to-tap inputs inside the card. */
+  body:not(.capturing) #cust-info-body .field-row input,
+  body:not(.capturing) #cust-info-body .field-row select {
+    border: 1px solid var(--border-bright) !important;
+    border-radius: 6px !important;
+    background: var(--bg) !important;
+    color: var(--text) !important;
+    min-height: 38px !important;
+    padding: 2px 10px !important;
+    box-sizing: border-box !important;
+  }
+}
+
 /* ── SECTIONS ── */
 .section {
   border: 1px solid var(--border);
@@ -1099,8 +1148,6 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
-  padding-top: max(4px, constant(safe-area-inset-top, 4px));
-  padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border);
@@ -1958,6 +2005,7 @@ function capturePageToCanvas() {
         (_isMobileCap ? '' : 'input[type="text"], input[type="date"], input[type="number"] { font-size: calc(0.78rem + 0.8px) !important; }')
       ].join('\n');
       document.head.appendChild(forceStyle);
+      document.body.classList.add('capturing');
       // Strip placeholder attributes during capture (html2canvas can paint them
       // even with ::placeholder transparent). Restored in restoreCapture.
       var _phSaved = [];
@@ -2055,6 +2103,7 @@ function capturePageToCanvas() {
         document.body.style.padding = prevBodyPad;
         const fs = document.getElementById('capture-force-style');
         if (fs) fs.remove();
+        document.body.classList.remove('capturing');
         removeNoteProxies();
         removeBoxProxies();
         _phSaved.forEach(function(p){ if (p[1] != null) p[0].setAttribute('placeholder', p[1]); });
@@ -2397,16 +2446,11 @@ function adjustTopPadding() {
   const bar    = document.getElementById('action-bar');
   const page   = document.getElementById('page');
   const status = document.getElementById('save-status');
-  // The bar now folds the iOS safe-area / status-bar inset into its own
-  // top padding, so its rendered height is exactly how far content must be
-  // pushed down. getBoundingClientRect().height includes that inset.
-  const h = bar ? Math.ceil(bar.getBoundingClientRect().height) : 0;
-  if (bar && page)   page.style.marginTop = h + 'px';
-  if (bar && status) status.style.top     = h + 'px';
+  if (bar && page)   page.style.marginTop = bar.offsetHeight + 'px';
+  if (bar && status) status.style.top     = bar.offsetHeight + 'px';
 }
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load',   adjustTopPadding);
-window.addEventListener('orientationchange', function () { setTimeout(adjustTopPadding, 150); });
 setTimeout(adjustTopPadding, 100);
 </script>
 
