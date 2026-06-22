@@ -1568,6 +1568,53 @@ body.dark-mode .miscues-textarea {
     background: var(--bg) !important;
   }
 }
+
+/* ===== PRINT OVERRIDE — neutralize the mobile card layout in print =====
+   iOS Safari can keep applying the @media screen card rules while generating
+   the PDF. Because those rules use an ID (#page1) they out-rank the normal
+   print rules, which inflates page-1 height (spills to a 2nd page) and paints
+   dark input backgrounds (black boxes in dark mode). These resets mirror the
+   card selectors' specificity and sit AFTER them in source order, so they win
+   the cascade and restore the compact, light print layout. */
+@media print {
+  body:not(.capturing) #page1 .section {
+    border: none !important; background: transparent !important;
+    border-radius: 0 !important; padding: 0 !important; margin-bottom: 0 !important;
+  }
+  body:not(.capturing) #page1 hr.section-hr { display: block !important; }
+  body:not(.capturing) #page1 .section-title {
+    font-size: 9pt !important; margin: 0 0 0 !important; padding-bottom: 0 !important;
+  }
+  body:not(.capturing) #page1 .section-row {
+    display: block !important; gap: 0 !important; margin-bottom: 0 !important;
+    font-size: 9pt !important; line-height: 1.2 !important;
+  }
+  body:not(.capturing) #page1 .section-row .row-label-text {
+    display: inline !important; flex: none !important; max-width: none !important;
+    font-size: 9pt !important; font-weight: bold !important; line-height: 1.2 !important;
+  }
+  body:not(.capturing) #page1 .section-row .inline-input,
+  body:not(.capturing) #page1 .section-row .full-line-input {
+    flex: none !important; height: auto !important; min-height: 0 !important;
+    border: none !important; border-bottom: 0.5pt solid #999 !important;
+    border-radius: 0 !important; background: transparent !important;
+    color: #1F2937 !important; -webkit-text-fill-color: #1F2937 !important;
+    padding: 0 2pt !important; font-size: 9pt !important;
+  }
+  body:not(.capturing) #page1 .section-row .inline-input { width: 7ch !important; }
+  body:not(.capturing) #page1 .section-row .inline-input[style*="25ch"],
+  body:not(.capturing) #page1 .section-row .inline-input[style*="20ch"],
+  body:not(.capturing) #page1 .section-row .inline-input[style*="15ch"] { width: 17ch !important; }
+  body:not(.capturing) #page1 .section-row .inline-input[style*="10ch"] { width: 10ch !important; }
+  body:not(.capturing) #page1 .section-row .full-line-input { width: 100% !important; }
+  body:not(.capturing) #page1 .section-row .multiline {
+    border: none !important; border-radius: 0 !important;
+    background: transparent !important; min-height: 0 !important;
+  }
+  body:not(.capturing) #page1 .section-row .yn-checkbox-wrap {
+    font-size: 9pt !important; padding: 0 1.5pt !important; border-radius: 0 !important;
+  }
+}
 </style>
 </head>
 <body>
