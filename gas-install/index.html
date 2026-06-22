@@ -623,7 +623,7 @@ body.dark-mode .miscues-textarea {
 
   /* ── 0. Page geometry ── */
   @page {
-    size: 8.5in 11in portrait;
+    size: 8.5in 11in;
     margin: 0.12in 0.15in;
   }
 
@@ -1467,252 +1467,14 @@ body.dark-mode .miscues-textarea {
 @media print {
   .action-bar { display: none !important; }
 }
-
-/* ===== MOBILE PAGE-1 — CARD + STACKED ROWS (screen only) =====
-   Each section becomes a card; each row stacks its label on its own line with
-   checkboxes/inputs flowing below. Labels are wrapped by labelPage1Rows() in
-   JS. Desktop and print are untouched. Page-2 matrix tables are left as-is. */
-@media screen and (max-width: 767px) {
-  body:not(.capturing):not(.printing) #page1 hr.section-hr { display: none !important; }
-
-  /* Section = card. */
-  body:not(.capturing):not(.printing) #page1 .section {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--panel);
-    padding: 12px 14px;
-    margin-bottom: 12px;
-  }
-  body.dark-mode:not(.capturing):not(.printing) #page1 .section { border-color: var(--border-bright); }
-
-  body:not(.capturing):not(.printing) #page1 .section-title {
-    font-size: 13px !important;
-    margin: 0 0 10px !important;
-    padding-bottom: 6px !important;
-  }
-
-  /* Stack rows: label full-width line, controls wrap beneath. */
-  body:not(.capturing):not(.printing) #page1 .section-row {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    align-items: center !important;
-    gap: 8px 8px !important;
-    margin-bottom: 14px !important;
-    font-size: 14px !important;
-    line-height: 1.4 !important;
-  }
-  body:not(.capturing):not(.printing) #page1 .section-row:last-child { margin-bottom: 0 !important; }
-
-  /* The wrapped leading label gets its own full-width line. */
-  body:not(.capturing):not(.printing) #page1 .section-row .row-label-text {
-    flex: 0 0 100% !important;
-    max-width: 100% !important;
-    white-space: normal !important;
-    font-size: 14px !important;
-    line-height: 1.35 !important;
-    font-weight: 600 !important;
-  }
-  /* Bold labels (<b>) inside the wrap shouldn't double up weight oddly. */
-  body:not(.capturing):not(.printing) #page1 .section-row .row-label-text b { font-weight: 700 !important; }
-
-  /* Free-text inputs full width (override inline style widths). */
-  body:not(.capturing):not(.printing) #page1 .section-row .inline-input {
-    flex: 1 1 100% !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    height: 40px !important;
-    min-height: 40px !important;
-    border: 1px solid var(--border-bright) !important;
-    border-radius: 6px !important;
-    padding: 2px 10px !important;
-    background: var(--bg) !important;
-    font-size: 16px !important;
-  }
-  body:not(.capturing):not(.printing) #page1 .section-row .full-line-input {
-    flex: 1 1 100% !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    height: 40px !important;
-    border: 1px solid var(--border-bright) !important;
-    border-radius: 6px !important;
-    padding: 2px 10px !important;
-    background: var(--bg) !important;
-    font-size: 16px !important;
-  }
-
-  /* Checkbox pills: bigger, easy to tap, flow below the label. */
-  body:not(.capturing):not(.printing) #page1 .section-row .yn-checkbox-wrap {
-    font-size: 13px !important;
-    padding: 6px 12px 6px 8px !important;
-    border-radius: 6px !important;
-  }
-  body:not(.capturing):not(.printing) #page1 .section-row .yn-checkbox-wrap input[type="checkbox"] {
-    width: 18px !important;
-    height: 18px !important;
-    margin: 0 5px 0 0 !important;
-  }
-
-  /* Multiline textareas (Needs Completed / Why Not) full width. */
-  body:not(.capturing):not(.printing) #page1 .section-row .multiline {
-    flex: 1 1 100% !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    border: 1px solid var(--border-bright) !important;
-    border-radius: 6px !important;
-    padding: 8px 10px !important;
-    min-height: 90px !important;
-    font-size: 16px !important;
-    background: var(--bg) !important;
-  }
-
-  /* Top-fields (Customer Name block) = card, matching the sections. */
-  body:not(.capturing):not(.printing) #page1 .top-fields {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--panel);
-    padding: 12px 14px;
-    margin-bottom: 12px;
-  }
-  body.dark-mode:not(.capturing):not(.printing) #page1 .top-fields { border-color: var(--border-bright); }
-
-  /* Stack each field as label-over-input, like the section card rows. */
-  body:not(.capturing):not(.printing) #page1 .top-fields .field-row {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 4px !important;
-    margin-bottom: 14px !important;
-  }
-  body:not(.capturing):not(.printing) #page1 .top-fields-row:last-child .field-row:last-child {
-    margin-bottom: 0 !important;
-  }
-  body:not(.capturing):not(.printing) #page1 .top-fields .field-row label {
-    font-size: 14px !important;
-    font-weight: 600 !important;
-    white-space: normal !important;
-  }
-  body:not(.capturing):not(.printing) #page1 .top-fields .field-row input[type="text"],
-  body:not(.capturing):not(.printing) #page1 .top-fields .field-row input[type="date"] {
-    width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-    height: 40px !important;
-    min-height: 40px !important;
-    border: 1px solid var(--border-bright) !important;
-    border-radius: 6px !important;
-    padding: 2px 10px !important;
-    background: var(--bg) !important;
-    color: var(--text) !important;
-    font-size: 16px !important;
-  }
-}
-
-/* ===== MOBILE — MATERIAL TABLES, NATIVE LAYOUT (screen only) =====
-   Keep the real desktop table look (orange titles, section bands, striping)
-   and just shrink it to fit the phone, with bigger inputs so they're easy to
-   tap and >=16px text so iOS doesn't zoom on focus. The table already uses
-   table-layout:fixed/width:100%, so it fits without horizontal scroll. */
-@media screen and (max-width: 767px) {
-  body:not(.printing):not(.capturing) .grid-section {
-    overflow-x: visible !important; margin-bottom: 14px !important;
-  }
-  body:not(.printing):not(.capturing) table.mat-table {
-    width: 100% !important; table-layout: auto !important; font-size: 12px !important;
-  }
-  body:not(.printing):not(.capturing) table.mat-table col.col-data { width: 40px !important; }
-  body:not(.printing):not(.capturing) table.mat-table td:not(.row-label),
-  body:not(.printing):not(.capturing) table.mat-table th:not(:first-child) {
-    width: 40px !important;
-  }
-
-  body:not(.printing):not(.capturing) table.mat-table th {
-    font-size: 12px !important; padding: 7px 2px !important;
-  }
-  body:not(.printing):not(.capturing) table.mat-table td.row-label {
-    font-size: 12px !important; padding: 6px 8px !important; line-height: 1.2 !important;
-    text-align: left !important; white-space: nowrap !important;
-  }
-  body:not(.printing):not(.capturing) table.mat-table td.row-label.section-header {
-    font-size: 12px !important; padding: 7px 4px !important;
-  }
-  body:not(.printing):not(.capturing) table.mat-table td { padding: 2px !important; }
-  body:not(.printing):not(.capturing) table.mat-table td input[type="number"] {
-    width: 100% !important; height: 30px !important; text-align: center !important;
-    font-size: 16px !important;                 /* >=16px stops iOS zoom-on-focus */
-    padding: 0 !important; box-sizing: border-box !important;
-  }
-}
-
-/* ===== PRINT — DETERMINISTIC CARD KILL (does not rely on .printing) =====
-   iOS Safari can apply the @media screen card rules while building the PDF.
-   These rules use IDs (#page1 / #page2), so they outrank every screen card
-   rule (which have no ID) no matter the .printing-class timing. They force
-   inputs to print white with dark text and snap the material tables back to
-   real table layout. This is the safety net behind the .printing toggle. */
-@media print {
-  /* Page-1 field inputs: white fill, dark text, underline (not a box).
-     The :not(#_) raises specificity above the screen card rule, which also
-     carries #page1, so this wins even if .printing hasn't been applied. */
-  body:not(.capturing) #page1 .section-row .inline-input:not(#_),
-  body:not(.capturing) #page1 .section-row .full-line-input:not(#_) {
-    background: #fff !important;
-    color: #1F2937 !important; -webkit-text-fill-color: #1F2937 !important;
-    border: none !important; border-bottom: 0.5pt solid #999 !important;
-    border-radius: 0 !important; box-shadow: none !important;
-    height: auto !important; min-height: 0 !important;
-  }
-  body:not(.capturing) #page1 .section-row .multiline:not(#_) {
-    background: #fff !important; color: #1F2937 !important;
-    border-radius: 0 !important; box-shadow: none !important;
-  }
-  body:not(.capturing) #page1 .section-row .row-label-text:not(#_) { display: inline !important; }
-
-  /* Page-2 material tables: restore table layout, hide injected size labels */
-  #page2 table.mat-table,
-  #page2 table.mat-table tbody { display: table !important; width: 100% !important; }
-  #page2 table.mat-table thead { display: table-header-group !important; }
-  #page2 table.mat-table thead tr { display: table-row !important; }
-  #page2 table.mat-table thead th { display: table-cell !important; }
-  #page2 table.mat-table tbody tr {
-    display: table-row !important;
-    border: 0 !important; border-radius: 0 !important;
-    padding: 0 !important; margin: 0 !important;
-    background: transparent !important; box-shadow: none !important;
-    grid-template-columns: none !important; gap: 0 !important;
-  }
-  #page2 table.mat-table tbody td { display: table-cell !important; }
-  #page2 table.mat-table tbody td:not(.row-label) {
-    flex-direction: row !important;
-  }
-  #page2 table.mat-table tbody td:not(.row-label)::before {
-    content: "" !important; display: none !important;
-  }
-  #page2 table.mat-table tbody td input[type="number"] {
-    background: #fff !important;
-    color: #1F2937 !important; -webkit-text-fill-color: #1F2937 !important;
-    border: none !important; border-radius: 0 !important;
-    box-shadow: none !important; height: auto !important;
-  }
-}
-
 </style>
 </head>
 <body>
-<style>
-.build-badge{position:fixed;bottom:8px;left:8px;z-index:99999;
-  font:600 11px/1 -apple-system,system-ui,sans-serif;
-  background:#D35E13;color:#fff;padding:5px 9px;border-radius:6px;
-  box-shadow:0 1px 4px rgba(0,0,0,.3);opacity:.9;pointer-events:none;}
-@media print{.build-badge{display:none !important;}}
-</style>
 
 <!-- ========== ACTION BAR ========== -->
 <div class="action-bar" id="action-bar">
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
-  <button class="btn" onclick="document.body.classList.add('printing'); document.title = buildFileName('pdf', null).replace('.pdf',''); setTimeout(function(){ document.body.classList.remove('printing'); }, 10000); window.print();">📄 PDF</button>
+  <button class="btn" onclick="doPrint()">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
@@ -2011,23 +1773,6 @@ const MISC_ROWS = [
   MISC_ROWS.forEach(r => addRow(b, r.label, 5, r.isHeader || false));
 })();
 
-/* Copy each table's size headers onto its data cells (data-size) so the
-   mobile card layout can label every number input. Screen-only CSS reads it;
-   it has no effect on desktop or print. */
-(function labelMatTableCells() {
-  document.querySelectorAll('table.mat-table').forEach(function(t) {
-    var sizes = Array.prototype.slice.call(t.querySelectorAll('thead th'))
-      .slice(1)                                   // drop the title cell
-      .map(function(th) { return th.textContent.trim(); });
-    t.querySelectorAll('tbody tr').forEach(function(tr) {
-      var dataCells = tr.querySelectorAll('td:not(.row-label)');
-      Array.prototype.forEach.call(dataCells, function(td, i) {
-        if (sizes[i]) td.setAttribute('data-size', sizes[i]);
-      });
-    });
-  });
-})();
-
 /* ================================================================
    YES / NO PILL BUTTONS
 ================================================================ */
@@ -2055,41 +1800,6 @@ function applyYNColors() {
     sync();
   });
 }
-
-// ===== MOBILE PAGE-1 — WRAP ROW LABELS =====
-// Each .section-row begins with bare label text (e.g. "Natural Gas: ") before
-// its checkboxes/inputs. To put the label on its own line in the mobile card
-// layout, wrap that leading text in <span class="row-label-text">. Runs BEFORE
-// applyYNColors so it only touches the question label, not the YES/NO text.
-function labelPage1Rows() {
-  var p1 = document.getElementById('page1');
-  if (!p1) return;
-  p1.querySelectorAll('.section-row').forEach(function (row) {
-    if (row.querySelector('.row-label-text')) return;            // already done
-    // Skip rows that are just a full-width input or textarea with no label.
-    var first = row.firstChild;
-    // Walk leading nodes, collecting text/<b> until we hit an input/checkbox/textarea.
-    var labelNodes = [];
-    var n = first;
-    while (n) {
-      if (n.nodeType === 1 && /^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName)) break;
-      if (n.nodeType === 1 && n.classList && n.classList.contains('yn-checkbox-wrap')) break;
-      labelNodes.push(n);
-      n = n.nextSibling;
-    }
-    if (!labelNodes.length) return;
-    // Only wrap if there's actual label text (not just whitespace).
-    var txt = labelNodes.map(function (x) { return x.textContent; }).join('').trim();
-    if (!txt) return;
-    var span = document.createElement('span');
-    span.className = 'row-label-text';
-    row.insertBefore(span, labelNodes[0]);
-    labelNodes.forEach(function (x) { span.appendChild(x); });
-  });
-}
-document.addEventListener('DOMContentLoaded', labelPage1Rows);
-if (document.readyState !== 'loading') labelPage1Rows();
-
 document.addEventListener('DOMContentLoaded', applyYNColors);
 if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
 
@@ -2135,6 +1845,20 @@ if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
     document.body.style.webkitTextSizeAdjust = 'none';
     document.body.style.textSizeAdjust = 'none';
   });
+  window.__prepViewport = function() {
+    if (metaViewport) metaViewport.setAttribute('content', 'width=1050, initial-scale=1.0');
+    document.body.style.width = '1050px';
+    document.body.style.maxWidth = '1050px';
+    document.body.style.webkitTextSizeAdjust = 'none';
+    document.body.style.textSizeAdjust = 'none';
+  };
+  window.__restoreViewport = function() {
+    if (metaViewport && originalContent) metaViewport.setAttribute('content', originalContent);
+    document.body.style.width = '';
+    document.body.style.maxWidth = '';
+    document.body.style.webkitTextSizeAdjust = '';
+    document.body.style.textSizeAdjust = '';
+  };
 
   window.addEventListener('afterprint', function() {
     // Restore normal viewport
@@ -2149,6 +1873,35 @@ if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
 })();
 const SAVE_KEY = 'aog_gas_install_v1';
 let saveTimer = null;
+
+function doPrint() {
+  // Deterministic print prep: iOS Safari fires `beforeprint` unreliably and
+  // races the page snapshot, which is why printing gave two different results.
+  // We apply ALL print preparation synchronously here, let layout settle, then
+  // print. The beforeprint listeners remain as a fallback (e.g. Safari share
+  // menu) and are guarded so they can't double-apply or blank the notes.
+  try { document.title = buildFileName('pdf', null).replace('.pdf', ''); } catch (e) {}
+  try { window.__forceLightForPrint && window.__forceLightForPrint(); } catch (e) {}
+  try { window.__prepViewport && window.__prepViewport(); } catch (e) {}
+  try { window.__populateProxies && window.__populateProxies(); } catch (e) {}
+  try { window.__prepLayout && window.__prepLayout(); } catch (e) {}
+  // Two rAFs + a short delay ensure the DOM mutations are committed and laid
+  // out before Safari snapshots the page for the print preview.
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      setTimeout(function() {
+        window.print();
+        // Fallback restore in case afterprint never fires on iOS Safari.
+        setTimeout(function() {
+          try { window.__restoreLayout && window.__restoreLayout(); } catch (e) {}
+          try { window.__clearProxies && window.__clearProxies(); } catch (e) {}
+          try { window.__restoreViewport && window.__restoreViewport(); } catch (e) {}
+          try { window.__restoreDark && window.__restoreDark(); } catch (e) {}
+        }, 3000);
+      }, 250);
+    });
+  });
+}
 
 function collectState() {
   const d = { inputs: {}, numbers: {}, checks: {}, dates: {} };
@@ -2257,10 +2010,6 @@ function buildFileName(ext, page) {
    before capture so images look like the printed output.
 ================================================================ */
 function injectCaptureStyles() {
-  // Disable the mobile card layout during capture so html2canvas renders the
-  // desktop/print arrangement (the mobile @media rules are scoped to
-  // body:not(.capturing)).
-  document.body.classList.add('capturing');
   const el = document.createElement('style');
   el.id = 'capture-print-styles';
   el.textContent = `
@@ -2404,7 +2153,6 @@ function removeCaptureStyles() {
   clearCaptureProxies();
   const el = document.getElementById('capture-print-styles');
   if (el) el.remove();
-  document.body.classList.remove('capturing');
 }
 
 
@@ -2896,7 +2644,10 @@ function setStatus(msg) {
     savedStyles = [];
   }
 
+  var layoutActive = false;
   function applyPrintLayout() {
+    if (layoutActive) return;     // prevent double-apply (button + beforeprint race)
+    layoutActive = true;
     savedStyles = [];
 
     // ── page-wrapper: must be block for page-breaks ──
@@ -3017,14 +2768,12 @@ function setStatus(msg) {
       save(el, 'font-size:7.5pt!important;color:#1F2937!important;background:transparent!important;border:none!important;box-shadow:none!important;outline:none!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;text-align:center!important;padding:0!important;display:block!important;-webkit-appearance:none!important;-webkit-print-color-adjust:exact!important;'));
   }
 
-  window.addEventListener('beforeprint', function() {
-    stripPlaceholders();
-    applyPrintLayout();
-  });
-  window.addEventListener('afterprint', function() {
-    restorePHs();
-    restoreStyles();
-  });
+  function prepLayout() { stripPlaceholders(); applyPrintLayout(); }
+  function restoreLayout() { restorePHs(); restoreStyles(); layoutActive = false; }
+  window.__prepLayout = prepLayout;
+  window.__restoreLayout = restoreLayout;
+  window.addEventListener('beforeprint', prepLayout);
+  window.addEventListener('afterprint', restoreLayout);
 })();
 
 /* ================================================================
@@ -3044,9 +2793,6 @@ function setStatus(msg) {
     wasDark = document.body.classList.contains('dark-mode');
     restored = false;
     if (wasDark) document.body.classList.remove('dark-mode');
-    // Disable the mobile card layout so page 1 prints as the compact
-    // 1-page form (and inputs aren't dark-filled boxes in dark mode).
-    document.body.classList.add('printing');
     // Safety fallback in case all events fail
     clearTimeout(restoreTimer);
     restoreTimer = setTimeout(restoreDark, 8000);
@@ -3057,7 +2803,6 @@ function setStatus(msg) {
     restored = true;
     active = false;
     clearTimeout(restoreTimer);
-    document.body.classList.remove('printing');
     if (wasDark) {
       document.body.classList.add('dark-mode');
       wasDark = false;
@@ -3066,6 +2811,8 @@ function setStatus(msg) {
 
   // afterprint — the reliable signal that printing/preview is done.
   window.addEventListener('afterprint', restoreDark);
+  window.__forceLightForPrint = forceLightForPrint;
+  window.__restoreDark = restoreDark;
 
   // beforeprint — force light. CSS @media print also forces light, so even
   // if restore races a printer's dialog events, the output stays light.
@@ -3098,7 +2845,10 @@ function setStatus(msg) {
    This lets regular divs render at the correct CSS font-size in print.
 ================================================================ */
 (function() {
+  var proxiesActive = false;
   function populateProxies() {
+    if (proxiesActive) return;   // prevent double-run (button + beforeprint) blanking notes
+    proxiesActive = true;
     document.querySelectorAll('#page1 textarea.multiline, #page1 .miscues-textarea').forEach(ta => {
       const proxy = ta.nextElementSibling;
       if (proxy && proxy.classList.contains('print-proxy')) {
@@ -3126,6 +2876,7 @@ function setStatus(msg) {
     });
   }
   function clearProxies() {
+    proxiesActive = false;
     document.querySelectorAll('#page1 textarea.multiline, #page1 .miscues-textarea').forEach(ta => {
       if (ta._printVal !== undefined) {
         ta.value = ta._printVal;
@@ -3137,6 +2888,8 @@ function setStatus(msg) {
       el.removeAttribute('style');
     });
   }
+  window.__populateProxies = populateProxies;
+  window.__clearProxies = clearProxies;
   window.addEventListener('beforeprint', populateProxies);
   window.addEventListener('afterprint', clearProxies);
 })();
