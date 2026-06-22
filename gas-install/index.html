@@ -2232,9 +2232,14 @@ if (document.readyState !== 'loading') setTimeout(applyYNColors, 50);
     setTimeout(function(){ document.body.classList.remove('printing'); }, 10000);
 
     // Wait two frames so the layout above is actually committed, then print.
+    // Two animation frames commit the layout on fast devices; the extra
+    // ~60ms timeout is a safety margin so slower or loaded phones can't
+    // snapshot the page before the print layout has fully settled.
     requestAnimationFrame(function(){
       requestAnimationFrame(function(){
-        window.print();
+        setTimeout(function(){
+          window.print();
+        }, 60);
       });
     });
   };
