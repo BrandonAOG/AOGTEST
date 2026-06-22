@@ -1436,6 +1436,122 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   #page2 .footer-other-input              { font-size: 10px !important; }
   #page2 .grid-section-title              { font-size: 8.5px !important; }
 }
+
+/* ===== MOBILE PAGE-1 — CARD + STACKED ROWS (screen only) =====
+   On phones the inline label+control rows wrap unpredictably (e.g. a third
+   checkbox like "NOT SET" or "Existing" orphans onto its own line). Here each
+   section becomes a card and every row stacks: label on its own line, then
+   its checkboxes/inputs below. Desktop & print are untouched. */
+@media screen and (max-width: 767px) {
+  /* Drop the section dividers — cards provide separation. */
+  #page1 .section-hr { display: none !important; }
+
+  /* Each section = a card. */
+  #page1 .section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  body.dark-mode #page1 .section { border-color: var(--border-bright); }
+
+  /* Section title becomes the card header. */
+  #page1 .section-title {
+    margin: 0 0 10px !important;
+    font-size: 13px !important;
+    padding-bottom: 6px !important;
+  }
+
+  /* Stack each row: label first (full-width line), controls wrap below it. */
+  #page1 .section-row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px 8px !important;
+    margin-bottom: 14px !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+  }
+  #page1 .section-row:last-child { margin-bottom: 0 !important; }
+
+  /* Labels take a full-width line so controls wrap beneath. */
+  #page1 .section-row > label {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+    font-weight: 600 !important;
+  }
+
+  /* Free-text inline inputs go full width (Generator Size, etc.). */
+  #page1 .section-row .inline-input {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    border: 1px solid var(--border-bright) !important;
+    border-radius: 6px !important;
+    padding: 2px 10px !important;
+    background: var(--bg) !important;
+    font-size: 16px !important;
+  }
+
+  /* Team Member / Double Checked By: stack each label+input as its own line. */
+  #page1 .tm-dc-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  #page1 .tm-dc-row::before { display: none !important; }
+  #page1 .tm-dc-row > label { flex: 0 0 100% !important; margin-bottom: 0 !important; }
+  #page1 .tm-dc-row > .inline-input,
+  #page1 .tm-dc-row > .inline-input.xshort-plus {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Bigger checkbox pills, easy to tap; they flow on the line below the label. */
+  #page1 .section-row .yn-checkbox-wrap {
+    font-size: 13px !important;
+    padding: 6px 12px 6px 8px !important;
+    border-radius: 6px !important;
+  }
+  #page1 .section-row .yn-checkbox-wrap input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 5px 0 0 !important;
+  }
+  /* Bare (non-wrapped) checkboxes get sized up too. */
+  #page1 .section-row > input[type="checkbox"] {
+    width: 22px !important;
+    height: 22px !important;
+    margin: 0 4px 0 0 !important;
+  }
+
+  /* Needs Completed textarea full width on its own line. */
+  #page1 .needs-completed-row { flex-direction: column !important; align-items: stretch !important; }
+  #page1 .needs-completed {
+    width: 100% !important;
+    border: 1px solid var(--border-bright) !important;
+    border-radius: 6px !important;
+    padding: 8px 10px !important;
+    min-height: 60px !important;
+    font-size: 16px !important;
+  }
+
+  /* Transfer-switch blocks: their inner rows inherit the stacked layout above;
+     keep the block readable inside the card scheme. */
+  #page1 .ts-block { margin-bottom: 12px !important; }
+  #page1 .ts-body .section-row { margin-bottom: 14px !important; }
+}
 </style>
 </head>
 <body>
