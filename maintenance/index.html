@@ -2243,7 +2243,23 @@ function capturePageToCanvas() {
         '  height: auto !important; min-height: 1.6em !important; overflow: visible !important;',
         '}',
         // Bump just the input text up slightly so values read a touch larger.
-        (_isMobileCap ? '' : 'input[type="text"], input[type="date"], input[type="number"] { font-size: calc(0.78rem + 0.8px) !important; }')
+        (_isMobileCap ? '' : 'input[type="text"], input[type="date"], input[type="number"] { font-size: calc(0.78rem + 0.8px) !important; }'),
+        // The mobile-screen "breathing room" spacing (@media max-width:600px)
+        // only exists for the on-screen working view. During capture the page
+        // renders at CAPTURE_WIDTH (>600px) so those rules don't apply in the
+        // clone — but the canvas HEIGHT is measured from the live on-screen DOM,
+        // which DOES have the extra spacing. That mismatch added blank space /
+        // broke the full-page fit. Reset the spacing back to the compact desktop
+        // values here so the measured height matches the rendered layout.
+        '.section { margin-bottom: 4px !important; }',
+        '.two-column { gap: 4px !important; margin-bottom: 4px !important; }',
+        '.section-body { padding-top: 4px !important; padding-bottom: 4px !important; }',
+        '.field-row { margin-bottom: 3px !important; row-gap: 0 !important; }',
+        '.field-row:last-child { margin-bottom: 0 !important; }',
+        '.check-group { gap: 2px !important; row-gap: 0 !important; }',
+        '.test-grid { gap: 12px !important; margin-top: 8px !important; }',
+        '.test-item { margin-bottom: 0 !important; }',
+        '.ts-row { margin-bottom: 2px !important; }'
       ].join('\n');
       document.head.appendChild(forceStyle);
       // Strip placeholder attributes during capture (html2canvas can paint them
