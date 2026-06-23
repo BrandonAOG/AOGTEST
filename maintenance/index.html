@@ -2203,34 +2203,31 @@ function capturePageToCanvas() {
           buildNoteProxies();
           buildBoxProxies();
           // Force a reflow so the force-style layout (incl. the now-static
-          // footer) is fully applied, THEN measure — reading the height inline
-          // earlier captured the pre-reflow height and cut off the footer.
+          // footer) is fully applied before we measure.
           void page.offsetHeight;
-          // When the form is short (e.g. a section is collapsed), push the
-          // footer down so it sits at the bottom of the full sheet — the page
-          // then reads as a complete document, matching print. Tall forms are
-          // left alone (gap <= 0). Cleared in restoreCapture.
-          var _ftPin = page.querySelector('.footer');
-          if (_ftPin) {
-            _ftPin.style.marginTop = '0px';
-            void page.offsetHeight;
-            var _ftPinBottom = _ftPin.offsetTop + _ftPin.offsetHeight;
-            var _ftGap = CAPTURE_PAGE_H - _ftPinBottom;
-            if (_ftGap > 0) { _ftPin.style.marginTop = _ftGap + 'px'; void page.offsetHeight; }
-          }
-          // One more frame so the proxies + force-style layout fully settle
-          // before measuring. Measuring too early read the min-height (1527)
-          // instead of the true content height (~1583) and cropped the footer.
+          // One more frame so the proxies + force-style layout fully settle,
+          // THEN pin the footer and measure (measuring too early read the wrong
+          // height and either cropped the footer or left white at the bottom).
           requestAnimationFrame(() => {
           void page.offsetHeight;
+          // Pin the footer to the bottom of a full sheet when the form is
+          // shorter than one page, so the captured image fills the sheet with
+          // the footer at the bottom (matching print). Tall forms are left as-is.
+          var _ftEl = page.querySelector('.footer');
+          if (_ftEl) {
+            _ftEl.style.marginTop = '0px';
+            void page.offsetHeight;
+            var _pr0  = page.getBoundingClientRect();
+            var _ftB0 = _ftEl.getBoundingClientRect().bottom - _pr0.top;
+            var _gap0 = CAPTURE_PAGE_H - _ftB0;
+            if (_gap0 > 0) { _ftEl.style.marginTop = _gap0 + 'px'; void page.offsetHeight; }
+          }
           // Measure capture height from the footer's actual bottom edge.
           var _pr = page.getBoundingClientRect();
-          var _ftEl = page.querySelector('.footer');
           var _ftBottom = _ftEl ? (_ftEl.getBoundingClientRect().bottom - _pr.top) : 0;
           var _pageBottom = _pr.height;
-          // Generous buffer so any residual late layout growth can never crop the
-          // footer; the contain-fit framing makes extra bottom space harmless.
-          var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom, _pageBottom)) + 64;
+          // Small safety pad so a hairline never crops the footer.
+          var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom, _pageBottom)) + 20;
           html2canvas(page, {
             scale: 2,
             useCORS: true,
