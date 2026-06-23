@@ -3038,12 +3038,20 @@ function printForm() {
 
   // ══════════════════════════════════════════
   // ── iPAD SAFARI — print path ──
+  // The iPad's old .ipad-print layout rendered ~1326px tall — right at the one-page limit, so
+  // after iOS's automatic fit-to-page-WIDTH scale (0.777) the content was ~1030px tall and
+  // tipped onto a 2nd page. That's the "wrong scale until I tap Scale" symptom: tapping Scale
+  // let the user manually shrink it back onto one page. The iPhone path renders the same form
+  // ~1266px tall, which fits cleanly after the same width-fit — and it's confirmed to print
+  // correctly. So the iPad now uses the SAME phone-print path: no .ipad-print class, plain
+  // synchronous in-gesture print. (If the iPad PDF text ends up too small for your taste, we can
+  // re-introduce slightly larger iPad sizing — but it must keep the page under ~1266px tall to
+  // stay on one page.)
   // ══════════════════════════════════════════
   if (isMobileSafari && isIpadSafari) {
-    document.documentElement.classList.add('ipad-print');
     doSpanReplace();
     flushPrintLayout();
-    armRestoreAndPrint(true, false, 300);
+    armRestoreAndPrint(true);
     return;
   }
 
