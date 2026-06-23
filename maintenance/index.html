@@ -1674,7 +1674,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0H-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0I-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1903,7 +1903,7 @@ function openPrintPreview() {
 
     // .section-body
     document.querySelectorAll('.section-body').forEach(function(el) {
-      _snap(el, 'padding',    '1.5px 6px');
+      _snap(el, 'padding',    isIPad ? '1px 6px' : '1.5px 6px');
       _snap(el, 'background', 'white');
       _snap(el, 'display',    'block');
     });
@@ -1914,7 +1914,7 @@ function openPrintPreview() {
       _snap(el, 'color',        '#D97706');
       _snap(el, 'borderBottom', '0.5px solid #D97706');
       _snap(el, 'textShadow',   'none');
-      _snap(el, 'padding',      '3px 7px');
+      _snap(el, 'padding',      isIPad ? '2px 7px' : '3px 7px');
       _snap(el, 'display',      'flex');
       _snap(el, 'minHeight',    'auto');
     });
@@ -1945,11 +1945,13 @@ function openPrintPreview() {
     var _dateEl = document.getElementById('date');
     if (_dateEl) { _snap(_dateEl, 'flex', '0 0 130px'); _snap(_dateEl, 'width', '130px'); _snap(_dateEl, 'minWidth', '130px'); _snap(_dateEl, 'whiteSpace', 'nowrap'); }
 
-    // textareas — match mobile-safari print heights
-    var taNotes = {
-      'batnotes': '54px', 'gennotes': '54px',
-      'oilnotes': '34px', 'gasnotes': '34px', 'tsnotes': '34px'
-    };
+    // textareas — match mobile-safari print heights.
+    // iPad renders a touch taller, so use slightly shorter note boxes there to
+    // keep the last OTHER rows on page 1 (these are stamped inline, which beats
+    // the stylesheet, so the iPad height fix must live here).
+    var taNotes = isIPad
+      ? { 'batnotes': '46px', 'gennotes': '46px', 'oilnotes': '28px', 'gasnotes': '28px', 'tsnotes': '28px' }
+      : { 'batnotes': '54px', 'gennotes': '54px', 'oilnotes': '34px', 'gasnotes': '34px', 'tsnotes': '34px' };
     Object.keys(taNotes).forEach(function(id) {
       var ta = document.getElementById(id);
       if (ta) {
@@ -2859,6 +2861,11 @@ setTimeout(adjustTopPadding, 100);
   }
   if (qp('debug') !== '1') return;
 
+  // Never let the debug panel appear in print output.
+  var _dbgPrintStyle = document.createElement('style');
+  _dbgPrintStyle.textContent = '@media print { #__dbg { display: none !important; } }';
+  document.head.appendChild(_dbgPrintStyle);
+
   function build() {
     var ua = navigator.userAgent || '';
     var isIPad = (/iPad/.test(ua)) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
@@ -2899,10 +2906,22 @@ setTimeout(adjustTopPadding, 100);
     if (!box) {
       box = document.createElement('div');
       box.id = '__dbg';
-      box.style.cssText = 'position:fixed;top:8px;left:8px;right:8px;z-index:2147483647;' +
+      box.style.cssText = 'position:fixed;bottom:8px;left:8px;right:8px;z-index:2147483647;' +
         'background:#000;color:#0f0;font:12px/1.45 monospace;padding:10px 12px;' +
         'border:2px solid #0f0;border-radius:6px;white-space:pre-wrap;word-break:break-all;' +
-        'max-height:80vh;overflow:auto;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+        'max-height:55vh;overflow:auto;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+      box.setAttribute('data-pos', 'bottom');
+      var move = document.createElement('button');
+      move.textContent = '⇅ move';
+      move.style.cssText = 'display:inline-block;margin:8px 8px 0 0;background:#0f0;color:#000;' +
+        'border:none;border-radius:4px;padding:6px 10px;font:bold 12px monospace;';
+      move.onclick = function () {
+        if (box.getAttribute('data-pos') === 'bottom') {
+          box.style.bottom = 'auto'; box.style.top = '8px'; box.setAttribute('data-pos', 'top');
+        } else {
+          box.style.top = 'auto'; box.style.bottom = '8px'; box.setAttribute('data-pos', 'bottom');
+        }
+      };
       var close = document.createElement('button');
       close.textContent = '✕ close debug';
       close.style.cssText = 'display:block;margin-top:8px;background:#0f0;color:#000;' +
@@ -2911,6 +2930,7 @@ setTimeout(adjustTopPadding, 100);
       var txt = document.createElement('div');
       txt.id = '__dbgtxt';
       box.appendChild(txt);
+      box.appendChild(move);
       box.appendChild(close);
       document.body.appendChild(box);
     }
