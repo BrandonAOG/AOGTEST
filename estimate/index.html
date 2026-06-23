@@ -2953,7 +2953,9 @@ function printForm() {
         });
       });
     } else {
+      if (window.__plog) { window.__plog('  calling window.print() (sync, in-gesture)'); window.__pageMetrics('  at-print:'); }
       window.print();
+      if (window.__plog) window.__plog('  window.print() returned');
     }
   }
 
@@ -3002,6 +3004,7 @@ function printForm() {
     // Pass 2 (settles :has() + newly inserted span geometry)
     void document.body.offsetWidth;
     if (pg) { void pg.offsetHeight; pg.getBoundingClientRect(); }
+    if (window.__pageMetrics) window.__pageMetrics('  post-flush:');
   }
 
   // ══════════════════════════════════════════
@@ -5293,6 +5296,150 @@ window.addEventListener('afterprint', function() {
     if (instant) instant.parentNode.removeChild(instant);
   }
 });
+
+/* ════════════════════════════════════════════════════════════════════════
+   PRINT DEBUG OVERLAY  —  enable by adding #debug (or ?debug) to the URL,
+   e.g.  https://brandonaog.github.io/AOG/estimate/#debug
+   Once enabled it persists (localStorage). To turn off: tap "OFF" in the panel
+   or load the page with #nodebug. Renders only on screen, never in the PDF.
+   It records what actually happens at print time so we can see WHY the iPad
+   picks the wrong scale: which print path runs, the real #page size at each
+   stage, the implied Fit-to-Page scale, and whether beforeprint/afterprint/
+   matchMedia('print') actually fire on this device.
+   ════════════════════════════════════════════════════════════════════════ */
+(function () {
+  try {
+    var hash = (location.hash || '') + ' ' + (location.search || '');
+    if (/nodebug/i.test(hash)) { try { localStorage.removeItem('aogDebug'); } catch (e) {} return; }
+    if (/debug/i.test(hash)) { try { localStorage.setItem('aogDebug', '1'); } catch (e) {} }
+    var on = false;
+    try { on = localStorage.getItem('aogDebug') === '1'; } catch (e) {}
+    if (!on) return;
+
+    // Hide overlay in the actual print output.
+    var st = document.createElement('style');
+    st.textContent = '@media print { #aog-debug { display:none !important; } }';
+    document.head.appendChild(st);
+
+    var box = document.createElement('div');
+    box.id = 'aog-debug';
+    box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;z-index:2147483647;' +
+      'background:rgba(10,12,16,0.95);color:#0f0;font:11px/1.35 ui-monospace,Menlo,monospace;' +
+      'padding:6px 8px 8px;border-top:2px solid #FA6700;-webkit-text-size-adjust:100%;white-space:pre-wrap;word-break:break-word;';
+    var bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;position:sticky;top:0;background:rgba(10,12,16,0.98);padding-bottom:4px;';
+    function mkbtn(label, fn) {
+      var b = document.createElement('button');
+      b.textContent = label;
+      b.style.cssText = 'font:11px monospace;background:#FA6700;color:#000;border:0;border-radius:3px;padding:4px 8px;font-weight:700;';
+      b.addEventListener('click', fn);
+      return b;
+    }
+    var log = document.createElement('div');
+    bar.appendChild(mkbtn('COPY', function () {
+      var t = log.textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t).then(function(){ flash('copied ✓'); }, function(){ selectLog(); });
+      } else { selectLog(); }
+    }));
+    bar.appendChild(mkbtn('CLEAR', function () { log.textContent = ''; plog('cleared'); }));
+    bar.appendChild(mkbtn('OFF', function () { try { localStorage.removeItem('aogDebug'); } catch (e) {} box.remove(); }));
+    var flashEl = document.createElement('span');
+    flashEl.style.cssText = 'color:#0f0;align-self:center;margin-left:4px;';
+    bar.appendChild(flashEl);
+    function flash(m) { flashEl.textContent = m; setTimeout(function(){ flashEl.textContent = ''; }, 1500); }
+    function selectLog() {
+      try {
+        var r = document.createRange(); r.selectNodeContents(log);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        flash('selected — long-press → Copy');
+      } catch (e) {}
+    }
+    box.appendChild(bar); box.appendChild(log);
+
+    var t0 = Date.now();
+    function plog(msg) {
+      var line = ('+' + String(Date.now() - t0).padStart(5, ' ') + 'ms  ' + msg);
+      log.textContent += line + '\n';
+      box.scrollTop = box.scrollHeight;
+    }
+    window.__plog = plog;
+
+    function pageMetrics(tag) {
+      var pg = document.getElementById('page');
+      if (!pg) { plog(tag + ' #page=NULL'); return; }
+      var r = pg.getBoundingClientRect();
+      var w = Math.round(r.width), h = Math.round(r.height);
+      var PW = window.PAPER_W_PX || 816, PH = window.PAPER_H_PX || 1056;
+      var fit = PW / r.width;                 // iOS Fit-to-Page scales width to paper
+      var scaledH = r.height * fit;           // resulting height in paper px
+      var pages = scaledH / PH;
+      plog(tag + ' #page ' + w + 'x' + h +
+           ' | fit=' + fit.toFixed(3) +
+           ' | scaledH=' + Math.round(scaledH) + 'px of ' + PH +
+           ' | pages=' + pages.toFixed(2) + (pages > 1.001 ? '  ⚠ OVERFLOWS' : '  ✓ fits'));
+    }
+    window.__pageMetrics = pageMetrics;
+
+    function init() {
+      document.body.appendChild(box);
+      var ua = navigator.userAgent;
+      plog('=== DEBUG ON ===');
+      plog('UA: ' + ua);
+      plog('maxTouchPoints=' + navigator.maxTouchPoints +
+           ' | screen=' + screen.width + 'x' + screen.height +
+           ' | inner=' + window.innerWidth + 'x' + window.innerHeight +
+           ' | dpr=' + window.devicePixelRatio);
+      plog('IS_IOS_SAFARI=' + window.IS_IOS_SAFARI +
+           ' | body.mobile-safari=' + document.body.classList.contains('mobile-safari'));
+      // Replicate printForm's own device branch logic so we see which path WILL run.
+      var isMobileSafari = document.body.classList.contains('mobile-safari');
+      var isIpadSafari = isMobileSafari && Math.min(screen.width, screen.height) >= 768;
+      var isMacSafari = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Firefox|Edge/.test(ua);
+      var path = isMobileSafari && !isIpadSafari ? 'iPHONE'
+               : isMobileSafari && isIpadSafari ? 'iPAD'
+               : isMacSafari ? 'DESKTOP(MacSafari,deferred print)'
+               : 'DESKTOP(other,deferred print)';
+      plog('PREDICTED print path => ' + path);
+      plog('fonts.status=' + (document.fonts ? document.fonts.status : 'n/a'));
+      pageMetrics('load:');
+
+      // Wrap printForm to time the sequence.
+      if (typeof window.printForm === 'function') {
+        var orig = window.printForm;
+        window.printForm = function () {
+          plog('--- printForm() CALLED ---');
+          pageMetrics('  pre :');
+          var ret = orig.apply(this, arguments);
+          // Sample again after WebKit has had a frame to apply class + spans.
+          requestAnimationFrame(function () {
+            pageMetrics('  +1rAF:');
+            requestAnimationFrame(function () { pageMetrics('  +2rAF:'); });
+          });
+          return ret;
+        };
+        plog('printForm wrapped ✓');
+      } else {
+        plog('⚠ window.printForm not a function — cannot wrap (check invocation)');
+      }
+
+      // Did these events actually fire? (iOS Safari is unreliable here.)
+      window.addEventListener('beforeprint', function () { plog('EVENT beforeprint FIRED'); pageMetrics('  beforeprint:'); });
+      window.addEventListener('afterprint',  function () { plog('EVENT afterprint FIRED');  pageMetrics('  afterprint:'); });
+      if (window.matchMedia) {
+        var mm = window.matchMedia('print');
+        var mmh = function (e) { plog('EVENT matchMedia(print) => ' + (e.matches ? 'ENTER print' : 'EXIT print')); pageMetrics('  mm:'); };
+        if (mm.addEventListener) mm.addEventListener('change', mmh);
+        else if (mm.addListener) mm.addListener(mmh);
+      }
+      document.addEventListener('visibilitychange', function () { plog('EVENT visibilitychange => ' + document.visibilityState); });
+    }
+    if (document.body) init();
+    else document.addEventListener('DOMContentLoaded', init);
+  } catch (err) {
+    try { alert('debug overlay error: ' + err.message); } catch (e) {}
+  }
+})();
 </script>
 </body>
 </html>
