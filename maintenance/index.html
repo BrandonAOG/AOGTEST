@@ -1823,6 +1823,25 @@ function clearForm() {
   localStorage.removeItem(DRAFT_KEY);
 }
 
+function flushPrintLayout() {
+  // Force iOS to settle layout BEFORE it snapshots for fit-to-page scaling.
+  // A single reflow isn't enough: the stamp pass mutates many elements and the
+  // print rules use :has(), which needs two style/layout passes to settle. If
+  // we print after one pass, iOS computes its Fit-to-Page scale from a stale,
+  // taller layout and the form spills onto a 2nd page (the "wrong until I tap
+  // Scale" bug). Reading geometry on html/body/#page twice forces both recalcs
+  // to complete synchronously, while staying inside the tap gesture.
+  var els = [document.documentElement, document.body, document.getElementById('page')];
+  for (var pass = 0; pass < 2; pass++) {
+    els.forEach(function(el) {
+      if (!el) return;
+      // Reading these properties forces a synchronous reflow.
+      void el.offsetHeight;
+      void el.getBoundingClientRect().height;
+    });
+  }
+}
+
 function renderPrintDebug() {
   // Full print audit. Walks every meaningful element, reads its computed
   // print-state metrics, groups identical results (so 16 Y/N pills collapse to
@@ -1925,15 +1944,18 @@ function renderPrintDebug() {
     var PRINT_W_IN = 8.5 - (0.15 + 0.15);   // paper minus L/R @page margins
     var PRINT_H_IN = 11  - (0.15 + 0.06);   // paper minus T/B @page margins
     var pr = page.getBoundingClientRect();
+    var pdbg = document.getElementById('pdebug');
+    var pdbgH = pdbg ? pdbg.getBoundingClientRect().height : 0;
+    var realH = pr.height - pdbgH;           // exclude the debug panel's own height
     var pxPerIn = pr.width / PRINT_W_IN;     // measured: stamped width → inches
     var budgetPx = PRINT_H_IN * pxPerIn;     // height that fits on one page
-    var overflow = pr.height - budgetPx;
-    var pages = Math.max(1, Math.ceil(pr.height / budgetPx));
+    var overflow = realH - budgetPx;
+    var pages = Math.max(1, Math.ceil(realH / budgetPx));
     report.push('');
-    report.push('==== PAGE FIT ====');
+    report.push('==== PAGE FIT (excl. debug panel) ====');
     report.push('px/inch  : ' + pxPerIn.toFixed(1) + '  (pageW ' + pr.width.toFixed(0) + 'px → ' + PRINT_W_IN + 'in)');
     report.push('1-page   : ' + budgetPx.toFixed(0) + 'px tall budget');
-    report.push('actual   : ' + pr.height.toFixed(0) + 'px  → est ' + pages + ' page(s)');
+    report.push('actual   : ' + realH.toFixed(0) + 'px (form only)  → est ' + pages + ' page(s)');
     report.push((overflow > 0 ? '✗ OVER by ' : '✓ fits, ') + Math.abs(overflow).toFixed(0) + 'px '
                 + (overflow > 0 ? '(trim this much to fit)' : 'to spare'));
 
@@ -2319,7 +2341,9 @@ function openPrintPreview() {
     requestAnimationFrame(function() {
       requestAnimationFrame(function() {
         setTimeout(function() {
+          flushPrintLayout();   // settle layout so iOS fit-to-page reads correct height
           renderPrintDebug();
+          flushPrintLayout();   // re-settle after debug panel injects text
           window.print();
         }, isMobileSafari ? 350 : 0);
       });
@@ -2378,6 +2402,7 @@ function openPrintPreview() {
   } else {
     // Desktop print
     window.addEventListener('afterprint', restore);
+    flushPrintLayout();
     renderPrintDebug();
     window.print();
   }
