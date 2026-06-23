@@ -1780,9 +1780,9 @@ function openPrintPreview() {
     var fix = document.createElement('style');
     fix.id = 'safari-print-fix';
     fix.textContent = [
-      /* margin:0 caused 2-page prints when AirPrint enforced its hardware minimums.
-         Use realistic margins so CSS preview == actual print output. */
-      (isMobileSafari ? '@page { size: 8.5in 11in; margin: 0.15in 0.15in 0.25in 0.15in !important; }' : ''),
+      /* margin:0 keeps layout identical in preview and AirPrint. Content is
+         tightened below to absorb the hardware bottom margin printers enforce. */
+      (isMobileSafari ? '@page { size: 8.5in 11in; margin: 0 !important; }' : ''),
       '@media print {',
       '  * { animation:none!important; transition:none!important; }',
       '  html, body { height:auto!important; }',
