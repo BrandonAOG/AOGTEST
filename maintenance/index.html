@@ -2369,7 +2369,12 @@ function capturePageToCanvas() {
           // bottom border/corner brackets are never clipped — important for the
           // short "power test performed" collapsed view where the page is small.
           var _pageBottom = _pr.height;
-          var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom, _pageBottom)) + 48;
+          // Measure the content height, then deliberately OVERSHOOT by 400px.
+          // The extra area renders as plain white (backgroundColor below), so the
+          // form bottom can never be clipped regardless of device/DPR rounding.
+          // The trailing white is measured away by the trim step after capture.
+          var _contentH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom, _pageBottom)) + 48;
+          var _capH = _contentH + 400;
           html2canvas(page, {
             scale: 2,
             useCORS: true,
@@ -2396,6 +2401,58 @@ function capturePageToCanvas() {
               el.classList.contains('theme-toggle-btn')
           }).then(srcCanvas => {
             restoreCapture();
+
+            // ── Trim trailing white from the BOTTOM of the capture. ──
+            // We intentionally captured ~400px too tall so the form can never
+            // clip; that surplus is plain white. Scan the canvas from the bottom
+            // up for the last row that contains real (non-white) content, then
+            // crop just below it. This works entirely in CANVAS pixels, so the
+            // device pixel ratio never enters the math — it's DPR-proof.
+            try {
+              var _tctx = srcCanvas.getContext('2d', { willReadFrequently: true });
+              var _W = srcCanvas.width, _H = srcCanvas.height;
+              // Treat near-white as white (JPEG/anti-alias specks aren't content).
+              var _WHITE = 250;
+              var _lastContentRow = -1;
+              // Coarse scan upward in 4px steps for speed on tall canvases…
+              outer:
+              for (var _y = _H - 1; _y >= 0; _y -= 4) {
+                var _row = _tctx.getImageData(0, _y, _W, 1).data;
+                // …sampling every 8th pixel across the row.
+                for (var _x = 0; _x < _W; _x += 8) {
+                  var _i = _x * 4;
+                  if (_row[_i] < _WHITE || _row[_i + 1] < _WHITE || _row[_i + 2] < _WHITE) {
+                    _lastContentRow = _y;
+                    break outer;
+                  }
+                }
+              }
+              if (_lastContentRow >= 0) {
+                // Refine within the 4px coarse band to land on the exact last row.
+                for (var _ry = Math.min(_H - 1, _lastContentRow + 4); _ry > _lastContentRow; _ry--) {
+                  var _rrow = _tctx.getImageData(0, _ry, _W, 1).data;
+                  var _hit = false;
+                  for (var _rx = 0; _rx < _W; _rx += 8) {
+                    var _ri = _rx * 4;
+                    if (_rrow[_ri] < _WHITE || _rrow[_ri + 1] < _WHITE || _rrow[_ri + 2] < _WHITE) { _hit = true; break; }
+                  }
+                  if (_hit) { _lastContentRow = _ry; break; }
+                }
+                // Keep a small white margin below the content (scaled to capture).
+                var _cropH = Math.min(_H, _lastContentRow + 1 + 24);
+                if (_cropH < _H) {
+                  var _trimmed = document.createElement('canvas');
+                  _trimmed.width  = _W;
+                  _trimmed.height = _cropH;
+                  var _trctx = _trimmed.getContext('2d');
+                  _trctx.fillStyle = '#ffffff';
+                  _trctx.fillRect(0, 0, _W, _cropH);
+                  _trctx.drawImage(srcCanvas, 0, 0, _W, _cropH, 0, 0, _W, _cropH);
+                  srcCanvas = _trimmed;
+                }
+              }
+            } catch (e) { /* if pixel read fails, fall back to the untrimmed canvas */ }
+
             // Pad to a TRUE 8.5x11 letter canvas so the image is always portrait
             // and prints with no fit-to-page over-scaling/clipping. Content fills
             // the full width within thin margins (edge-to-edge, no side gutters).
