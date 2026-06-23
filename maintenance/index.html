@@ -341,68 +341,71 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
 @media (max-width: 480px) { .content { padding: 3px; } }
 
 @media (max-width: 400px) {
-  .ts-row { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
-  .ts-row > label[for^="tsserial"] { width: 100% !important; }
-  .ts-row > input[id^="tsserial"] { width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; box-sizing: border-box !important; }
-  .ts-row > div { width: 100% !important; }
-  .ts-row .check-group { width: 100% !important; }
+  body:not(.capturing) .ts-row { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
+  body:not(.capturing) .ts-row > label[for^="tsserial"] { width: 100% !important; }
+  body:not(.capturing) .ts-row > input[id^="tsserial"] { width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; box-sizing: border-box !important; }
+  body:not(.capturing) .ts-row > div { width: 100% !important; }
+  body:not(.capturing) .ts-row .check-group { width: 100% !important; }
   /* Collapsed "Was simulation power test performed?" — let the long label
      wrap and keep the Y/N group fully on screen instead of overflowing. */
-  #sim-body-collapsed .test-item { flex-wrap: wrap !important; align-items: flex-start !important; }
-  #sim-body-collapsed .test-item > label { min-width: 0 !important; width: 100% !important; white-space: normal !important; }
-  #sim-body-collapsed .test-item .yn-group { margin-right: 0 !important; }
+  body:not(.capturing) #sim-body-collapsed .test-item { flex-wrap: wrap !important; align-items: flex-start !important; }
+  body:not(.capturing) #sim-body-collapsed .test-item > label { min-width: 0 !important; width: 100% !important; white-space: normal !important; }
+  body:not(.capturing) #sim-body-collapsed .test-item .yn-group { margin-right: 0 !important; }
 }
 
 /* Mobile: Customer & Job Info — each label+input pair on its own line */
 @media screen and (max-width: 600px) {
-  /* Make everything bigger on mobile screen (rem-based text scales from this) */
+  /* Make everything bigger on mobile screen (rem-based text scales from this).
+     During capture, the capture-force-style sets html font-size to 19.3px and
+     loads later, so it overrides this. */
   html { font-size: 19px !important; }
-  #cust-info-body .field-row,
-  #cust-info-body .field-row-nowrap {
+  body:not(.capturing) #cust-info-body .field-row,
+  body:not(.capturing) #cust-info-body .field-row-nowrap {
     flex-wrap: wrap !important; row-gap: 4px !important; column-gap: 6px !important;
   }
-  #cust-info-body .field-row label {
+  body:not(.capturing) #cust-info-body .field-row label {
     flex: 0 0 70px !important; width: 70px !important; text-align: left !important; margin: 0 !important;
   }
-  #cust-info-body .field-row input,
-  #cust-info-body .field-row select {
+  body:not(.capturing) #cust-info-body .field-row input,
+  body:not(.capturing) #cust-info-body .field-row select {
     flex: 1 1 calc(100% - 80px) !important; width: auto !important;
     min-width: 0 !important; max-width: none !important;
   }
   /* Override the inline widths on Tech/Model/Serial/Hrs and the date cap */
-  #cust-info-body #tech, #cust-info-body #model, #cust-info-body #serial,
-  #cust-info-body #hours, #cust-info-body #date, #cust-info-body #name,
-  #cust-info-body #number {
+  body:not(.capturing) #cust-info-body #tech, body:not(.capturing) #cust-info-body #model, body:not(.capturing) #cust-info-body #serial,
+  body:not(.capturing) #cust-info-body #hours, body:not(.capturing) #cust-info-body #date, body:not(.capturing) #cust-info-body #name,
+  body:not(.capturing) #cust-info-body #number {
     width: auto !important; max-width: none !important; flex: 1 1 calc(100% - 80px) !important;
   }
   /* Model / Serial # / Hrs each get their own full-width row on mobile so
      the inputs are wide enough to tap and type into. (screen only — print unaffected) */
-  #model-serial-hrs-row {
+  body:not(.capturing) #model-serial-hrs-row {
     flex-wrap: wrap !important;
     gap: 6px !important;
   }
-  #model-serial-hrs-row > span {
+  body:not(.capturing) #model-serial-hrs-row > span {
     flex: 1 1 100% !important;
     min-width: 0 !important;
     width: 100% !important;
   }
-  #model-serial-hrs-row > span > input {
+  body:not(.capturing) #model-serial-hrs-row > span > input {
     flex: 1 1 0 !important;
     width: auto !important;
     min-width: 0 !important;
   }
 
   /* ── Mobile screen only: more breathing room between every row ──
-     (screen-only — print layout is untouched by these rules) */
-  .section          { margin-bottom: 12px !important; }
-  .two-column       { gap: 12px !important; margin-bottom: 12px !important; }
-  .section-body     { padding-top: 8px !important; padding-bottom: 8px !important; }
-  .field-row        { margin-bottom: 10px !important; row-gap: 8px !important; }
-  .field-row:last-child { margin-bottom: 0 !important; }
-  .check-group      { gap: 8px !important; row-gap: 8px !important; }
-  .test-grid        { gap: 14px !important; margin-top: 10px !important; }
-  .test-item        { margin-bottom: 4px !important; }
-  .ts-row           { margin-bottom: 10px !important; }
+     (screen-only — print layout is untouched by these rules; also OFF
+     during capture so the captured image matches the desktop layout) */
+  body:not(.capturing) .section          { margin-bottom: 12px !important; }
+  body:not(.capturing) .two-column       { gap: 12px !important; margin-bottom: 12px !important; }
+  body:not(.capturing) .section-body     { padding-top: 8px !important; padding-bottom: 8px !important; }
+  body:not(.capturing) .field-row        { margin-bottom: 10px !important; row-gap: 8px !important; }
+  body:not(.capturing) .field-row:last-child { margin-bottom: 0 !important; }
+  body:not(.capturing) .check-group      { gap: 8px !important; row-gap: 8px !important; }
+  body:not(.capturing) .test-grid        { gap: 14px !important; margin-top: 10px !important; }
+  body:not(.capturing) .test-item        { margin-bottom: 4px !important; }
+  body:not(.capturing) .ts-row           { margin-bottom: 10px !important; }
 }
 
 /* ── SECTIONS ── */
@@ -2235,6 +2238,12 @@ function capturePageToCanvas() {
     const CAPTURE_PAGE_H = Math.round(CAPTURE_WIDTH * PAPER_RATIO); // full sheet height at this width
 
     function doCapture() {
+      // Mark the document as "capturing" so the screen-only mobile media-query
+      // rules (which restack fields and add row spacing, making the phone DOM
+      // ~740px taller than desktop) switch OFF for the duration of the capture.
+      // This is what makes the mobile source ratio match desktop (~1.314).
+      document.body.classList.add('capturing');
+
       const prevWidth     = page.style.width;
       const prevMaxWidth  = page.style.maxWidth;
       const prevHeight    = page.style.height;
@@ -2405,6 +2414,7 @@ function capturePageToCanvas() {
       }
 
       function restoreCapture() {
+        document.body.classList.remove('capturing');
         page.style.width     = prevWidth;
         page.style.maxWidth  = prevMaxWidth;
         page.style.height    = prevHeight;
