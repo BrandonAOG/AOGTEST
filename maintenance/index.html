@@ -1674,7 +1674,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0L-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0M-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1839,12 +1839,11 @@ function openPrintPreview() {
     var page = document.getElementById('page');
 
     // html / body sizing — matches safari-print-fix @media print rules.
-    // iPad: stamp a wider 1000px sheet. The debug readout confirmed that at
-    // 1000px the whole form (incl. OTHER) fits on one page and text stays inside
-    // its boxes; the narrower 820px caused text to overflow. The print engine
-    // fits this wider sheet to the paper, scaling it down uniformly so spacing
-    // proportions still match the iPhone.
-    var _sheetW = isIPad ? 1000 : 820;
+    // iPad uses the SAME 820px sheet as iPhone so Y/N boxes, checkboxes and font
+    // print at the same size on both. The OTHER section (which used to overflow
+    // to page 2) is handled by the inline break-inside:auto stamp on .section
+    // below, letting it fill the empty space at the bottom of page 1.
+    var _sheetW = 820;
     _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18.3') + 'px');
     _snap(html, 'width',     _sheetW + 'px');
     _snap(body, 'width',     _sheetW + 'px');
@@ -2883,9 +2882,13 @@ setTimeout(adjustTopPadding, 100);
     var dateEl = document.getElementById('date');
     var pageRect = page ? page.getBoundingClientRect() : {width:0,height:0};
     var dateRect = dateEl ? dateEl.getBoundingClientRect() : {width:0};
+    var ynEl = document.querySelector('.yn-group');
+    var ynRect = ynEl ? ynEl.getBoundingClientRect() : {height:0, width:0};
+    var cbEl = document.querySelector('.check-item input[type="checkbox"], .check-item input[type="radio"]');
+    var cbRect = cbEl ? cbEl.getBoundingClientRect() : {height:0, width:0};
 
     var lines = [
-      'BUILD: Ver 1.0F',
+      'BUILD: Ver 1.0L',
       '— DEVICE —',
       'isIPhone: ' + isIPhone,
       'isIPad: ' + isIPad,
@@ -2904,6 +2907,8 @@ setTimeout(adjustTopPadding, 100);
       'page width: ' + Math.round(pageRect.width) + 'px',
       'page height: ' + Math.round(pageRect.height) + 'px',
       'date box width: ' + Math.round(dateRect.width) + 'px',
+      'Y/N box: ' + Math.round(ynRect.width) + ' x ' + Math.round(ynRect.height) + 'px',
+      'checkbox: ' + Math.round(cbRect.width) + ' x ' + Math.round(cbRect.height) + 'px',
       'htmlFontSize: ' + getComputedStyle(html).fontSize,
       '— UA —',
       ua
