@@ -1091,6 +1091,13 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-safari label { font-size: calc(0.66rem + 0.3px) !important; }
   /* Trim vertical spacing on mobile so everything + footer fits one page */
   body.mobile-safari .section { margin-bottom: 0 !important; }
+  /* Pin check rows compact in PRINT. The screen rule forces 26px tap targets;
+     print/capture must NOT inherit that. Text size is untouched — this only
+     removes dead vertical space around the chips. */
+  body.mobile-safari .check-item { height: 18px !important; min-height: 18px !important; padding: 0 5px 0 3px !important; }
+  body.mobile-safari .check-group { gap: 1px 2px !important; row-gap: 1px !important; }
+  body.mobile-safari .section-header { padding: 1.5px 7px !important; }
+  body.mobile-safari .section-body { padding: 1px 6px !important; }
   body.mobile-safari .two-column { margin-bottom: 0 !important; gap: 2px !important; }
   body.mobile-safari .two-column + .section { margin-top: 0 !important; }
   body.mobile-safari .field-row { margin-bottom: 0.5px !important; }
@@ -1877,23 +1884,25 @@ function renderPrintDebug() {
   }
 
   // Every element type that ends up in the printout.
+  // 3rd field = single-line? (true → a WRAP flag means a real problem; false →
+  // multi-line by design, e.g. textareas / rows that wrap, so don't flag).
   var groups = [
-    ['labels',            'label'],
-    ['text inputs',       'input[type="text"]'],
-    ['date inputs',       'input[type="date"]'],
-    ['number inputs',     'input[type="number"]'],
-    ['textareas',         'textarea'],
-    ['selects',           'select'],
-    ['section headers',   '.section-header'],
-    ['check items',       '.check-item'],
-    ['check labels',      '.check-item span, .opt span'],
-    ['check/radio boxes', '.check-item input[type="checkbox"], .check-item input[type="radio"]'],
-    ['Y/N groups',        '.yn-group'],
-    ['Y/N labels',        '.yn-label'],
-    ['test labels',       '.test-item label'],
-    ['field rows',        '.field-row'],
-    ['titles',            '.company-name, .doc-title'],
-    ['footer',            '.footer-text, .footer span']
+    ['labels',            'label', true],
+    ['text inputs',       'input[type="text"]', true],
+    ['date inputs',       'input[type="date"]', true],
+    ['number inputs',     'input[type="number"]', true],
+    ['textareas',         'textarea', false],
+    ['selects',           'select', true],
+    ['section headers',   '.section-header', true],
+    ['check items',       '.check-item', true],
+    ['check labels',      '.check-item span, .opt span', true],
+    ['check/radio boxes', '.check-item input[type="checkbox"], .check-item input[type="radio"]', true],
+    ['Y/N groups',        '.yn-group', true],
+    ['Y/N labels',        '.yn-label', true],
+    ['test labels',       '.test-item label', true],
+    ['field rows',        '.field-row', false],
+    ['titles',            '.company-name, .doc-title', true],
+    ['footer',            '.footer-text, .footer span', true]
   ];
 
   var report = [];
@@ -1908,17 +1917,18 @@ function renderPrintDebug() {
 
   var warnings = [];
   groups.forEach(function(g) {
+    var singleLine = g[2];
     var els = Array.prototype.slice.call(document.querySelectorAll(g[1]))
       .filter(function(el) { return el.offsetParent !== null || getComputedStyle(el).position === 'fixed' || el.getClientRects().length; });
     if (!els.length) { report.push(pad(g[0]) + ': (none)'); return; }
     // Collapse identical signatures.
     var byS = {};
     els.forEach(function(el) {
-      var m = metrics(el);
-      var s = sig(m);
-      if (!byS[s]) byS[s] = { count: 0, ex: ident(el), wrapped: m.wrapped };
+      var mm = metrics(el);
+      var s = sig(mm);
+      if (!byS[s]) byS[s] = { count: 0, ex: ident(el) };
       byS[s].count++;
-      if (m.wrapped) warnings.push(g[0] + ' ' + byS[s].ex + ' wrapped → ' + s);
+      if (mm.wrapped && singleLine) warnings.push(g[0] + ' ' + ident(el) + ' wrapped → ' + s);
     });
     var keys = Object.keys(byS);
     report.push(pad(g[0]) + ': ' + els.length + ' total, ' + keys.length + ' variant(s)');
@@ -2179,6 +2189,13 @@ function openPrintPreview() {
     });
 
     // .check-item controls sizing
+    document.querySelectorAll('.check-item').forEach(function(el) {
+      // Pin compact height so the on-screen-captured layout and the debug audit
+      // match the real @media-print height (screen forces 26px tap targets).
+      _snap(el, 'height',    '18px');
+      _snap(el, 'minHeight', '18px');
+      _snap(el, 'padding',   '0 5px 0 3px');
+    });
     document.querySelectorAll('.check-item input[type="checkbox"], .check-item input[type="radio"]').forEach(function(el) {
       _snap(el, 'width',     '12px');
       _snap(el, 'height',    '12px');
