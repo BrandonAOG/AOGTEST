@@ -2248,23 +2248,6 @@ function capturePageToCanvas() {
               el.id === 'save-status'                  ||
               el.classList.contains('theme-toggle-btn')
           }).then(srcCanvas => {
-            // ---- TEMP DEBUG: report the real measurements so we can pinpoint
-            // whether the source is clipped or the framing is off. Remove later.
-            try {
-              var _dbgFt = page.querySelector('.footer');
-              var _dbgFtBottom = _dbgFt ? Math.round(_dbgFt.getBoundingClientRect().bottom - page.getBoundingClientRect().top) : -1;
-              alert(
-                'CAPTURE DEBUG\n' +
-                'CAPTURE_WIDTH=' + CAPTURE_WIDTH + '\n' +
-                'CAPTURE_PAGE_H=' + CAPTURE_PAGE_H + '\n' +
-                'page.offsetHeight=' + page.offsetHeight + '\n' +
-                'page.scrollHeight=' + page.scrollHeight + '\n' +
-                'footerBottom(rel)=' + _dbgFtBottom + '\n' +
-                'measured _capH=' + _capH + '\n' +
-                'srcCanvas=' + srcCanvas.width + ' x ' + srcCanvas.height + '\n' +
-                '(src H should be ~2*_capH if not clipped)'
-              );
-            } catch (e) {}
             restoreCapture();
             // Pad to a TRUE 8.5x11 letter canvas so the image is always portrait
             // and prints with no fit-to-page over-scaling/clipping.
