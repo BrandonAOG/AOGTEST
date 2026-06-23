@@ -1665,7 +1665,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0D</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0E</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1744,6 +1744,13 @@ function openPrintPreview() {
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var isMobileChrome = document.body.classList.contains('mobile-chrome');
   var isNarrowMobile = isMobileSafari || isMobileChrome;
+  // iPad runs the same Safari layout path as iPhone, but its print engine
+  // scales the 820px sheet down LESS, so output comes out larger and overflows
+  // to a 2nd page. Detect iPad specifically so we can stamp a wider layout that
+  // the fit-to-page scaler shrinks back down to match the iPhone's final size.
+  var _ua = navigator.userAgent || '';
+  var isIPad = (/iPad/.test(_ua)) ||
+               (/Macintosh/.test(_ua) && navigator.maxTouchPoints > 1);
   var wasDark        = document.body.classList.contains('dark-mode');
 
   // ── Set document title for PDF filename (name + address + report) ──
@@ -1822,11 +1829,14 @@ function openPrintPreview() {
     var body = document.body;
     var page = document.getElementById('page');
 
-    // html / body sizing — matches safari-print-fix @media print rules
+    // html / body sizing — matches safari-print-fix @media print rules.
+    // iPad: stamp a wider sheet (940px) so the print fit-to-page scaler shrinks
+    // it down to the same final size the iPhone produces from 820px.
+    var _sheetW = isIPad ? 940 : 820;
     _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18.3') + 'px');
-    _snap(html, 'width',     '820px');
-    _snap(body, 'width',     '820px');
-    _snap(body, 'maxWidth',  '820px');
+    _snap(html, 'width',     _sheetW + 'px');
+    _snap(body, 'width',     _sheetW + 'px');
+    _snap(body, 'maxWidth',  _sheetW + 'px');
     _snap(body, 'minWidth',  '0');
     _snap(body, 'height',    'auto');
     _snap(body, 'minHeight', '0');
