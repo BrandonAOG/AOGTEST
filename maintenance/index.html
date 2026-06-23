@@ -1755,6 +1755,23 @@ function openPrintPreview() {
   var vp = document.querySelector('meta[name="viewport"]');
   var origVP = vp ? vp.getAttribute('content') : null;
 
+  // ── Force ts-row nowrap unconditionally (runs for ALL print paths) ──
+  // AirPrint / physical-printer detection can cause @media print CSS to be
+  // evaluated AFTER the print snapshot. Setting inline styles here guarantees
+  // the Condition group never wraps to a 2nd line regardless of printer state.
+  document.querySelectorAll('.ts-row').forEach(function(row) {
+    row._origStyle = row.getAttribute('style') || '';
+    row.style.flexWrap   = 'nowrap';
+    row.style.gap        = '6px';
+    row.style.alignItems = 'flex-start';
+    row.querySelectorAll('.check-group').forEach(function(cg) {
+      cg._origStyle = cg.getAttribute('style') || '';
+      cg.style.flexWrap = 'nowrap';
+    });
+    var serial = row.querySelector('input[id^="tsserial"]');
+    if (serial) { serial._origStyle = serial.getAttribute('style') || ''; serial.style.width = '110px'; }
+  });
+
   // ── RESTORE function (defined before use) ──
   function restore() {
     document.title = prevTitle;
@@ -1778,6 +1795,15 @@ function openPrintPreview() {
     if (compName) compName.removeAttribute('style');
     if (docTitle) docTitle.removeAttribute('style');
     footerEls.forEach(function(el){ el.removeAttribute('style'); });
+    // Restore ts-row inline styles
+    document.querySelectorAll('.ts-row').forEach(function(row) {
+      if (row._origStyle !== undefined) { row.setAttribute('style', row._origStyle); row._origStyle = undefined; }
+      row.querySelectorAll('.check-group').forEach(function(cg) {
+        if (cg._origStyle !== undefined) { cg.setAttribute('style', cg._origStyle); cg._origStyle = undefined; }
+      });
+      var serial = row.querySelector('input[id^="tsserial"]');
+      if (serial && serial._origStyle !== undefined) { serial.setAttribute('style', serial._origStyle); serial._origStyle = undefined; }
+    });
   }
 
   if (isNarrowMobile && vp) {
