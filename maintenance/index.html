@@ -1223,6 +1223,7 @@ body.dark-mode .action-bar {
   if (isWindows)      html.classList.add('windows');
   if (isAndroid)      html.classList.add('android');
   if (isMobileChrome) html.classList.add('mobile-chrome');
+  if (isIPadOS)       html.classList.add('ipados');
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
@@ -1230,6 +1231,7 @@ body.dark-mode .action-bar {
     if (isWindows)      document.body.classList.add('windows');
     if (isAndroid)      document.body.classList.add('android');
     if (isMobileChrome) document.body.classList.add('mobile-chrome');
+    if (isIPadOS)       document.body.classList.add('ipados');
   }
   if (document.body) applyToBody();
   else document.addEventListener('DOMContentLoaded', applyToBody);
@@ -1751,6 +1753,17 @@ function clearForm() {
 }
 
 function openPrintPreview() {
+  // iPad: the browser's window.print() fit-scaling differs from iPhone, which
+  // made the same 820px/18.5px layout render larger and spill to a 2nd page.
+  // Route iPad through the image-capture pipeline instead — it builds a fixed
+  // 8.5x11 letter canvas that is identical on every device by construction, so
+  // the saved/printed result matches the iPhone. saveSmart() opens the native
+  // share sheet on iPad (Save to Files / Print to PDF in one tap).
+  if (document.body.classList.contains('ipados') && typeof saveSmart === 'function') {
+    saveSmart();
+    return;
+  }
+
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var isMobileChrome = document.body.classList.contains('mobile-chrome');
   var isNarrowMobile = isMobileSafari || isMobileChrome;
