@@ -1106,15 +1106,9 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-chrome .section-body { padding: 2px 6px !important; }
 }
 @media print and (min-width: 768px) {
-  /* Desktop/tablet print only. iPad now carries .mobile-safari and must keep
-     the locked 820px mobile layout (stamped inline by openPrintPreview), so
-     these :not() guards stop this rule from resetting its width/font and
-     overflowing to a 2nd page. */
-  html:not(.mobile-safari):not(.mobile-chrome) { font-size: 18.3px !important; }
-  html:not(.mobile-safari):not(.mobile-chrome),
-  body:not(.mobile-safari):not(.mobile-chrome) { width: auto !important; max-width: 100% !important; }
-  body:not(.mobile-safari):not(.mobile-chrome) .form-page,
-  body:not(.mobile-safari):not(.mobile-chrome) .page { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 3px !important; box-sizing: border-box !important; }
+  html { font-size: 18.3px !important; }
+  html, body { width: auto !important; max-width: 100% !important; }
+  .form-page, .page { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 3px !important; box-sizing: border-box !important; }
 }
 
 /* ── Screen only, all devices: make all option chips (checkbox + radio) match
@@ -1202,15 +1196,8 @@ body.dark-mode .action-bar {
   var ua = navigator.userAgent;
   var html = document.documentElement;
   var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
-  // iPadOS 13+ masquerades as a Mac in its UA string (no "iPad" token). Detect
-  // it via the Mac-like platform plus a touch screen — real Macs report 0 touch
-  // points. We treat such devices as iPad → iOS so they inherit the iPhone path.
-  var isIPadOS   = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
-                   (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  var isIOS      = (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) || isIPadOS; // any iOS WebKit incl. CriOS + iPadOS-as-Mac
-  // A touch "Mac" is really an iPad — keep it OUT of the macOS bucket so it
-  // doesn't pick up desktop sizing or the desktop capture path.
-  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && !isIPadOS;
+  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
   // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
@@ -1223,7 +1210,6 @@ body.dark-mode .action-bar {
   if (isWindows)      html.classList.add('windows');
   if (isAndroid)      html.classList.add('android');
   if (isMobileChrome) html.classList.add('mobile-chrome');
-  if (isIPadOS)       html.classList.add('ipados');
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
@@ -1231,7 +1217,6 @@ body.dark-mode .action-bar {
     if (isWindows)      document.body.classList.add('windows');
     if (isAndroid)      document.body.classList.add('android');
     if (isMobileChrome) document.body.classList.add('mobile-chrome');
-    if (isIPadOS)       document.body.classList.add('ipados');
   }
   if (document.body) applyToBody();
   else document.addEventListener('DOMContentLoaded', applyToBody);
@@ -1753,17 +1738,6 @@ function clearForm() {
 }
 
 function openPrintPreview() {
-  // iPad: the browser's window.print() fit-scaling differs from iPhone, which
-  // made the same 820px/18.5px layout render larger and spill to a 2nd page.
-  // Route iPad through the image-capture pipeline instead — it builds a fixed
-  // 8.5x11 letter canvas that is identical on every device by construction, so
-  // the saved/printed result matches the iPhone. saveSmart() opens the native
-  // share sheet on iPad (Save to Files / Print to PDF in one tap).
-  if (document.body.classList.contains('ipados') && typeof saveSmart === 'function') {
-    saveSmart();
-    return;
-  }
-
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var isMobileChrome = document.body.classList.contains('mobile-chrome');
   var isNarrowMobile = isMobileSafari || isMobileChrome;
