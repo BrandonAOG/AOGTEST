@@ -1180,6 +1180,7 @@ body.dark-mode .action-bar {
   <a class="btn" href="../" style="text-decoration:none;">🏠 HOME</a>
   <button class="btn" onclick="openPrintPreview()">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
+  <button class="btn" id="btn-debug" onclick="toggleCaptureDebug()" title="Show capture debug info">🐞 DEBUG</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1195,6 +1196,13 @@ body.dark-mode .action-bar {
   </button>
 </div>
 <div id="save-status" style="position:fixed;top:44px;left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;"></div>
+<div id="capture-debug" style="position:fixed;left:0;right:0;bottom:0;z-index:99999;display:none;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#0A0E27;color:#00FFC8;font-family:'Share Tech Mono',monospace,monospace;font-size:12px;line-height:1.5;padding:10px 12px 14px;border-top:2px solid #00FFC8;box-shadow:0 -4px 20px rgba(0,0,0,0.6);white-space:pre-wrap;word-break:break-word;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <strong style="color:#FBBF24;letter-spacing:1px;">CAPTURE DEBUG</strong>
+    <button onclick="toggleCaptureDebug()" style="background:#DC2626;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;">CLOSE</button>
+  </div>
+  <div id="capture-debug-body">Tap 📸 CAPTURE to record metrics. Numbers from the last capture will appear here.</div>
+</div>
 
 <script>
 (function () {
@@ -2162,6 +2170,46 @@ function openPrintPreview() {
   }
 }
 
+var CAPTURE_DEBUG = false;
+function toggleCaptureDebug() {
+  CAPTURE_DEBUG = !CAPTURE_DEBUG;
+  var box = document.getElementById('capture-debug');
+  if (box) box.style.display = CAPTURE_DEBUG ? 'block' : 'none';
+  var btn = document.getElementById('btn-debug');
+  if (btn) btn.style.opacity = CAPTURE_DEBUG ? '1' : '0.6';
+}
+function captureDebugLog(metrics) {
+  // Always console.log so it's available even with the overlay closed.
+  try { console.log('[CAPTURE DEBUG]', metrics); } catch (e) {}
+  var body = document.getElementById('capture-debug-body');
+  if (!body) return;
+  var lines = [];
+  lines.push('time          : ' + new Date().toLocaleTimeString());
+  lines.push('device        : ' + metrics.device);
+  lines.push('  mobile-safari: ' + metrics.isSafari);
+  lines.push('  mobile-chrome: ' + metrics.isChrome);
+  lines.push('  _isMobileCap : ' + metrics.isMobileCap);
+  lines.push('viewport      : ' + metrics.vw + ' x ' + metrics.vh + '  (dpr ' + metrics.dpr + ')');
+  lines.push('--- inputs ---');
+  lines.push('CAPTURE_WIDTH : ' + metrics.captureWidth + ' px');
+  lines.push('root font     : ' + metrics.rootFont);
+  lines.push('measured _capH: ' + metrics.capH + ' px  (src height pre-scale)');
+  lines.push('--- html2canvas source ---');
+  lines.push('srcCanvas     : ' + metrics.srcW + ' x ' + metrics.srcH + ' px');
+  lines.push('src ratio H/W : ' + metrics.srcRatio);
+  lines.push('--- letter sheet ---');
+  lines.push('LETTER        : ' + metrics.letterW + ' x ' + metrics.letterH + ' px');
+  lines.push('avail area    : ' + metrics.availW + ' x ' + metrics.availH + ' px');
+  lines.push('avail ratio   : ' + metrics.availRatio);
+  lines.push('--- placement ---');
+  lines.push('drawW         : ' + metrics.drawW + ' px (full width)');
+  lines.push('propH (nat.)  : ' + metrics.propH + ' px');
+  lines.push('drawH (capped): ' + metrics.drawH + ' px');
+  lines.push('VERTICAL FILL : ' + metrics.fillPct + '%  of usable height');
+  lines.push('stretch vs nat: ' + metrics.stretchPct + '%');
+  body.textContent = lines.join('\n');
+}
+
 function setStatus(msg) {
   const el = document.getElementById('save-status');
   if (el) el.textContent = msg;
@@ -2433,6 +2481,35 @@ function capturePageToCanvas() {
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, LETTER_W, LETTER_H);
             ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, MARGIN_X, MARGIN_Y, drawW, drawH);
+
+            if (CAPTURE_DEBUG) {
+              captureDebugLog({
+                device:      _isMobileCap ? 'MOBILE' : 'DESKTOP',
+                isSafari:    document.body.classList.contains('mobile-safari'),
+                isChrome:    document.body.classList.contains('mobile-chrome'),
+                isMobileCap: _isMobileCap,
+                vw:          window.innerWidth,
+                vh:          window.innerHeight,
+                dpr:         window.devicePixelRatio || 1,
+                captureWidth: CAPTURE_WIDTH,
+                rootFont:    (_isMobileCap ? '29.3px' : '19.3px'),
+                capH:        _capH,
+                srcW:        srcCanvas.width,
+                srcH:        srcCanvas.height,
+                srcRatio:    (srcCanvas.height / srcCanvas.width).toFixed(3),
+                letterW:     LETTER_W,
+                letterH:     LETTER_H,
+                availW:      availW,
+                availH:      availH,
+                availRatio:  (availH / availW).toFixed(3),
+                drawW:       drawW,
+                propH:       propH,
+                drawH:       drawH,
+                fillPct:     ((drawH / availH) * 100).toFixed(1),
+                stretchPct:  (((drawH / propH) - 1) * 100).toFixed(1)
+              });
+            }
+
             resolve(letterCanvas);
           }).catch(err => {
             restoreCapture();
@@ -2497,6 +2574,25 @@ function buildReportFilename() {
   return (base || 'AOG_Maintenance_Report') + '.jpg';
 }
 function saveSmart() {
+  // Debug mode: run the capture pipeline to populate the metrics overlay, but
+  // do NOT share or download — so the debug panel stays visible (the share
+  // sheet would otherwise cover it on mobile).
+  if (CAPTURE_DEBUG) {
+    setStatus('Debug capture... please wait');
+    var wasDark = document.body.classList.contains('dark-mode');
+    if (wasDark) document.body.classList.remove('dark-mode');
+    setTimeout(function () {
+      capturePageToCanvas().then(function () {
+        if (wasDark) document.body.classList.add('dark-mode');
+        setStatus('Debug capture complete — see panel below.');
+        setTimeout(function(){ setStatus(''); }, 3000);
+      }).catch(function () {
+        if (wasDark) document.body.classList.add('dark-mode');
+        setStatus('Debug capture failed.');
+      });
+    }, 250);
+    return;
+  }
   if (canShareFiles())      captureAndShare();   // native Share Sheet (iOS + modern Android)
   else if (isIOSDevice())   saveForIPhone();     // older iOS → long-press overlay
   else                      saveForAndroid();    // Android/desktop → download
