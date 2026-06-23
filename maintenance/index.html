@@ -2024,10 +2024,12 @@ function capturePageToCanvas() {
 
       page.style.width     = CAPTURE_WIDTH + 'px';
       page.style.maxWidth  = CAPTURE_WIDTH + 'px';
-      // Size the page to its CONTENT height (no forced full-sheet minimum) so
-      // the captured image has no trailing blank space at the bottom.
+      // Render the page as a FULL letter sheet (like print) so the captured
+      // image always fills the page top-to-bottom, with the footer pinned to the
+      // bottom — whether sections are collapsed or expanded. Grows if content is
+      // taller than a sheet, never shorter.
       page.style.height    = 'auto';
-      page.style.minHeight = '0';
+      page.style.minHeight = CAPTURE_PAGE_H + 'px';
       page.style.marginTop = '0';
       document.body.style.padding = '0';
 
@@ -2040,12 +2042,15 @@ function capturePageToCanvas() {
         'html { font-size: 29.3px !important; }',
         // Footer must follow content during capture, not pin/overlap it, and
         // stay visible (it was dropping out of the capture entirely).
-        '#page { display: block !important; overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; border: 1.5px solid #D97706 !important; }',
+        '#page { display: block !important; overflow: visible !important; height: auto !important; min-height: ' + CAPTURE_PAGE_H + 'px !important; max-height: none !important; border: 1.5px solid #D97706 !important; }',
         // Keep the corner brackets (incl. the bottom edge) visible in the
         // captured image even on mobile, where they're normally hidden — this
         // prevents the missing bottom border on the short collapsed view.
         '.page::before, .page::after { display: block !important; border-color: #D97706 !important; }',
         '.page-corner-bl, .page-corner-br { display: block !important; border-color: #D97706 !important; }',
+        // Block flow grows past a sheet when content is tall (no clipping) and
+        // holds a full-sheet minimum when content is short (so the page still
+        // fills). Footer follows the content.
         '.content { display: block !important; overflow: visible !important; height: auto !important; }',
         '.footer { margin-top: 0 !important; position: static !important; display: flex !important; visibility: visible !important; opacity: 1 !important; padding: 8px 10px 4px 10px !important; }',
         '.footer-text, .footer span { color: #6B7280 !important; visibility: visible !important; opacity: 1 !important; }',
@@ -2180,6 +2185,8 @@ function capturePageToCanvas() {
         document.body.classList.remove('capturing');
         removeNoteProxies();
         removeBoxProxies();
+        var _ftR = page.querySelector('.footer');
+        if (_ftR) _ftR.style.marginTop = '';
         _phSaved.forEach(function(p){ if (p[1] != null) p[0].setAttribute('placeholder', p[1]); });
         _phSaved = [];
         if (logoImg && logoOrigSrc) {
@@ -2196,17 +2203,31 @@ function capturePageToCanvas() {
           // footer) is fully applied, THEN measure — reading the height inline
           // earlier captured the pre-reflow height and cut off the footer.
           void page.offsetHeight;
-          // Measure capture height from the footer's actual bottom edge (the
-          // page can settle taller than offset/scrollHeight reported earlier,
-          // clipping the footer). Use the furthest-down content edge + pad.
+          // When the form is short (e.g. a section is collapsed), push the
+          // footer down so it sits at the bottom of the full sheet — the page
+          // then reads as a complete document, matching print. Tall forms are
+          // left alone (gap <= 0). Cleared in restoreCapture.
+          var _ftPin = page.querySelector('.footer');
+          if (_ftPin) {
+            _ftPin.style.marginTop = '0px';
+            void page.offsetHeight;
+            var _ftPinBottom = _ftPin.offsetTop + _ftPin.offsetHeight;
+            var _ftGap = CAPTURE_PAGE_H - _ftPinBottom;
+            if (_ftGap > 0) { _ftPin.style.marginTop = _ftGap + 'px'; void page.offsetHeight; }
+          }
+          // One more frame so the proxies + force-style layout fully settle
+          // before measuring. Measuring too early read the min-height (1527)
+          // instead of the true content height (~1583) and cropped the footer.
+          requestAnimationFrame(() => {
+          void page.offsetHeight;
+          // Measure capture height from the footer's actual bottom edge.
           var _pr = page.getBoundingClientRect();
           var _ftEl = page.querySelector('.footer');
           var _ftBottom = _ftEl ? (_ftEl.getBoundingClientRect().bottom - _pr.top) : 0;
-          // Also account for the page element's own rendered bottom edge so the
-          // bottom border/corner brackets are never clipped — important for the
-          // short "power test performed" collapsed view where the page is small.
           var _pageBottom = _pr.height;
-          var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom, _pageBottom)) + 32;
+          // Generous buffer so any residual late layout growth can never crop the
+          // footer; the contain-fit framing makes extra bottom space harmless.
+          var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom, _pageBottom)) + 64;
           html2canvas(page, {
             scale: 2,
             useCORS: true,
@@ -2216,6 +2237,7 @@ function capturePageToCanvas() {
             width:       CAPTURE_WIDTH,
             height:      _capH,
             windowWidth: CAPTURE_WIDTH,
+            windowHeight: _capH,
             scrollX: 0,
             scrollY: 0,
             ignoreElements: el =>
@@ -2226,36 +2248,57 @@ function capturePageToCanvas() {
               el.id === 'save-status'                  ||
               el.classList.contains('theme-toggle-btn')
           }).then(srcCanvas => {
+            // ---- TEMP DEBUG: report the real measurements so we can pinpoint
+            // whether the source is clipped or the framing is off. Remove later.
+            try {
+              var _dbgFt = page.querySelector('.footer');
+              var _dbgFtBottom = _dbgFt ? Math.round(_dbgFt.getBoundingClientRect().bottom - page.getBoundingClientRect().top) : -1;
+              alert(
+                'CAPTURE DEBUG\n' +
+                'CAPTURE_WIDTH=' + CAPTURE_WIDTH + '\n' +
+                'CAPTURE_PAGE_H=' + CAPTURE_PAGE_H + '\n' +
+                'page.offsetHeight=' + page.offsetHeight + '\n' +
+                'page.scrollHeight=' + page.scrollHeight + '\n' +
+                'footerBottom(rel)=' + _dbgFtBottom + '\n' +
+                'measured _capH=' + _capH + '\n' +
+                'srcCanvas=' + srcCanvas.width + ' x ' + srcCanvas.height + '\n' +
+                '(src H should be ~2*_capH if not clipped)'
+              );
+            } catch (e) {}
             restoreCapture();
             // Pad to a TRUE 8.5x11 letter canvas so the image is always portrait
-            // and prints with no fit-to-page over-scaling/clipping. Content fills
-            // the full width within thin margins (edge-to-edge, no side gutters).
+            // and prints with no fit-to-page over-scaling/clipping.
             const LETTER_W = 1632;
             const LETTER_H = Math.round(LETTER_W * 11 / 8.5); // 2112
-            const MARGIN_X = Math.round(LETTER_W * 0.15 / 8.5); // sides ~29px
-            const MARGIN_Y = Math.round(LETTER_W * 0.15 / 8.5); // top/bottom ~29px
+            const MARGIN_X = Math.round(LETTER_W * 0.15 / 8.5); // 0.15in -> ~29px
+            const MARGIN_Y = Math.round(LETTER_W * 0.15 / 8.5); // 0.15in -> ~29px
             const availW   = LETTER_W - MARGIN_X * 2;
             const availH   = LETTER_H - MARGIN_Y * 2;
-            // Fill the full printable width edge-to-edge inside a 0.15in margin,
-            // and let the height follow proportionally (no stretch) so the form
-            // keeps its natural shape. With the unified capture size the content
-            // already fills close to the full sheet; a tiny +6% nudge closes any
-            // hairline gap at the bottom without warping.
-            const drawW = availW;
-            const propH = Math.round(srcCanvas.height * (availW / srcCanvas.width));
-            const drawH = Math.min(availH, Math.round(propH * 1.06));
+            // CONTAIN: scale the ENTIRE captured form to fit inside the printable
+            // area, preserving aspect ratio, so nothing is ever clipped (footer
+            // included) and there is always >= 0.15in of margin on every side.
+            // The limiting dimension lands exactly on the 0.15in margin; the form
+            // is centered on the other axis. Because the page is rendered at a
+            // full-sheet height (with the footer pinned to the bottom), a short
+            // form fills the sheet and a tall form scales down to fit.
+            const scale = Math.min(availW / srcCanvas.width, availH / srcCanvas.height);
+            const drawW = Math.round(srcCanvas.width  * scale);
+            const drawH = Math.round(srcCanvas.height * scale);
+            const offsetX = MARGIN_X + Math.round((availW - drawW) / 2);
+            const offsetY = MARGIN_Y + Math.round((availH - drawH) / 2);
             const letterCanvas = document.createElement('canvas');
             letterCanvas.width  = LETTER_W;
             letterCanvas.height = LETTER_H;
             const ctx = letterCanvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, LETTER_W, LETTER_H);
-            ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, MARGIN_X, MARGIN_Y, drawW, drawH);
+            ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, offsetX, offsetY, drawW, drawH);
             resolve(letterCanvas);
           }).catch(err => {
             restoreCapture();
             reject(err);
           });
+          }); // settle-frame rAF
         });
       });
     }
