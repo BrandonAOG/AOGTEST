@@ -1674,7 +1674,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0M-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0N-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1761,6 +1761,32 @@ function openPrintPreview() {
   var isIPad = (/iPad/.test(_ua)) ||
                (/Macintosh/.test(_ua) && navigator.maxTouchPoints > 1);
   var wasDark        = document.body.classList.contains('dark-mode');
+
+  // ── DEBUG: snapshot dimensions BEFORE any stamping (?debug=1) ──
+  function _measure(tag) {
+    var pg = document.getElementById('page');
+    var yn = document.querySelector('.yn-group');
+    var cb = document.querySelector('.check-item input[type="checkbox"], .check-item input[type="radio"]');
+    var dt = document.getElementById('date');
+    var pr = pg ? pg.getBoundingClientRect() : {width:0,height:0};
+    var yr = yn ? yn.getBoundingClientRect() : {width:0,height:0};
+    var cr = cb ? cb.getBoundingClientRect() : {width:0,height:0};
+    var dr = dt ? dt.getBoundingClientRect() : {width:0};
+    return {
+      tag: tag,
+      htmlWidth: document.documentElement.style.width || '(unset)',
+      bodyOffsetW: document.body.offsetWidth,
+      pageW: Math.round(pr.width),
+      pageH: Math.round(pr.height),
+      ynH: Math.round(yr.height),
+      cbH: Math.round(cr.height),
+      dateW: Math.round(dr.width),
+      font: getComputedStyle(document.documentElement).fontSize,
+      winW: window.innerWidth,
+      dpr: window.devicePixelRatio
+    };
+  }
+  window.__printStages = [ _measure('1-BEFORE stamp') ];
 
   // ── Set document title for PDF filename (name + address + report) ──
   var prevTitle = document.title;
@@ -2101,20 +2127,44 @@ function openPrintPreview() {
     // Force layout reflow before print
     void document.getElementById('page').getBoundingClientRect();
 
-    // Record stamped dimensions for the debug overlay (?debug=1)
+    // ── DEBUG: snapshot AFTER stamping + show persistent overlay (?debug=1) ──
     try {
-      var _pgD = document.getElementById('page');
-      var _dtD = document.getElementById('date');
-      window.__printDebug = {
-        sheetW: _sheetW,
-        isIPad: isIPad,
-        bodyWidth: document.body.offsetWidth,
-        pageWidth: _pgD ? Math.round(_pgD.getBoundingClientRect().width) : 0,
-        pageHeight: _pgD ? Math.round(_pgD.getBoundingClientRect().height) : 0,
-        dateWidth: _dtD ? Math.round(_dtD.getBoundingClientRect().width) : 0,
-        htmlFont: getComputedStyle(document.documentElement).fontSize
-      };
-      console.log('[PRINT DEBUG]', JSON.stringify(window.__printDebug));
+      if (/[?&]debug=1/.test(window.location.search)) {
+        window.__printStages.push(_measure('2-AFTER stamp (sheet=' + _sheetW + ', iPad=' + isIPad + ')'));
+        var rep = window.__printStages.map(function (s) {
+          return s.tag + '\n' +
+            '  page: ' + s.pageW + ' x ' + s.pageH + 'px\n' +
+            '  Y/N h: ' + s.ynH + '  checkbox h: ' + s.cbH + '\n' +
+            '  date w: ' + s.dateW + '  font: ' + s.font + '\n' +
+            '  html.w: ' + s.htmlWidth + '  body.offW: ' + s.bodyOffsetW + '\n' +
+            '  winW: ' + s.winW + '  dpr: ' + s.dpr;
+        }).join('\n\n');
+        var ov = document.getElementById('__printdbg');
+        if (!ov) {
+          ov = document.createElement('div');
+          ov.id = '__printdbg';
+          ov.style.cssText = 'position:fixed;top:6px;left:6px;right:6px;z-index:2147483647;' +
+            'background:#001a00;color:#0f0;font:11px/1.4 monospace;padding:8px 10px;' +
+            'border:2px solid #0f0;border-radius:6px;white-space:pre-wrap;word-break:break-all;' +
+            'max-height:70vh;overflow:auto;';
+          var cl = document.createElement('button');
+          cl.textContent = '✕ close';
+          cl.style.cssText = 'display:block;margin-top:6px;background:#0f0;color:#000;border:none;border-radius:4px;padding:5px 9px;font:bold 11px monospace;';
+          cl.onclick = function () { ov.remove(); };
+          var tx = document.createElement('pre');
+          tx.id = '__printdbgtxt';
+          tx.style.cssText = 'margin:0;white-space:pre-wrap;';
+          ov.appendChild(tx); ov.appendChild(cl);
+          document.body.appendChild(ov);
+        }
+        document.getElementById('__printdbgtxt').textContent =
+          'PRINT PROCESS DEBUG (1.0N)\n\n' + rep;
+        // Block the actual print so the overlay stays for screenshotting.
+        console.log('[PRINT DEBUG]', JSON.stringify(window.__printStages));
+        if (/[?&]debug=1/.test(window.location.search)) {
+          // Don't restore/print yet — let the user screenshot. Re-enable below.
+        }
+      }
     } catch (e) {}
 
     // Mobile Chrome: also override viewport so it lays out at 820px for real
@@ -2163,6 +2213,11 @@ function openPrintPreview() {
   }
 
   if (isNarrowMobile) {
+    // In debug mode, do NOT print — leave the stamped layout + overlay visible
+    // so the user can screenshot the full print-process measurements.
+    if (/[?&]debug=1/.test(window.location.search)) {
+      return;
+    }
     // Double-rAF + timeout: lets the stamped styles reflow fully at 820px
     // before the print dialog captures the layout.
     requestAnimationFrame(function() {
