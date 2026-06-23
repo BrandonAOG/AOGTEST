@@ -15,7 +15,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta name="mobile-web-app-capable" content="yes">
 <title>Always On Generators - Maintenance Report</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#FBBF24">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -96,9 +96,15 @@ body {
 }
 
 body.dark-mode {
+  background: #0A0E27;
+}
+body.dark-mode::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: linear-gradient(135deg,#0A0E27 0%,#0F1535 25%,#0A1628 50%,#0F1535 75%,#0A0E27 100%);
-  background-attachment: fixed;
-  background-size: 400% 400%;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .page {
@@ -1145,6 +1151,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
+  padding-top: calc(4px + env(safe-area-inset-top, 0px));
   display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border);
