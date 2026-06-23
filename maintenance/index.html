@@ -876,11 +876,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.dark-mode-pending .action-bar, html.dark-mode-pending .theme-toggle-btn { display: none !important; }
 
   /* iOS */
-  /* 'none' (not 100%) is what actually disables iPad Safari's text-autosizing
-     boost in print. 100% merely permits it — that boost was wrapping the date
-     field and inflating the Y/N pills on iPad while leaving iPhone untouched.
-     No-op on iPhone (it wasn't boosting), corrective on iPad. */
-  html.ios * { transform: none !important; -webkit-text-size-adjust: none !important; text-size-adjust: none !important; }
+  html.ios * { transform: none !important; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
   html.ios .page, html.ios body, html.ios html { display: block !important; min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
 
   /* ── macOS Safari tuning (zoom removed — native print decides scaling) ── */
@@ -1063,41 +1059,18 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-safari .field-row-nowrap { flex-wrap: nowrap !important; }
   body.mobile-safari #name { flex: 0 1 50% !important; min-width: 0 !important; }
   body.mobile-safari #date, body.mobile-safari #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
-  /* Belt-and-suspenders: keep the date value on one line even if it's long */
-  body.mobile-safari #date { white-space: nowrap !important; overflow: hidden !important; }
   /* Tightened from 60/40px to recover the ~25px lost to the new 0.25in @page bottom margin */
   body.mobile-safari #batnotes, body.mobile-safari #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
   body.mobile-safari #oilnotes, body.mobile-safari #gasnotes, body.mobile-safari #tsnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; overflow: hidden !important; }
   /* Mobile prints the 820px layout scaled down to fit, shrinking controls.
      Bump them back up so they read the same size as desktop print. */
   body.mobile-safari .check-item input[type="checkbox"], body.mobile-safari .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
-  /* iPad text-autosizing inflated the rem-based Y/N labels (iPhone was fine
-     because its layout≈page ratio). Pin everything to absolute px + a hard
-     max-height ceiling + text-size-adjust:none so neither device can boost it. */
-  body.mobile-safari .yn-group {
-    height: 21px !important; min-height: 21px !important; max-height: 21px !important;
-    overflow: hidden !important;
-    -webkit-text-size-adjust: none !important; text-size-adjust: none !important;
-  }
-  body.mobile-safari .yn-group .yn-label {
-    height: 21px !important; min-height: 21px !important; max-height: 21px !important;
-    line-height: 21px !important;
-    font-size: 13.5px !important;            /* was calc(0.72rem + 0.3px) — rem boosted on iPad */
-    padding: 0 7px !important;
-    box-sizing: border-box !important;
-    -webkit-text-size-adjust: none !important; text-size-adjust: none !important;
-  }
+  body.mobile-safari .yn-group { height: 21px !important; }
+  body.mobile-safari .yn-group .yn-label { min-height: 21px !important; font-size: calc(0.72rem + 0.3px) !important; padding: 0 7px !important; }
   body.mobile-safari .check-item span, body.mobile-safari .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   body.mobile-safari label { font-size: calc(0.66rem + 0.3px) !important; }
   /* Trim vertical spacing on mobile so everything + footer fits one page */
   body.mobile-safari .section { margin-bottom: 0 !important; }
-  /* Pin check rows compact in PRINT. The screen rule forces 26px tap targets;
-     print/capture must NOT inherit that. Text size is untouched — this only
-     removes dead vertical space around the chips. */
-  body.mobile-safari .check-item { height: 18px !important; min-height: 18px !important; padding: 0 5px 0 3px !important; }
-  body.mobile-safari .check-group { gap: 1px 2px !important; row-gap: 1px !important; }
-  body.mobile-safari .section-header { padding: 1.5px 7px !important; }
-  body.mobile-safari .section-body { padding: 1px 6px !important; }
   body.mobile-safari .two-column { margin-bottom: 0 !important; gap: 2px !important; }
   body.mobile-safari .two-column + .section { margin-top: 0 !important; }
   body.mobile-safari .field-row { margin-bottom: 0.5px !important; }
@@ -1222,14 +1195,12 @@ body.dark-mode .action-bar {
 (function () {
   var ua = navigator.userAgent;
   var html = document.documentElement;
-  // iPadOS Safari defaults to "Request Desktop Website", which sends a
-  // Macintosh UA. A real Mac has no touch; an iPad reports maxTouchPoints > 1.
-  // This is the only reliable way to tell them apart.
-  var isIPadDesktop = /Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1;
-
   var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
-  var isIOS      = (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) || isIPadDesktop; // any iOS WebKit incl. CriOS + desktop-UA iPad
-  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && !isIPadDesktop; // exclude iPad
+  // iPadOS 13+ reports a Macintosh UA, so the /iP(hone|od|ad)/ test misses it.
+  // Detect it via the Mac-like UA + multi-touch trick and treat it as iOS.
+  var isIPadOS   = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  var isIOS      = (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) || isIPadOS; // any iOS/iPadOS WebKit incl. CriOS
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && !isIPadOS;
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
   // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
@@ -1242,14 +1213,6 @@ body.dark-mode .action-bar {
   if (isWindows)      html.classList.add('windows');
   if (isAndroid)      html.classList.add('android');
   if (isMobileChrome) html.classList.add('mobile-chrome');
-
-  // Debug mode: toggled by the URL hash (#debug). Updates live so you can
-  // flip it on/off without reloading.
-  function _syncDebug() {
-    html.classList.toggle('debug', (location.hash || '').toLowerCase() === '#debug');
-  }
-  _syncDebug();
-  window.addEventListener('hashchange', _syncDebug);
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
@@ -1700,59 +1663,6 @@ body.dark-mode .action-bar {
 
   </div><!-- /.content -->
 
-  <style>
-    .print-debug { display: none; }
-    html.debug .print-debug {
-      display: block;
-      margin: 10px 6px 4px 6px;
-      border: 1px solid #D97706;
-      background: #FFF7ED;
-      color: #1F2937;
-      font-family: var(--font-mono, monospace);
-      padding: 6px 8px;
-      -webkit-print-color-adjust: exact; print-color-adjust: exact;
-    }
-    html.debug .pdebug-title { font-weight: bold; color: #D97706; font-size: 11px; margin-bottom: 4px; letter-spacing: 0.5px; }
-    html.debug .pdebug-text { font-size: 9px; line-height: 1.35; white-space: pre-wrap; margin: 0 0 6px 0; }
-    html.debug .pdebug-cal { display: flex; flex-direction: column; gap: 4px; }
-    html.debug .pdebug-ref {
-      width: 100px; border: 1px solid #059669; background: #D1FAE5; color: #065F46;
-      font-size: 9px; line-height: 21px; text-align: center; box-sizing: border-box;
-      -webkit-print-color-adjust: exact; print-color-adjust: exact;
-    }
-    html.debug .pdebug-ruler { position: relative; width: 200px; height: 14px; border-left: 1px solid #DC2626; border-bottom: 1px solid #DC2626; }
-    html.debug .pdebug-ruler span { position: absolute; bottom: 1px; font-size: 8px; color: #DC2626; transform: translateX(-50%); }
-    html.debug .pdebug-ruler span:nth-child(1){left:0;} html.debug .pdebug-ruler span:nth-child(2){left:50px;}
-    html.debug .pdebug-ruler span:nth-child(3){left:100px;} html.debug .pdebug-ruler span:nth-child(4){left:150px;}
-    html.debug .pdebug-ruler span:nth-child(5){left:200px;}
-    html.debug .pdebug-sample { display: flex; align-items: center; gap: 8px; font-size: 9px; }
-    @media print {
-      html.debug .print-debug { display: block !important; break-inside: avoid !important; page-break-inside: avoid !important; }
-    }
-  </style>
-
-  <!-- ── PRINT DEBUG (only renders when URL hash is #debug) ───────────────
-       Prints diagnostics INTO the PDF because iOS Safari fires no reliable
-       beforeprint/afterprint/matchMedia('print') events. Compare the live
-       Y/N pill below against the fixed 21px reference box to read the boost. -->
-  <div class="print-debug" id="pdebug">
-    <div class="pdebug-title">PRINT DEBUG — #debug</div>
-    <pre class="pdebug-text" id="pdebug-text">(metrics fill in at print time)</pre>
-    <div class="pdebug-cal">
-      <div class="pdebug-ref" style="height:21px;">REF 21px tall</div>
-      <div class="pdebug-ruler"><span>0</span><span>50px</span><span>100px</span><span>150px</span><span>200px</span></div>
-      <div class="pdebug-sample">
-        <span class="pdebug-lbl">live pill →</span>
-        <div class="yn-group" id="pdebug-yn">
-          <input type="radio" name="pdebugyn" id="pdebug_y" value="Y" class="yn-y">
-          <label class="yn-label yn-label-y" for="pdebug_y">Y</label>
-          <input type="radio" name="pdebugyn" id="pdebug_n" value="N" class="yn-n" checked>
-          <label class="yn-label yn-label-n" for="pdebug_n">N</label>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
     <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0B</span>
@@ -1830,162 +1740,6 @@ function clearForm() {
   localStorage.removeItem(DRAFT_KEY);
 }
 
-function flushPrintLayout() {
-  // Force iOS to settle layout BEFORE it snapshots for fit-to-page scaling.
-  // A single reflow isn't enough: the stamp pass mutates many elements and the
-  // print rules use :has(), which needs two style/layout passes to settle. If
-  // we print after one pass, iOS computes its Fit-to-Page scale from a stale,
-  // taller layout and the form spills onto a 2nd page (the "wrong until I tap
-  // Scale" bug). Reading geometry on html/body/#page twice forces both recalcs
-  // to complete synchronously, while staying inside the tap gesture.
-  var els = [document.documentElement, document.body, document.getElementById('page')];
-  for (var pass = 0; pass < 2; pass++) {
-    els.forEach(function(el) {
-      if (!el) return;
-      // Reading these properties forces a synchronous reflow.
-      void el.offsetHeight;
-      void el.getBoundingClientRect().height;
-    });
-  }
-}
-
-function renderPrintDebug() {
-  // Full print audit. Walks every meaningful element, reads its computed
-  // print-state metrics, groups identical results (so 16 Y/N pills collapse to
-  // one line with a count) and flags wrapped/boosted elements. Printed into the
-  // PDF because iOS fires no reliable print events. No-op unless #debug is on.
-  if (!document.documentElement.classList.contains('debug')) return;
-  var out = document.getElementById('pdebug-text');
-  if (!out) return;
-
-  var html = document.documentElement;
-  var rootPx = parseFloat(getComputedStyle(html).fontSize) || 0;
-
-  function metrics(el) {
-    var cs = getComputedStyle(el);
-    var r  = el.getBoundingClientRect();
-    var fpx = parseFloat(cs.fontSize) || 0;
-    var lines = fpx ? Math.round(r.height / (fpx * 1.25)) : 0; // rough line estimate
-    var wrapped = fpx && r.height > fpx * 1.85;                // taller than ~1 line
-    return {
-      w: r.width, h: r.height, font: cs.fontSize, line: cs.lineHeight,
-      tsa: (cs.webkitTextSizeAdjust || cs.textSizeAdjust || '?'),
-      wrapped: wrapped
-    };
-  }
-  function sig(m) {
-    return 'box≈' + m.w.toFixed(0) + 'x' + m.h.toFixed(1) +
-           '  font=' + m.font + '  line=' + m.line + '  tsa=' + m.tsa +
-           (m.wrapped ? '  ⚠WRAP' : '');
-  }
-  function ident(el) {
-    return el.id ? '#' + el.id
-         : (el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).trim().split(/\s+/)[0] : ''));
-  }
-
-  // Every element type that ends up in the printout.
-  // 3rd field = single-line? (true → a WRAP flag means a real problem; false →
-  // multi-line by design, e.g. textareas / rows that wrap, so don't flag).
-  var groups = [
-    ['labels',            'label', true],
-    ['text inputs',       'input[type="text"]', true],
-    ['date inputs',       'input[type="date"]', true],
-    ['number inputs',     'input[type="number"]', true],
-    ['textareas',         'textarea', false],
-    ['selects',           'select', true],
-    ['section headers',   '.section-header', true],
-    ['check items',       '.check-item', true],
-    ['check labels',      '.check-item span, .opt span', true],
-    ['check/radio boxes', '.check-item input[type="checkbox"], .check-item input[type="radio"]', true],
-    ['Y/N groups',        '.yn-group', true],
-    ['Y/N labels',        '.yn-label', true],
-    ['test labels',       '.test-item label', true],
-    ['field rows',        '.field-row', false],
-    ['titles',            '.company-name, .doc-title', true],
-    ['footer',            '.footer-text, .footer span', true]
-  ];
-
-  var report = [];
-  report.push('==== PRINT AUDIT ' + new Date().toISOString() + ' ====');
-  report.push('UA       : ' + navigator.userAgent);
-  report.push('platform : ' + (navigator.platform || '?') + '  maxTouch=' + (navigator.maxTouchPoints || 0));
-  report.push('classes  : ' + ((html.className || '').trim() || '(none)'));
-  report.push('innerW   : ' + window.innerWidth + '  dpr=' + (window.devicePixelRatio || '?') + '  rootFont=' + rootPx + 'px');
-  var refM = document.querySelector('.pdebug-ref');
-  if (refM) report.push('REF box  : ' + sig(metrics(refM)) + '  (target 21.0 tall)');
-  report.push('');
-
-  var warnings = [];
-  groups.forEach(function(g) {
-    var singleLine = g[2];
-    var els = Array.prototype.slice.call(document.querySelectorAll(g[1]))
-      .filter(function(el) { return el.offsetParent !== null || getComputedStyle(el).position === 'fixed' || el.getClientRects().length; });
-    if (!els.length) { report.push(pad(g[0]) + ': (none)'); return; }
-    // Collapse identical signatures.
-    var byS = {};
-    els.forEach(function(el) {
-      var mm = metrics(el);
-      var s = sig(mm);
-      if (!byS[s]) byS[s] = { count: 0, ex: ident(el) };
-      byS[s].count++;
-      if (mm.wrapped && singleLine) warnings.push(g[0] + ' ' + ident(el) + ' wrapped → ' + s);
-    });
-    var keys = Object.keys(byS);
-    report.push(pad(g[0]) + ': ' + els.length + ' total, ' + keys.length + ' variant(s)');
-    keys.forEach(function(s) {
-      var info = byS[s];
-      report.push('   ×' + info.count + '  ' + info.ex + '   ' + s);
-    });
-  });
-
-  report.push('');
-  if (warnings.length) {
-    report.push('⚠ FLAGGED (' + warnings.length + '):');
-    warnings.forEach(function(w) { report.push('   ' + w); });
-  } else {
-    report.push('✓ no wrapped/oversized elements detected');
-  }
-
-  // ── PAGE FIT ─────────────────────────────────────────────────────────
-  // Maps the stamped layout width onto the printable paper width to derive a
-  // one-page height budget, then compares the actual #page height to it.
-  var page = document.getElementById('page');
-  if (page) {
-    var PRINT_W_IN = 8.5 - (0.15 + 0.15);   // paper minus L/R @page margins
-    var PRINT_H_IN = 11  - (0.15 + 0.06);   // paper minus T/B @page margins
-    var pr = page.getBoundingClientRect();
-    var pdbg = document.getElementById('pdebug');
-    var pdbgH = pdbg ? pdbg.getBoundingClientRect().height : 0;
-    var realH = pr.height - pdbgH;           // exclude the debug panel's own height
-    var pxPerIn = pr.width / PRINT_W_IN;     // measured: stamped width → inches
-    var budgetPx = PRINT_H_IN * pxPerIn;     // height that fits on one page
-    var overflow = realH - budgetPx;
-    var pages = Math.max(1, Math.ceil(realH / budgetPx));
-    report.push('');
-    report.push('==== PAGE FIT (excl. debug panel) ====');
-    report.push('px/inch  : ' + pxPerIn.toFixed(1) + '  (pageW ' + pr.width.toFixed(0) + 'px → ' + PRINT_W_IN + 'in)');
-    report.push('1-page   : ' + budgetPx.toFixed(0) + 'px tall budget');
-    report.push('actual   : ' + realH.toFixed(0) + 'px (form only)  → est ' + pages + ' page(s)');
-    report.push((overflow > 0 ? '✗ OVER by ' : '✓ fits, ') + Math.abs(overflow).toFixed(0) + 'px '
-                + (overflow > 0 ? '(trim this much to fit)' : 'to spare'));
-
-    // Tallest sections first, so you know where to cut.
-    var secs = Array.prototype.slice.call(page.querySelectorAll('.section')).map(function(s) {
-      var hdr = s.querySelector('.section-header');
-      return { name: hdr ? hdr.textContent.trim().slice(0, 22) : '(section)', h: s.getBoundingClientRect().height };
-    }).sort(function(a, b) { return b.h - a.h; });
-    report.push('');
-    report.push('section heights (tallest first):');
-    secs.forEach(function(s) {
-      report.push('   ' + s.h.toFixed(0).padStart(4) + 'px  ' + s.name);
-    });
-  }
-
-  function pad(s) { while (s.length < 18) s += ' '; return s; }
-
-  out.textContent = report.join('\n');
-}
-
 function openPrintPreview() {
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var isMobileChrome = document.body.classList.contains('mobile-chrome');
@@ -2027,6 +1781,7 @@ function openPrintPreview() {
     if (vp && origVP != null) vp.setAttribute('content', origVP);
     var f  = document.getElementById('safari-print-fix');  if(f)  f.remove();
     var pl = document.getElementById('force-print-light'); if(pl) pl.remove();
+    var nm = document.getElementById('ios-no-page-margin'); if(nm) nm.remove();
     document.documentElement.style.colorScheme = '';
     document.body.style.colorScheme = '';
     if (_darkStyleEl) _darkStyleEl.disabled = false;
@@ -2189,13 +1944,6 @@ function openPrintPreview() {
     });
 
     // .check-item controls sizing
-    document.querySelectorAll('.check-item').forEach(function(el) {
-      // Pin compact height so the on-screen-captured layout and the debug audit
-      // match the real @media-print height (screen forces 26px tap targets).
-      _snap(el, 'height',    '18px');
-      _snap(el, 'minHeight', '18px');
-      _snap(el, 'padding',   '0 5px 0 3px');
-    });
     document.querySelectorAll('.check-item input[type="checkbox"], .check-item input[type="radio"]').forEach(function(el) {
       _snap(el, 'width',     '12px');
       _snap(el, 'height',    '12px');
@@ -2209,25 +1957,18 @@ function openPrintPreview() {
     // .yn-group sizing
     document.querySelectorAll('.yn-group').forEach(function(el) {
       _snap(el, 'height',     '21px');
-      _snap(el, 'maxHeight',  '21px');
-      _snap(el, 'overflow',   'hidden');
       _snap(el, 'background', 'white');
       _snap(el, 'border',     '0.5px solid #D97706');
       _snap(el, 'display',    'inline-flex');
-      _snap(el, 'webkitTextSizeAdjust', 'none');
     });
     document.querySelectorAll('.yn-group .yn-label').forEach(function(el) {
-      _snap(el, 'height',     '21px');
-      _snap(el, 'minHeight',  '21px');
-      _snap(el, 'maxHeight',  '21px');
-      _snap(el, 'lineHeight', '21px');
-      _snap(el, 'fontSize',   '13.5px');   /* fixed px — rem boosted on iPad */
-      _snap(el, 'padding',    '0 7px');
-      _snap(el, 'background', 'white');
-      _snap(el, 'color',      '#6B7280');
-      _snap(el, 'display',    'flex');
-      _snap(el, 'alignItems', 'center');
-      _snap(el, 'webkitTextSizeAdjust', 'none');
+      _snap(el, 'minHeight', '21px');
+      _snap(el, 'fontSize',  'calc(0.72rem + 0.3px)');
+      _snap(el, 'padding',   '0 7px');
+      _snap(el, 'background','white');
+      _snap(el, 'color',     '#6B7280');
+      _snap(el, 'display',   'flex');
+      _snap(el, 'alignItems','center');
     });
 
     // labels
@@ -2304,6 +2045,20 @@ function openPrintPreview() {
     if (ab) _snap(ab, 'display', 'none');
     if (ss) _snap(ss, 'display', 'none');
 
+    // ── iPhone / iPad: remove the set @page margins ──
+    // The global @page rule (0.15in) can't be scoped by device in CSS, so on
+    // iOS/iPadOS Safari we override it to zero margins via an injected style.
+    if (isMobileSafari) {
+      var _noMarginStyle = document.getElementById('ios-no-page-margin');
+      if (!_noMarginStyle) {
+        _noMarginStyle = document.createElement('style');
+        _noMarginStyle.id = 'ios-no-page-margin';
+        _noMarginStyle.textContent =
+          '@media print { @page { size: 8.5in 11in; margin: 0 !important; } }';
+        document.head.appendChild(_noMarginStyle);
+      }
+    }
+
     // Force layout reflow before print
     void document.getElementById('page').getBoundingClientRect();
 
@@ -2358,9 +2113,6 @@ function openPrintPreview() {
     requestAnimationFrame(function() {
       requestAnimationFrame(function() {
         setTimeout(function() {
-          flushPrintLayout();   // settle layout so iOS fit-to-page reads correct height
-          renderPrintDebug();
-          flushPrintLayout();   // re-settle after debug panel injects text
           window.print();
         }, isMobileSafari ? 350 : 0);
       });
@@ -2419,8 +2171,6 @@ function openPrintPreview() {
   } else {
     // Desktop print
     window.addEventListener('afterprint', restore);
-    flushPrintLayout();
-    renderPrintDebug();
     window.print();
   }
 }
