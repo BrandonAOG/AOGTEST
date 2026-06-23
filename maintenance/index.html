@@ -2223,12 +2223,21 @@ function captureDebugLog(metrics) {
     lines.push('viewport inner: ' + p.viewportInner + ' px');
     lines.push('page width    : ' + p.pageWidth + ' px');
     lines.push('two-col cols  : ' + p.twoColTemplate);
-    lines.push('h cust-info   : ' + p.hCustInfo + ' px');
-    lines.push('h two-column  : ' + p.hTwoCol + ' px');
-    lines.push('h battery     : ' + p.hBattery + ' px');
-    lines.push('h generator   : ' + p.hGenerator + ' px');
-    lines.push('h name-row    : ' + p.hNameRow + ' px');
-    lines.push('h model-row   : ' + p.hModelRow + ' px');
+    lines.push('_capH total   : ' + p.capH + ' px');
+    lines.push('--- section heights (sum should ~= capH) ---');
+    lines.push('header        : ' + p.hHeader + ' px');
+    lines.push('cust sec      : ' + p.hCustSec + ' px');
+    lines.push('two-column    : ' + p.hTwoCol + ' px');
+    lines.push('oil sec       : ' + p.hOil + ' px');
+    lines.push('sim sec       : ' + p.hSim + ' px');
+    lines.push('gas sec       : ' + p.hGas + ' px');
+    lines.push('transfer sec  : ' + p.hTS + ' px');
+    lines.push('other sec     : ' + p.hOther + ' px');
+    lines.push('footer        : ' + p.hFooter + ' px');
+    lines.push('--- notes textareas ---');
+    lines.push('oilnotes      : ' + p.hOilNotes + ' px');
+    lines.push('gasnotes      : ' + p.hGasNotes + ' px');
+    lines.push('tsnotes       : ' + p.hTsNotes + ' px');
   }
   body.textContent = lines.join('\n');
 }
@@ -2481,17 +2490,35 @@ function capturePageToCanvas() {
             var _tc = page.querySelector('.two-column');
             var _tcCols = _tc ? getComputedStyle(_tc).gridTemplateColumns : 'n/a';
             function _h(sel){ var e = page.querySelector(sel); return e ? Math.round(e.getBoundingClientRect().height) : -1; }
+            // Find a top-level .section by the text of its .section-header.
+            function _hSec(headerText){
+              var hdrs = page.querySelectorAll('.section-header');
+              for (var i=0;i<hdrs.length;i++){
+                if ((hdrs[i].textContent||'').trim().toLowerCase().indexOf(headerText.toLowerCase())===0){
+                  var sec = hdrs[i].closest('.section');
+                  if (sec) return Math.round(sec.getBoundingClientRect().height);
+                }
+              }
+              return -1;
+            }
             _probe = {
               bodyHasCapturing: document.body.classList.contains('capturing'),
               viewportInner:    window.innerWidth,
               pageWidth:        Math.round(_pr.width),
               twoColTemplate:   _tcCols,       // should show TWO tracks if 2-up
-              hCustInfo:        _h('#cust-info-body'),
+              capH:             _capH,
+              hHeader:          _h('.header'),
+              hCustSec:         _hSec('Customer'),
               hTwoCol:          _h('.two-column'),
-              hBattery:         _h('.two-column > .section:first-child'),
-              hGenerator:       _h('.two-column > .section:nth-child(2)'),
-              hNameRow:         _h('#name-job-date-row'),
-              hModelRow:        _h('#model-serial-hrs-row')
+              hOil:             _hSec('Oil'),
+              hSim:             _h('#sim-section'),
+              hGas:             _hSec('Gas'),
+              hTS:              _hSec('Transfer'),
+              hOther:           _h('#other-section'),
+              hFooter:          _h('.footer'),
+              hOilNotes:        _h('#oilnotes'),
+              hGasNotes:        _h('#gasnotes'),
+              hTsNotes:         _h('#tsnotes')
             };
           }
 
