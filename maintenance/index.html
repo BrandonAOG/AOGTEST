@@ -1674,7 +1674,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0P-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0Q-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1869,7 +1869,13 @@ function openPrintPreview() {
     // print at the same size on both. The OTHER section (which used to overflow
     // to page 2) is handled by the inline break-inside:auto stamp on .section
     // below, letting it fill the empty space at the bottom of page 1.
-    var _sheetW = 820;
+    // MEASURED FIX: comparing the iPhone and iPad PDFs, the iPad's vertical
+    // spacing is a uniform 1.093x taller than the iPhone's (cumulative drift of
+    // ~9.3% from top to bottom of the page, consistent across every section).
+    // To match the iPhone, the iPad sheet is stamped 9.3% wider so the print
+    // fit-to-page scaler shrinks the whole page (including vertical spacing) by
+    // that factor. 820 * 1.093 ≈ 896.
+    var _sheetW = isIPad ? 896 : 820;
     // Pin the font to the SAME size on both iPhone and iPad. The debug showed
     // iPhone rendering at 19px (base html size winning) while iPad got 18.5px,
     // making iPhone text slightly larger. Force both to 19px so they match.
@@ -2169,7 +2175,7 @@ function openPrintPreview() {
           document.body.appendChild(ov);
         }
         document.getElementById('__printdbgtxt').textContent =
-          'PRINT PROCESS DEBUG (1.0P)\n\n' + rep;
+          'PRINT PROCESS DEBUG (1.0Q)\n\n' + rep;
         // Block the actual print so the overlay stays for screenshotting.
         console.log('[PRINT DEBUG]', JSON.stringify(window.__printStages));
         if (/[?&]debug=1/.test(window.location.search)) {
