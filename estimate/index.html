@@ -330,15 +330,15 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --h-print-phone-ready-notes:  42px;   /* Install Details ready/notes box in PDF (2 lines) */
 
   /* ---- PRINT HEIGHTS : iPAD ---- */
-  --h-print-ipad-input:         26.5px;  /* text fields in iPad PDF                          */
-  --h-print-ipad-field-row:     30px;  /* row container in iPad PDF                        */
-  --h-print-ipad-inline-row:    31px;  /* inline row in iPad PDF                           */
-  --h-print-ipad-yn-label:      27px;  /* Y/N button height in iPad PDF                    */
-  --h-print-ipad-check-item:    26px;  /* checkbox/radio pill height in iPad PDF           */
-  --h-print-ipad-gen-notes:     48px;   /* Generator notes text box height in PDF (2 lines) */
-  --h-print-ipad-pad-notes:     48px;   /* Precast Pad notes text box height in PDF (2 lines) */
-  --h-print-ipad-gas-notes:     48px;   /* Fuel Tank / gas appliances notes box in PDF (2 lines) */
-  --h-print-ipad-ready-notes:   48px;   /* Install Details ready/notes box in PDF (2 lines) */
+  --h-print-ipad-input:         25px;  /* text fields in iPad PDF                          */
+  --h-print-ipad-field-row:     28px;  /* row container in iPad PDF                        */
+  --h-print-ipad-inline-row:    29px;  /* inline row in iPad PDF                           */
+  --h-print-ipad-yn-label:      26px;  /* Y/N button height in iPad PDF                    */
+  --h-print-ipad-check-item:    25px;  /* checkbox/radio pill height in iPad PDF           */
+  --h-print-ipad-gen-notes:     42px;   /* Generator notes text box height in PDF (2 lines) */
+  --h-print-ipad-pad-notes:     42px;   /* Precast Pad notes text box height in PDF (2 lines) */
+  --h-print-ipad-gas-notes:     42px;   /* Fuel Tank / gas appliances notes box in PDF (2 lines) */
+  --h-print-ipad-ready-notes:   42px;   /* Install Details ready/notes box in PDF (2 lines) */
 
   /* ---- PRINT HEIGHTS : DESKTOP ---- */
   --h-print-desktop-input:      31px;  /* text fields in desktop PDF                       */
@@ -771,7 +771,7 @@ html.dark-mode-pending body {
   border: 2px solid var(--cyan);
   box-shadow: 0 0 0 1px rgba(250,103,0,0.1), 0 0 40px rgba(250,103,0,0.08), inset 0 0 60px rgba(255,255,255,0.8);
   position: relative; display: flex; flex-direction: column;
-  min-height: 100vh; padding-top: 50px; padding-top: calc(50px + constant(safe-area-inset-top, 0px)); padding-top: calc(50px + env(safe-area-inset-top, 0px)); padding-bottom: 0; padding-left: 0; padding-right: 0; box-sizing: border-box;
+  min-height: 100vh; padding-top: var(--action-bar-clearance-phone); padding-bottom: 0; padding-left: 0; padding-right: 0; box-sizing: border-box;
   overflow: hidden;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
@@ -1357,7 +1357,6 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
-  padding-top: max(4px, constant(safe-area-inset-top, 4px));
   padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; gap: 4px; flex-wrap: nowrap; align-items: center; justify-content: safe center;
   overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -1933,6 +1932,37 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   html.ipad-print #pad_notes  { height:var(--h-print-ipad-pad-notes)!important;min-height:var(--h-print-ipad-pad-notes)!important;max-height:var(--h-print-ipad-pad-notes)!important; }
   html.ipad-print #gas_notes  { height:var(--h-print-ipad-gas-notes)!important;min-height:var(--h-print-ipad-gas-notes)!important;max-height:var(--h-print-ipad-gas-notes)!important; }
   html.ipad-print #ready_notes { height:var(--h-print-ipad-ready-notes)!important;min-height:var(--h-print-ipad-ready-notes)!important;max-height:var(--h-print-ipad-ready-notes)!important;width:100%!important;margin-top:2px!important;box-sizing:border-box!important; }
+}
+
+/* ── iPAD print: HARD ONE-PAGE CAP ──
+   Root cause of the blank 2nd page on iPad: the ipad-print path left .page at
+   overflow:visible with no height limit, so the (taller, larger-font) iPad layout
+   spilled a sliver — and the footer — onto a second sheet. iPhone fits because its
+   fonts are smaller. This mirrors the desktop-print path: pin the page to exactly
+   one physical page's worth of height, flex the content to fill, and pin the footer
+   to the bottom edge. overflow:hidden guarantees nothing escapes onto page 2.
+   The 1352px height = printable height (11in) ÷ the width-scale Safari applies when
+   it fits the 1050px-wide body to the 8.5in paper (≈0.777), with a small safety margin.
+   Placed AFTER the blocks above so it overrides their overflow:visible on .page. */
+@media print {
+  html.ipad-print body { height: auto !important; overflow: hidden !important; }
+  html.ipad-print .page {
+    height: 1352px !important;
+    max-height: 1352px !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  html.ipad-print .content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  html.ipad-print .footer {
+    flex: 0 0 auto !important;
+    margin-top: 0 !important;
+  }
 }
 
 /* ============================================================================
@@ -5259,65 +5289,6 @@ window.addEventListener('afterprint', function() {
     if (instant) instant.parentNode.removeChild(instant);
   }
 });
-</script>
-<script>
-/* ============================================================
-   STANDALONE PWA SAFE-AREA FIX
-   On iOS Home-Screen apps with a black-translucent status bar,
-   env(safe-area-inset-top) reports 0 on non-notched devices (e.g.
-   iPhone 8 / SE), even though the translucent status bar still
-   overlays the top of the screen. That left the action bar and the
-   page header tucked underneath it.
-
-   This measures the real inset at runtime and, when running standalone
-   with no reported inset, reserves a sensible minimum so the status bar
-   is cleared. The page is then pushed down by the bar's true height.
-   ============================================================ */
-(function () {
-  function px(v) { return Math.ceil(v) + 'px'; }
-
-  // Read the actual safe-area-inset-top the browser computes.
-  function measureInset() {
-    var probe = document.createElement('div');
-    probe.style.cssText =
-      'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);' +
-      'visibility:hidden;pointer-events:none;';
-    document.body.appendChild(probe);
-    var h = probe.getBoundingClientRect().height || 0;
-    document.body.removeChild(probe);
-    return h;
-  }
-
-  function isStandalone() {
-    return (window.navigator && window.navigator.standalone === true) ||
-           (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-  }
-
-  function fixBars() {
-    var bar = document.getElementById('action-bar');
-    if (!bar) return;
-    var inset = measureInset();
-    // Standalone + translucent status bar but a 0 inset (non-notched
-    // devices): reserve the status-bar height so content isn't covered.
-    if (isStandalone() && inset < 20) inset = 20;
-    bar.style.paddingTop = px(Math.max(4, inset));
-
-    var barH = px(bar.getBoundingClientRect().height);
-    var page = document.getElementById('page');
-    if (page) page.style.paddingTop = barH;
-    var status = document.getElementById('save-status');
-    if (status) status.style.top = barH;
-  }
-
-  window.addEventListener('load', fixBars);
-  window.addEventListener('resize', fixBars);
-  window.addEventListener('orientationchange', function () { setTimeout(fixBars, 200); });
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', fixBars);
-  } else {
-    fixBars();
-  }
-})();
 </script>
 </body>
 </html>
