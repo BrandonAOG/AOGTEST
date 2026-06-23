@@ -1674,7 +1674,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0K-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0L-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1901,6 +1901,13 @@ function openPrintPreview() {
       _snap(el, 'display',     'block');
       _snap(el, 'border',      '0.5px solid #D97706');
       _snap(el, 'padding',     '0');
+      // iPad: allow sections to break across the page boundary (inline beats the
+      // .section{break-inside:avoid} stylesheet rule). Without this, a section
+      // near the page bottom jumps wholesale to page 2, leaving empty space.
+      if (isIPad) {
+        _snap(el, 'breakInside',     'auto');
+        _snap(el, 'pageBreakInside', 'auto');
+      }
     });
 
     // .section-body
