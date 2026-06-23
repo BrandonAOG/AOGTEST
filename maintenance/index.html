@@ -1665,7 +1665,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0F</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0G-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -2082,6 +2082,22 @@ function openPrintPreview() {
 
     // Force layout reflow before print
     void document.getElementById('page').getBoundingClientRect();
+
+    // Record stamped dimensions for the debug overlay (?debug=1)
+    try {
+      var _pgD = document.getElementById('page');
+      var _dtD = document.getElementById('date');
+      window.__printDebug = {
+        sheetW: _sheetW,
+        isIPad: isIPad,
+        bodyWidth: document.body.offsetWidth,
+        pageWidth: _pgD ? Math.round(_pgD.getBoundingClientRect().width) : 0,
+        pageHeight: _pgD ? Math.round(_pgD.getBoundingClientRect().height) : 0,
+        dateWidth: _dtD ? Math.round(_dtD.getBoundingClientRect().width) : 0,
+        htmlFont: getComputedStyle(document.documentElement).fontSize
+      };
+      console.log('[PRINT DEBUG]', JSON.stringify(window.__printDebug));
+    } catch (e) {}
 
     // Mobile Chrome: also override viewport so it lays out at 820px for real
     if (isMobileChrome && vp) {
@@ -2821,6 +2837,80 @@ function adjustTopPadding() {
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load',   adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
+</script>
+<script>
+/* ── DEBUG OVERLAY ──
+   Add ?debug=1 to the URL to show a panel with live device + sizing info.
+   Take a screenshot of this and send it so the print sizing can be calibrated. */
+(function () {
+  function qp(name) {
+    var m = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  if (qp('debug') !== '1') return;
+
+  function build() {
+    var ua = navigator.userAgent || '';
+    var isIPad = (/iPad/.test(ua)) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    var isIPhone = /iPhone|iPod/.test(ua);
+    var html = document.documentElement;
+    var body = document.body;
+    var page = document.getElementById('page');
+    var dateEl = document.getElementById('date');
+    var pageRect = page ? page.getBoundingClientRect() : {width:0,height:0};
+    var dateRect = dateEl ? dateEl.getBoundingClientRect() : {width:0};
+
+    var lines = [
+      'BUILD: Ver 1.0F',
+      '— DEVICE —',
+      'isIPhone: ' + isIPhone,
+      'isIPad: ' + isIPad,
+      'maxTouchPoints: ' + navigator.maxTouchPoints,
+      'platform: ' + (navigator.platform || '?'),
+      'classes(html): ' + html.className,
+      'classes(body): ' + body.className,
+      '— SCREEN —',
+      'window.innerWidth: ' + window.innerWidth,
+      'window.innerHeight: ' + window.innerHeight,
+      'devicePixelRatio: ' + window.devicePixelRatio,
+      'screen.width: ' + screen.width + ' x ' + screen.height,
+      '— LAYOUT (current, not print) —',
+      'html.style.width: ' + (html.style.width || '(unset)'),
+      'body offsetWidth: ' + body.offsetWidth,
+      'page width: ' + Math.round(pageRect.width) + 'px',
+      'page height: ' + Math.round(pageRect.height) + 'px',
+      'date box width: ' + Math.round(dateRect.width) + 'px',
+      'htmlFontSize: ' + getComputedStyle(html).fontSize,
+      '— UA —',
+      ua
+    ];
+
+    var box = document.getElementById('__dbg');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = '__dbg';
+      box.style.cssText = 'position:fixed;top:8px;left:8px;right:8px;z-index:2147483647;' +
+        'background:#000;color:#0f0;font:12px/1.45 monospace;padding:10px 12px;' +
+        'border:2px solid #0f0;border-radius:6px;white-space:pre-wrap;word-break:break-all;' +
+        'max-height:80vh;overflow:auto;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+      var close = document.createElement('button');
+      close.textContent = '✕ close debug';
+      close.style.cssText = 'display:block;margin-top:8px;background:#0f0;color:#000;' +
+        'border:none;border-radius:4px;padding:6px 10px;font:bold 12px monospace;';
+      close.onclick = function () { box.remove(); };
+      var txt = document.createElement('div');
+      txt.id = '__dbgtxt';
+      box.appendChild(txt);
+      box.appendChild(close);
+      document.body.appendChild(box);
+    }
+    document.getElementById('__dbgtxt').textContent = lines.join('\n');
+  }
+
+  if (document.body) build();
+  else window.addEventListener('DOMContentLoaded', build);
+  window.addEventListener('load', build);
+})();
 </script>
 
 </body>
