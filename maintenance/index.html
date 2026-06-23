@@ -1665,7 +1665,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0B</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0C</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1923,7 +1923,7 @@ function openPrintPreview() {
       _snap(el, 'marginBottom', '0.5px');
     });
     var _dateEl = document.getElementById('date');
-    if (_dateEl) { _snap(_dateEl, 'flex', '0 0 100px'); _snap(_dateEl, 'width', '100px'); _snap(_dateEl, 'minWidth', '100px'); }
+    if (_dateEl) { _snap(_dateEl, 'flex', '0 0 120px'); _snap(_dateEl, 'width', '120px'); _snap(_dateEl, 'minWidth', '120px'); _snap(_dateEl, 'whiteSpace', 'nowrap'); }
 
     // textareas — match mobile-safari print heights
     var taNotes = {
@@ -2047,7 +2047,7 @@ function openPrintPreview() {
       var dateEl = document.getElementById('date');
       if (nameEl) { _snap(nameEl, 'flex', '1 1 0'); _snap(nameEl, 'width', 'auto'); _snap(nameEl, 'minWidth', '0'); }
       if (numEl)  { _snap(numEl,  'flex', '1 1 0'); _snap(numEl,  'width', 'auto'); _snap(numEl,  'minWidth', '0'); }
-      if (dateEl) { _snap(dateEl, 'flex', '0 0 100px'); _snap(dateEl, 'width', '100px'); _snap(dateEl, 'minWidth', '100px'); }
+      if (dateEl) { _snap(dateEl, 'flex', '0 0 120px'); _snap(dateEl, 'width', '120px'); _snap(dateEl, 'minWidth', '120px'); _snap(dateEl, 'whiteSpace', 'nowrap'); }
     }
 
     // action-bar / save-status hidden
@@ -2775,8 +2775,28 @@ function setupSimToggle() {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('../sw.js', { scope: '../' })
-      .then(reg => console.log('[SW] Registered, scope:', reg.scope))
+      .then(reg => {
+        console.log('[SW] Registered, scope:', reg.scope);
+        // Force an update check on every load so edits aren't masked by a
+        // stale cached page. If a new SW is waiting, activate it and reload.
+        reg.update();
+        reg.addEventListener('updatefound', function () {
+          var nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', function () {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              if (nw.postMessage) nw.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      })
       .catch(err => console.warn('[SW] Registration failed:', err));
+    var _reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (_reloaded) return;
+      _reloaded = true;
+      window.location.reload();
+    });
   });
 }
 </script>
