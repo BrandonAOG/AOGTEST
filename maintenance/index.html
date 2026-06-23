@@ -1674,7 +1674,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0R-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0S-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1869,12 +1869,12 @@ function openPrintPreview() {
     // print at the same size on both. The OTHER section (which used to overflow
     // to page 2) is handled by the inline break-inside:auto stamp on .section
     // below, letting it fill the empty space at the bottom of page 1.
-    // NOTE: widening the iPad sheet (tried 896/1000px) had ZERO effect on the
-    // printed vertical spacing — measured iPad PDFs were byte-identical. The iPad
-    // print engine does not fit-to-page-scale the sheet the way iPhone does, so
-    // width is the wrong lever. iPad uses the same 820px as iPhone; the ~7.4%
-    // vertical overspacing is corrected with a CSS zoom on the page (below).
-    var _sheetW = 820;
+    // iPad setup: keep a WIDER sheet (900px) than the iPhone's 820px. Width has
+    // no effect on the iPad's vertical spacing, but the extra horizontal room
+    // protects against edge clipping (e.g. the date field) and makes the layout
+    // more robust if the user touches the print dialog's scale slider. The
+    // vertical overspacing is corrected separately by the CSS zoom on .page.
+    var _sheetW = isIPad ? 900 : 820;
     // Pin the font to the SAME size on both iPhone and iPad. The debug showed
     // iPhone rendering at 19px (base html size winning) while iPad got 18.5px,
     // making iPhone text slightly larger. Force both to 19px so they match.
@@ -1904,12 +1904,13 @@ function openPrintPreview() {
       _snap(page, 'border',    '1.5px solid #D97706');
       _snap(page, 'boxShadow', 'none');
       _snap(page, 'marginTop', '0');
-      // iPad prints ~7.4% taller than iPhone (uniform vertical overspacing that
-      // compounds down the page). Sheet-width scaling had no effect on iPad, so
-      // apply a uniform CSS zoom to shrink the whole page — content AND row gaps
-      // — by the measured factor so spacing matches the iPhone. 1/1.074 ≈ 0.931.
+      // iPad prints taller than iPhone (uniform vertical overspacing that
+      // compounds down the page). Width scaling has no effect on iPad, so a
+      // uniform CSS zoom shrinks the whole page — content AND row gaps — to match
+      // the iPhone. Safari only partially honors zoom in print, so this value is
+      // tuned stronger than the raw ratio to land the spacing on the iPhone's.
       if (isIPad) {
-        _snap(page, 'zoom', '0.931');
+        _snap(page, 'zoom', '0.90');
       }
     }
 
@@ -2181,7 +2182,7 @@ function openPrintPreview() {
           document.body.appendChild(ov);
         }
         document.getElementById('__printdbgtxt').textContent =
-          'PRINT PROCESS DEBUG (1.0R)\n\n' + rep;
+          'PRINT PROCESS DEBUG (1.0S)\n\n' + rep;
         // Block the actual print so the overlay stays for screenshotting.
         console.log('[PRINT DEBUG]', JSON.stringify(window.__printStages));
         if (/[?&]debug=1/.test(window.location.search)) {
