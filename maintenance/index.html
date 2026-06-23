@@ -1914,6 +1914,17 @@ function openPrintPreview() {
       _snap(el, 'gap',           '3px');
     });
 
+    // .field-row-nowrap — keep on one line (date row, address/model rows).
+    // iPad lays out wider than iPhone and would otherwise wrap the date field
+    // onto its own line and add vertical gaps between customer-info rows.
+    document.querySelectorAll('.field-row-nowrap').forEach(function(el) {
+      _snap(el, 'flexWrap',     'nowrap');
+      _snap(el, 'alignItems',   'center');
+      _snap(el, 'marginBottom', '0.5px');
+    });
+    var _dateEl = document.getElementById('date');
+    if (_dateEl) { _snap(_dateEl, 'flex', '0 0 100px'); _snap(_dateEl, 'width', '100px'); _snap(_dateEl, 'minWidth', '100px'); }
+
     // textareas — match mobile-safari print heights
     var taNotes = {
       'batnotes': '54px', 'gennotes': '54px',
