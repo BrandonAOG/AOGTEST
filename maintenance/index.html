@@ -1106,9 +1106,15 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-chrome .section-body { padding: 2px 6px !important; }
 }
 @media print and (min-width: 768px) {
-  html { font-size: 18.3px !important; }
-  html, body { width: auto !important; max-width: 100% !important; }
-  .form-page, .page { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 3px !important; box-sizing: border-box !important; }
+  /* Desktop/tablet print only. iPad now carries .mobile-safari and must keep
+     the locked 820px mobile layout (stamped inline by openPrintPreview), so
+     these :not() guards stop this rule from resetting its width/font and
+     overflowing to a 2nd page. */
+  html:not(.mobile-safari):not(.mobile-chrome) { font-size: 18.3px !important; }
+  html:not(.mobile-safari):not(.mobile-chrome),
+  body:not(.mobile-safari):not(.mobile-chrome) { width: auto !important; max-width: 100% !important; }
+  body:not(.mobile-safari):not(.mobile-chrome) .form-page,
+  body:not(.mobile-safari):not(.mobile-chrome) .page { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 3px !important; box-sizing: border-box !important; }
 }
 
 /* ── Screen only, all devices: make all option chips (checkbox + radio) match
