@@ -330,15 +330,15 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --h-print-phone-ready-notes:  42px;   /* Install Details ready/notes box in PDF (2 lines) */
 
   /* ---- PRINT HEIGHTS : iPAD ---- */
-  --h-print-ipad-input:         25px;  /* text fields in iPad PDF                          */
-  --h-print-ipad-field-row:     28px;  /* row container in iPad PDF                        */
-  --h-print-ipad-inline-row:    29px;  /* inline row in iPad PDF                           */
-  --h-print-ipad-yn-label:      26px;  /* Y/N button height in iPad PDF                    */
-  --h-print-ipad-check-item:    25px;  /* checkbox/radio pill height in iPad PDF           */
-  --h-print-ipad-gen-notes:     42px;   /* Generator notes text box height in PDF (2 lines) */
-  --h-print-ipad-pad-notes:     42px;   /* Precast Pad notes text box height in PDF (2 lines) */
-  --h-print-ipad-gas-notes:     42px;   /* Fuel Tank / gas appliances notes box in PDF (2 lines) */
-  --h-print-ipad-ready-notes:   42px;   /* Install Details ready/notes box in PDF (2 lines) */
+  --h-print-ipad-input:         26.5px;  /* text fields in iPad PDF                          */
+  --h-print-ipad-field-row:     30px;  /* row container in iPad PDF                        */
+  --h-print-ipad-inline-row:    31px;  /* inline row in iPad PDF                           */
+  --h-print-ipad-yn-label:      27px;  /* Y/N button height in iPad PDF                    */
+  --h-print-ipad-check-item:    26px;  /* checkbox/radio pill height in iPad PDF           */
+  --h-print-ipad-gen-notes:     48px;   /* Generator notes text box height in PDF (2 lines) */
+  --h-print-ipad-pad-notes:     48px;   /* Precast Pad notes text box height in PDF (2 lines) */
+  --h-print-ipad-gas-notes:     48px;   /* Fuel Tank / gas appliances notes box in PDF (2 lines) */
+  --h-print-ipad-ready-notes:   48px;   /* Install Details ready/notes box in PDF (2 lines) */
 
   /* ---- PRINT HEIGHTS : DESKTOP ---- */
   --h-print-desktop-input:      31px;  /* text fields in desktop PDF                       */
@@ -1615,6 +1615,91 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   html.ipad-print #transfer-switch-row .inline-row:last-child { min-height: 0 !important; height: auto !important; max-height: fit-content !important; margin-bottom: 0 !important; padding-bottom: 0 !important; flex-wrap: nowrap !important; overflow: hidden !important; }
 }
 
+/* ===== iPAD PRINT PREFLIGHT =====
+   Mirrors the iPad print sizing outside @media print while html.ipad-print is
+   temporarily active. iPad Safari sometimes snapshots the print sheet before
+   @media print pagination settles; preflighting lets the synchronous iOS
+   window.print() call capture the already-scaled layout.
+*/
+html.ipad-print { font-size: var(--fs-print-ipad-base) !important; zoom: 1; margin: 0 !important; padding: 0 !important; }
+  html.ipad-print body { width: 1050px !important; max-width: none !important; }
+  html.ipad-print .page { width: 1050px !important; max-width: none !important; }
+  html.ipad-print .company-name { font-size: var(--fs-print-ipad-company-name) !important; }
+  html.ipad-print .doc-title { font-size: var(--fs-print-ipad-doc-title) !important; }
+  html.ipad-print .section-header { font-size: var(--fs-print-ipad-section-header) !important; padding: var(--pd-print-ipad-section-header) !important; }
+  html.ipad-print .col-label { font-size: var(--fs-print-ipad-col-label) !important; padding: var(--pd-print-ipad-col-label) !important; }
+  html.ipad-print label { font-size: var(--fs-print-ipad-label) !important; }
+  html.ipad-print legend { font-size: var(--fs-print-ipad-label) !important; color: #6B7280 !important; font-weight: 500 !important; font-family: var(--font-display) !important; letter-spacing: 1.5px !important; text-transform: uppercase !important; }
+  html.ipad-print .inline-label { font-size: var(--fs-print-ipad-inline-label) !important; }
+  html.ipad-print input[type="text"], html.ipad-print input[type="email"], html.ipad-print input[type="tel"],
+  html.ipad-print input[type="number"] { font-size: var(--fs-print-ipad-input) !important; padding: var(--pd-print-ipad-input) !important; }
+  html.ipad-print input[type="date"] { font-size: var(--fs-print-ipad-date) !important; padding: var(--pd-print-ipad-input) !important; }
+  html.ipad-print textarea { font-size: var(--fs-print-ipad-notes) !important; padding: var(--pd-print-ipad-textarea) !important; }
+  html.ipad-print .yn-group .yn-label { font-size: var(--fs-print-ipad-yn-label) !important; padding: var(--pd-print-ipad-yn-label) !important; }
+  html.ipad-print .check-item { padding: var(--pd-print-ipad-check-item) !important; min-height: var(--h-print-ipad-check-item) !important; height: var(--h-print-ipad-check-item) !important; }
+  html.ipad-print .check-item span { font-size: var(--fs-print-ipad-check-item) !important; }
+  html.ipad-print input[type="text"], html.ipad-print input[type="email"], html.ipad-print input[type="tel"],
+  html.ipad-print input[type="date"], html.ipad-print input[type="number"] { min-height: var(--h-print-ipad-input) !important; height: var(--h-print-ipad-input) !important; }
+  html.ipad-print .yn-group .yn-label { min-height: var(--h-print-ipad-yn-label) !important; height: var(--h-print-ipad-yn-label) !important; line-height: var(--h-print-ipad-yn-label) !important; }
+  html.ipad-print .field-row { min-height: var(--h-print-ipad-field-row) !important; }
+  html.ipad-print .inline-row { min-height: var(--h-print-ipad-inline-row) !important; }
+  html.ipad-print .gas-appliances-label { font-size: var(--fs-print-ipad-gas-label) !important; }
+  html.ipad-print .gas-appliances-box { padding: var(--pd-print-ipad-gas-box) !important; }
+  html.ipad-print .header { padding: var(--pd-print-ipad-header) !important; }
+  html.ipad-print .content { padding: var(--pd-print-ipad-content) !important; padding-bottom: var(--pb-content-print-ipad) !important; }
+  html.ipad-print .section-body { padding: var(--pd-print-ipad-section-body) !important; }
+  html.ipad-print .top-col { padding: var(--pd-print-ipad-top-col) !important; }
+  html.ipad-print .flood-item { padding: var(--pd-print-ipad-flood-item) !important; align-items: flex-start !important; }
+  html.ipad-print .flood-item label { align-self: flex-start !important; }
+  html.ipad-print #est_done_on { width: auto !important; min-width: 0 !important; align-self: flex-start !important; font-size: var(--fs-print-ipad-date) !important; }
+  html.ipad-print #today { font-size: var(--fs-print-ipad-date) !important; }
+  html.ipad-print #est_date { font-size: var(--fs-print-ipad-date) !important; }
+  html.ipad-print .footer { padding: var(--pd-print-ipad-footer) !important; position: relative !important; z-index: 50 !important; margin-top: 0 !important; }
+  html.ipad-print .footer-text { font-size: var(--fs-print-ipad-footer) !important; }
+  html.ipad-print #ver-span { font-size: var(--fs-print-ipad-ver-span) !important; }
+  html.ipad-print #gen_notes { min-height: var(--h-print-ipad-gen-notes) !important; height: var(--h-print-ipad-gen-notes) !important; max-height: var(--h-print-ipad-gen-notes) !important; }
+  html.ipad-print #pad_notes { min-height: var(--h-print-ipad-pad-notes) !important; height: var(--h-print-ipad-pad-notes) !important; max-height: var(--h-print-ipad-pad-notes) !important; }
+  html.ipad-print #pad_notes { margin-bottom: var(--mb-pad-notes-print-ipad) !important; }
+  html.ipad-print #fuel-run-row { margin-bottom: var(--mb-fuel-run-print-ipad) !important; }
+  html.ipad-print #gas_notes { min-height: var(--h-print-ipad-gas-notes) !important; height: var(--h-print-ipad-gas-notes) !important; max-height: var(--h-print-ipad-gas-notes) !important; }
+  html.ipad-print #ready_notes { min-height: var(--h-print-ipad-ready-notes) !important; height: var(--h-print-ipad-ready-notes) !important; max-height: var(--h-print-ipad-ready-notes) !important; }
+  /* ---- misc overrides : iPad print ---- */
+  html.ipad-print .logo-img { width: var(--logo-size-print-ipad) !important; height: var(--logo-size-print-ipad) !important; }
+  html.ipad-print .grid-2 { gap: var(--grid23-gap-print-ipad) !important; }
+  html.ipad-print .grid-3 { gap: var(--grid23-gap-print-ipad) !important; }
+  html.ipad-print .grid-4 { gap: var(--grid4-gap-print-ipad) !important; }
+  html.ipad-print .divider { margin: var(--divider-margin-print-ipad) !important; }
+  html.ipad-print #gen_size { width: var(--w-print-ipad-gen-size) !important; min-width: var(--w-print-ipad-gen-size) !important; }
+  html.ipad-print #num_panels { width: var(--w-print-ipad-num-panels) !important; min-width: var(--w-print-ipad-num-panels) !important; }
+  html.ipad-print #num_ts { width: var(--w-print-ipad-num-ts) !important; min-width: var(--w-print-ipad-num-ts) !important; }
+  html.ipad-print #ts_type_desc { width: var(--w-print-ipad-ts-type) !important; }
+  html.ipad-print #ts_placement { width: var(--w-print-ipad-ts-placement) !important; min-width: var(--w-print-ipad-ts-placement) !important; }
+  html.ipad-print #circuits_60a, html.ipad-print #circuits_100a { width: var(--w-print-ipad-circuits) !important; min-width: var(--w-print-ipad-circuits) !important; }
+  html.ipad-print #stand_height { width: var(--w-print-ipad-stand-height) !important; min-width: var(--w-print-ipad-stand-height) !important; }
+  html.ipad-print #new_tank_size, html.ipad-print #existing_tank_size { width: var(--w-print-ipad-tank-size) !important; min-width: var(--w-print-ipad-tank-size) !important; max-width: var(--w-print-ipad-tank-size) !important; }
+  html.ipad-print #install_days { width: var(--w-print-ipad-install-days) !important; }
+  html.ipad-print #elec_run_ft { width: var(--w-print-ipad-elec-run) !important; min-width: var(--w-print-ipad-elec-run) !important; max-width: var(--w-print-ipad-elec-run) !important; flex-shrink: 0 !important; }
+  html.ipad-print .inline-row { flex-wrap: wrap !important; }
+  html.ipad-print .field-row { flex-wrap: nowrap !important; }
+  html.ipad-print .inline-row .check-group { flex-wrap: wrap !important; }
+  /* Tight section spacing — match phone print */
+  html.ipad-print #install-difficulty-row .section-body { padding-top: 2px !important; }
+  html.ipad-print #install-difficulty-row + * { margin-top: 0 !important; }
+  html.ipad-print .section:has(+ #install-difficulty-row) .section-body { padding-bottom: 2px !important; }
+  html.ipad-print #precast-pad-row .section-body { padding-top: 0px !important; padding-bottom: 2px !important; }
+  html.ipad-print .section:has(+ #precast-pad-row) .section-body { padding-bottom: 2px !important; }
+  /* Note boxes — flush to section border on print */
+  html.ipad-print .section:has(#gen_notes) .section-body { padding-bottom: 0 !important; }
+  html.ipad-print .section:has(#pad_notes) .section-body { padding-bottom: 0 !important; }
+  html.ipad-print .section:has(#gas_notes) .section-body { padding-bottom: 0 !important; }
+  html.ipad-print .section:has(#ready_notes) .section-body { padding-bottom: 0 !important; }
+  html.ipad-print #gen_notes, html.ipad-print #pad_notes, html.ipad-print #gas_notes, html.ipad-print #ready_notes { margin-bottom: 0 !important; }
+  /* Transfer Switch — bottom padding only */
+  html.ipad-print #transfer-switch-row .section-body,
+  html.ipad-print body.mobile-safari #transfer-switch-row .section-body { padding: 4px 12px 0px 12px !important; }
+  html.ipad-print #transfer-switch-row .inline-row:last-child { min-height: 0 !important; height: auto !important; max-height: fit-content !important; margin-bottom: 0 !important; padding-bottom: 0 !important; flex-wrap: nowrap !important; overflow: hidden !important; }
+
+
 /* ===== DESKTOP PRINT — all elements ===== */
 @media print {
   /* DESKTOP print overrides — re-keyed from the unreachable (min-width:1361px) media query
@@ -1932,37 +2017,6 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   html.ipad-print #pad_notes  { height:var(--h-print-ipad-pad-notes)!important;min-height:var(--h-print-ipad-pad-notes)!important;max-height:var(--h-print-ipad-pad-notes)!important; }
   html.ipad-print #gas_notes  { height:var(--h-print-ipad-gas-notes)!important;min-height:var(--h-print-ipad-gas-notes)!important;max-height:var(--h-print-ipad-gas-notes)!important; }
   html.ipad-print #ready_notes { height:var(--h-print-ipad-ready-notes)!important;min-height:var(--h-print-ipad-ready-notes)!important;max-height:var(--h-print-ipad-ready-notes)!important;width:100%!important;margin-top:2px!important;box-sizing:border-box!important; }
-}
-
-/* ── iPAD print: HARD ONE-PAGE CAP ──
-   Root cause of the blank 2nd page on iPad: the ipad-print path left .page at
-   overflow:visible with no height limit, so the (taller, larger-font) iPad layout
-   spilled a sliver — and the footer — onto a second sheet. iPhone fits because its
-   fonts are smaller. This mirrors the desktop-print path: pin the page to exactly
-   one physical page's worth of height, flex the content to fill, and pin the footer
-   to the bottom edge. overflow:hidden guarantees nothing escapes onto page 2.
-   The 1352px height = printable height (11in) ÷ the width-scale Safari applies when
-   it fits the 1050px-wide body to the 8.5in paper (≈0.777), with a small safety margin.
-   Placed AFTER the blocks above so it overrides their overflow:visible on .page. */
-@media print {
-  html.ipad-print body { height: auto !important; overflow: hidden !important; }
-  html.ipad-print .page {
-    height: 1352px !important;
-    max-height: 1352px !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-  html.ipad-print .content {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
-  }
-  html.ipad-print .footer {
-    flex: 0 0 auto !important;
-    margin-top: 0 !important;
-  }
 }
 
 /* ============================================================================
@@ -3032,7 +3086,12 @@ function printForm() {
   if (isMobileSafari && isIpadSafari) {
     document.documentElement.classList.add('ipad-print');
     doSpanReplace();
+    var _printPage = document.getElementById('page');
+    // Force Safari to calculate the iPad print-preflight layout before the
+    // synchronous iOS print call opens the print sheet.
+    void document.documentElement.offsetWidth;
     void document.body.offsetHeight;
+    if (_printPage) void _printPage.scrollHeight;
     armRestoreAndPrint(true);
     return;
   }
