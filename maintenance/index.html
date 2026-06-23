@@ -2040,6 +2040,9 @@ function capturePageToCanvas() {
         // Mobile renders the form smaller; bump the root font so the content
         // reads at a comfortable size. Desktop gets a slight +1.5px bump too.
         'html { font-size: 29.3px !important; }',
+        // Stop iOS Safari from auto-inflating text during capture, so the form
+        // renders at the same size/height as desktop (mobile == desktop output).
+        'html, body, * { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }',
         // Footer must follow content during capture, not pin/overlap it, and
         // stay visible (it was dropping out of the capture entirely).
         '#page { display: block !important; overflow: visible !important; height: auto !important; min-height: ' + CAPTURE_PAGE_H + 'px !important; max-height: none !important; border: 1.5px solid #D97706 !important; }',
@@ -2257,18 +2260,15 @@ function capturePageToCanvas() {
             const MARGIN_Y = Math.round(LETTER_W * 0.15 / 8.5); // 0.15in -> ~29px
             const availW   = LETTER_W - MARGIN_X * 2;
             const availH   = LETTER_H - MARGIN_Y * 2;
-            // CONTAIN: scale the ENTIRE captured form to fit inside the printable
-            // area, preserving aspect ratio, so nothing is ever clipped (footer
-            // included) and there is always >= 0.15in of margin on every side.
-            // The limiting dimension lands exactly on the 0.15in margin; the form
-            // is centered on the other axis. Because the page is rendered at a
-            // full-sheet height (with the footer pinned to the bottom), a short
-            // form fills the sheet and a tall form scales down to fit.
-            const scale = Math.min(availW / srcCanvas.width, availH / srcCanvas.height);
-            const drawW = Math.round(srcCanvas.width  * scale);
-            const drawH = Math.round(srcCanvas.height * scale);
-            const offsetX = MARGIN_X + Math.round((availW - drawW) / 2);
-            const offsetY = MARGIN_Y + Math.round((availH - drawH) / 2);
+            // Fill the printable width edge-to-edge inside the 0.15in margins,
+            // top-aligned. If the form is taller than a sheet it is scaled down
+            // to fit the height (footer always included, since the source now
+            // captures the full page). This matches the desktop letter-page look.
+            const drawW = availW;
+            const propH = Math.round(srcCanvas.height * (availW / srcCanvas.width));
+            const drawH = Math.min(availH, propH);
+            const offsetX = MARGIN_X;
+            const offsetY = MARGIN_Y;
             const letterCanvas = document.createElement('canvas');
             letterCanvas.width  = LETTER_W;
             letterCanvas.height = LETTER_H;
