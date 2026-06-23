@@ -395,17 +395,18 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
   }
 
   /* ── Mobile screen only: more breathing room between every row ──
-     (screen-only — print layout is untouched by these rules; also OFF
-     during capture so the captured image matches the desktop layout) */
-  body:not(.capturing) .section          { margin-bottom: 12px !important; }
-  body:not(.capturing) .two-column       { gap: 12px !important; margin-bottom: 12px !important; }
-  body:not(.capturing) .section-body     { padding-top: 8px !important; padding-bottom: 8px !important; }
-  body:not(.capturing) .field-row        { margin-bottom: 10px !important; row-gap: 8px !important; }
-  body:not(.capturing) .field-row:last-child { margin-bottom: 0 !important; }
-  body:not(.capturing) .check-group      { gap: 8px !important; row-gap: 8px !important; }
-  body:not(.capturing) .test-grid        { gap: 14px !important; margin-top: 10px !important; }
-  body:not(.capturing) .test-item        { margin-bottom: 4px !important; }
-  body:not(.capturing) .ts-row           { margin-bottom: 10px !important; }
+     These apply on the phone viewport for BOTH the on-screen view and the
+     image capture, so the captured image matches what the user sees on their
+     phone. (This media query never fires on desktop capture — wide viewport.) */
+  .section          { margin-bottom: 12px !important; }
+  .two-column       { gap: 12px !important; margin-bottom: 12px !important; }
+  .section-body     { padding-top: 8px !important; padding-bottom: 8px !important; }
+  .field-row        { margin-bottom: 10px !important; row-gap: 8px !important; }
+  .field-row:last-child { margin-bottom: 0 !important; }
+  .check-group      { gap: 8px !important; row-gap: 8px !important; }
+  .test-grid        { gap: 14px !important; margin-top: 10px !important; }
+  .test-item        { margin-bottom: 4px !important; }
+  .ts-row           { margin-bottom: 10px !important; }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2359,22 +2360,20 @@ function capturePageToCanvas() {
         // Bump input text slightly so values read a touch larger. Applied to
         // both devices now that capture is unified (was desktop-only).
         'input[type="text"], input[type="date"], input[type="number"] { font-size: calc(0.78rem + 0.8px) !important; }',
-        // The mobile-screen "breathing room" spacing (@media max-width:600px)
-        // only exists for the on-screen working view. During capture the page
-        // renders at CAPTURE_WIDTH (>600px) so those rules don't apply in the
-        // clone — but the canvas HEIGHT is measured from the live on-screen DOM,
-        // which DOES have the extra spacing. That mismatch added blank space /
-        // broke the full-page fit. Reset the spacing back to the compact desktop
-        // values here so the measured height matches the rendered layout.
-        '.section { margin-bottom: 4px !important; }',
-        '.two-column { gap: 4px !important; margin-bottom: 4px !important; }',
-        '.section-body { padding-top: 4px !important; padding-bottom: 4px !important; }',
-        '.field-row { margin-bottom: 3px !important; row-gap: 0 !important; }',
-        '.field-row:last-child { margin-bottom: 0 !important; }',
-        '.check-group { gap: 2px !important; row-gap: 0 !important; }',
-        '.test-grid { gap: 12px !important; margin-top: 8px !important; }',
-        '.test-item { margin-bottom: 0 !important; }',
-        '.ts-row { margin-bottom: 2px !important; }'
+        // The mobile-screen "breathing room" spacing (@media max-width:600px).
+        // DESKTOP capture: reset spacing to the compact desktop values so the
+        // measured height matches the rendered layout. MOBILE capture: KEEP the
+        // generous screen spacing so the captured image matches what the user
+        // sees on their phone (per request). So these resets are desktop-only.
+        (_isMobileCap ? '' : '.section { margin-bottom: 4px !important; }'),
+        (_isMobileCap ? '' : '.two-column { gap: 4px !important; margin-bottom: 4px !important; }'),
+        (_isMobileCap ? '' : '.section-body { padding-top: 4px !important; padding-bottom: 4px !important; }'),
+        (_isMobileCap ? '' : '.field-row { margin-bottom: 3px !important; row-gap: 0 !important; }'),
+        (_isMobileCap ? '' : '.field-row:last-child { margin-bottom: 0 !important; }'),
+        (_isMobileCap ? '' : '.check-group { gap: 2px !important; row-gap: 0 !important; }'),
+        (_isMobileCap ? '' : '.test-grid { gap: 12px !important; margin-top: 8px !important; }'),
+        (_isMobileCap ? '' : '.test-item { margin-bottom: 0 !important; }'),
+        (_isMobileCap ? '' : '.ts-row { margin-bottom: 2px !important; }')
       ].join('\n');
       document.head.appendChild(forceStyle);
       // Strip placeholder attributes during capture (html2canvas can paint them
