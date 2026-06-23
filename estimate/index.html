@@ -140,6 +140,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --fs-print-phone-gas-label:      0.75rem;  /* gas appliances label in PDF                      */
 
   /* ---- PRINT : iPAD ---- */
+  --print-fit-zoom:                0.775;    /* iPad PDF fit-to-paper scale = printableWidth/1050 (816/1050≈0.777). Lower = smaller. Fixes "tap Scale" race. */
   --fs-print-ipad-company-name:    1.2rem;  /* "Always On Generators" in iPad PDF               */
   --fs-print-ipad-doc-title:       1.2rem;  /* "Generator Installation Estimate" in iPad PDF    */
   --fs-print-ipad-section-header:  0.95rem;  /* section title bars in iPad PDF                   */
@@ -1536,7 +1537,16 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 
 /* ===== iPAD PRINT — all elements ===== */
 @media print {
-  html.ipad-print { font-size: var(--fs-print-ipad-base) !important; zoom: 1; margin: 0 !important; padding: 0 !important; }
+  /* FIT-TO-PAPER ZOOM (the fix for "iPad prints at wrong scale until I tap Scale").
+     The iPad print layout is a fixed 1050px-wide page. We were relying on the iOS print
+     sheet's "Fit to Page" to shrink that onto 8.5in paper, but iOS does NOT auto-fit by
+     default — it renders at 100%, where 1050px is wider than the ~816px printable width, so
+     the form overflows onto a 2nd page. Tapping Scale forced iOS to recompute. Baking the
+     scale in here (816/1050 ≈ 0.777, with a hair of safety margin) makes it fit at the iOS
+     default 100% scale, so no manual Scale tap is needed. `zoom` (not `transform`) is used
+     deliberately: zoom shrinks the layout box itself, so pagination sees the smaller height
+     and keeps everything on one page. Adjust --print-fit-zoom if your printable width differs. */
+  html.ipad-print { font-size: var(--fs-print-ipad-base) !important; zoom: var(--print-fit-zoom, 0.775) !important; margin: 0 !important; padding: 0 !important; }
   html.ipad-print body { width: 1050px !important; max-width: none !important; }
   html.ipad-print .page { width: 1050px !important; max-width: none !important; }
   html.ipad-print .company-name { font-size: var(--fs-print-ipad-company-name) !important; }
