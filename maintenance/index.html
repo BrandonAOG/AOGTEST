@@ -150,13 +150,13 @@ body.dark-mode .page {
 
 @media (max-width: 768px) {
   body { padding: 0; }
-  body:not(.capturing) .page { box-shadow: none; border: none; max-width: 100%; }
-  body:not(.capturing) .page::before, body:not(.capturing) .page::after, body:not(.capturing) .page-corner-bl, body:not(.capturing) .page-corner-br { display: none; }
-  body:not(.capturing) .header { flex-wrap: nowrap; gap: 6px; padding: 6px 8px; min-height: auto; justify-content: space-between; }
-  body:not(.capturing) .header-logo { flex: 0 1 auto; min-width: 0; overflow: hidden; padding-left: 30px; }
-  body:not(.capturing) .logo-img { width: 36px; height: 36px; }
-  body:not(.capturing) .company-name { font-size: 0.75rem !important; letter-spacing: 0.5px !important; white-space: nowrap; }
-  body:not(.capturing) .doc-title { font-size: 0.75rem !important; letter-spacing: 1px !important; white-space: nowrap; }
+  .page { box-shadow: none; border: none; max-width: 100%; }
+  .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none; }
+  .header { flex-wrap: nowrap; gap: 6px; padding: 6px 8px; min-height: auto; justify-content: space-between; }
+  .header-logo { flex: 0 1 auto; min-width: 0; overflow: hidden; padding-left: 30px; }
+  .logo-img { width: 36px; height: 36px; }
+  .company-name { font-size: 0.75rem !important; letter-spacing: 0.5px !important; white-space: nowrap; }
+  .doc-title { font-size: 0.75rem !important; letter-spacing: 1px !important; white-space: nowrap; }
 }
 
 /* ── HEADER ── */
@@ -341,112 +341,57 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
 @media (max-width: 480px) { .content { padding: 3px; } }
 
 @media (max-width: 400px) {
-  body:not(.capturing) .ts-row { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
-  body:not(.capturing) .ts-row > label[for^="tsserial"] { width: 100% !important; }
-  body:not(.capturing) .ts-row > input[id^="tsserial"] { width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; box-sizing: border-box !important; }
-  body:not(.capturing) .ts-row > div { width: 100% !important; }
-  body:not(.capturing) .ts-row .check-group { width: 100% !important; }
+  .ts-row { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
+  .ts-row > label[for^="tsserial"] { width: 100% !important; }
+  .ts-row > input[id^="tsserial"] { width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; box-sizing: border-box !important; }
+  .ts-row > div { width: 100% !important; }
+  .ts-row .check-group { width: 100% !important; }
   /* Collapsed "Was simulation power test performed?" — let the long label
      wrap and keep the Y/N group fully on screen instead of overflowing. */
-  body:not(.capturing) #sim-body-collapsed .test-item { flex-wrap: wrap !important; align-items: flex-start !important; }
-  body:not(.capturing) #sim-body-collapsed .test-item > label { min-width: 0 !important; width: 100% !important; white-space: normal !important; }
-  body:not(.capturing) #sim-body-collapsed .test-item .yn-group { margin-right: 0 !important; }
+  #sim-body-collapsed .test-item { flex-wrap: wrap !important; align-items: flex-start !important; }
+  #sim-body-collapsed .test-item > label { min-width: 0 !important; width: 100% !important; white-space: normal !important; }
+  #sim-body-collapsed .test-item .yn-group { margin-right: 0 !important; }
 }
 
 /* Mobile: Customer & Job Info — each label+input pair on its own line */
 @media screen and (max-width: 600px) {
-  /* Make everything bigger on mobile screen (rem-based text scales from this).
-     During capture, the capture-force-style sets html font-size to 19.3px and
-     loads later, so it overrides this. */
+  /* Make everything bigger on mobile screen (rem-based text scales from this) */
   html { font-size: 19px !important; }
-  body:not(.capturing) #cust-info-body .field-row,
-  body:not(.capturing) #cust-info-body .field-row-nowrap {
+  #cust-info-body .field-row,
+  #cust-info-body .field-row-nowrap {
     flex-wrap: wrap !important; row-gap: 4px !important; column-gap: 6px !important;
   }
-  body:not(.capturing) #cust-info-body .field-row label {
+  #cust-info-body .field-row label {
     flex: 0 0 70px !important; width: 70px !important; text-align: left !important; margin: 0 !important;
   }
-  body:not(.capturing) #cust-info-body .field-row input,
-  body:not(.capturing) #cust-info-body .field-row select {
+  #cust-info-body .field-row input,
+  #cust-info-body .field-row select {
     flex: 1 1 calc(100% - 80px) !important; width: auto !important;
     min-width: 0 !important; max-width: none !important;
   }
   /* Override the inline widths on Tech/Model/Serial/Hrs and the date cap */
-  body:not(.capturing) #cust-info-body #tech, body:not(.capturing) #cust-info-body #model, body:not(.capturing) #cust-info-body #serial,
-  body:not(.capturing) #cust-info-body #hours, body:not(.capturing) #cust-info-body #date, body:not(.capturing) #cust-info-body #name,
-  body:not(.capturing) #cust-info-body #number {
+  #cust-info-body #tech, #cust-info-body #model, #cust-info-body #serial,
+  #cust-info-body #hours, #cust-info-body #date, #cust-info-body #name,
+  #cust-info-body #number {
     width: auto !important; max-width: none !important; flex: 1 1 calc(100% - 80px) !important;
   }
   /* Model / Serial # / Hrs each get their own full-width row on mobile so
      the inputs are wide enough to tap and type into. (screen only — print unaffected) */
-  body:not(.capturing) #model-serial-hrs-row {
+  #model-serial-hrs-row {
     flex-wrap: wrap !important;
     gap: 6px !important;
   }
-  body:not(.capturing) #model-serial-hrs-row > span {
+  #model-serial-hrs-row > span {
     flex: 1 1 100% !important;
     min-width: 0 !important;
     width: 100% !important;
   }
-  body:not(.capturing) #model-serial-hrs-row > span > input {
+  #model-serial-hrs-row > span > input {
     flex: 1 1 0 !important;
     width: auto !important;
     min-width: 0 !important;
   }
-
-  /* ── Mobile screen only: more breathing room between every row ──
-     These apply on the phone viewport for BOTH the on-screen view and the
-     image capture, so the captured image matches what the user sees on their
-     phone. (This media query never fires on desktop capture — wide viewport.) */
-  .section          { margin-bottom: 12px !important; }
-  .two-column       { gap: 12px !important; margin-bottom: 12px !important; }
-  .section-body     { padding-top: 8px !important; padding-bottom: 8px !important; }
-  .field-row        { margin-bottom: 10px !important; row-gap: 8px !important; }
-  .field-row:last-child { margin-bottom: 0 !important; }
-  .check-group      { gap: 8px !important; row-gap: 8px !important; }
-  .test-grid        { gap: 14px !important; margin-top: 10px !important; }
-  .test-item        { margin-bottom: 4px !important; }
-  .ts-row           { margin-bottom: 10px !important; }
 }
-
-/* ══════════════════════════════════════════════════════════════
-   CAPTURE LAYOUT LOCK
-   When body.capturing is set (during image capture only), force the
-   full desktop layout for the Customer & Job Info rows regardless of
-   viewport width. The mobile @media rules above are scoped
-   body:not(.capturing) so they switch off, but we ALSO assert the
-   desktop layout positively here so nothing can leave the rows stacked.
-   This is what keeps the captured Customer section ~124px (desktop)
-   instead of ~218px (mobile stacked).
-   ══════════════════════════════════════════════════════════════ */
-body.capturing #cust-info-body .field-row,
-body.capturing #cust-info-body .field-row-nowrap {
-  flex-wrap: nowrap !important;
-  row-gap: 0 !important;
-  margin-bottom: 3px !important;
-}
-body.capturing #cust-info-body .field-row label {
-  flex: 0 0 auto !important;
-  width: auto !important;
-}
-body.capturing #cust-info-body .field-row input,
-body.capturing #cust-info-body .field-row select {
-  flex: 1 1 auto !important;
-  width: auto !important;
-}
-body.capturing #name-job-date-row #name   { flex: 2 1 0 !important; width: auto !important; min-width: 0 !important; }
-body.capturing #name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
-body.capturing #name-job-date-row #date   { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
-body.capturing #address-tech-row #address { flex: 0 0 50% !important; width: 50% !important; min-width: 0 !important; }
-body.capturing #address-tech-row #tech    { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
-body.capturing #model-serial-hrs-row {
-  flex-wrap: nowrap !important;
-  gap: 22px !important;
-}
-body.capturing #model-serial-hrs-row > span        { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
-body.capturing #model-serial-hrs-row > span:last-child { flex: 0 0 auto !important; }
-body.capturing #model-serial-hrs-row > span > input { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
-
 
 /* ── SECTIONS ── */
 .section {
@@ -546,7 +491,7 @@ body.dark-mode .section-toggle-hint { color: #7DD3FC; border-color: rgba(0,255,2
 }
 .two-column .section { margin-bottom: 0; }
 @media (max-width: 820px) {
-  body:not(.capturing) .two-column { grid-template-columns: 1fr; gap: 4px; margin-bottom: 4px; }
+  .two-column { grid-template-columns: 1fr; gap: 4px; margin-bottom: 4px; }
 }
 
 /* ── FIELD ROWS ── */
@@ -662,12 +607,6 @@ input.long  { flex: 1; min-width: 70px; }
   #name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
   #name-job-date-row #date   { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
 }
-/* During capture the page is forced to 1000px wide but the viewport may be
-   narrow (phone), so the min-width:601px rule above won't fire. Re-apply the
-   desktop name-row layout whenever capturing, at any viewport width. */
-body.capturing #name-job-date-row #name   { flex: 2 1 0 !important; width: auto !important; min-width: 0 !important; }
-body.capturing #name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
-body.capturing #name-job-date-row #date   { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
 
 textarea {
   width: 100%;
@@ -761,11 +700,11 @@ body.dark-mode .check-item:has(input:checked) span { color: #D97706; font-weight
 .test-item .yn-group { flex: 0 0 auto; width: auto; margin-right: auto; }
 /* Force the Y/N buttons here to the same compact size as other sections */
 .test-item .yn-group .yn-label { padding: 0 8px !important; min-width: 0 !important; width: auto !important; flex: 0 0 auto !important; }
-@media (max-width: 768px) { body:not(.capturing) .test-grid { grid-template-columns: 1fr; gap: 10px; } }
+@media (max-width: 768px) { .test-grid { grid-template-columns: 1fr; gap: 10px; } }
 
 /* Mobile screen only: match check-item chip height to yn-group (26px) */
 @media screen and (max-width: 768px) {
-  body:not(.capturing) .check-item {
+  .check-item {
     height: 26px;
     min-height: 26px;
   }
@@ -1229,7 +1168,6 @@ body.dark-mode .action-bar {
   <a class="btn" href="../" style="text-decoration:none;">🏠 HOME</a>
   <button class="btn" onclick="openPrintPreview()">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
-  <button class="btn" id="btn-debug" onclick="toggleCaptureDebug()" title="Show capture debug info">🐞 DEBUG</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1245,13 +1183,6 @@ body.dark-mode .action-bar {
   </button>
 </div>
 <div id="save-status" style="position:fixed;top:44px;left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;"></div>
-<div id="capture-debug" style="position:fixed;left:0;right:0;bottom:0;z-index:99999;display:none;max-height:80vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#0A0E27;color:#00FFC8;font-family:'Share Tech Mono',monospace,monospace;font-size:11px;line-height:1.4;padding:10px 12px 14px;border-top:2px solid #00FFC8;box-shadow:0 -4px 20px rgba(0,0,0,0.6);white-space:pre-wrap;word-break:break-word;">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-    <strong style="color:#FBBF24;letter-spacing:1px;">CAPTURE DEBUG</strong>
-    <button onclick="toggleCaptureDebug()" style="background:#DC2626;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;">CLOSE</button>
-  </div>
-  <div id="capture-debug-body">Tap 📸 CAPTURE to record metrics. Numbers from the last capture will appear here.</div>
-</div>
 
 <script>
 (function () {
@@ -2219,53 +2150,6 @@ function openPrintPreview() {
   }
 }
 
-var CAPTURE_DEBUG = false;
-function toggleCaptureDebug() {
-  CAPTURE_DEBUG = !CAPTURE_DEBUG;
-  var box = document.getElementById('capture-debug');
-  if (box) box.style.display = CAPTURE_DEBUG ? 'block' : 'none';
-  var btn = document.getElementById('btn-debug');
-  if (btn) btn.style.opacity = CAPTURE_DEBUG ? '1' : '0.6';
-}
-function captureDebugLog(metrics) {
-  // Always console.log so it's available even with the overlay closed.
-  try { console.log('[CAPTURE DEBUG]', metrics); } catch (e) {}
-  var body = document.getElementById('capture-debug-body');
-  if (!body) return;
-  var lines = [];
-  if (metrics.probe && metrics.probe.bodyHasCapturing !== undefined) {
-    var p = metrics.probe;
-    var sum = [p.hHeader,p.hCustSec,p.hTwoCol,p.hOil,p.hSim,p.hGas,p.hTS,p.hOther,p.hFooter]
-                .filter(function(n){return n>0;}).reduce(function(a,b){return a+b;},0);
-    lines.push('=== SRC RATIO: ' + metrics.srcRatio + '  (target 1.314) ===');
-    lines.push('=== STRETCH : ' + metrics.stretchPct + '%  (target ~0) ===');
-    lines.push('_capH total   : ' + p.capH + ' px   sum: ' + sum + ' px');
-    lines.push('--- SECTION HEIGHTS (find the bloated one) ---');
-    lines.push('header        : ' + p.hHeader + ' px');
-    lines.push('cust sec      : ' + p.hCustSec + ' px');
-    lines.push('two-column    : ' + p.hTwoCol + ' px');
-    lines.push('oil sec       : ' + p.hOil + ' px');
-    lines.push('sim sec       : ' + p.hSim + ' px');
-    lines.push('gas sec       : ' + p.hGas + ' px');
-    lines.push('transfer sec  : ' + p.hTS + ' px');
-    lines.push('other sec     : ' + p.hOther + ' px');
-    lines.push('footer        : ' + p.hFooter + ' px');
-    lines.push('notes oil/gas/ts: ' + p.hOilNotes + '/' + p.hGasNotes + '/' + p.hTsNotes + ' px');
-    lines.push('two-col cols  : ' + p.twoColTemplate);
-    lines.push('page width    : ' + p.pageWidth + ' px  (capturing:' + p.bodyHasCapturing + ')');
-    lines.push('--- raw ---');
-  }
-  lines.push('time          : ' + new Date().toLocaleTimeString());
-  lines.push('device        : ' + metrics.device);
-  lines.push('viewport      : ' + metrics.vw + ' x ' + metrics.vh + '  (dpr ' + metrics.dpr + ')');
-  lines.push('CAPTURE_WIDTH : ' + metrics.captureWidth + ' px');
-  lines.push('root font     : ' + metrics.rootFont);
-  lines.push('srcCanvas     : ' + metrics.srcW + ' x ' + metrics.srcH + ' px');
-  lines.push('propH (nat.)  : ' + metrics.propH + ' px   drawH: ' + metrics.drawH + ' px');
-  lines.push('avail area    : ' + metrics.availW + ' x ' + metrics.availH + ' px (ratio ' + metrics.availRatio + ')');
-  body.textContent = lines.join('\n');
-}
-
 function setStatus(msg) {
   const el = document.getElementById('save-status');
   if (el) el.textContent = msg;
@@ -2277,26 +2161,16 @@ function capturePageToCanvas() {
     const logoImg     = page.querySelector('.logo-img');
     const logoOrigSrc = logoImg ? logoImg.getAttribute('src') : null;
 
-    // Capture is device-INDEPENDENT: both desktop and mobile render the page at
-    // the SAME forced width and font so the html2canvas source — and therefore
-    // the final letter image — comes out identical regardless of device. The
-    // capture forces an explicit pixel width on .page and an explicit root font
-    // below, neither of which depends on the real screen size, so there is no
-    // reason for mobile to differ. 1000px / 19.3px is the desktop-verified
-    // "perfect" setting (src ratio ~1.314 == letter usable ratio ~1.305 -> 100% fill).
+    // Desktop captures at the original 820px layout width. Mobile stretches a
+    // bit wider so the layout has room, and bumps the root font (below, in the
+    // force-style) so the content isn't too small in the mobile image.
     var _isMobileCap = document.body.classList.contains('mobile-safari') ||
                        document.body.classList.contains('mobile-chrome');
-    const CAPTURE_WIDTH = 1000;   // unified (was: _isMobileCap ? 1180 : 1000)
+    const CAPTURE_WIDTH = _isMobileCap ? 1180 : 1000;
     const PAPER_RATIO   = 11 / 8.5;
     const CAPTURE_PAGE_H = Math.round(CAPTURE_WIDTH * PAPER_RATIO); // full sheet height at this width
 
     function doCapture() {
-      // Mark the document as "capturing" so the screen-only mobile media-query
-      // rules (which restack fields and add row spacing, making the phone DOM
-      // ~740px taller than desktop) switch OFF for the duration of the capture.
-      // This is what makes the mobile source ratio match desktop (~1.314).
-      document.body.classList.add('capturing');
-
       const prevWidth     = page.style.width;
       const prevMaxWidth  = page.style.maxWidth;
       const prevHeight    = page.style.height;
@@ -2317,10 +2191,9 @@ function capturePageToCanvas() {
       forceStyle.id = 'capture-force-style';
       forceStyle.textContent = [
         '.two-column { display: grid !important; grid-template-columns: 1fr 1fr !important; }',
-        // Unified root font for capture (was: mobile 29.3px / desktop 19.3px).
-        // Both devices now use the desktop-verified 19.3px so the captured image
-        // is identical regardless of device.
-        'html { font-size: 19.3px !important; }',
+        // Mobile renders the form smaller; bump the root font so the content
+        // reads at a comfortable size. Desktop gets a slight +1.5px bump too.
+        (_isMobileCap ? 'html { font-size: 29.3px !important; }' : 'html { font-size: 19.3px !important; }'),
         // Footer must follow content during capture, not pin/overlap it, and
         // stay visible (it was dropping out of the capture entirely).
         '#page { display: block !important; overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; border: 1.5px solid #D97706 !important; }',
@@ -2357,23 +2230,8 @@ function capturePageToCanvas() {
         '  padding-top: 2px !important; padding-bottom: 3px !important;',
         '  height: auto !important; min-height: 1.6em !important; overflow: visible !important;',
         '}',
-        // Bump input text slightly so values read a touch larger. Applied to
-        // both devices now that capture is unified (was desktop-only).
-        'input[type="text"], input[type="date"], input[type="number"] { font-size: calc(0.78rem + 0.8px) !important; }',
-        // The mobile-screen "breathing room" spacing (@media max-width:600px).
-        // DESKTOP capture: reset spacing to the compact desktop values so the
-        // measured height matches the rendered layout. MOBILE capture: KEEP the
-        // generous screen spacing so the captured image matches what the user
-        // sees on their phone (per request). So these resets are desktop-only.
-        (_isMobileCap ? '' : '.section { margin-bottom: 4px !important; }'),
-        (_isMobileCap ? '' : '.two-column { gap: 4px !important; margin-bottom: 4px !important; }'),
-        (_isMobileCap ? '' : '.section-body { padding-top: 4px !important; padding-bottom: 4px !important; }'),
-        (_isMobileCap ? '' : '.field-row { margin-bottom: 3px !important; row-gap: 0 !important; }'),
-        (_isMobileCap ? '' : '.field-row:last-child { margin-bottom: 0 !important; }'),
-        (_isMobileCap ? '' : '.check-group { gap: 2px !important; row-gap: 0 !important; }'),
-        (_isMobileCap ? '' : '.test-grid { gap: 12px !important; margin-top: 8px !important; }'),
-        (_isMobileCap ? '' : '.test-item { margin-bottom: 0 !important; }'),
-        (_isMobileCap ? '' : '.ts-row { margin-bottom: 2px !important; }')
+        // Bump just the input text up slightly so values read a touch larger.
+        (_isMobileCap ? '' : 'input[type="text"], input[type="date"], input[type="number"] { font-size: calc(0.78rem + 0.8px) !important; }')
       ].join('\n');
       document.head.appendChild(forceStyle);
       // Strip placeholder attributes during capture (html2canvas can paint them
@@ -2465,7 +2323,6 @@ function capturePageToCanvas() {
       }
 
       function restoreCapture() {
-        document.body.classList.remove('capturing');
         page.style.width     = prevWidth;
         page.style.maxWidth  = prevMaxWidth;
         page.style.height    = prevHeight;
@@ -2503,47 +2360,6 @@ function capturePageToCanvas() {
           // short "power test performed" collapsed view where the page is small.
           var _pageBottom = _pr.height;
           var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom, _pageBottom)) + 32;
-
-          // DEBUG PROBE: while .capturing is active, measure the live layout so
-          // we can SEE which sections are rendering tall (vs. desktop). Captured
-          // into _probe and shown in the debug panel.
-          var _probe = {};
-          if (CAPTURE_DEBUG) {
-            var _tc = page.querySelector('.two-column');
-            var _tcCols = _tc ? getComputedStyle(_tc).gridTemplateColumns : 'n/a';
-            function _h(sel){ var e = page.querySelector(sel); return e ? Math.round(e.getBoundingClientRect().height) : -1; }
-            // Find a top-level .section by the text of its .section-header.
-            function _hSec(headerText){
-              var hdrs = page.querySelectorAll('.section-header');
-              for (var i=0;i<hdrs.length;i++){
-                if ((hdrs[i].textContent||'').trim().toLowerCase().indexOf(headerText.toLowerCase())===0){
-                  var sec = hdrs[i].closest('.section');
-                  if (sec) return Math.round(sec.getBoundingClientRect().height);
-                }
-              }
-              return -1;
-            }
-            _probe = {
-              bodyHasCapturing: document.body.classList.contains('capturing'),
-              viewportInner:    window.innerWidth,
-              pageWidth:        Math.round(_pr.width),
-              twoColTemplate:   _tcCols,       // should show TWO tracks if 2-up
-              capH:             _capH,
-              hHeader:          _h('.header'),
-              hCustSec:         _hSec('Customer'),
-              hTwoCol:          _h('.two-column'),
-              hOil:             _hSec('Oil'),
-              hSim:             _h('#sim-section'),
-              hGas:             _hSec('Gas'),
-              hTS:              _hSec('Transfer'),
-              hOther:           _h('#other-section'),
-              hFooter:          _h('.footer'),
-              hOilNotes:        _h('#oilnotes'),
-              hGasNotes:        _h('#gasnotes'),
-              hTsNotes:         _h('#tsnotes')
-            };
-          }
-
           html2canvas(page, {
             scale: 2,
             useCORS: true,
@@ -2553,57 +2369,8 @@ function capturePageToCanvas() {
             width:       CAPTURE_WIDTH,
             height:      _capH,
             windowWidth: CAPTURE_WIDTH,
-            windowHeight: _capH,
             scrollX: 0,
             scrollY: 0,
-            onclone: function (clonedDoc) {
-              // html2canvas renders a CLONE of the document. On mobile the clone
-              // can re-evaluate the screen @media (max-width:600px/768px/820px)
-              // rules against the real narrow viewport, re-introducing the tall
-              // stacked layout even though the LIVE dom (measured above) is the
-              // compact desktop layout. Force the capture state directly onto the
-              // clone so it renders identically to what we measured: keep the
-              // .capturing class, and pin the page + root to the capture width.
-              try {
-                var cb = clonedDoc.body;
-                if (cb) {
-                  cb.classList.add('capturing');
-                  cb.style.width = CAPTURE_WIDTH + 'px';
-                  cb.style.minWidth = CAPTURE_WIDTH + 'px';
-                  cb.style.maxWidth = CAPTURE_WIDTH + 'px';
-                }
-                if (clonedDoc.documentElement) {
-                  clonedDoc.documentElement.style.width = CAPTURE_WIDTH + 'px';
-                  clonedDoc.documentElement.style.fontSize = '19.3px';
-                }
-                var cp = clonedDoc.getElementById('page');
-                if (cp) {
-                  cp.style.width = CAPTURE_WIDTH + 'px';
-                  cp.style.minWidth = CAPTURE_WIDTH + 'px';
-                  cp.style.maxWidth = CAPTURE_WIDTH + 'px';
-                }
-                // Belt-and-suspenders: inject a stylesheet into the clone that
-                // forces the desktop layout regardless of any media query, so the
-                // two-column sections never collapse and rows never restack.
-                var s = clonedDoc.createElement('style');
-                s.textContent =
-                  '.two-column{display:grid !important;grid-template-columns:1fr 1fr !important;}' +
-                  '#cust-info-body .field-row,#cust-info-body .field-row-nowrap{flex-wrap:nowrap !important;row-gap:0 !important;margin-bottom:3px !important;}' +
-                  '#cust-info-body .field-row label{flex:0 0 auto !important;width:auto !important;}' +
-                  '#cust-info-body .field-row input,#cust-info-body .field-row select{flex:1 1 auto !important;width:auto !important;}' +
-                  '#name-job-date-row #name{flex:2 1 0 !important;width:auto !important;min-width:0 !important;}' +
-                  '#name-job-date-row #number{flex:1 1 0 !important;width:auto !important;min-width:0 !important;}' +
-                  '#name-job-date-row #date{flex:1 1 0 !important;width:auto !important;min-width:0 !important;}' +
-                  '#address-tech-row #address{flex:0 0 50% !important;width:50% !important;min-width:0 !important;}' +
-                  '#address-tech-row #tech{flex:1 1 0 !important;width:auto !important;min-width:0 !important;}' +
-                  '#model-serial-hrs-row{flex-wrap:nowrap !important;gap:22px !important;}' +
-                  '#model-serial-hrs-row>span{flex:1 1 0 !important;width:auto !important;min-width:0 !important;}' +
-                  '#model-serial-hrs-row>span:last-child{flex:0 0 auto !important;}' +
-                  '#model-serial-hrs-row>span>input{flex:1 1 0 !important;width:auto !important;min-width:0 !important;}' +
-                  '.test-grid{grid-template-columns:1fr 1fr !important;}';
-                clonedDoc.head.appendChild(s);
-              } catch (e) {}
-            },
             ignoreElements: el =>
               el.classList.contains('toolbar')         ||
               el.classList.contains('action-bar')      ||
@@ -2628,67 +2395,22 @@ function capturePageToCanvas() {
             // target's edge-to-edge look, but cap how far we stretch beyond the
             // content's natural (proportional) height so the short collapsed
             // view never looks vertically warped.
-            // ── Placement: SPLIT THE DIFFERENCE ──
-            // Mobile Safari renders the form ~10% taller than desktop, so the
-            // source is a different shape. Two clean extremes exist:
-            //   A) fill width AND height  -> full page, but ~11% horizontal stretch
-            //   B) uniform scale to fit   -> zero distortion, but ~10% side gutters
-            // Neither alone looks like desktop. So we AVERAGE the two draw
-            // rectangles: about half the stretch (~5.6%) AND about half the side
-            // gutter (~5%). For desktop both extremes are nearly identical (source
-            // already fits), so the average is still a full, undistorted page —
-            // no visible change there. Content is centered horizontally and
-            // top-aligned (forms read top-down).
-            // A — fill both dimensions:
-            const aW = availW, aH = availH;
-            // B — uniform scale to fit inside the available area (no distortion):
-            const uScale = Math.min(availW / srcCanvas.width, availH / srcCanvas.height);
-            const bW = Math.round(srcCanvas.width  * uScale);
-            const bH = Math.round(srcCanvas.height * uScale);
-            // SPLIT — average the two rectangles:
-            const drawW = Math.round((aW + bW) / 2);
-            const drawH = Math.round((aH + bH) / 2);
-            const propH = Math.round(srcCanvas.height * (availW / srcCanvas.width)); // for debug readout
-            const offsetX = MARGIN_X + Math.max(0, Math.round((availW - drawW) / 2)); // center horizontally
-            const offsetY = MARGIN_Y;                                                // top-aligned
+            const drawW = availW;
+            const propH = Math.round(srcCanvas.height * (availW / srcCanvas.width)); // proportional height at full width
+            // On mobile, fill the sheet vertically edge-to-edge (use the full
+            // available height) so the captured image isn't short with trailing
+            // white space. Desktop keeps the gentle +6% cap to avoid warping the
+            // short collapsed view.
+            const drawH = _isMobileCap
+              ? availH
+              : Math.min(availH, Math.round(propH * 1.06));
             const letterCanvas = document.createElement('canvas');
             letterCanvas.width  = LETTER_W;
             letterCanvas.height = LETTER_H;
             const ctx = letterCanvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, LETTER_W, LETTER_H);
-            ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, offsetX, offsetY, drawW, drawH);
-
-            if (CAPTURE_DEBUG) {
-              captureDebugLog({
-                device:      _isMobileCap ? 'MOBILE' : 'DESKTOP',
-                isSafari:    document.body.classList.contains('mobile-safari'),
-                isChrome:    document.body.classList.contains('mobile-chrome'),
-                isMobileCap: _isMobileCap,
-                vw:          window.innerWidth,
-                vh:          window.innerHeight,
-                dpr:         window.devicePixelRatio || 1,
-                captureWidth: CAPTURE_WIDTH,
-                rootFont:    '19.3px',
-                capH:        _capH,
-                srcW:        srcCanvas.width,
-                srcH:        srcCanvas.height,
-                srcRatio:    (srcCanvas.height / srcCanvas.width).toFixed(3),
-                letterW:     LETTER_W,
-                letterH:     LETTER_H,
-                availW:      availW,
-                availH:      availH,
-                availRatio:  (availH / availW).toFixed(3),
-                drawW:       drawW,
-                propH:       propH,
-                drawH:       drawH,
-                fillPct:     ((drawH / availH) * 100).toFixed(1),
-                stretchPct:  (((drawH / propH) - 1) * 100).toFixed(1),
-                widthGutter: (availW - drawW),
-                probe:       _probe
-              });
-            }
-
+            ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, MARGIN_X, MARGIN_Y, drawW, drawH);
             resolve(letterCanvas);
           }).catch(err => {
             restoreCapture();
@@ -2753,25 +2475,6 @@ function buildReportFilename() {
   return (base || 'AOG_Maintenance_Report') + '.jpg';
 }
 function saveSmart() {
-  // Debug mode: run the capture pipeline to populate the metrics overlay, but
-  // do NOT share or download — so the debug panel stays visible (the share
-  // sheet would otherwise cover it on mobile).
-  if (CAPTURE_DEBUG) {
-    setStatus('Debug capture... please wait');
-    var wasDark = document.body.classList.contains('dark-mode');
-    if (wasDark) document.body.classList.remove('dark-mode');
-    setTimeout(function () {
-      capturePageToCanvas().then(function () {
-        if (wasDark) document.body.classList.add('dark-mode');
-        setStatus('Debug capture complete — see panel below.');
-        setTimeout(function(){ setStatus(''); }, 3000);
-      }).catch(function () {
-        if (wasDark) document.body.classList.add('dark-mode');
-        setStatus('Debug capture failed.');
-      });
-    }, 250);
-    return;
-  }
   if (canShareFiles())      captureAndShare();   // native Share Sheet (iOS + modern Android)
   else if (isIOSDevice())   saveForIPhone();     // older iOS → long-press overlay
   else                      saveForAndroid();    // Android/desktop → download
