@@ -1824,37 +1824,134 @@ function clearForm() {
 }
 
 function renderPrintDebug() {
-  // Fills the #pdebug block with live computed metrics. Called AFTER the print
-  // style-stamp pass so the numbers reflect the print state, then printed into
-  // the PDF. No-op unless #debug is active.
+  // Full print audit. Walks every meaningful element, reads its computed
+  // print-state metrics, groups identical results (so 16 Y/N pills collapse to
+  // one line with a count) and flags wrapped/boosted elements. Printed into the
+  // PDF because iOS fires no reliable print events. No-op unless #debug is on.
   if (!document.documentElement.classList.contains('debug')) return;
   var out = document.getElementById('pdebug-text');
   if (!out) return;
-  function m(el) {
-    if (!el) return 'n/a';
-    var cs = getComputedStyle(el);
-    var r = el.getBoundingClientRect();
-    return 'box=' + r.width.toFixed(1) + 'x' + r.height.toFixed(1) +
-           '  font=' + cs.fontSize + '  line=' + cs.lineHeight +
-           '  tsa=' + (cs.webkitTextSizeAdjust || cs.textSizeAdjust || '?');
-  }
+
   var html = document.documentElement;
-  var ynG = document.getElementById('pdebug-yn');
-  var ynL = ynG ? ynG.querySelector('.yn-label') : null;
-  var ref = document.querySelector('.pdebug-ref');
-  var cls = (html.className || '').trim() || '(none)';
-  var lines = [
-    'UA        : ' + navigator.userAgent,
-    'platform  : ' + (navigator.platform || '?') + '   maxTouch=' + (navigator.maxTouchPoints || 0),
-    'classes   : ' + cls,
-    'innerW    : ' + window.innerWidth + '   dpr=' + (window.devicePixelRatio || '?'),
-    'rootFont  : ' + getComputedStyle(html).fontSize,
-    'REF box   : ' + m(ref) + '   (should read 21.0 tall)',
-    'YN group  : ' + m(ynG),
-    'YN label  : ' + m(ynL),
-    'time      : ' + new Date().toISOString()
+  var rootPx = parseFloat(getComputedStyle(html).fontSize) || 0;
+
+  function metrics(el) {
+    var cs = getComputedStyle(el);
+    var r  = el.getBoundingClientRect();
+    var fpx = parseFloat(cs.fontSize) || 0;
+    var lines = fpx ? Math.round(r.height / (fpx * 1.25)) : 0; // rough line estimate
+    var wrapped = fpx && r.height > fpx * 1.85;                // taller than ~1 line
+    return {
+      w: r.width, h: r.height, font: cs.fontSize, line: cs.lineHeight,
+      tsa: (cs.webkitTextSizeAdjust || cs.textSizeAdjust || '?'),
+      wrapped: wrapped
+    };
+  }
+  function sig(m) {
+    return 'box≈' + m.w.toFixed(0) + 'x' + m.h.toFixed(1) +
+           '  font=' + m.font + '  line=' + m.line + '  tsa=' + m.tsa +
+           (m.wrapped ? '  ⚠WRAP' : '');
+  }
+  function ident(el) {
+    return el.id ? '#' + el.id
+         : (el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).trim().split(/\s+/)[0] : ''));
+  }
+
+  // Every element type that ends up in the printout.
+  var groups = [
+    ['labels',            'label'],
+    ['text inputs',       'input[type="text"]'],
+    ['date inputs',       'input[type="date"]'],
+    ['number inputs',     'input[type="number"]'],
+    ['textareas',         'textarea'],
+    ['selects',           'select'],
+    ['section headers',   '.section-header'],
+    ['check items',       '.check-item'],
+    ['check labels',      '.check-item span, .opt span'],
+    ['check/radio boxes', '.check-item input[type="checkbox"], .check-item input[type="radio"]'],
+    ['Y/N groups',        '.yn-group'],
+    ['Y/N labels',        '.yn-label'],
+    ['test labels',       '.test-item label'],
+    ['field rows',        '.field-row'],
+    ['titles',            '.company-name, .doc-title'],
+    ['footer',            '.footer-text, .footer span']
   ];
-  out.textContent = lines.join('\n');
+
+  var report = [];
+  report.push('==== PRINT AUDIT ' + new Date().toISOString() + ' ====');
+  report.push('UA       : ' + navigator.userAgent);
+  report.push('platform : ' + (navigator.platform || '?') + '  maxTouch=' + (navigator.maxTouchPoints || 0));
+  report.push('classes  : ' + ((html.className || '').trim() || '(none)'));
+  report.push('innerW   : ' + window.innerWidth + '  dpr=' + (window.devicePixelRatio || '?') + '  rootFont=' + rootPx + 'px');
+  var refM = document.querySelector('.pdebug-ref');
+  if (refM) report.push('REF box  : ' + sig(metrics(refM)) + '  (target 21.0 tall)');
+  report.push('');
+
+  var warnings = [];
+  groups.forEach(function(g) {
+    var els = Array.prototype.slice.call(document.querySelectorAll(g[1]))
+      .filter(function(el) { return el.offsetParent !== null || getComputedStyle(el).position === 'fixed' || el.getClientRects().length; });
+    if (!els.length) { report.push(pad(g[0]) + ': (none)'); return; }
+    // Collapse identical signatures.
+    var byS = {};
+    els.forEach(function(el) {
+      var m = metrics(el);
+      var s = sig(m);
+      if (!byS[s]) byS[s] = { count: 0, ex: ident(el), wrapped: m.wrapped };
+      byS[s].count++;
+      if (m.wrapped) warnings.push(g[0] + ' ' + byS[s].ex + ' wrapped → ' + s);
+    });
+    var keys = Object.keys(byS);
+    report.push(pad(g[0]) + ': ' + els.length + ' total, ' + keys.length + ' variant(s)');
+    keys.forEach(function(s) {
+      var info = byS[s];
+      report.push('   ×' + info.count + '  ' + info.ex + '   ' + s);
+    });
+  });
+
+  report.push('');
+  if (warnings.length) {
+    report.push('⚠ FLAGGED (' + warnings.length + '):');
+    warnings.forEach(function(w) { report.push('   ' + w); });
+  } else {
+    report.push('✓ no wrapped/oversized elements detected');
+  }
+
+  // ── PAGE FIT ─────────────────────────────────────────────────────────
+  // Maps the stamped layout width onto the printable paper width to derive a
+  // one-page height budget, then compares the actual #page height to it.
+  var page = document.getElementById('page');
+  if (page) {
+    var PRINT_W_IN = 8.5 - (0.15 + 0.15);   // paper minus L/R @page margins
+    var PRINT_H_IN = 11  - (0.15 + 0.06);   // paper minus T/B @page margins
+    var pr = page.getBoundingClientRect();
+    var pxPerIn = pr.width / PRINT_W_IN;     // measured: stamped width → inches
+    var budgetPx = PRINT_H_IN * pxPerIn;     // height that fits on one page
+    var overflow = pr.height - budgetPx;
+    var pages = Math.max(1, Math.ceil(pr.height / budgetPx));
+    report.push('');
+    report.push('==== PAGE FIT ====');
+    report.push('px/inch  : ' + pxPerIn.toFixed(1) + '  (pageW ' + pr.width.toFixed(0) + 'px → ' + PRINT_W_IN + 'in)');
+    report.push('1-page   : ' + budgetPx.toFixed(0) + 'px tall budget');
+    report.push('actual   : ' + pr.height.toFixed(0) + 'px  → est ' + pages + ' page(s)');
+    report.push((overflow > 0 ? '✗ OVER by ' : '✓ fits, ') + Math.abs(overflow).toFixed(0) + 'px '
+                + (overflow > 0 ? '(trim this much to fit)' : 'to spare'));
+
+    // Tallest sections first, so you know where to cut.
+    var secs = Array.prototype.slice.call(page.querySelectorAll('.section')).map(function(s) {
+      var hdr = s.querySelector('.section-header');
+      return { name: hdr ? hdr.textContent.trim().slice(0, 22) : '(section)', h: s.getBoundingClientRect().height };
+    }).sort(function(a, b) { return b.h - a.h; });
+    report.push('');
+    report.push('section heights (tallest first):');
+    secs.forEach(function(s) {
+      report.push('   ' + s.h.toFixed(0).padStart(4) + 'px  ' + s.name);
+    });
+  }
+
+  function pad(s) { while (s.length < 18) s += ' '; return s; }
+
+  out.textContent = report.join('\n');
 }
 
 function openPrintPreview() {
