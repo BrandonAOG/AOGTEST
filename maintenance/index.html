@@ -2216,6 +2216,20 @@ function captureDebugLog(metrics) {
   lines.push('drawH (capped): ' + metrics.drawH + ' px');
   lines.push('VERTICAL FILL : ' + metrics.fillPct + '%  of usable height');
   lines.push('stretch vs nat: ' + metrics.stretchPct + '%');
+  if (metrics.probe && metrics.probe.bodyHasCapturing !== undefined) {
+    var p = metrics.probe;
+    lines.push('--- live DOM during capture ---');
+    lines.push('.capturing on : ' + p.bodyHasCapturing);
+    lines.push('viewport inner: ' + p.viewportInner + ' px');
+    lines.push('page width    : ' + p.pageWidth + ' px');
+    lines.push('two-col cols  : ' + p.twoColTemplate);
+    lines.push('h cust-info   : ' + p.hCustInfo + ' px');
+    lines.push('h two-column  : ' + p.hTwoCol + ' px');
+    lines.push('h battery     : ' + p.hBattery + ' px');
+    lines.push('h generator   : ' + p.hGenerator + ' px');
+    lines.push('h name-row    : ' + p.hNameRow + ' px');
+    lines.push('h model-row   : ' + p.hModelRow + ' px');
+  }
   body.textContent = lines.join('\n');
 }
 
@@ -2458,6 +2472,29 @@ function capturePageToCanvas() {
           // short "power test performed" collapsed view where the page is small.
           var _pageBottom = _pr.height;
           var _capH = Math.ceil(Math.max(page.scrollHeight, page.offsetHeight, _ftBottom, _pageBottom)) + 32;
+
+          // DEBUG PROBE: while .capturing is active, measure the live layout so
+          // we can SEE which sections are rendering tall (vs. desktop). Captured
+          // into _probe and shown in the debug panel.
+          var _probe = {};
+          if (CAPTURE_DEBUG) {
+            var _tc = page.querySelector('.two-column');
+            var _tcCols = _tc ? getComputedStyle(_tc).gridTemplateColumns : 'n/a';
+            function _h(sel){ var e = page.querySelector(sel); return e ? Math.round(e.getBoundingClientRect().height) : -1; }
+            _probe = {
+              bodyHasCapturing: document.body.classList.contains('capturing'),
+              viewportInner:    window.innerWidth,
+              pageWidth:        Math.round(_pr.width),
+              twoColTemplate:   _tcCols,       // should show TWO tracks if 2-up
+              hCustInfo:        _h('#cust-info-body'),
+              hTwoCol:          _h('.two-column'),
+              hBattery:         _h('.two-column > .section:first-child'),
+              hGenerator:       _h('.two-column > .section:nth-child(2)'),
+              hNameRow:         _h('#name-job-date-row'),
+              hModelRow:        _h('#model-serial-hrs-row')
+            };
+          }
+
           html2canvas(page, {
             scale: 2,
             useCORS: true,
@@ -2528,7 +2565,8 @@ function capturePageToCanvas() {
                 propH:       propH,
                 drawH:       drawH,
                 fillPct:     ((drawH / availH) * 100).toFixed(1),
-                stretchPct:  (((drawH / propH) - 1) * 100).toFixed(1)
+                stretchPct:  (((drawH / propH) - 1) * 100).toFixed(1),
+                probe:       _probe
               });
             }
 
