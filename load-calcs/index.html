@@ -2132,57 +2132,57 @@ function printReport(){
   var html = buildReportHTML();
   if(html===null) return;
 
-  function inlinePrint(){
-    var div = document.getElementById('print-report');
-    div.innerHTML = html;
-    document.body.classList.add('printing-report');
+  // Print the report from a HIDDEN IFRAME. The iframe has its own document,
+  // so window.print() on it prints ONLY the report — the app's markup and its
+  // print CSS can't leak in (no more "full report"), and there's no second
+  // visible page (the frame sits off-screen and is removed afterwards).
 
-    var cleaned = false;
-    var mql = window.matchMedia ? window.matchMedia('print') : null;
+  // Remove any leftover frame from a previous run.
+  var old = document.getElementById('aog-print-frame');
+  if(old && old.parentNode) old.parentNode.removeChild(old);
 
-    function onMqlChange(e){ if(!e.matches) cleanup(); }      // print preview/dialog closed
-    function onVisible(){ if(document.visibilityState === 'visible') cleanup(); } // back on the page
+  var frame = document.createElement('iframe');
+  frame.id = 'aog-print-frame';
+  frame.setAttribute('aria-hidden','true');
+  // Off-screen with a real size — NOT display:none/visibility:hidden, because
+  // some browsers won't render (and therefore won't print) a hidden iframe.
+  frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:816px;height:1056px;'
+                      + 'border:0;background:#fff;';
+  document.body.appendChild(frame);
 
-    var cleanup = function(){
-      if(cleaned) return;
-      cleaned = true;
-      document.body.classList.remove('printing-report');
-      div.innerHTML = '';
-      window.removeEventListener('afterprint', cleanup);
-      document.removeEventListener('visibilitychange', onVisible);
-      if(mql){
-        if(mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
-        else if(mql.removeListener) mql.removeListener(onMqlChange);
-      }
-      if(safety) clearTimeout(safety);
-    };
+  var doc = frame.contentWindow.document;
+  doc.open();
+  doc.write(
+    '<!DOCTYPE html><html><head>'
+    +'<meta charset="UTF-8">'
+    +'<meta name="viewport" content="width=device-width,initial-scale=1">'
+    +'<title>AOG Load Calculation Report</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">'
+    +'<style>'+reportWrapStyles()+'</style>'
+    +'</head><body>'+html+'</body></html>'
+  );
+  doc.close();
 
-    // Tear the isolation back down only when printing has actually FINISHED.
-    // These signals are reliable on mobile, unlike a blind short timer:
-    //  - the 'print' media query flips back to false when the preview closes
-    //  - the page becomes visible again after the preview overlay is dismissed
-    //  - 'afterprint' covers desktop (and mobile browsers that support it)
-    window.addEventListener('afterprint', cleanup);
-    document.addEventListener('visibilitychange', onVisible);
-    if(mql){
-      if(mql.addEventListener) mql.addEventListener('change', onMqlChange);
-      else if(mql.addListener) mql.addListener(onMqlChange);
-    }
-    // Long backstop only — long enough never to race the mobile preview render,
-    // so the page still can't get permanently stuck if every signal is missed.
-    var safety = setTimeout(cleanup, 60000);
-
-    // Let the browser apply the 'printing-report' styles and lay out the report
-    // BEFORE we ask it to print (two frames guarantees the reflow has happened).
-    requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        window.print();
-      });
-    });
+  var printed = false, cleaned = false;
+  function cleanup(){
+    if(cleaned) return; cleaned = true;
+    setTimeout(function(){ if(frame.parentNode) frame.parentNode.removeChild(frame); }, 500);
+  }
+  function doPrint(){
+    if(printed) return; printed = true;
+    try{
+      var w = frame.contentWindow;
+      w.onafterprint = cleanup;          // remove the frame once printing ends
+      w.focus();
+      w.print();                         // prints ONLY the iframe document
+    }catch(e){ console.error('frame print error:', e); }
+    setTimeout(cleanup, 60000);          // long backstop; won't interrupt printing
   }
 
-  // Always print in place — no second window/tab.
-  inlinePrint();
+  // Give the frame a moment to load its font/layout, then print. Use onload when
+  // it fires, plus a timeout fallback for browsers that skip onload on written docs.
+  frame.onload = function(){ setTimeout(doPrint, 300); };
+  setTimeout(doPrint, 700);
   } catch(e){ console.error('printReport error:', e); alert('Report error: '+e.message); }
 }
 
