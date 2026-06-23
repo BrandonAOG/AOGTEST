@@ -1195,9 +1195,14 @@ body.dark-mode .action-bar {
 (function () {
   var ua = navigator.userAgent;
   var html = document.documentElement;
+  // iPadOS Safari defaults to "Request Desktop Website", which sends a
+  // Macintosh UA. A real Mac has no touch; an iPad reports maxTouchPoints > 1.
+  // This is the only reliable way to tell them apart.
+  var isIPadDesktop = /Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1;
+
   var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
-  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
-  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+  var isIOS      = (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) || isIPadDesktop; // any iOS WebKit incl. CriOS + desktop-UA iPad
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && !isIPadDesktop; // exclude iPad
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
   // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
