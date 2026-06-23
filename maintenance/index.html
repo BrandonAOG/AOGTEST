@@ -1674,7 +1674,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0N-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0O-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1870,7 +1870,10 @@ function openPrintPreview() {
     // to page 2) is handled by the inline break-inside:auto stamp on .section
     // below, letting it fill the empty space at the bottom of page 1.
     var _sheetW = 820;
-    _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18.3') + 'px');
+    // Pin the font to the SAME size on both iPhone and iPad. The debug showed
+    // iPhone rendering at 19px (base html size winning) while iPad got 18.5px,
+    // making iPhone text slightly larger. Force both to 19px so they match.
+    _snap(html, 'fontSize',  (isMobileSafari ? '19' : '18.3') + 'px');
     _snap(html, 'width',     _sheetW + 'px');
     _snap(body, 'width',     _sheetW + 'px');
     _snap(body, 'maxWidth',  _sheetW + 'px');
@@ -2158,7 +2161,7 @@ function openPrintPreview() {
           document.body.appendChild(ov);
         }
         document.getElementById('__printdbgtxt').textContent =
-          'PRINT PROCESS DEBUG (1.0N)\n\n' + rep;
+          'PRINT PROCESS DEBUG (1.0O)\n\n' + rep;
         // Block the actual print so the overlay stays for screenshotting.
         console.log('[PRINT DEBUG]', JSON.stringify(window.__printStages));
         if (/[?&]debug=1/.test(window.location.search)) {
