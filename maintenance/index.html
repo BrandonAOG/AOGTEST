@@ -2504,8 +2504,52 @@ function capturePageToCanvas() {
             width:       CAPTURE_WIDTH,
             height:      _capH,
             windowWidth: CAPTURE_WIDTH,
+            windowHeight: _capH,
             scrollX: 0,
             scrollY: 0,
+            onclone: function (clonedDoc) {
+              // html2canvas renders a CLONE of the document. On mobile the clone
+              // can re-evaluate the screen @media (max-width:600px/768px/820px)
+              // rules against the real narrow viewport, re-introducing the tall
+              // stacked layout even though the LIVE dom (measured above) is the
+              // compact desktop layout. Force the capture state directly onto the
+              // clone so it renders identically to what we measured: keep the
+              // .capturing class, and pin the page + root to the capture width.
+              try {
+                var cb = clonedDoc.body;
+                if (cb) {
+                  cb.classList.add('capturing');
+                  cb.style.width = CAPTURE_WIDTH + 'px';
+                  cb.style.minWidth = CAPTURE_WIDTH + 'px';
+                  cb.style.maxWidth = CAPTURE_WIDTH + 'px';
+                }
+                if (clonedDoc.documentElement) {
+                  clonedDoc.documentElement.style.width = CAPTURE_WIDTH + 'px';
+                  clonedDoc.documentElement.style.fontSize = '19.3px';
+                }
+                var cp = clonedDoc.getElementById('page');
+                if (cp) {
+                  cp.style.width = CAPTURE_WIDTH + 'px';
+                  cp.style.minWidth = CAPTURE_WIDTH + 'px';
+                  cp.style.maxWidth = CAPTURE_WIDTH + 'px';
+                }
+                // Belt-and-suspenders: inject a stylesheet into the clone that
+                // forces the desktop layout regardless of any media query, so the
+                // two-column sections never collapse and rows never restack.
+                var s = clonedDoc.createElement('style');
+                s.textContent =
+                  '.two-column{display:grid !important;grid-template-columns:1fr 1fr !important;}' +
+                  '#cust-info-body .field-row,#cust-info-body .field-row-nowrap{flex-wrap:nowrap !important;}' +
+                  '#name-job-date-row{flex-wrap:nowrap !important;}' +
+                  '#name-job-date-row #name{flex:2 1 0 !important;width:auto !important;min-width:0 !important;}' +
+                  '#name-job-date-row #number{flex:1 1 0 !important;width:auto !important;min-width:0 !important;}' +
+                  '#name-job-date-row #date{flex:1 1 0 !important;width:auto !important;min-width:0 !important;}' +
+                  '#model-serial-hrs-row{flex-wrap:nowrap !important;}' +
+                  '#model-serial-hrs-row>span{flex:0 1 auto !important;width:auto !important;}' +
+                  '.test-grid{grid-template-columns:1fr 1fr !important;}';
+                clonedDoc.head.appendChild(s);
+              } catch (e) {}
+            },
             ignoreElements: el =>
               el.classList.contains('toolbar')         ||
               el.classList.contains('action-bar')      ||
