@@ -876,7 +876,11 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.dark-mode-pending .action-bar, html.dark-mode-pending .theme-toggle-btn { display: none !important; }
 
   /* iOS */
-  html.ios * { transform: none !important; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+  /* 'none' (not 100%) is what actually disables iPad Safari's text-autosizing
+     boost in print. 100% merely permits it — that boost was wrapping the date
+     field and inflating the Y/N pills on iPad while leaving iPhone untouched.
+     No-op on iPhone (it wasn't boosting), corrective on iPad. */
+  html.ios * { transform: none !important; -webkit-text-size-adjust: none !important; text-size-adjust: none !important; }
   html.ios .page, html.ios body, html.ios html { display: block !important; min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
 
   /* ── macOS Safari tuning (zoom removed — native print decides scaling) ── */
@@ -1059,6 +1063,8 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-safari .field-row-nowrap { flex-wrap: nowrap !important; }
   body.mobile-safari #name { flex: 0 1 50% !important; min-width: 0 !important; }
   body.mobile-safari #date, body.mobile-safari #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
+  /* Belt-and-suspenders: keep the date value on one line even if it's long */
+  body.mobile-safari #date { white-space: nowrap !important; overflow: hidden !important; }
   /* Tightened from 60/40px to recover the ~25px lost to the new 0.25in @page bottom margin */
   body.mobile-safari #batnotes, body.mobile-safari #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
   body.mobile-safari #oilnotes, body.mobile-safari #gasnotes, body.mobile-safari #tsnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; overflow: hidden !important; }
@@ -1229,6 +1235,14 @@ body.dark-mode .action-bar {
   if (isWindows)      html.classList.add('windows');
   if (isAndroid)      html.classList.add('android');
   if (isMobileChrome) html.classList.add('mobile-chrome');
+
+  // Debug mode: toggled by the URL hash (#debug). Updates live so you can
+  // flip it on/off without reloading.
+  function _syncDebug() {
+    html.classList.toggle('debug', (location.hash || '').toLowerCase() === '#debug');
+  }
+  _syncDebug();
+  window.addEventListener('hashchange', _syncDebug);
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
@@ -1679,6 +1693,59 @@ body.dark-mode .action-bar {
 
   </div><!-- /.content -->
 
+  <style>
+    .print-debug { display: none; }
+    html.debug .print-debug {
+      display: block;
+      margin: 10px 6px 4px 6px;
+      border: 1px solid #D97706;
+      background: #FFF7ED;
+      color: #1F2937;
+      font-family: var(--font-mono, monospace);
+      padding: 6px 8px;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    html.debug .pdebug-title { font-weight: bold; color: #D97706; font-size: 11px; margin-bottom: 4px; letter-spacing: 0.5px; }
+    html.debug .pdebug-text { font-size: 9px; line-height: 1.35; white-space: pre-wrap; margin: 0 0 6px 0; }
+    html.debug .pdebug-cal { display: flex; flex-direction: column; gap: 4px; }
+    html.debug .pdebug-ref {
+      width: 100px; border: 1px solid #059669; background: #D1FAE5; color: #065F46;
+      font-size: 9px; line-height: 21px; text-align: center; box-sizing: border-box;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    html.debug .pdebug-ruler { position: relative; width: 200px; height: 14px; border-left: 1px solid #DC2626; border-bottom: 1px solid #DC2626; }
+    html.debug .pdebug-ruler span { position: absolute; bottom: 1px; font-size: 8px; color: #DC2626; transform: translateX(-50%); }
+    html.debug .pdebug-ruler span:nth-child(1){left:0;} html.debug .pdebug-ruler span:nth-child(2){left:50px;}
+    html.debug .pdebug-ruler span:nth-child(3){left:100px;} html.debug .pdebug-ruler span:nth-child(4){left:150px;}
+    html.debug .pdebug-ruler span:nth-child(5){left:200px;}
+    html.debug .pdebug-sample { display: flex; align-items: center; gap: 8px; font-size: 9px; }
+    @media print {
+      html.debug .print-debug { display: block !important; break-inside: avoid !important; page-break-inside: avoid !important; }
+    }
+  </style>
+
+  <!-- ── PRINT DEBUG (only renders when URL hash is #debug) ───────────────
+       Prints diagnostics INTO the PDF because iOS Safari fires no reliable
+       beforeprint/afterprint/matchMedia('print') events. Compare the live
+       Y/N pill below against the fixed 21px reference box to read the boost. -->
+  <div class="print-debug" id="pdebug">
+    <div class="pdebug-title">PRINT DEBUG — #debug</div>
+    <pre class="pdebug-text" id="pdebug-text">(metrics fill in at print time)</pre>
+    <div class="pdebug-cal">
+      <div class="pdebug-ref" style="height:21px;">REF 21px tall</div>
+      <div class="pdebug-ruler"><span>0</span><span>50px</span><span>100px</span><span>150px</span><span>200px</span></div>
+      <div class="pdebug-sample">
+        <span class="pdebug-lbl">live pill →</span>
+        <div class="yn-group" id="pdebug-yn">
+          <input type="radio" name="pdebugyn" id="pdebug_y" value="Y" class="yn-y">
+          <label class="yn-label yn-label-y" for="pdebug_y">Y</label>
+          <input type="radio" name="pdebugyn" id="pdebug_n" value="N" class="yn-n" checked>
+          <label class="yn-label yn-label-n" for="pdebug_n">N</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
     <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0B</span>
@@ -1754,6 +1821,40 @@ function clearForm() {
   document.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], textarea').forEach(el => el.value = '');
   document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => el.checked = false);
   localStorage.removeItem(DRAFT_KEY);
+}
+
+function renderPrintDebug() {
+  // Fills the #pdebug block with live computed metrics. Called AFTER the print
+  // style-stamp pass so the numbers reflect the print state, then printed into
+  // the PDF. No-op unless #debug is active.
+  if (!document.documentElement.classList.contains('debug')) return;
+  var out = document.getElementById('pdebug-text');
+  if (!out) return;
+  function m(el) {
+    if (!el) return 'n/a';
+    var cs = getComputedStyle(el);
+    var r = el.getBoundingClientRect();
+    return 'box=' + r.width.toFixed(1) + 'x' + r.height.toFixed(1) +
+           '  font=' + cs.fontSize + '  line=' + cs.lineHeight +
+           '  tsa=' + (cs.webkitTextSizeAdjust || cs.textSizeAdjust || '?');
+  }
+  var html = document.documentElement;
+  var ynG = document.getElementById('pdebug-yn');
+  var ynL = ynG ? ynG.querySelector('.yn-label') : null;
+  var ref = document.querySelector('.pdebug-ref');
+  var cls = (html.className || '').trim() || '(none)';
+  var lines = [
+    'UA        : ' + navigator.userAgent,
+    'platform  : ' + (navigator.platform || '?') + '   maxTouch=' + (navigator.maxTouchPoints || 0),
+    'classes   : ' + cls,
+    'innerW    : ' + window.innerWidth + '   dpr=' + (window.devicePixelRatio || '?'),
+    'rootFont  : ' + getComputedStyle(html).fontSize,
+    'REF box   : ' + m(ref) + '   (should read 21.0 tall)',
+    'YN group  : ' + m(ynG),
+    'YN label  : ' + m(ynL),
+    'time      : ' + new Date().toISOString()
+  ];
+  out.textContent = lines.join('\n');
 }
 
 function openPrintPreview() {
@@ -2121,6 +2222,7 @@ function openPrintPreview() {
     requestAnimationFrame(function() {
       requestAnimationFrame(function() {
         setTimeout(function() {
+          renderPrintDebug();
           window.print();
         }, isMobileSafari ? 350 : 0);
       });
@@ -2179,6 +2281,7 @@ function openPrintPreview() {
   } else {
     // Desktop print
     window.addEventListener('afterprint', restore);
+    renderPrintDebug();
     window.print();
   }
 }
