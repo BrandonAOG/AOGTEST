@@ -2221,12 +2221,16 @@ function capturePageToCanvas() {
     const logoImg     = page.querySelector('.logo-img');
     const logoOrigSrc = logoImg ? logoImg.getAttribute('src') : null;
 
-    // Desktop captures at the original 820px layout width. Mobile stretches a
-    // bit wider so the layout has room, and bumps the root font (below, in the
-    // force-style) so the content isn't too small in the mobile image.
+    // Capture is device-INDEPENDENT: both desktop and mobile render the page at
+    // the SAME forced width and font so the html2canvas source — and therefore
+    // the final letter image — comes out identical regardless of device. The
+    // capture forces an explicit pixel width on .page and an explicit root font
+    // below, neither of which depends on the real screen size, so there is no
+    // reason for mobile to differ. 1000px / 19.3px is the desktop-verified
+    // "perfect" setting (src ratio ~1.314 == letter usable ratio ~1.305 -> 100% fill).
     var _isMobileCap = document.body.classList.contains('mobile-safari') ||
                        document.body.classList.contains('mobile-chrome');
-    const CAPTURE_WIDTH = _isMobileCap ? 1180 : 1000;
+    const CAPTURE_WIDTH = 1000;   // unified (was: _isMobileCap ? 1180 : 1000)
     const PAPER_RATIO   = 11 / 8.5;
     const CAPTURE_PAGE_H = Math.round(CAPTURE_WIDTH * PAPER_RATIO); // full sheet height at this width
 
@@ -2251,9 +2255,10 @@ function capturePageToCanvas() {
       forceStyle.id = 'capture-force-style';
       forceStyle.textContent = [
         '.two-column { display: grid !important; grid-template-columns: 1fr 1fr !important; }',
-        // Mobile renders the form smaller; bump the root font so the content
-        // reads at a comfortable size. Desktop gets a slight +1.5px bump too.
-        (_isMobileCap ? 'html { font-size: 29.3px !important; }' : 'html { font-size: 19.3px !important; }'),
+        // Unified root font for capture (was: mobile 29.3px / desktop 19.3px).
+        // Both devices now use the desktop-verified 19.3px so the captured image
+        // is identical regardless of device.
+        'html { font-size: 19.3px !important; }',
         // Footer must follow content during capture, not pin/overlap it, and
         // stay visible (it was dropping out of the capture entirely).
         '#page { display: block !important; overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; border: 1.5px solid #D97706 !important; }',
@@ -2290,8 +2295,9 @@ function capturePageToCanvas() {
         '  padding-top: 2px !important; padding-bottom: 3px !important;',
         '  height: auto !important; min-height: 1.6em !important; overflow: visible !important;',
         '}',
-        // Bump just the input text up slightly so values read a touch larger.
-        (_isMobileCap ? '' : 'input[type="text"], input[type="date"], input[type="number"] { font-size: calc(0.78rem + 0.8px) !important; }'),
+        // Bump input text slightly so values read a touch larger. Applied to
+        // both devices now that capture is unified (was desktop-only).
+        'input[type="text"], input[type="date"], input[type="number"] { font-size: calc(0.78rem + 0.8px) !important; }',
         // The mobile-screen "breathing room" spacing (@media max-width:600px)
         // only exists for the on-screen working view. During capture the page
         // renders at CAPTURE_WIDTH (>600px) so those rules don't apply in the
@@ -2492,7 +2498,7 @@ function capturePageToCanvas() {
                 vh:          window.innerHeight,
                 dpr:         window.devicePixelRatio || 1,
                 captureWidth: CAPTURE_WIDTH,
-                rootFont:    (_isMobileCap ? '29.3px' : '19.3px'),
+                rootFont:    '19.3px',
                 capH:        _capH,
                 srcW:        srcCanvas.width,
                 srcH:        srcCanvas.height,
