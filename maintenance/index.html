@@ -479,16 +479,38 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
   }
   body:not(.capturing) .check-item span { font-size: 13px !important; }
 
-  /* Yes/No segmented pills: taller, larger text. */
+  /* Yes/No segmented pills: make the GROUP as tall as the labels so checked and
+     unchecked look identical (fixes the "half height until clicked" issue). */
+  body:not(.capturing) .yn-group {
+    height: auto !important;
+    min-height: 40px !important;
+    align-items: stretch !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
+  }
   body:not(.capturing) .yn-group .yn-label {
     font-size: 14px !important;
-    padding: 8px 16px !important;
+    padding: 0 18px !important;
     min-height: 40px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
   }
-  body:not(.capturing) .test-item label { font-size: 14px !important; }
+
+  /* Test rows: drop the Y/N group (or input) UNDER the question text so nothing
+     runs off a narrow screen — applies to every phone width, not just ≤400px. */
+  body:not(.capturing) .test-item {
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    gap: 6px 10px !important;
+  }
+  body:not(.capturing) .test-item > label {
+    min-width: 0 !important;
+    width: 100% !important;
+    white-space: normal !important;
+    font-size: 14px !important;
+  }
+  body:not(.capturing) .test-item .yn-group { margin-right: 0 !important; }
 }
 
 /* ── SECTIONS ── */
