@@ -1196,8 +1196,15 @@ body.dark-mode .action-bar {
   var ua = navigator.userAgent;
   var html = document.documentElement;
   var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
-  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
-  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+  // iPadOS 13+ masquerades as a Mac in its UA string (no "iPad" token). Detect
+  // it via the Mac-like platform plus a touch screen — real Macs report 0 touch
+  // points. We treat such devices as iPad → iOS so they inherit the iPhone path.
+  var isIPadOS   = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+                   (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  var isIOS      = (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) || isIPadOS; // any iOS WebKit incl. CriOS + iPadOS-as-Mac
+  // A touch "Mac" is really an iPad — keep it OUT of the macOS bucket so it
+  // doesn't pick up desktop sizing or the desktop capture path.
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && !isIPadOS;
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
   // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
