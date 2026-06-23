@@ -1818,8 +1818,16 @@ function openPrintPreview() {
       document.activeElement.blur();
     }
 
+    // Double-rAF + timeout: first rAF lets the injected styles get parsed,
+    // second rAF lets the reflow at 820px complete, timeout gives Safari
+    // a final tick to settle before the print dialog captures the layout.
+    // Without this, AirPrint snapshots the un-reflowed layout → 2 pages.
     requestAnimationFrame(function() {
-      window.print();
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          window.print();
+        }, isMobileSafari ? 350 : 0);
+      });
     });
 
     // ── Restore strategy (matches QC) ──
