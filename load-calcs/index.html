@@ -2132,13 +2132,6 @@ function printReport(){
   var html = buildReportHTML();
   if(html===null) return;
 
-  // Detect installed-PWA / standalone mode. window.open() is unreliable there
-  // (the blank _blank page can get stuck if the print dialog is cancelled),
-  // so always use the inline print path inside the current page.
-  var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-                     || window.navigator.standalone === true
-                     || document.referrer.indexOf('android-app://') === 0;
-
   function inlinePrint(){
     var div = document.getElementById('print-report');
     div.innerHTML = html;
@@ -2188,38 +2181,8 @@ function printReport(){
     });
   }
 
-  if(isStandalone){
-    inlinePrint();
-    return;
-  }
-
-  // Browser tab: open a separate window for the report
-  var printWin = window.open('', '_blank', 'width=900,height=700');
-  if(!printWin){
-    // Popup blocked — fall back to inline print
-    inlinePrint();
-    return;
-  }
-  // Embed afterprint listener + auto-print inside the new window itself
-  printWin.document.write(
-    '<!DOCTYPE html><html><head>'
-    +'<meta charset="UTF-8">'
-    +'<meta name="viewport" content="width=device-width,initial-scale=1">'
-    +'<title>AOG Load Calculation Report</title>'
-    +'<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">'
-    +'<style>'
-    +reportWrapStyles()
-    +'</style>'
-    +'<script>'
-    +'window.onafterprint=function(){window.close();};'
-    +'window.addEventListener(\'afterprint\',function(){window.close();});'
-    +'window.onload=function(){setTimeout(function(){window.focus();window.print();},400);};'
-    +'<\/script>'
-    +'</head><body>'
-    +html
-    +'</body></html>'
-  );
-  printWin.document.close();
+  // Always print in place — no second window/tab.
+  inlinePrint();
   } catch(e){ console.error('printReport error:', e); alert('Report error: '+e.message); }
 }
 
