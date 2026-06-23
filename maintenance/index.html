@@ -926,6 +926,13 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.windows .page { break-inside: auto !important; page-break-inside: auto !important; }
   html.windows * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
+  /* iPad: a slightly taller render was forcing the OTHER section to jump to a
+     2nd page (leaving empty space on page 1) because sections are
+     break-inside:avoid. Let the page and sections break naturally on iPad so
+     content fills the available space like it does on iPhone. */
+  html.ipad .page { break-inside: auto !important; page-break-inside: auto !important; }
+  html.ipad .section { break-inside: auto !important; page-break-inside: auto !important; }
+
   /* Android */
   html.android * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   html.android .page { display: block !important; min-height: 0 !important; height: auto !important; }
@@ -1198,7 +1205,7 @@ body.dark-mode .action-bar {
   var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
   // iPadOS 13+ reports a Macintosh UA, so the /iP(hone|od|ad)/ test misses it.
   // Detect it via the Mac-like UA + multi-touch trick and treat it as iOS.
-  var isIPadOS   = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  var isIPadOS   = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   var isIOS      = (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) || isIPadOS; // any iOS/iPadOS WebKit incl. CriOS
   var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && !isIPadOS;
   var isWindows  = /Windows/.test(ua);
@@ -1209,6 +1216,7 @@ body.dark-mode .action-bar {
   var isMobileChrome = isAndroidChrome;
 
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
+  if (isIPadOS)       html.classList.add('ipad');
   if (isMacOS)        html.classList.add('macos');
   if (isWindows)      html.classList.add('windows');
   if (isAndroid)      html.classList.add('android');
@@ -1216,6 +1224,7 @@ body.dark-mode .action-bar {
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
+    if (isIPadOS)       document.body.classList.add('ipad');
     if (isMacOS)        document.body.classList.add('macos');
     if (isWindows)      document.body.classList.add('windows');
     if (isAndroid)      document.body.classList.add('android');
@@ -1665,7 +1674,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0G-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0H-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1830,9 +1839,10 @@ function openPrintPreview() {
     var page = document.getElementById('page');
 
     // html / body sizing — matches safari-print-fix @media print rules.
-    // iPad: stamp a wider sheet (1000px) so the print fit-to-page scaler shrinks
-    // it down to the same final size the iPhone produces from 820px.
-    var _sheetW = isIPad ? 1000 : 820;
+    // Both iPhone and iPad stamp the same 820px sheet. The page-2 overflow was
+    // caused by page-break-inside:avoid on sections, not by scale (see the
+    // iPad break-inside override below), so iPad uses the same width as iPhone.
+    var _sheetW = 820;
     _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18.3') + 'px');
     _snap(html, 'width',     _sheetW + 'px');
     _snap(body, 'width',     _sheetW + 'px');
