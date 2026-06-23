@@ -1065,8 +1065,22 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   /* Mobile prints the 820px layout scaled down to fit, shrinking controls.
      Bump them back up so they read the same size as desktop print. */
   body.mobile-safari .check-item input[type="checkbox"], body.mobile-safari .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
-  body.mobile-safari .yn-group { height: 21px !important; }
-  body.mobile-safari .yn-group .yn-label { min-height: 21px !important; font-size: calc(0.72rem + 0.3px) !important; padding: 0 7px !important; }
+  /* iPad text-autosizing inflated the rem-based Y/N labels (iPhone was fine
+     because its layout≈page ratio). Pin everything to absolute px + a hard
+     max-height ceiling + text-size-adjust:none so neither device can boost it. */
+  body.mobile-safari .yn-group {
+    height: 21px !important; min-height: 21px !important; max-height: 21px !important;
+    overflow: hidden !important;
+    -webkit-text-size-adjust: none !important; text-size-adjust: none !important;
+  }
+  body.mobile-safari .yn-group .yn-label {
+    height: 21px !important; min-height: 21px !important; max-height: 21px !important;
+    line-height: 21px !important;
+    font-size: 13.5px !important;            /* was calc(0.72rem + 0.3px) — rem boosted on iPad */
+    padding: 0 7px !important;
+    box-sizing: border-box !important;
+    -webkit-text-size-adjust: none !important; text-size-adjust: none !important;
+  }
   body.mobile-safari .check-item span, body.mobile-safari .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   body.mobile-safari label { font-size: calc(0.66rem + 0.3px) !important; }
   /* Trim vertical spacing on mobile so everything + footer fits one page */
@@ -1958,18 +1972,25 @@ function openPrintPreview() {
     // .yn-group sizing
     document.querySelectorAll('.yn-group').forEach(function(el) {
       _snap(el, 'height',     '21px');
+      _snap(el, 'maxHeight',  '21px');
+      _snap(el, 'overflow',   'hidden');
       _snap(el, 'background', 'white');
       _snap(el, 'border',     '0.5px solid #D97706');
       _snap(el, 'display',    'inline-flex');
+      _snap(el, 'webkitTextSizeAdjust', 'none');
     });
     document.querySelectorAll('.yn-group .yn-label').forEach(function(el) {
-      _snap(el, 'minHeight', '21px');
-      _snap(el, 'fontSize',  'calc(0.72rem + 0.3px)');
-      _snap(el, 'padding',   '0 7px');
-      _snap(el, 'background','white');
-      _snap(el, 'color',     '#6B7280');
-      _snap(el, 'display',   'flex');
-      _snap(el, 'alignItems','center');
+      _snap(el, 'height',     '21px');
+      _snap(el, 'minHeight',  '21px');
+      _snap(el, 'maxHeight',  '21px');
+      _snap(el, 'lineHeight', '21px');
+      _snap(el, 'fontSize',   '13.5px');   /* fixed px — rem boosted on iPad */
+      _snap(el, 'padding',    '0 7px');
+      _snap(el, 'background', 'white');
+      _snap(el, 'color',      '#6B7280');
+      _snap(el, 'display',    'flex');
+      _snap(el, 'alignItems', 'center');
+      _snap(el, 'webkitTextSizeAdjust', 'none');
     });
 
     // labels
