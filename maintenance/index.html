@@ -1205,7 +1205,7 @@ body.dark-mode .action-bar {
   </button>
 </div>
 <div id="save-status" style="position:fixed;top:44px;left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;"></div>
-<div id="capture-debug" style="position:fixed;left:0;right:0;bottom:0;z-index:99999;display:none;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#0A0E27;color:#00FFC8;font-family:'Share Tech Mono',monospace,monospace;font-size:12px;line-height:1.5;padding:10px 12px 14px;border-top:2px solid #00FFC8;box-shadow:0 -4px 20px rgba(0,0,0,0.6);white-space:pre-wrap;word-break:break-word;">
+<div id="capture-debug" style="position:fixed;left:0;right:0;bottom:0;z-index:99999;display:none;max-height:80vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#0A0E27;color:#00FFC8;font-family:'Share Tech Mono',monospace,monospace;font-size:11px;line-height:1.4;padding:10px 12px 14px;border-top:2px solid #00FFC8;box-shadow:0 -4px 20px rgba(0,0,0,0.6);white-space:pre-wrap;word-break:break-word;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
     <strong style="color:#FBBF24;letter-spacing:1px;">CAPTURE DEBUG</strong>
     <button onclick="toggleCaptureDebug()" style="background:#DC2626;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;">CLOSE</button>
@@ -2193,38 +2193,14 @@ function captureDebugLog(metrics) {
   var body = document.getElementById('capture-debug-body');
   if (!body) return;
   var lines = [];
-  lines.push('time          : ' + new Date().toLocaleTimeString());
-  lines.push('device        : ' + metrics.device);
-  lines.push('  mobile-safari: ' + metrics.isSafari);
-  lines.push('  mobile-chrome: ' + metrics.isChrome);
-  lines.push('  _isMobileCap : ' + metrics.isMobileCap);
-  lines.push('viewport      : ' + metrics.vw + ' x ' + metrics.vh + '  (dpr ' + metrics.dpr + ')');
-  lines.push('--- inputs ---');
-  lines.push('CAPTURE_WIDTH : ' + metrics.captureWidth + ' px');
-  lines.push('root font     : ' + metrics.rootFont);
-  lines.push('measured _capH: ' + metrics.capH + ' px  (src height pre-scale)');
-  lines.push('--- html2canvas source ---');
-  lines.push('srcCanvas     : ' + metrics.srcW + ' x ' + metrics.srcH + ' px');
-  lines.push('src ratio H/W : ' + metrics.srcRatio);
-  lines.push('--- letter sheet ---');
-  lines.push('LETTER        : ' + metrics.letterW + ' x ' + metrics.letterH + ' px');
-  lines.push('avail area    : ' + metrics.availW + ' x ' + metrics.availH + ' px');
-  lines.push('avail ratio   : ' + metrics.availRatio);
-  lines.push('--- placement ---');
-  lines.push('drawW         : ' + metrics.drawW + ' px (full width)');
-  lines.push('propH (nat.)  : ' + metrics.propH + ' px');
-  lines.push('drawH (capped): ' + metrics.drawH + ' px');
-  lines.push('VERTICAL FILL : ' + metrics.fillPct + '%  of usable height');
-  lines.push('stretch vs nat: ' + metrics.stretchPct + '%');
   if (metrics.probe && metrics.probe.bodyHasCapturing !== undefined) {
     var p = metrics.probe;
-    lines.push('--- live DOM during capture ---');
-    lines.push('.capturing on : ' + p.bodyHasCapturing);
-    lines.push('viewport inner: ' + p.viewportInner + ' px');
-    lines.push('page width    : ' + p.pageWidth + ' px');
-    lines.push('two-col cols  : ' + p.twoColTemplate);
-    lines.push('_capH total   : ' + p.capH + ' px');
-    lines.push('--- section heights (sum should ~= capH) ---');
+    var sum = [p.hHeader,p.hCustSec,p.hTwoCol,p.hOil,p.hSim,p.hGas,p.hTS,p.hOther,p.hFooter]
+                .filter(function(n){return n>0;}).reduce(function(a,b){return a+b;},0);
+    lines.push('=== SRC RATIO: ' + metrics.srcRatio + '  (target 1.314) ===');
+    lines.push('=== STRETCH : ' + metrics.stretchPct + '%  (target ~0) ===');
+    lines.push('_capH total   : ' + p.capH + ' px   sum: ' + sum + ' px');
+    lines.push('--- SECTION HEIGHTS (find the bloated one) ---');
     lines.push('header        : ' + p.hHeader + ' px');
     lines.push('cust sec      : ' + p.hCustSec + ' px');
     lines.push('two-column    : ' + p.hTwoCol + ' px');
@@ -2234,11 +2210,19 @@ function captureDebugLog(metrics) {
     lines.push('transfer sec  : ' + p.hTS + ' px');
     lines.push('other sec     : ' + p.hOther + ' px');
     lines.push('footer        : ' + p.hFooter + ' px');
-    lines.push('--- notes textareas ---');
-    lines.push('oilnotes      : ' + p.hOilNotes + ' px');
-    lines.push('gasnotes      : ' + p.hGasNotes + ' px');
-    lines.push('tsnotes       : ' + p.hTsNotes + ' px');
+    lines.push('notes oil/gas/ts: ' + p.hOilNotes + '/' + p.hGasNotes + '/' + p.hTsNotes + ' px');
+    lines.push('two-col cols  : ' + p.twoColTemplate);
+    lines.push('page width    : ' + p.pageWidth + ' px  (capturing:' + p.bodyHasCapturing + ')');
+    lines.push('--- raw ---');
   }
+  lines.push('time          : ' + new Date().toLocaleTimeString());
+  lines.push('device        : ' + metrics.device);
+  lines.push('viewport      : ' + metrics.vw + ' x ' + metrics.vh + '  (dpr ' + metrics.dpr + ')');
+  lines.push('CAPTURE_WIDTH : ' + metrics.captureWidth + ' px');
+  lines.push('root font     : ' + metrics.rootFont);
+  lines.push('srcCanvas     : ' + metrics.srcW + ' x ' + metrics.srcH + ' px');
+  lines.push('propH (nat.)  : ' + metrics.propH + ' px   drawH: ' + metrics.drawH + ' px');
+  lines.push('avail area    : ' + metrics.availW + ' x ' + metrics.availH + ' px (ratio ' + metrics.availRatio + ')');
   body.textContent = lines.join('\n');
 }
 
