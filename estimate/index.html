@@ -3525,9 +3525,45 @@ function capturePageToCanvas(_fontsReady) {
       var fs = document.getElementById('capture-force-style'); if (fs) fs.remove();
     };
 
+    // ── Grow textareas on the LIVE DOM to fit their content at the capture
+    //    font size. The onclone step replaces each textarea with a wrapping
+    //    <div> at (fontSize + 3) and white-space:pre-wrap, which can render
+    //    TALLER than the live textarea — but page.scrollHeight is measured on
+    //    the live DOM, so that extra height was never counted and html2canvas
+    //    clipped the bottom. By expanding the live textareas to the same size
+    //    here, page.scrollHeight becomes an honest measurement on every device.
+    //    Reverted automatically via _captureTweaks in restore(). ──
+    page.querySelectorAll('textarea').forEach(function(ta) {
+      _tweak(ta, function(e) {
+        var cs = window.getComputedStyle(e);
+        // Match the clone's font growth so wrapping/height line up.
+        e.style.setProperty('font-size', (parseFloat(cs.fontSize) + 3) + 'px', 'important');
+        e.style.setProperty('white-space', 'pre-wrap', 'important');
+        e.style.setProperty('word-wrap', 'break-word', 'important');
+        e.style.setProperty('overflow-wrap', 'break-word', 'important');
+        e.style.setProperty('overflow', 'hidden', 'important');
+        e.style.setProperty('box-sizing', 'border-box', 'important');
+        // Collapse to 0 first so scrollHeight reflects true content height,
+        // not a previously-set larger box.
+        e.style.setProperty('height', 'auto', 'important');
+        e.style.setProperty('max-height', 'none', 'important');
+        e.style.setProperty('min-height', '0', 'important');
+        // Now read the content height at the capture font size and lock it in.
+        var h = e.scrollHeight;
+        e.style.setProperty('height', h + 'px', 'important');
+        e.style.setProperty('min-height', h + 'px', 'important');
+      });
+    });
+    // Flush layout so the expanded textareas are reflected before measuring.
+    void document.body.offsetHeight;
+
     Promise.all(_iconPromises).then(function() {
     requestAnimationFrame(function() { requestAnimationFrame(function() {
-      var CAPTURE_H = Math.max(page.scrollHeight, PAPER_H);
+      // +24px safety margin guards against sub-pixel rounding differences in
+      // scrollHeight across device pixel ratios (a common cause of 1–2px
+      // bottom clipping). The page background is white so the extra strip is
+      // invisible.
+      var CAPTURE_H = Math.max(page.scrollHeight, PAPER_H) + 24;
       try {
         html2canvas(page, {
           scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false, imageTimeout: 15000,
@@ -3562,7 +3598,7 @@ function capturePageToCanvas(_fontsReady) {
               div.style.cssText = [
                 'width:'          + computed.width,
                 'min-height:'     + computed.height,
-                'height:'         + computed.height,
+                'height:auto',
                 'max-height:'     + computed.maxHeight,
                 'padding:'        + computed.padding,
                 // Shift text up a bit so the larger font doesn't clip at the bottom.
@@ -3575,7 +3611,9 @@ function capturePageToCanvas(_fontsReady) {
                 'border-radius:'  + computed.borderRadius,
                 'box-sizing:'     + computed.boxSizing,
                 'font-family:'    + computed.fontFamily,
-                'font-size:'      + (parseFloat(computed.fontSize) + 3) + 'px',
+                // Live textarea already carries the capture font size, so use it
+                // as-is — do NOT add +3 again or it double-grows and overflows.
+                'font-size:'      + computed.fontSize,
                 'font-weight:'    + computed.fontWeight,
                 'line-height:'    + computed.lineHeight,
                 'color:'          + computed.color,
