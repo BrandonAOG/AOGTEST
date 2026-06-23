@@ -2629,21 +2629,29 @@ function capturePageToCanvas() {
             // target's edge-to-edge look, but cap how far we stretch beyond the
             // content's natural (proportional) height so the short collapsed
             // view never looks vertically warped.
-            // ── Placement: fill the full sheet on BOTH devices ──
-            // The source content is a slightly different SHAPE per device (mobile
-            // Safari renders text a few px taller per line, so its source is a bit
-            // taller than desktop's). We can't make them pixel-identical, so we
-            // pick the option that LOOKS the most consistent: fill the full width
-            // AND full height on both. Always draw width edge-to-edge; set height
-            // to the full available height. For desktop this is already a ~1:1
-            // match (no visible change). For mobile it applies a small uniform-
-            // looking vertical fit (~10%) that reads as slightly more condensed
-            // text — far less noticeable than 10% white side gutters would be.
-            const drawW = availW;
-            const propH = Math.round(srcCanvas.height * (availW / srcCanvas.width)); // natural height at full width
-            const drawH = availH;                  // fill full height (both devices fill the page)
-            const offsetX = MARGIN_X;
-            const offsetY = MARGIN_Y;
+            // ── Placement: SPLIT THE DIFFERENCE ──
+            // Mobile Safari renders the form ~10% taller than desktop, so the
+            // source is a different shape. Two clean extremes exist:
+            //   A) fill width AND height  -> full page, but ~11% horizontal stretch
+            //   B) uniform scale to fit   -> zero distortion, but ~10% side gutters
+            // Neither alone looks like desktop. So we AVERAGE the two draw
+            // rectangles: about half the stretch (~5.6%) AND about half the side
+            // gutter (~5%). For desktop both extremes are nearly identical (source
+            // already fits), so the average is still a full, undistorted page —
+            // no visible change there. Content is centered horizontally and
+            // top-aligned (forms read top-down).
+            // A — fill both dimensions:
+            const aW = availW, aH = availH;
+            // B — uniform scale to fit inside the available area (no distortion):
+            const uScale = Math.min(availW / srcCanvas.width, availH / srcCanvas.height);
+            const bW = Math.round(srcCanvas.width  * uScale);
+            const bH = Math.round(srcCanvas.height * uScale);
+            // SPLIT — average the two rectangles:
+            const drawW = Math.round((aW + bW) / 2);
+            const drawH = Math.round((aH + bH) / 2);
+            const propH = Math.round(srcCanvas.height * (availW / srcCanvas.width)); // for debug readout
+            const offsetX = MARGIN_X + Math.max(0, Math.round((availW - drawW) / 2)); // center horizontally
+            const offsetY = MARGIN_Y;                                                // top-aligned
             const letterCanvas = document.createElement('canvas');
             letterCanvas.width  = LETTER_W;
             letterCanvas.height = LETTER_H;
