@@ -2379,6 +2379,12 @@ function capturePageToCanvas() {
             width:       CAPTURE_WIDTH,
             height:      _capH,
             windowWidth: CAPTURE_WIDTH,
+            // CRITICAL: without windowHeight, html2canvas clones into a window
+            // only as tall as the real device viewport. Content below that fold
+            // then fails to render and the bottom clips — and since viewport
+            // height differs per device, the clip differs per device. Match the
+            // window height to the full capture height so everything renders.
+            windowHeight: _capH,
             scrollX: 0,
             scrollY: 0,
             ignoreElements: el =>
