@@ -1674,7 +1674,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0S-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0T-dbg</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1869,12 +1869,15 @@ function openPrintPreview() {
     // print at the same size on both. The OTHER section (which used to overflow
     // to page 2) is handled by the inline break-inside:auto stamp on .section
     // below, letting it fill the empty space at the bottom of page 1.
-    // iPad setup: keep a WIDER sheet (900px) than the iPhone's 820px. Width has
-    // no effect on the iPad's vertical spacing, but the extra horizontal room
-    // protects against edge clipping (e.g. the date field) and makes the layout
-    // more robust if the user touches the print dialog's scale slider. The
-    // vertical overspacing is corrected separately by the CSS zoom on .page.
-    var _sheetW = isIPad ? 1500 : 820;
+    // iPad fix — ONE coordinated pair of values:
+    //   zoom shrinks the whole page uniformly (fixes the ~7% vertical
+    //   overspacing) AND shrinks width too. So the sheet width is chosen so that
+    //   AFTER zoom it equals the iPhone's 820px, leaving NO horizontal overflow
+    //   (which is what was clipping). 820 / 0.93 ≈ 882.
+    //   - sheet 882 * zoom 0.93 ≈ 820 effective width  -> matches iPhone, no clip
+    //   - vertical spacing also * 0.93                 -> matches iPhone height
+    var _iPadZoom = 0.93;
+    var _sheetW = isIPad ? Math.round(820 / _iPadZoom) : 820;
     // Pin the font to the SAME size on both iPhone and iPad. The debug showed
     // iPhone rendering at 19px (base html size winning) while iPad got 18.5px,
     // making iPhone text slightly larger. Force both to 19px so they match.
@@ -1910,7 +1913,7 @@ function openPrintPreview() {
       // the iPhone. Safari only partially honors zoom in print, so this value is
       // tuned stronger than the raw ratio to land the spacing on the iPhone's.
       if (isIPad) {
-        _snap(page, 'zoom', '0.88');
+        _snap(page, 'zoom', String(_iPadZoom));
       }
     }
 
@@ -2182,7 +2185,7 @@ function openPrintPreview() {
           document.body.appendChild(ov);
         }
         document.getElementById('__printdbgtxt').textContent =
-          'PRINT PROCESS DEBUG (1.0S)\n\n' + rep;
+          'PRINT PROCESS DEBUG (1.0T)\n\n' + rep;
         // Block the actual print so the overlay stays for screenshotting.
         console.log('[PRINT DEBUG]', JSON.stringify(window.__printStages));
         if (/[?&]debug=1/.test(window.location.search)) {
