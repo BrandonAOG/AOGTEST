@@ -112,17 +112,16 @@ html.ipad body.dark-mode {
   background-attachment: scroll !important;
 }
 
+/* Gradient painted directly on the (scrolling) body — no fixed layer.
+   A position:fixed full-viewport background must be re-composited on every
+   scroll frame in WebKit (desktop app + iPad webview), which is the main
+   cause of the scroll freezing/stutter. Painting it on the body scrolls
+   with the content as one layer — nothing to desync or re-composite. */
 body.dark-mode {
-  background: #0A0E27;
-}
-body.dark-mode::before {
-  content: '';
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
   background: linear-gradient(135deg,#0A0E27 0%,#0F1535 25%,#0A1628 50%,#0F1535 75%,#0A0E27 100%);
-  z-index: -1;
-  pointer-events: none;
+  background-attachment: scroll;
 }
+body.dark-mode::before { content: none; display: none; }
 
 .page {
   width: 100%;
@@ -130,7 +129,7 @@ body.dark-mode::before {
   margin: 0 auto;
   background: var(--panel);
   border: 2px solid var(--cyan);
-  box-shadow: 0 0 0 1px rgba(217,119,6,0.1), 0 0 40px rgba(217,119,6,0.08), inset 0 0 60px rgba(255,255,255,0.8);
+  box-shadow: 0 0 0 1px rgba(217,119,6,0.1), 0 0 40px rgba(217,119,6,0.08);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -146,7 +145,7 @@ body.dark-mode::before {
 body.dark-mode .page {
   background: linear-gradient(135deg,rgba(15,21,53,0.95) 0%,rgba(10,14,39,0.98) 100%);
   border-color: #00FFC8;
-  box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15), 0 0 40px rgba(59,130,246,0.08), inset 0 0 60px rgba(0,255,200,0.02);
+  box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15), 0 0 40px rgba(59,130,246,0.08);
 }
 
 .page::before, .page::after {
@@ -230,7 +229,6 @@ body.dark-mode .header::after {
   flex-shrink: 0;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(217,119,6,0.6)) drop-shadow(0 0 24px rgba(217,119,6,0.4)) brightness(1.1);
-  animation: logoPulse 3s ease-in-out infinite;
 }
 @keyframes logoPulse {
   0%,100% { filter: drop-shadow(0 0 12px rgba(217,119,6,0.6)) drop-shadow(0 0 24px rgba(217,119,6,0.4)) brightness(1.1); }
@@ -238,7 +236,6 @@ body.dark-mode .header::after {
 }
 body.dark-mode .logo-img {
   filter: drop-shadow(0 0 12px rgba(0,255,200,0.6)) drop-shadow(0 0 24px rgba(0,255,200,0.4)) brightness(1.1);
-  animation: logoPulseDark 3s ease-in-out infinite;
 }
 @keyframes logoPulseDark {
   0%,100% { filter: drop-shadow(0 0 12px rgba(0,255,200,0.6)) drop-shadow(0 0 24px rgba(0,255,200,0.4)) brightness(1.1); }
@@ -2977,7 +2974,13 @@ function saveForAndroid() {
 
 setInterval(saveDraft, 30000);
 document.addEventListener('change', saveDraft);
-document.addEventListener('input', saveDraft);
+// Debounce the per-keystroke save: walking every field + writing storage on
+// every input event adds main-thread work that compounds scroll/typing jank.
+var _saveTimer;
+document.addEventListener('input', function () {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(saveDraft, 600);
+});
 
 document.addEventListener('DOMContentLoaded', function () {
   const todayInput = document.getElementById('date');
