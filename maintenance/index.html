@@ -512,6 +512,10 @@ body.dark-mode .section-toggle-hint { color: #7DD3FC; border-color: rgba(0,255,2
   margin-bottom: 4px;
 }
 .two-column .section { margin-bottom: 0; }
+/* Left column can stack two sections (Battery + Oil & Filters) beside the taller
+   Generator column, reclaiming the dead space under Battery. */
+.col-stack { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+@media print { .col-stack { gap: 2px !important; } }
 @media (max-width: 820px) {
   .two-column { grid-template-columns: 1fr; gap: 4px; margin-bottom: 4px; }
   /* iPad (incl. 768px portrait) is wide enough for the two-up split — keep
@@ -932,7 +936,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.macos input[type="number"],
   html.macos textarea,
   html.macos select         { font-size: calc(0.626rem - 0.45px) !important; min-height: 16px !important; }
-  html.macos #batnotes,
+  html.macos #batnotes      { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
   html.macos #gennotes      { height: 60px !important; min-height: 60px !important; max-height: 60px !important; overflow: hidden !important; }
   html.macos #oilnotes,
   html.macos #gasnotes,
@@ -1017,7 +1021,15 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   #name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
   #name-job-date-row #date   { flex: 0 0 100px !important; width: 100px !important; min-width: 100px !important; }
   /* Spread the grouped gas/oil rows a bit wider in print (not full-width) */
-  #gas-top-row, #oil-top-row { justify-content: flex-start !important; gap: 20px !important; flex-wrap: nowrap !important; }
+  #gas-top-row { justify-content: flex-start !important; gap: 20px !important; flex-wrap: nowrap !important; }
+  /* Oil row: keep Filter Changed? snug to the right of Full/Half on one line,
+     then let Part # take the remaining width. The 4px right pad reserves
+     clearance so the N chip never touches/clips the page edge. */
+  #oil-top-row { justify-content: flex-start !important; gap: 8px !important; flex-wrap: nowrap !important; padding-right: 4px !important; }
+  #oil-top-row > span:nth-child(1) { flex: 0 0 auto !important; }   /* Oil Change Type (Full/Half) */
+  #oil-top-row > span:nth-child(2) { flex: 0 0 auto !important; margin-right: 2px !important; }   /* Filter Changed? Y/N */
+  #oil-top-row > span:nth-child(3) { flex: 1 1 auto !important; min-width: 0 !important; }   /* Part # fills remainder */
+  #oil-top-row #filterpart { width: 100% !important; min-width: 60px !important; }
   label { color: #6B7280 !important; font-size: calc(0.626rem + 0.3px) !important; letter-spacing: 0.3px !important; }
 
   input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea, select {
@@ -1029,15 +1041,18 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   }
   textarea { height: auto !important; min-height: 30px !important; background: white !important; border: 0.5px solid #D35E13 !important; font-size: calc(0.706rem + 0.3px) !important; padding: 1px 3px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  #batnotes, #gennotes { height: 60px !important; min-height: 60px !important; max-height: 60px !important; overflow: hidden !important; }
+  #batnotes { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
+  #gennotes { height: 60px !important; min-height: 60px !important; max-height: 60px !important; overflow: hidden !important; }
   #oilnotes { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
+  #svcnotes { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
   #gasnotes { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
   #tsnotes  { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
   /* Sim "Explain why" box: was missing a fixed height, so Safari printed it
      short and clipped the top line. Give it a real height + top alignment. */
   #simperfnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; overflow: hidden !important; vertical-align: top !important; padding-top: 2px !important; line-height: 1.15 !important; box-sizing: border-box !important; }
-  body.mobile-safari #simperfnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; }
-  html.ipad #simperfnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; padding-top: 2px !important; }
+  body.mobile-safari #simperfnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; }
+  body.mobile-chrome #simperfnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; vertical-align: top !important; padding-top: 2px !important; line-height: 1.15 !important; box-sizing: border-box !important; }
+  html.ipad #simperfnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; padding-top: 2px !important; }
   #sim-body-collapsed .test-item { align-items: flex-start !important; }
 
   .check-group { display: flex !important; flex-wrap: wrap !important; gap: 2px !important; }
@@ -1115,8 +1130,9 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-safari #name { flex: 0 1 50% !important; min-width: 0 !important; }
   body.mobile-safari #date, body.mobile-safari #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
   /* Tightened from 60/40px to recover the ~25px lost to the new 0.25in @page bottom margin */
-  body.mobile-safari #batnotes, body.mobile-safari #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
-  body.mobile-safari #oilnotes, body.mobile-safari #gasnotes, body.mobile-safari #tsnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; overflow: hidden !important; }
+  body.mobile-safari #batnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
+  body.mobile-safari #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
+  body.mobile-safari #oilnotes, body.mobile-safari #gasnotes, body.mobile-safari #tsnotes, body.mobile-safari #svcnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
   /* Mobile prints the 820px layout scaled down to fit, shrinking controls.
      Bump them back up so they read the same size as desktop print. */
   body.mobile-safari .check-item input[type="checkbox"], body.mobile-safari .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
@@ -1133,8 +1149,10 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
      Transfer Switch: each in-range row gets ~1.25px extra (3.75px total). */
   body.mobile-safari .vrows-print .field-row { margin-bottom: 3.75px !important; }
   body.mobile-safari .section-body { padding: 1.5px 6px !important; }
+  body.mobile-safari #gas-section .section-body, body.mobile-safari #ts-section .section-body { padding-bottom: 0.75px !important; }
   body.mobile-safari .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 3px !important; }
-  body.mobile-safari #gas-top-row, body.mobile-safari #oil-top-row { gap: 16px !important; }
+  body.mobile-safari #gas-top-row { gap: 16px !important; }
+  body.mobile-safari #oil-top-row { gap: 10px !important; }
   /* Transfer Switch: prevent Condition group from wrapping to a second line */
   body.mobile-safari .ts-row { flex-wrap: nowrap !important; align-items: flex-start !important; gap: 6px !important; }
   body.mobile-safari .ts-row > div { flex-shrink: 1 !important; min-width: 0 !important; }
@@ -1149,20 +1167,15 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
      `@media print and (min-width:768px) html { font-size:18.3px }` rule, which
      otherwise wins on Android (its forced 820px print viewport matches 768px). */
   html.mobile-chrome { font-size: 18px !important; }
-  /* Native browser print (Print/Share menu) skips the JS that forces the wide
-     820px layout, so without this it prints at phone width — narrow, stacked
-     and ~3in too tall, tipping onto page 2. Force the same wide layout here so
-     native print matches the "Download PDF" button. Scoped to mobile-chrome
-     only, so WebKit (iPhone/iPad) print is left exactly as-is. */
-  html.mobile-chrome, html.mobile-chrome body { width: 820px !important; max-width: 820px !important; min-width: 0 !important; margin: 0 auto !important; }
-  body.mobile-chrome .page { padding: 4px 2px 0 2px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; width: 100% !important; max-width: 100% !important; }
+  body.mobile-chrome .page { padding: 4px 2px 0 2px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; }
   body.mobile-chrome .two-column { grid-template-columns: 1fr 1fr !important; }
   body.mobile-chrome #gas-top-row, body.mobile-chrome #oil-top-row { gap: 10px !important; }
   body.mobile-chrome .field-row-nowrap { flex-wrap: nowrap !important; }
   body.mobile-chrome #name { flex: 0 1 50% !important; min-width: 0 !important; }
   body.mobile-chrome #date, body.mobile-chrome #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
-  body.mobile-chrome #batnotes, body.mobile-chrome #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
-  body.mobile-chrome #oilnotes, body.mobile-chrome #gasnotes, body.mobile-chrome #tsnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; overflow: hidden !important; }
+  body.mobile-chrome #batnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
+  body.mobile-chrome #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
+  body.mobile-chrome #oilnotes, body.mobile-chrome #gasnotes, body.mobile-chrome #tsnotes, body.mobile-chrome #svcnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
   /* Match desktop apparent control size on mobile Chrome too */
   body.mobile-chrome .check-item input[type="checkbox"], body.mobile-chrome .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
   body.mobile-chrome .yn-group { height: 19px !important; align-items: center !important; box-sizing: border-box !important; }
@@ -1177,6 +1190,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-chrome .two-column + .section { margin-top: 0 !important; }
   body.mobile-chrome .field-row { margin-bottom: 0.5px !important; }
   body.mobile-chrome .section-body { padding: 1px 6px !important; }
+  body.mobile-chrome #gas-section .section-body, body.mobile-chrome #ts-section .section-body { padding-bottom: 0.5px !important; }
   body.mobile-chrome .footer { margin-top: 4px !important; margin-bottom: 0 !important; padding-bottom: 1px !important; }
 }
 @media print and (min-width: 768px) {
@@ -1218,8 +1232,9 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ipad #name-job-date-row #date { flex: 0 0 120px !important; width: 120px !important; min-width: 120px !important; }
 
   /* Notes boxes — kept at the same heights as iPhone (54 / 34). */
-  html.ipad #batnotes, html.ipad #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
-  html.ipad #oilnotes, html.ipad #gasnotes, html.ipad #tsnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; overflow: hidden !important; }
+  html.ipad #batnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
+  html.ipad #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
+  html.ipad #oilnotes, html.ipad #gasnotes, html.ipad #tsnotes, html.ipad #svcnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
 
   /* Keep control + label sizes readable (match desktop apparent size) */
   html.ipad .check-item input[type="checkbox"], html.ipad .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
@@ -1236,10 +1251,12 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ipad .field-row { margin-bottom: 0.5px !important; }
   html.ipad .section-header { padding: 2px 7px !important; }
   html.ipad .section-body { padding: 1px 6px !important; }
+  html.ipad #gas-section .section-body, html.ipad #ts-section .section-body { padding-bottom: 0.5px !important; }
 
   /* Keep tight groups on one line, like the iPhone build */
   html.ipad .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 3px !important; }
-  html.ipad #gas-top-row, html.ipad #oil-top-row { gap: 16px !important; }
+  html.ipad #gas-top-row { gap: 16px !important; }
+  html.ipad #oil-top-row { gap: 10px !important; }
   html.ipad .ts-row { flex-wrap: nowrap !important; align-items: flex-start !important; gap: 6px !important; }
   html.ipad .ts-row > div { flex-shrink: 1 !important; min-width: 0 !important; }
   html.ipad .ts-row .check-group { flex-wrap: nowrap !important; gap: 2px !important; }
@@ -1437,6 +1454,7 @@ body.dark-mode .action-bar {
 
     <!-- Battery & Generator -->
     <div class="two-column">
+      <div class="col-stack">
       <div class="section vrows-print">
         <div class="section-header">Battery</div>
         <div class="section-body">
@@ -1488,9 +1506,40 @@ body.dark-mode .action-bar {
               <label class="check-item"><input type="radio" name="water" value="add"><span>Add</span></label>
             </div>
           </div>
-          <textarea id="batnotes" placeholder="Battery notes..." style="height:60px;"></textarea>
+          <textarea id="batnotes" placeholder="Battery notes..." style="min-height:50px;"></textarea>
         </div>
       </div>
+
+      <!-- Oil & Filters (moved into left column under Battery) -->
+      <div class="section vrows-print">
+        <div class="section-header">Oil &amp; Filters</div>
+        <div class="section-body">
+          <div class="field-row" id="oil-top-row" style="justify-content:flex-start;gap:14px;flex-wrap:wrap;">
+            <span style="display:flex;align-items:center;gap:4px;">
+              <label>Oil Change Type</label>
+              <div class="check-group" style="width:auto;flex:0 0 auto;flex-direction:column;align-items:flex-start;flex-wrap:nowrap;gap:1px;">
+                <label class="check-item"><input type="radio" name="oiltype" value="full"><span>Full</span></label>
+                <label class="check-item"><input type="radio" name="oiltype" value="half"><span>Half</span></label>
+              </div>
+            </span>
+            <span style="display:flex;align-items:center;gap:4px;">
+              <label>Filter Changed?</label>
+              <div class="yn-group">
+                <input type="radio" name="oilfilter" id="of_y" value="Y" class="yn-y">
+                <label class="yn-label yn-label-y" for="of_y">Y</label>
+                <input type="radio" name="oilfilter" id="of_n" value="N" class="yn-n">
+                <label class="yn-label yn-label-n" for="of_n">N</label>
+              </div>
+            </span>
+            <span style="display:flex;align-items:center;gap:4px;">
+              <label for="filterpart">Part #</label>
+              <input type="text" id="filterpart" class="med" placeholder="Part #" style="width:180px;">
+            </span>
+          </div>
+          <textarea id="oilnotes" placeholder="Oil &amp; filter notes..." style="min-height:50px;"></textarea>
+        </div>
+      </div>
+      </div><!-- /.col-stack -->
 
       <div class="section vrows-print">
         <div class="section-header">Generator</div>
@@ -1559,36 +1608,6 @@ body.dark-mode .action-bar {
           </div>
           <textarea id="gennotes" placeholder="Generator notes..." style="height:60px;"></textarea>
         </div>
-      </div>
-    </div>
-
-    <!-- Oil & Filters -->
-    <div class="section vrows-print">
-      <div class="section-header">Oil & Filters</div>
-      <div class="section-body">
-        <div class="field-row" id="oil-top-row" style="justify-content:flex-start;gap:36px;flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:4px;">
-            <label>Oil Change Type</label>
-            <div class="check-group" style="width:auto;flex:0 0 auto;">
-              <label class="check-item"><input type="radio" name="oiltype" value="full"><span>Full</span></label>
-              <label class="check-item"><input type="radio" name="oiltype" value="half"><span>Half</span></label>
-            </div>
-          </span>
-          <span style="display:flex;align-items:center;gap:4px;">
-            <label>Filter Changed?</label>
-            <div class="yn-group">
-              <input type="radio" name="oilfilter" id="of_y" value="Y" class="yn-y">
-              <label class="yn-label yn-label-y" for="of_y">Y</label>
-              <input type="radio" name="oilfilter" id="of_n" value="N" class="yn-n">
-              <label class="yn-label yn-label-n" for="of_n">N</label>
-            </div>
-          </span>
-          <span style="display:flex;align-items:center;gap:4px;">
-            <label for="filterpart">Part #</label>
-            <input type="text" id="filterpart" class="med" placeholder="Part #" style="width:180px;">
-          </span>
-        </div>
-        <textarea id="oilnotes" placeholder="Oil & filter notes..." style="min-height:50px;"></textarea>
       </div>
     </div>
 
@@ -1666,7 +1685,7 @@ body.dark-mode .action-bar {
     </div>
 
     <!-- Gas System -->
-    <div class="section vrows-print">
+    <div class="section vrows-print" id="gas-section">
       <div class="section-header">Gas System</div>
       <div class="section-body">
         <div class="field-row" id="gas-top-row" style="justify-content:flex-start;gap:36px;flex-wrap:wrap;">
@@ -1722,7 +1741,7 @@ body.dark-mode .action-bar {
     </div>
 
     <!-- Transfer Switch -->
-    <div class="section">
+    <div class="section" id="ts-section">
       <div class="section-header">Transfer Switch</div>
       <div class="section-body">
         <div class="field-row ts-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
@@ -1815,6 +1834,14 @@ body.dark-mode .action-bar {
             <input type="number" id="signal" placeholder="100" style="width:40px;">
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Service Notes -->
+    <div class="section" id="service-section">
+      <div class="section-header">Service Notes</div>
+      <div class="section-body">
+        <textarea id="svcnotes" placeholder="Work performed / recommendations..." style="height:50px;"></textarea>
       </div>
     </div>
 
@@ -2069,8 +2096,8 @@ function openPrintPreview() {
 
     // textareas — match mobile-safari print heights
     var taNotes = {
-      'batnotes': '54px', 'gennotes': '54px',
-      'oilnotes': '34px', 'gasnotes': '34px', 'tsnotes': '34px'
+      'batnotes': '34px', 'gennotes': '54px',
+      'oilnotes': '34px', 'gasnotes': '34px', 'tsnotes': '34px', 'svcnotes': '34px'
     };
     Object.keys(taNotes).forEach(function(id) {
       var ta = document.getElementById(id);
@@ -2222,7 +2249,7 @@ function openPrintPreview() {
     var gasRow = document.getElementById('gas-top-row');
     var oilRow = document.getElementById('oil-top-row');
     if (gasRow) { _snap(gasRow, 'gap', '16px'); _snap(gasRow, 'flexWrap', 'nowrap'); }
-    if (oilRow) { _snap(oilRow, 'gap', '16px'); _snap(oilRow, 'flexWrap', 'nowrap'); }
+    if (oilRow) { _snap(oilRow, 'gap', '10px'); _snap(oilRow, 'flexWrap', 'wrap'); }
 
     // leak-loc check-group
     document.querySelectorAll('.leak-loc .check-group').forEach(function(el) {
@@ -2394,8 +2421,11 @@ function openPrintPreview() {
 
     // Devices that should hold the light/print layout until the user dismisses
     // the print sheet AND touches the screen (prevents dark mode flashing back
-    // under the still-open preview). iPhone Safari and iPad both qualify.
-    var _deferRestore = (isMobileSafari || isIPad) && wasDark;
+    // under the still-open preview AND prevents any un-stamp reflow / rescale of
+    // the locked layout while the preview is live). iPhone Safari and iPad both
+    // qualify, in BOTH light and dark mode — the layout stays frozen until a real
+    // tap or the 60s fallback, so the preview can never reflow underneath it.
+    var _deferRestore = (isMobileSafari || isIPad);
 
     // ── Restore strategy ──
     var _restored = false;
@@ -2451,7 +2481,7 @@ function openPrintPreview() {
     // restore start with no pre-print timer (the deferred path arms its own).
     var _safety = _deferRestore
       ? null
-      : setTimeout(function() { _tryRestore(0); }, 30000);
+      : setTimeout(function() { _tryRestore(0); }, 60000);
 
   } else {
     // Desktop print
