@@ -1340,6 +1340,11 @@ body.dark-mode .action-bar {
   if (isIPad) {
     html.classList.add('ipad');
     html.classList.remove('macos');   // iPad is NOT a desktop Mac for print
+    // A classic-UA iPad also matched isIOS above and got 'mobile-safari'/'ios',
+    // which made it inherit the iPHONE layout, scroll, and print rules — the
+    // cause of the iPad "displaying what the iPhone sees" + sticking. Strip
+    // them so the iPad is treated purely as an iPad.
+    html.classList.remove('mobile-safari', 'ios');
   }
 
   function applyToBody() {
@@ -1351,6 +1356,7 @@ body.dark-mode .action-bar {
     if (isIPad) {
       document.body.classList.add('ipad');
       document.body.classList.remove('macos');
+      document.body.classList.remove('mobile-safari', 'ios');
     }
   }
   if (document.body) applyToBody();
