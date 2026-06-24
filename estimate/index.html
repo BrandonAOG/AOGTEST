@@ -1193,58 +1193,52 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   html { font-size: var(--fs-print-phone-base) !important; }
   @page { size: 8.5in 11in; margin: 0; }
 
-  /* ════════════ mm TRIM RULERS (print only) ════════════
-     The layout is 1050px wide and gets Fit-to-Page scaled onto 8.5x11in paper.
-     In this 1050px layout coordinate space:
-       1 mm horizontal = 1050 / 215.9mm = 4.8634 px
-       1 page tall     = 1056 * (1050/816) = 1358.82 px  (the page-1 cutoff)
-       1 mm vertical   = 1358.82 / 279.4mm = 4.8634 px
-     So a 1mm grid tick = 4.8634px on BOTH axes. The rulers live inside #page
-     so they scale exactly with your content. The red PAGE 1 LIMIT line shows
-     where the printer cuts — anything below it is what you must shave. */
-  #aog-ruler-h, #aog-ruler-v, #aog-page1-limit { display: block !important; }
+  /* ════════════ mm RULERS (print only) ════════════
+     Physical-style mm rulers with numbers along the top and left edge.
+     The layout is 1050px wide, Fit-to-Page scaled onto 8.5x11in paper.
+     In this 1050px layout coordinate space, after scaling to paper:
+       1 mm = 1050 / 215.9mm = 4.8634 px   (same on both axes)
+     The ruler ticks/numbers are built in JS at print time using this scale,
+     so the printed numbers read as true millimeters on the sheet. */
+  #aog-ruler-h, #aog-ruler-v { display: block !important; }
 }
 
 /* Rulers hidden on screen, only shown in print via the rules above */
-#aog-ruler-h, #aog-ruler-v, #aog-page1-limit { display: none; }
+#aog-ruler-h, #aog-ruler-v { display: none; }
 
 #aog-ruler-h {
   position: absolute; top: 0; left: 0;
-  width: 1050px; height: 24px;
+  width: 1050px; height: 30px;
   pointer-events: none; z-index: 99990;
-  /* major tick every 10mm (48.634px), minor every 1mm (4.8634px) */
-  background-image:
-    repeating-linear-gradient(to right, #000 0 1px, transparent 1px 48.634px),
-    repeating-linear-gradient(to right, rgba(0,0,0,0.45) 0 0.5px, transparent 0.5px 4.8634px);
-  background-position: 0 0, 0 12px;
-  background-size: 48.634px 16px, 4.8634px 8px;
-  background-repeat: repeat-x, repeat-x;
-  border-bottom: 0.75px solid #000;
+  border-bottom: 1px solid #000;
+  background: #fff;
 }
 #aog-ruler-v {
   position: absolute; top: 0; left: 0;
-  width: 24px; height: 1358.82px;
+  width: 30px; height: 1358.82px;
   pointer-events: none; z-index: 99990;
-  background-image:
-    repeating-linear-gradient(to bottom, #000 0 1px, transparent 1px 48.634px),
-    repeating-linear-gradient(to bottom, rgba(0,0,0,0.45) 0 0.5px, transparent 0.5px 4.8634px);
-  background-position: 0 0, 12px 0;
-  background-size: 16px 48.634px, 8px 4.8634px;
-  background-repeat: repeat-y, repeat-y;
-  border-right: 0.75px solid #000;
+  border-right: 1px solid #000;
+  background: #fff;
 }
-#aog-page1-limit {
-  position: absolute; left: 0; top: 1358.82px;
-  width: 1050px; height: 0;
-  border-top: 1.5px dashed #DC2626;
-  pointer-events: none; z-index: 99991;
+.aog-tick {
+  position: absolute; background: #000;
 }
-#aog-page1-limit::after {
-  content: "▲ PAGE 1 LIMIT (279mm) — anything below this prints on page 2";
-  position: absolute; right: 4px; top: -16px;
-  font: 700 11px/1 Arial, sans-serif; color: #DC2626;
-  background: #fff; padding: 1px 4px;
+.aog-ruler-h .aog-tick { bottom: 0; width: 0.6px; }
+.aog-ruler-v .aog-tick { right: 0; height: 0.6px; }
+.aog-tick.mm  { /* 1mm minor */ }
+.aog-tick.cm  { /* 10mm major */ background:#000; }
+.aog-ruler-h .aog-tick.mm { height: 6px; }
+.aog-ruler-h .aog-tick.half { height: 9px; }
+.aog-ruler-h .aog-tick.cm { height: 16px; width: 0.9px; }
+.aog-ruler-v .aog-tick.mm { width: 6px; }
+.aog-ruler-v .aog-tick.half { width: 9px; }
+.aog-ruler-v .aog-tick.cm { width: 16px; height: 0.9px; }
+.aog-num {
+  position: absolute;
+  font: 700 9px/1 Arial, sans-serif; color: #000;
 }
+.aog-ruler-h .aog-num { top: 1px; transform: translateX(1.5px); }
+.aog-ruler-v .aog-num { left: 1px; transform: translateY(-4px); }
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; animation-play-state: paused !important; transition: none !important; }
   .toolbar, .action-bar, #save-status, #theme-toggle-btn, #offline-banner, #address-suggestions, #gps-status, #gps-btn { display: none !important; }
@@ -2124,9 +2118,8 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 <div id="save-status" style="position:fixed;top:44px;left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;" aria-live="polite"></div>
 <div class="page" id="page">
 
-  <div id="aog-ruler-h"></div>
-  <div id="aog-ruler-v"></div>
-  <div id="aog-page1-limit"></div>
+  <div id="aog-ruler-h" class="aog-ruler-h"></div>
+  <div id="aog-ruler-v" class="aog-ruler-v"></div>
 
   <div class="header">
     <div class="header-logo">
@@ -5521,6 +5514,45 @@ window.addEventListener('afterprint', function() {
   } catch (err) {
     try { alert('debug overlay error: ' + err.message); } catch (e) {}
   }
+})();
+</script>
+<script>
+/* ── Build physical mm rulers (numbers + ticks) for the PDF print ──
+   Scale: in the 1050px layout, after Fit-to-Page onto 8.5in paper,
+   1mm = 1050 / 215.9 = 4.86336 px. Same factor used vertically. */
+(function () {
+  function build() {
+    var H = document.getElementById('aog-ruler-h');
+    var V = document.getElementById('aog-ruler-v');
+    if (!H || !V || H.dataset.built) return;
+    var PXMM = 1050 / 215.9;          // px per mm in layout space
+    var maxH = Math.floor(1050 / PXMM);      // ~215 mm across
+    var maxV = Math.floor(1358.82 / PXMM);   // ~279 mm down
+    function ticks(el, max, horizontal) {
+      var frag = document.createDocumentFragment();
+      for (var mm = 0; mm <= max; mm++) {
+        var pos = mm * PXMM;
+        var t = document.createElement('div');
+        t.className = 'aog-tick ' + (mm % 10 === 0 ? 'cm' : (mm % 5 === 0 ? 'half' : 'mm'));
+        if (horizontal) t.style.left = pos + 'px'; else t.style.top = pos + 'px';
+        frag.appendChild(t);
+        if (mm % 10 === 0 && mm > 0) {
+          var n = document.createElement('div');
+          n.className = 'aog-num';
+          n.textContent = mm;            // label in mm (10,20,30…)
+          if (horizontal) n.style.left = pos + 'px'; else n.style.top = pos + 'px';
+          frag.appendChild(n);
+        }
+      }
+      el.appendChild(frag);
+    }
+    ticks(H, maxH, true);
+    ticks(V, maxV, false);
+    H.dataset.built = V.dataset.built = '1';
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', build);
+  } else { build(); }
 })();
 </script>
 </body>
