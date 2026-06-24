@@ -1914,12 +1914,6 @@ function openPrintPreview() {
     _snapshots.push({ el: el, attr: attr, was: el.getAttribute(attr) });
     el.setAttribute(attr, val);
   }
-  // Like _snap, but sets the CSS property with !important so it can beat
-  // existing !important rules (e.g. the mobile screen layout) during capture.
-  function _snapImp(el, cssProp, val) {
-    _snapshots.push({ el: el, cssProp: cssProp, wasVal: el.style.getPropertyValue(cssProp), wasPri: el.style.getPropertyPriority(cssProp) });
-    el.style.setProperty(cssProp, val, 'important');
-  }
 
   // ── RESTORE function ──
   function restore() {
@@ -1934,9 +1928,6 @@ function openPrintPreview() {
       if (s.attr) {
         if (s.was === null) s.el.removeAttribute(s.attr);
         else s.el.setAttribute(s.attr, s.was);
-      } else if (s.cssProp) {
-        s.el.style.removeProperty(s.cssProp);
-        if (s.wasVal) s.el.style.setProperty(s.cssProp, s.wasVal, s.wasPri);
       } else {
         s.el.style[s.prop] = s.was;
       }
@@ -2244,13 +2235,13 @@ function openPrintPreview() {
     // name-job-date row
     var njd = document.getElementById('name-job-date-row');
     if (njd) {
-      _snapImp(njd, 'flex-wrap', 'nowrap');
+      _snap(njd, 'flexWrap', 'nowrap');
       var nameEl = document.getElementById('name');
       var numEl  = document.getElementById('number');
       var dateEl = document.getElementById('date');
-      if (nameEl) { _snapImp(nameEl, 'flex', '2 1 0'); _snapImp(nameEl, 'width', 'auto'); _snapImp(nameEl, 'max-width', 'none'); _snapImp(nameEl, 'min-width', '0'); }
-      if (numEl)  { _snapImp(numEl,  'flex', '1 1 0'); _snapImp(numEl,  'width', 'auto'); _snapImp(numEl,  'max-width', 'none'); _snapImp(numEl,  'min-width', '0'); }
-      if (dateEl) { _snapImp(dateEl, 'flex', '0 0 100px'); _snapImp(dateEl, 'width', '100px'); _snapImp(dateEl, 'max-width', 'none'); _snapImp(dateEl, 'min-width', '100px'); }
+      if (nameEl) { _snap(nameEl, 'flex', '1 1 0'); _snap(nameEl, 'width', 'auto'); _snap(nameEl, 'minWidth', '0'); }
+      if (numEl)  { _snap(numEl,  'flex', '1 1 0'); _snap(numEl,  'width', 'auto'); _snap(numEl,  'minWidth', '0'); }
+      if (dateEl) { _snap(dateEl, 'flex', '0 0 100px'); _snap(dateEl, 'width', '100px'); _snap(dateEl, 'minWidth', '100px'); }
     }
 
     // action-bar / save-status hidden
@@ -2465,6 +2456,15 @@ function capturePageToCanvas() {
       forceStyle.id = 'capture-force-style';
       forceStyle.textContent = [
         '.two-column { display: grid !important; grid-template-columns: 1fr 1fr !important; }',
+        // Keep Name / Job# / Date on one row in the capture. The mobile screen
+        // media query (max-width:600px) still matches the narrow device viewport
+        // during html2canvas cloning and would otherwise force each field to its
+        // own line, dropping the date below. These !important rules win in the clone.
+        '#name-job-date-row { flex-wrap: nowrap !important; column-gap: 6px !important; }',
+        '#name-job-date-row label { flex: 0 0 auto !important; width: auto !important; }',
+        '#name-job-date-row #name { flex: 2 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }',
+        '#name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }',
+        '#name-job-date-row #date { flex: 0 0 100px !important; width: 100px !important; max-width: none !important; min-width: 100px !important; }',
         // Mobile renders the form smaller; bump the root font so the content
         // reads at a comfortable size. Desktop gets a slight +1.5px bump too.
         (_isMobileCap ? 'html { font-size: 29.3px !important; }' : 'html { font-size: 19.3px !important; }'),
