@@ -97,6 +97,32 @@ body {
   min-height: 100vh;
 }
 
+/* iPadOS Safari scroll fix (screen only): the body's -webkit-fill-available
+   min-height pins the body to the viewport, so with the fixed action bar the
+   page can't grow past the screen and won't scroll (it just rubber-bands).
+   Let the body take its natural content height so normal document scrolling
+   works. Scoped to screen via :not within @media print elsewhere — these are
+   base (non-print) rules, and the print block re-sets height anyway. */
+html.ipad, html.ipad body {
+  min-height: 0;
+  height: auto;
+  -webkit-overflow-scrolling: touch;
+}
+html.ipad body {
+  /* The action bar is ~34px tall on iPad; sit the page just under it. */
+  padding-top: calc(36px + env(safe-area-inset-top, 0px));
+}
+html.ipad .page {
+  min-height: 0;
+  height: auto;
+}
+/* iPadOS compositor stability: fast scrolling desyncs the fixed dark gradient
+   layer from the scrolling page, making borders appear to "stick" while the
+   page rubber-bands. Pin the gradient to its own GPU layer and keep the action
+   bar on one too so they don't fight the scroll layer. */
+html.ipad body.dark-mode::before { transform: translateZ(0); will-change: transform; }
+html.ipad .action-bar { transform: translateZ(0); will-change: transform; }
+
 body.dark-mode {
   background: #0A0E27;
 }
@@ -1019,7 +1045,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   /* Sim "Explain why" box: was missing a fixed height, so Safari printed it
      short and clipped the top line. Give it a real height + top alignment. */
   #simperfnotes { height: 46px !important; min-height: 46px !important; max-height: 46px !important; overflow: hidden !important; vertical-align: top !important; padding-top: 6px !important; line-height: 1.15 !important; box-sizing: border-box !important; }
-  body.mobile-safari #simperfnotes { height: 46px !important; min-height: 46px !important; max-height: 46px !important; }
+  body.mobile-safari #simperfnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; }
   #sim-body-collapsed .test-item { align-items: flex-start !important; }
 
   .check-group { display: flex !important; flex-wrap: wrap !important; gap: 2px !important; }
@@ -1189,8 +1215,8 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 
   /* Keep control + label sizes readable (match desktop apparent size) */
   html.ipad .check-item input[type="checkbox"], html.ipad .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
-  html.ipad .yn-group { height: 19px !important; min-height: 19px !important; max-height: 19px !important; }
-  html.ipad .yn-group .yn-label { height: 19px !important; min-height: 0 !important; max-height: 19px !important; line-height: 1 !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; }
+  html.ipad .yn-group { height: 19px !important; min-height: 19px !important; max-height: 19px !important; align-items: center !important; box-sizing: border-box !important; }
+  html.ipad .yn-group .yn-label { height: 17px !important; min-height: 0 !important; max-height: 17px !important; line-height: 1 !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; }
   html.ipad .check-item span, html.ipad .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   html.ipad label { font-size: calc(0.66rem + 0.3px) !important; }
 
@@ -2063,9 +2089,9 @@ function openPrintPreview() {
     (function() {
       var sp = document.getElementById('simperfnotes');
       if (sp) {
-        _snap(sp, 'height',     '46px');
-        _snap(sp, 'minHeight',  '46px');
-        _snap(sp, 'maxHeight',  '46px');
+        _snap(sp, 'height',     '34px');
+        _snap(sp, 'minHeight',  '34px');
+        _snap(sp, 'maxHeight',  '34px');
         _snap(sp, 'overflow',   'hidden');
         _snap(sp, 'padding',    '6px 2px 0 2px');
         _snap(sp, 'lineHeight', '1.15');
