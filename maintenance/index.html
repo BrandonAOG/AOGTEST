@@ -926,13 +926,6 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.windows .page { break-inside: auto !important; page-break-inside: auto !important; }
   html.windows * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
-  /* iPad: a slightly taller render was forcing the OTHER section to jump to a
-     2nd page (leaving empty space on page 1) because sections are
-     break-inside:avoid. Let the page and sections break naturally on iPad so
-     content fills the available space like it does on iPhone. */
-  html.ipad .page { break-inside: auto !important; page-break-inside: auto !important; }
-  html.ipad .section { break-inside: auto !important; page-break-inside: auto !important; }
-
   /* Android */
   html.android * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   html.android .page { display: block !important; min-height: 0 !important; height: auto !important; }
@@ -1118,6 +1111,136 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   .form-page, .page { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 3px !important; box-sizing: border-box !important; }
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   iPad print tuning
+   Modern iPadOS Safari masquerades as desktop Safari, so without the .ipad
+   class it would print with the desktop-Mac rules. This block is scoped to
+   html.ipad and is placed AFTER every other print block so it wins the
+   cascade at equal specificity. It starts from the iPhone (mobile-safari)
+   1-page tuning — iPad is WebKit too — and is the knob we'll turn while
+   reading the vertical scale ruler below.
+   ════════════════════════════════════════════════════════════════════════ */
+@media print {
+  html.ipad { font-size: 18.3px !important; }
+  html.ipad, html.ipad body { width: auto !important; max-width: 100% !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+
+  html.ipad .page {
+    width: 100% !important; max-width: 100% !important;
+    padding: 4px 3px 0 3px !important;
+    margin: 0 auto !important;
+    min-height: 0 !important; height: auto !important;
+    border: 1.5px solid #D97706 !important;
+  }
+  html.ipad .footer { margin-top: 4px !important; margin-bottom: 0 !important; padding-bottom: 1px !important; }
+
+  /* Two-column layout + non-wrapping field rows (same intent as iPhone) */
+  html.ipad .two-column { grid-template-columns: 1fr 1fr !important; margin-bottom: 1px !important; gap: 2px !important; }
+  html.ipad .field-row-nowrap { flex-wrap: nowrap !important; }
+  html.ipad #name { flex: 0 1 50% !important; min-width: 0 !important; }
+  html.ipad #date, html.ipad #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
+
+  /* Notes boxes — these are the biggest vertical levers. Adjust these heights
+     first if the ruler shows you're spilling past the 1-page line. */
+  html.ipad #batnotes, html.ipad #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
+  html.ipad #oilnotes, html.ipad #gasnotes, html.ipad #tsnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; overflow: hidden !important; }
+
+  /* Keep control + label sizes readable (match desktop apparent size) */
+  html.ipad .check-item input[type="checkbox"], html.ipad .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
+  html.ipad .yn-group { height: 21px !important; }
+  html.ipad .yn-group .yn-label { min-height: 21px !important; font-size: calc(0.72rem + 0.3px) !important; padding: 0 7px !important; }
+  html.ipad .check-item span, html.ipad .opt span { font-size: calc(0.66rem + 0.3px) !important; }
+  html.ipad label { font-size: calc(0.66rem + 0.3px) !important; }
+
+  /* Vertical spacing — trimmed so the form + footer aim for one page */
+  html.ipad .section { margin-bottom: 1px !important; }
+  html.ipad .two-column + .section { margin-top: 0 !important; }
+  html.ipad .field-row { margin-bottom: 0.5px !important; }
+  html.ipad .section-body { padding: 1.5px 6px !important; }
+
+  /* Keep tight groups on one line, like the iPhone build */
+  html.ipad .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 3px !important; }
+  html.ipad #gas-top-row, html.ipad #oil-top-row { gap: 16px !important; }
+  html.ipad .ts-row { flex-wrap: nowrap !important; align-items: flex-start !important; gap: 6px !important; }
+  html.ipad .ts-row > div { flex-shrink: 1 !important; min-width: 0 !important; }
+  html.ipad .ts-row .check-group { flex-wrap: nowrap !important; gap: 2px !important; }
+  html.ipad .ts-row input[id^="tsserial"] { width: 110px !important; min-width: 0 !important; flex-shrink: 0 !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   VERTICAL SCALE RULER  (diagnostic)
+   A printable inch ruler pinned to the left edge of the page so you can read,
+   straight off the printout / print-preview, exactly how tall the content is
+   and where the 1-page boundary falls. Shows ONLY on iPad in print (so iPhone
+   and desktop prints are untouched), or on ANY device when the page is opened
+   with ?ruler=1 for previewing.
+
+   How to read it:
+     • Numbers are inches measured from the top of the bordered page.
+     • The dashed red line ≈10.8" is the usable bottom of Letter page 1
+       (11" sheet minus the current @page margins).
+     • The solid red line at 11" is the raw sheet height.
+     • The pink wash below 10.8" is the "overflow / spills to page 2" zone.
+     • Note where your FOOTER lands. If it sits above 10.8", you're on one
+       page. If it crosses into the pink, tell me by how many inches and which
+       section it happens in, and we'll trim from there.
+
+   NOTE on print scaling: if iPad Safari scales the page to fit the paper, the
+   ruler scales with it — so also tell me where the *physical* page break (the
+   real paper edge) lands against the ruler. If the paper edge sits at, say,
+   the 10" tick instead of ~11", that tells us Safari shrank everything ~9%.
+   ════════════════════════════════════════════════════════════════════════ */
+.print-ruler { display: none; }
+
+@media screen {
+  html.ruler-force .print-ruler {
+    display: block;
+    position: absolute; top: 0; left: 0;
+    width: 0.34in; height: 13in; z-index: 9999; pointer-events: none;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  html.ruler-force .page { position: relative; }
+}
+
+@media print {
+  html.ipad .print-ruler,
+  html.ruler-force .print-ruler {
+    display: block;
+    position: absolute; top: 0; left: 0;
+    width: 0.34in; height: 13in; z-index: 9999; pointer-events: none;
+    font-family: Arial, Helvetica, sans-serif;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  /* Push page content right so the ruler never overlaps text */
+  html.ipad .page,
+  html.ruler-force .page { padding-left: 0.42in !important; position: relative !important; }
+}
+
+/* Shared ruler tick / label / boundary styling (used by both modes above) */
+.print-ruler .pr-tick { position: absolute; left: 0; height: 0; border-top: 0.4px solid rgba(0,0,0,0.55); }
+.print-ruler .pr-minor { width: 0.07in; }
+.print-ruler .pr-half  { width: 0.12in; border-top-color: rgba(0,0,0,0.75); }
+.print-ruler .pr-major { width: 0.22in; border-top: 0.7px solid #000; }
+.print-ruler .pr-label {
+  position: absolute; left: 0.015in; transform: translateY(-1px);
+  font-size: 7px; line-height: 1; color: #000;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.print-ruler .pr-bound {
+  position: absolute; left: 0; width: 7.9in; height: 0;
+  border-top: 0.8px dashed #DC2626;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.print-ruler .pr-bound.pr-bound-11 { border-top-style: solid; }
+.print-ruler .pr-bound span {
+  position: absolute; left: 0.26in; top: -4px;
+  font-size: 6.5px; color: #DC2626; white-space: nowrap; font-weight: bold;
+}
+.print-ruler .pr-overflow {
+  position: absolute; left: 0; top: 10.79in; width: 7.9in; height: 2.21in;
+  background: rgba(220,38,38,0.06);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
 /* ── Screen only, all devices: make all option chips (checkbox + radio) match
    the Y/N toggle's height and label text. Print/capture rules above are
    untouched. ── */
@@ -1203,11 +1326,8 @@ body.dark-mode .action-bar {
   var ua = navigator.userAgent;
   var html = document.documentElement;
   var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
-  // iPadOS 13+ reports a Macintosh UA, so the /iP(hone|od|ad)/ test misses it.
-  // Detect it via the Mac-like UA + multi-touch trick and treat it as iOS.
-  var isIPadOS   = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  var isIOS      = (/iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua)) || isIPadOS; // any iOS/iPadOS WebKit incl. CriOS
-  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && !isIPadOS;
+  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
   // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
@@ -1215,20 +1335,43 @@ body.dark-mode .action-bar {
   var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
   var isMobileChrome = isAndroidChrome;
 
+  // ── iPad detection ──────────────────────────────────────────────────────
+  // Modern iPadOS Safari lies and reports a desktop "Macintosh" UA, so it would
+  // otherwise be mis-tagged as macOS and inherit the desktop-Mac print rules.
+  // We catch it three ways: (1) classic "iPad" UA, (2) the MacIntel + touch
+  // tell of iPadOS in desktop mode, (3) any Macintosh UA that also reports
+  // touch points (real Macs report 0).
+  var mtp = navigator.maxTouchPoints || 0;
+  var isIPad = /iPad/.test(ua)
+    || (navigator.platform === 'MacIntel' && mtp > 1)
+    || (/Macintosh/.test(ua) && mtp > 1);
+
+  // Allow forcing the print ruler on for any device with ?ruler=1 (handy for
+  // previewing the scale on desktop without an iPad in hand).
+  var forceRuler = /[?&]ruler=1\b/.test(location.search);
+
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
-  if (isIPadOS)       html.classList.add('ipad');
   if (isMacOS)        html.classList.add('macos');
   if (isWindows)      html.classList.add('windows');
   if (isAndroid)      html.classList.add('android');
   if (isMobileChrome) html.classList.add('mobile-chrome');
+  if (isIPad) {
+    html.classList.add('ipad');
+    html.classList.remove('macos');   // iPad is NOT a desktop Mac for print
+  }
+  if (forceRuler)     html.classList.add('ruler-force');
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
-    if (isIPadOS)       document.body.classList.add('ipad');
     if (isMacOS)        document.body.classList.add('macos');
     if (isWindows)      document.body.classList.add('windows');
     if (isAndroid)      document.body.classList.add('android');
     if (isMobileChrome) document.body.classList.add('mobile-chrome');
+    if (isIPad) {
+      document.body.classList.add('ipad');
+      document.body.classList.remove('macos');
+    }
+    if (forceRuler)     document.body.classList.add('ruler-force');
   }
   if (document.body) applyToBody();
   else document.addEventListener('DOMContentLoaded', applyToBody);
@@ -1674,7 +1817,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0U-dbg</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0B</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1753,40 +1896,7 @@ function openPrintPreview() {
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var isMobileChrome = document.body.classList.contains('mobile-chrome');
   var isNarrowMobile = isMobileSafari || isMobileChrome;
-  // iPad runs the same Safari layout path as iPhone, but its print engine
-  // scales the 820px sheet down LESS, so output comes out larger and overflows
-  // to a 2nd page. Detect iPad specifically so we can stamp a wider layout that
-  // the fit-to-page scaler shrinks back down to match the iPhone's final size.
-  var _ua = navigator.userAgent || '';
-  var isIPad = (/iPad/.test(_ua)) ||
-               (/Macintosh/.test(_ua) && navigator.maxTouchPoints > 1);
   var wasDark        = document.body.classList.contains('dark-mode');
-
-  // ── DEBUG: snapshot dimensions BEFORE any stamping (?debug=1) ──
-  function _measure(tag) {
-    var pg = document.getElementById('page');
-    var yn = document.querySelector('.yn-group');
-    var cb = document.querySelector('.check-item input[type="checkbox"], .check-item input[type="radio"]');
-    var dt = document.getElementById('date');
-    var pr = pg ? pg.getBoundingClientRect() : {width:0,height:0};
-    var yr = yn ? yn.getBoundingClientRect() : {width:0,height:0};
-    var cr = cb ? cb.getBoundingClientRect() : {width:0,height:0};
-    var dr = dt ? dt.getBoundingClientRect() : {width:0};
-    return {
-      tag: tag,
-      htmlWidth: document.documentElement.style.width || '(unset)',
-      bodyOffsetW: document.body.offsetWidth,
-      pageW: Math.round(pr.width),
-      pageH: Math.round(pr.height),
-      ynH: Math.round(yr.height),
-      cbH: Math.round(cr.height),
-      dateW: Math.round(dr.width),
-      font: getComputedStyle(document.documentElement).fontSize,
-      winW: window.innerWidth,
-      dpr: window.devicePixelRatio
-    };
-  }
-  window.__printStages = [ _measure('1-BEFORE stamp') ];
 
   // ── Set document title for PDF filename (name + address + report) ──
   var prevTitle = document.title;
@@ -1823,7 +1933,6 @@ function openPrintPreview() {
     if (vp && origVP != null) vp.setAttribute('content', origVP);
     var f  = document.getElementById('safari-print-fix');  if(f)  f.remove();
     var pl = document.getElementById('force-print-light'); if(pl) pl.remove();
-    var nm = document.getElementById('ios-no-page-margin'); if(nm) nm.remove();
     document.documentElement.style.colorScheme = '';
     document.body.style.colorScheme = '';
     if (_darkStyleEl) _darkStyleEl.disabled = false;
@@ -1864,25 +1973,11 @@ function openPrintPreview() {
     var body = document.body;
     var page = document.getElementById('page');
 
-    // html / body sizing — matches safari-print-fix @media print rules.
-    // iPad uses the SAME 820px sheet as iPhone so Y/N boxes, checkboxes and font
-    // print at the same size on both. The OTHER section (which used to overflow
-    // to page 2) is handled by the inline break-inside:auto stamp on .section
-    // below, letting it fill the empty space at the bottom of page 1.
-    // iPad fix: keep the sheet at the SAME 820px as iPhone (so the date and
-    // right-edge fields never clip horizontally), and apply a CSS zoom ONLY to
-    // correct the ~7% vertical overspacing. After zoom the page is a touch
-    // narrower than the paper (small even side margins — never clips), and
-    // shorter (footer stays on page 1). Erring narrow is the safe direction.
-    var _iPadZoom = 0.90;
-    var _sheetW = 820;
-    // Pin the font to the SAME size on both iPhone and iPad. The debug showed
-    // iPhone rendering at 19px (base html size winning) while iPad got 18.5px,
-    // making iPhone text slightly larger. Force both to 19px so they match.
-    _snap(html, 'fontSize',  (isMobileSafari ? '19' : '18.3') + 'px');
-    _snap(html, 'width',     _sheetW + 'px');
-    _snap(body, 'width',     _sheetW + 'px');
-    _snap(body, 'maxWidth',  _sheetW + 'px');
+    // html / body sizing — matches safari-print-fix @media print rules
+    _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18.3') + 'px');
+    _snap(html, 'width',     '820px');
+    _snap(body, 'width',     '820px');
+    _snap(body, 'maxWidth',  '820px');
     _snap(body, 'minWidth',  '0');
     _snap(body, 'height',    'auto');
     _snap(body, 'minHeight', '0');
@@ -1905,14 +2000,6 @@ function openPrintPreview() {
       _snap(page, 'border',    '1.5px solid #D97706');
       _snap(page, 'boxShadow', 'none');
       _snap(page, 'marginTop', '0');
-      // iPad prints taller than iPhone (uniform vertical overspacing that
-      // compounds down the page). Width scaling has no effect on iPad, so a
-      // uniform CSS zoom shrinks the whole page — content AND row gaps — to match
-      // the iPhone. Safari only partially honors zoom in print, so this value is
-      // tuned stronger than the raw ratio to land the spacing on the iPhone's.
-      if (isIPad) {
-        _snap(page, 'zoom', String(_iPadZoom));
-      }
     }
 
     // .header
@@ -1943,13 +2030,6 @@ function openPrintPreview() {
       _snap(el, 'display',     'block');
       _snap(el, 'border',      '0.5px solid #D97706');
       _snap(el, 'padding',     '0');
-      // iPad: allow sections to break across the page boundary (inline beats the
-      // .section{break-inside:avoid} stylesheet rule). Without this, a section
-      // near the page bottom jumps wholesale to page 2, leaving empty space.
-      if (isIPad) {
-        _snap(el, 'breakInside',     'auto');
-        _snap(el, 'pageBreakInside', 'auto');
-      }
     });
 
     // .section-body
@@ -1984,17 +2064,6 @@ function openPrintPreview() {
       _snap(el, 'marginBottom',  '0.5px');
       _snap(el, 'gap',           '3px');
     });
-
-    // .field-row-nowrap — keep on one line (date row, address/model rows).
-    // iPad lays out wider than iPhone and would otherwise wrap the date field
-    // onto its own line and add vertical gaps between customer-info rows.
-    document.querySelectorAll('.field-row-nowrap').forEach(function(el) {
-      _snap(el, 'flexWrap',     'nowrap');
-      _snap(el, 'alignItems',   'center');
-      _snap(el, 'marginBottom', '0.5px');
-    });
-    var _dateEl = document.getElementById('date');
-    if (_dateEl) { _snap(_dateEl, 'flex', '0 0 130px'); _snap(_dateEl, 'width', '130px'); _snap(_dateEl, 'minWidth', '130px'); _snap(_dateEl, 'whiteSpace', 'nowrap'); }
 
     // textareas — match mobile-safari print heights
     var taNotes = {
@@ -2039,26 +2108,18 @@ function openPrintPreview() {
     // .yn-group sizing
     document.querySelectorAll('.yn-group').forEach(function(el) {
       _snap(el, 'height',     '21px');
-      _snap(el, 'minHeight',  '21px');
-      _snap(el, 'maxHeight',  '21px');
-      _snap(el, 'overflow',   'hidden');
       _snap(el, 'background', 'white');
       _snap(el, 'border',     '0.5px solid #D97706');
       _snap(el, 'display',    'inline-flex');
-      _snap(el, 'alignItems', 'stretch');
     });
     document.querySelectorAll('.yn-group .yn-label').forEach(function(el) {
-      _snap(el, 'height',    '21px');
-      _snap(el, 'minHeight', '0');
-      _snap(el, 'maxHeight', '21px');
-      _snap(el, 'lineHeight','20px');
+      _snap(el, 'minHeight', '21px');
       _snap(el, 'fontSize',  'calc(0.72rem + 0.3px)');
       _snap(el, 'padding',   '0 7px');
       _snap(el, 'background','white');
       _snap(el, 'color',     '#6B7280');
       _snap(el, 'display',   'flex');
       _snap(el, 'alignItems','center');
-      _snap(el, 'boxSizing', 'border-box');
     });
 
     // labels
@@ -2125,8 +2186,8 @@ function openPrintPreview() {
       var numEl  = document.getElementById('number');
       var dateEl = document.getElementById('date');
       if (nameEl) { _snap(nameEl, 'flex', '1 1 0'); _snap(nameEl, 'width', 'auto'); _snap(nameEl, 'minWidth', '0'); }
-      if (numEl)  { _snap(numEl,  'flex', '0 0 90px'); _snap(numEl,  'width', '90px'); _snap(numEl,  'minWidth', '0'); }
-      if (dateEl) { _snap(dateEl, 'flex', '0 0 130px'); _snap(dateEl, 'width', '130px'); _snap(dateEl, 'minWidth', '130px'); _snap(dateEl, 'whiteSpace', 'nowrap'); }
+      if (numEl)  { _snap(numEl,  'flex', '1 1 0'); _snap(numEl,  'width', 'auto'); _snap(numEl,  'minWidth', '0'); }
+      if (dateEl) { _snap(dateEl, 'flex', '0 0 100px'); _snap(dateEl, 'width', '100px'); _snap(dateEl, 'minWidth', '100px'); }
     }
 
     // action-bar / save-status hidden
@@ -2135,62 +2196,8 @@ function openPrintPreview() {
     if (ab) _snap(ab, 'display', 'none');
     if (ss) _snap(ss, 'display', 'none');
 
-    // ── iPhone / iPad: remove the set @page margins ──
-    // The global @page rule (0.15in) can't be scoped by device in CSS, so on
-    // iOS/iPadOS Safari we override it to zero margins via an injected style.
-    if (isMobileSafari) {
-      var _noMarginStyle = document.getElementById('ios-no-page-margin');
-      if (!_noMarginStyle) {
-        _noMarginStyle = document.createElement('style');
-        _noMarginStyle.id = 'ios-no-page-margin';
-        _noMarginStyle.textContent =
-          '@media print { @page { size: 8.5in 11in; margin: 0 !important; } }';
-        document.head.appendChild(_noMarginStyle);
-      }
-    }
-
     // Force layout reflow before print
     void document.getElementById('page').getBoundingClientRect();
-
-    // ── DEBUG: snapshot AFTER stamping + show persistent overlay (?debug=1) ──
-    try {
-      if (/[?&]debug=1/.test(window.location.search)) {
-        window.__printStages.push(_measure('2-AFTER stamp (sheet=' + _sheetW + ', iPad=' + isIPad + ')'));
-        var rep = window.__printStages.map(function (s) {
-          return s.tag + '\n' +
-            '  page: ' + s.pageW + ' x ' + s.pageH + 'px\n' +
-            '  Y/N h: ' + s.ynH + '  checkbox h: ' + s.cbH + '\n' +
-            '  date w: ' + s.dateW + '  font: ' + s.font + '\n' +
-            '  html.w: ' + s.htmlWidth + '  body.offW: ' + s.bodyOffsetW + '\n' +
-            '  winW: ' + s.winW + '  dpr: ' + s.dpr;
-        }).join('\n\n');
-        var ov = document.getElementById('__printdbg');
-        if (!ov) {
-          ov = document.createElement('div');
-          ov.id = '__printdbg';
-          ov.style.cssText = 'position:fixed;top:6px;left:6px;right:6px;z-index:2147483647;' +
-            'background:#001a00;color:#0f0;font:11px/1.4 monospace;padding:8px 10px;' +
-            'border:2px solid #0f0;border-radius:6px;white-space:pre-wrap;word-break:break-all;' +
-            'max-height:70vh;overflow:auto;';
-          var cl = document.createElement('button');
-          cl.textContent = '✕ close';
-          cl.style.cssText = 'display:block;margin-top:6px;background:#0f0;color:#000;border:none;border-radius:4px;padding:5px 9px;font:bold 11px monospace;';
-          cl.onclick = function () { ov.remove(); };
-          var tx = document.createElement('pre');
-          tx.id = '__printdbgtxt';
-          tx.style.cssText = 'margin:0;white-space:pre-wrap;';
-          ov.appendChild(tx); ov.appendChild(cl);
-          document.body.appendChild(ov);
-        }
-        document.getElementById('__printdbgtxt').textContent =
-          'PRINT PROCESS DEBUG (1.0U)\n\n' + rep;
-        // Block the actual print so the overlay stays for screenshotting.
-        console.log('[PRINT DEBUG]', JSON.stringify(window.__printStages));
-        if (/[?&]debug=1/.test(window.location.search)) {
-          // Don't restore/print yet — let the user screenshot. Re-enable below.
-        }
-      }
-    } catch (e) {}
 
     // Mobile Chrome: also override viewport so it lays out at 820px for real
     if (isMobileChrome && vp) {
@@ -2238,11 +2245,6 @@ function openPrintPreview() {
   }
 
   if (isNarrowMobile) {
-    // In debug mode, do NOT print — leave the stamped layout + overlay visible
-    // so the user can screenshot the full print-process measurements.
-    if (/[?&]debug=1/.test(window.location.search)) {
-      return;
-    }
     // Double-rAF + timeout: lets the stamped styles reflow fully at 820px
     // before the print dialog captures the layout.
     requestAnimationFrame(function() {
@@ -2899,28 +2901,8 @@ function setupSimToggle() {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('../sw.js', { scope: '../' })
-      .then(reg => {
-        console.log('[SW] Registered, scope:', reg.scope);
-        // Force an update check on every load so edits aren't masked by a
-        // stale cached page. If a new SW is waiting, activate it and reload.
-        reg.update();
-        reg.addEventListener('updatefound', function () {
-          var nw = reg.installing;
-          if (!nw) return;
-          nw.addEventListener('statechange', function () {
-            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-              if (nw.postMessage) nw.postMessage({ type: 'SKIP_WAITING' });
-            }
-          });
-        });
-      })
+      .then(reg => console.log('[SW] Registered, scope:', reg.scope))
       .catch(err => console.warn('[SW] Registration failed:', err));
-    var _reloaded = false;
-    navigator.serviceWorker.addEventListener('controllerchange', function () {
-      if (_reloaded) return;
-      _reloaded = true;
-      window.location.reload();
-    });
   });
 }
 </script>
@@ -2936,102 +2918,40 @@ window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load',   adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
 </script>
+
 <script>
-/* ── DEBUG OVERLAY ──
-   Add ?debug=1 to the URL to show a panel with live device + sizing info.
-   Take a screenshot of this and send it so the print sizing can be calibrated. */
-(function () {
-  function qp(name) {
-    var m = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
-    return m ? decodeURIComponent(m[1]) : null;
-  }
-  if (qp('debug') !== '1') return;
-
-  // Never let the debug panel appear in print output.
-  var _dbgPrintStyle = document.createElement('style');
-  _dbgPrintStyle.textContent = '@media print { #__dbg { display: none !important; } }';
-  document.head.appendChild(_dbgPrintStyle);
-
+/* ── Build the vertical scale ruler (diagnostic) ──────────────────────────
+   Injects an inch ruler into #page. CSS above decides when it actually shows
+   (iPad in print, or any device with ?ruler=1). Safe no-op everywhere else. */
+(function buildPrintRuler() {
   function build() {
-    var ua = navigator.userAgent || '';
-    var isIPad = (/iPad/.test(ua)) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-    var isIPhone = /iPhone|iPod/.test(ua);
-    var html = document.documentElement;
-    var body = document.body;
     var page = document.getElementById('page');
-    var dateEl = document.getElementById('date');
-    var pageRect = page ? page.getBoundingClientRect() : {width:0,height:0};
-    var dateRect = dateEl ? dateEl.getBoundingClientRect() : {width:0};
-    var ynEl = document.querySelector('.yn-group');
-    var ynRect = ynEl ? ynEl.getBoundingClientRect() : {height:0, width:0};
-    var cbEl = document.querySelector('.check-item input[type="checkbox"], .check-item input[type="radio"]');
-    var cbRect = cbEl ? cbEl.getBoundingClientRect() : {height:0, width:0};
+    if (!page || page.querySelector('.print-ruler')) return;
 
-    var lines = [
-      'BUILD: Ver 1.0L',
-      '— DEVICE —',
-      'isIPhone: ' + isIPhone,
-      'isIPad: ' + isIPad,
-      'maxTouchPoints: ' + navigator.maxTouchPoints,
-      'platform: ' + (navigator.platform || '?'),
-      'classes(html): ' + html.className,
-      'classes(body): ' + body.className,
-      '— SCREEN —',
-      'window.innerWidth: ' + window.innerWidth,
-      'window.innerHeight: ' + window.innerHeight,
-      'devicePixelRatio: ' + window.devicePixelRatio,
-      'screen.width: ' + screen.width + ' x ' + screen.height,
-      '— LAYOUT (current, not print) —',
-      'html.style.width: ' + (html.style.width || '(unset)'),
-      'body offsetWidth: ' + body.offsetWidth,
-      'page width: ' + Math.round(pageRect.width) + 'px',
-      'page height: ' + Math.round(pageRect.height) + 'px',
-      'date box width: ' + Math.round(dateRect.width) + 'px',
-      'Y/N box: ' + Math.round(ynRect.width) + ' x ' + Math.round(ynRect.height) + 'px',
-      'checkbox: ' + Math.round(cbRect.width) + ' x ' + Math.round(cbRect.height) + 'px',
-      'htmlFontSize: ' + getComputedStyle(html).fontSize,
-      '— UA —',
-      ua
-    ];
+    var ruler = document.createElement('div');
+    ruler.className = 'print-ruler';
+    ruler.setAttribute('aria-hidden', 'true');
 
-    var box = document.getElementById('__dbg');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = '__dbg';
-      box.style.cssText = 'position:fixed;bottom:8px;left:8px;right:8px;z-index:2147483647;' +
-        'background:#000;color:#0f0;font:12px/1.45 monospace;padding:10px 12px;' +
-        'border:2px solid #0f0;border-radius:6px;white-space:pre-wrap;word-break:break-all;' +
-        'max-height:55vh;overflow:auto;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
-      box.setAttribute('data-pos', 'bottom');
-      var move = document.createElement('button');
-      move.textContent = '⇅ move';
-      move.style.cssText = 'display:inline-block;margin:8px 8px 0 0;background:#0f0;color:#000;' +
-        'border:none;border-radius:4px;padding:6px 10px;font:bold 12px monospace;';
-      move.onclick = function () {
-        if (box.getAttribute('data-pos') === 'bottom') {
-          box.style.bottom = 'auto'; box.style.top = '8px'; box.setAttribute('data-pos', 'top');
-        } else {
-          box.style.top = 'auto'; box.style.bottom = '8px'; box.setAttribute('data-pos', 'bottom');
-        }
-      };
-      var close = document.createElement('button');
-      close.textContent = '✕ close debug';
-      close.style.cssText = 'display:block;margin-top:8px;background:#0f0;color:#000;' +
-        'border:none;border-radius:4px;padding:6px 10px;font:bold 12px monospace;';
-      close.onclick = function () { box.remove(); };
-      var txt = document.createElement('div');
-      txt.id = '__dbgtxt';
-      box.appendChild(txt);
-      box.appendChild(move);
-      box.appendChild(close);
-      document.body.appendChild(box);
+    var parts = [];
+    var TOTAL_QUARTERS = 13 * 4;            // 0 .. 13 inches in 1/4" steps
+    for (var i = 0; i <= TOTAL_QUARTERS; i++) {
+      var inch = i / 4;
+      var cls = (i % 4 === 0) ? 'pr-major' : (i % 2 === 0) ? 'pr-half' : 'pr-minor';
+      parts.push('<div class="pr-tick ' + cls + '" style="top:' + inch + 'in"></div>');
+      if (i % 4 === 0) {
+        parts.push('<div class="pr-label" style="top:' + inch + 'in">' + inch + '"</div>');
+      }
     }
-    document.getElementById('__dbgtxt').textContent = lines.join('\n');
-  }
+    // Overflow wash + the two page-boundary markers.
+    parts.push('<div class="pr-overflow"></div>');
+    parts.push('<div class="pr-bound" style="top:10.79in"><span>page&nbsp;1 end \u2248 10.8"</span></div>');
+    parts.push('<div class="pr-bound pr-bound-11" style="top:11in"><span>11" (sheet)</span></div>');
 
-  if (document.body) build();
-  else window.addEventListener('DOMContentLoaded', build);
-  window.addEventListener('load', build);
+    ruler.innerHTML = parts.join('');
+    page.appendChild(ruler);
+  }
+  if (document.getElementById('page')) build();
+  else document.addEventListener('DOMContentLoaded', build);
 })();
 </script>
 
