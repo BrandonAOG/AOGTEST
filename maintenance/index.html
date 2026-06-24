@@ -2026,6 +2026,23 @@ function openPrintPreview() {
       _snap(el, 'padding',     '0 2px');
     });
 
+    // Power test notes: applied AFTER the general loop so these win.
+    // Top-anchor the text and reserve top padding so the first line isn't
+    // clipped, while matching the gas notes box height (34px) on iPhone print.
+    (function() {
+      var sp = document.getElementById('simperfnotes');
+      if (sp) {
+        _snap(sp, 'height',     '34px');
+        _snap(sp, 'minHeight',  '34px');
+        _snap(sp, 'maxHeight',  '34px');
+        _snap(sp, 'overflow',   'hidden');
+        _snap(sp, 'padding',    '3px 2px 0 2px');
+        _snap(sp, 'lineHeight', '1.15');
+        _snap(sp, 'boxSizing',  'border-box');
+        _snap(sp, 'verticalAlign', 'top');
+      }
+    })();
+
     // .check-item controls sizing
     document.querySelectorAll('.check-item input[type="checkbox"], .check-item input[type="radio"]').forEach(function(el) {
       _snap(el, 'width',     '12px');
