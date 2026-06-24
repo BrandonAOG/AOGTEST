@@ -1034,12 +1034,34 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   .yn-group { border: 0.5px solid #D97706 !important; background: white !important; height: 17px !important; display: inline-flex !important; }
   .yn-group .yn-label { min-height: 17px !important; padding: 0 5px !important; color: #6B7280 !important; border-right: 0.5px solid #D97706 !important; font-size: calc(0.606rem - 0.7px) !important; background: white !important; display: flex !important; align-items: center !important; }
   .yn-group .yn-label:last-child { border-right: none !important; }
-  .yn-group .yn-y:checked + .yn-label-y { background: #059669 !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  .yn-group .yn-n:checked + .yn-label-n { background: #DC2626 !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .yn-group .yn-y:checked + .yn-label-y { background: #059669 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .yn-group .yn-n:checked + .yn-label-n { background: #DC2626 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body.dark-mode .yn-group .yn-y:checked + .yn-label-y, html.dark-mode-pending .yn-group .yn-y:checked + .yn-label-y { background: #059669 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body.dark-mode .yn-group .yn-n:checked + .yn-label-n, html.dark-mode-pending .yn-group .yn-n:checked + .yn-label-n { background: #DC2626 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .check-item:has(input:checked) { background: transparent !important; border-color: #047857 !important; outline: 1.5px solid #D97706 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  .check-item:has(input:checked) span { color: #D97706 !important; font-weight: bold !important; }
+  .check-item:has(input:checked) span { color: #D97706 !important; -webkit-text-fill-color: #D97706 !important; font-weight: bold !important; }
   .check-item:has(input:checked) input[type="radio"],
   .check-item:has(input:checked) input[type="checkbox"] { accent-color: #D97706 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /* When printing FROM dark mode, the blanket `body.dark-mode *` rule above
+     forces every element to gray via color AND -webkit-text-fill-color, which
+     flattens the selected-item amber emphasis. Re-assert it, scoped to dark
+     mode and with text-fill-color, so selections stay bold amber (this is what
+     made iPhone prints show emphasis and iPad prints not). */
+  body.dark-mode .check-item:has(input:checked), html.dark-mode-pending .check-item:has(input:checked) {
+    background: transparent !important; border-color: #D97706 !important;
+    outline: 1.5px solid #D97706 !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  body.dark-mode .check-item:has(input:checked) span, html.dark-mode-pending .check-item:has(input:checked) span {
+    color: #D97706 !important; -webkit-text-fill-color: #D97706 !important; font-weight: bold !important;
+  }
+  body.dark-mode .check-item:has(input:checked) input[type="radio"],
+  body.dark-mode .check-item:has(input:checked) input[type="checkbox"],
+  html.dark-mode-pending .check-item:has(input:checked) input[type="radio"],
+  html.dark-mode-pending .check-item:has(input:checked) input[type="checkbox"] {
+    accent-color: #D97706 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
 
   /* Dark mode nuclear override for print */
   body.dark-mode, body.dark-mode .page, body.dark-mode .header, body.dark-mode .section,
