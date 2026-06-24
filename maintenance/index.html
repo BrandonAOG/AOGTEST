@@ -1842,8 +1842,6 @@ function openPrintPreview() {
   document.documentElement.classList.remove('dark-mode-pending');
   document.documentElement.style.colorScheme = 'light';
   document.body.style.colorScheme = 'light';
-  var _darkStyleEl = document.getElementById('dark-mode-style');
-  if (_darkStyleEl) _darkStyleEl.disabled = true;
 
   var vp = document.querySelector('meta[name="viewport"]');
   var origVP = vp ? vp.getAttribute('content') : null;
@@ -1863,11 +1861,9 @@ function openPrintPreview() {
   function restore() {
     document.title = prevTitle;
     if (vp && origVP != null) vp.setAttribute('content', origVP);
-    var f  = document.getElementById('safari-print-fix');  if(f)  f.remove();
     var pl = document.getElementById('force-print-light'); if(pl) pl.remove();
     document.documentElement.style.colorScheme = '';
     document.body.style.colorScheme = '';
-    if (_darkStyleEl) _darkStyleEl.disabled = false;
     // Restore all snapshotted styles/attrs in reverse order
     for (var i = _snapshots.length - 1; i >= 0; i--) {
       var s = _snapshots[i];
@@ -1905,7 +1901,7 @@ function openPrintPreview() {
     var body = document.body;
     var page = document.getElementById('page');
 
-    // html / body sizing — matches safari-print-fix @media print rules
+    // html / body sizing — locks the 820px print layout inline
     _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18.3') + 'px');
     _snap(html, 'width',     '820px');
     _snap(body, 'width',     '820px');
@@ -2058,21 +2054,23 @@ function openPrintPreview() {
       _snap(el, 'fontSize', 'calc(0.66rem + 0.3px)');
     });
 
-    // .yn-group sizing
+    // .yn-group sizing — must match the per-device @media print CSS
+    // (mobile-safari / mobile-chrome both 19px). Inline stamps win over the
+    // stylesheet, so these values are the real source of truth on phones.
     document.querySelectorAll('.yn-group').forEach(function(el) {
-      _snap(el, 'height',     '21px');
-      _snap(el, 'minHeight',  '21px');
-      _snap(el, 'maxHeight',  '21px');
+      _snap(el, 'height',     '19px');
+      _snap(el, 'minHeight',  '19px');
+      _snap(el, 'maxHeight',  '19px');
       _snap(el, 'background', 'white');
       _snap(el, 'border',     '0.5px solid #D97706');
       _snap(el, 'display',    'inline-flex');
     });
     document.querySelectorAll('.yn-group .yn-label').forEach(function(el) {
-      _snap(el, 'height',    '21px');
+      _snap(el, 'height',    '19px');
       _snap(el, 'minHeight', '0');
-      _snap(el, 'maxHeight', '21px');
+      _snap(el, 'maxHeight', '19px');
       _snap(el, 'lineHeight','1');
-      _snap(el, 'fontSize',  'calc(0.72rem + 0.3px)');
+      _snap(el, 'fontSize',  'calc(0.72rem - 0.7px)');
       _snap(el, 'padding',   '0 7px');
       _snap(el, 'background','white');
       _snap(el, 'color',     '#6B7280');
@@ -2191,7 +2189,7 @@ function openPrintPreview() {
       '  .doc-title { color:#D97706!important; }',
       '  input, textarea, select { background:white!important;color:#1F2937!important; }',
       '  .footer-text, .footer span { color:#9CA3AF!important; }',
-      '  .action-bar, #save-status, #offline-banner { display:none!important; }',
+      '  .action-bar, #save-status { display:none!important; }',
       '}'
     ].join('\n');
     document.head.appendChild(printStyle);
