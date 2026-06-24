@@ -1117,8 +1117,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    class it would print with the desktop-Mac rules. This block is scoped to
    html.ipad and is placed AFTER every other print block so it wins the
    cascade at equal specificity. It starts from the iPhone (mobile-safari)
-   1-page tuning — iPad is WebKit too — and is the knob we'll turn while
-   reading the vertical scale ruler below.
+   1-page tuning — iPad is WebKit too.
    ════════════════════════════════════════════════════════════════════════ */
 @media print {
   html.ipad { font-size: 18.3px !important; }
@@ -1143,7 +1142,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ipad #name-job-date-row #date { flex: 0 0 120px !important; width: 120px !important; min-width: 120px !important; }
 
   /* Notes boxes — these are the biggest vertical levers. Adjust these heights
-     first if the ruler shows you're spilling past the 1-page line. */
+     first if the form spills past the bottom of page 1. */
   html.ipad #batnotes, html.ipad #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
   html.ipad #oilnotes, html.ipad #gasnotes, html.ipad #tsnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; overflow: hidden !important; }
 
@@ -1167,81 +1166,6 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ipad .ts-row > div { flex-shrink: 1 !important; min-width: 0 !important; }
   html.ipad .ts-row .check-group { flex-wrap: nowrap !important; gap: 2px !important; }
   html.ipad .ts-row input[id^="tsserial"] { width: 110px !important; min-width: 0 !important; flex-shrink: 0 !important; }
-}
-
-/* ════════════════════════════════════════════════════════════════════════
-   VERTICAL SCALE RULER  (diagnostic)
-   A printable inch ruler pinned to the left edge of the page so you can read,
-   straight off the printout / print-preview, exactly how tall the content is
-   and where the 1-page boundary falls. Shows ONLY on iPad in print (so iPhone
-   and desktop prints are untouched), or on ANY device when the page is opened
-   with ?ruler=1 for previewing.
-
-   How to read it:
-     • Numbers are inches measured from the top of the bordered page.
-     • The dashed red line ≈10.8" is the usable bottom of Letter page 1
-       (11" sheet minus the current @page margins).
-     • The solid red line at 11" is the raw sheet height.
-     • The pink wash below 10.8" is the "overflow / spills to page 2" zone.
-     • Note where your FOOTER lands. If it sits above 10.8", you're on one
-       page. If it crosses into the pink, tell me by how many inches and which
-       section it happens in, and we'll trim from there.
-
-   NOTE on print scaling: if iPad Safari scales the page to fit the paper, the
-   ruler scales with it — so also tell me where the *physical* page break (the
-   real paper edge) lands against the ruler. If the paper edge sits at, say,
-   the 10" tick instead of ~11", that tells us Safari shrank everything ~9%.
-   ════════════════════════════════════════════════════════════════════════ */
-.print-ruler { display: none; }
-
-@media screen {
-  html.ruler-force .print-ruler {
-    display: block;
-    position: absolute; top: 0; left: 0;
-    width: 0.34in; height: 13in; z-index: 9999; pointer-events: none;
-    font-family: Arial, Helvetica, sans-serif;
-  }
-  html.ruler-force .page { position: relative; }
-}
-
-@media print {
-  html.ipad .print-ruler,
-  html.ruler-force .print-ruler {
-    display: block;
-    position: absolute; top: 0; left: 0;
-    width: 0.34in; height: 13in; z-index: 9999; pointer-events: none;
-    font-family: Arial, Helvetica, sans-serif;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  /* Push page content right so the ruler never overlaps text */
-  html.ipad .page,
-  html.ruler-force .page { padding-left: 0.42in !important; position: relative !important; }
-}
-
-/* Shared ruler tick / label / boundary styling (used by both modes above) */
-.print-ruler .pr-tick { position: absolute; left: 0; height: 0; border-top: 0.4px solid rgba(0,0,0,0.55); }
-.print-ruler .pr-minor { width: 0.07in; }
-.print-ruler .pr-half  { width: 0.12in; border-top-color: rgba(0,0,0,0.75); }
-.print-ruler .pr-major { width: 0.22in; border-top: 0.7px solid #000; }
-.print-ruler .pr-label {
-  position: absolute; left: 0.015in; transform: translateY(-1px);
-  font-size: 7px; line-height: 1; color: #000;
-  -webkit-print-color-adjust: exact; print-color-adjust: exact;
-}
-.print-ruler .pr-bound {
-  position: absolute; left: 0; width: 7.9in; height: 0;
-  border-top: 0.8px dashed #DC2626;
-  -webkit-print-color-adjust: exact; print-color-adjust: exact;
-}
-.print-ruler .pr-bound.pr-bound-11 { border-top-style: solid; }
-.print-ruler .pr-bound span {
-  position: absolute; left: 0.26in; top: -4px;
-  font-size: 6.5px; color: #DC2626; white-space: nowrap; font-weight: bold;
-}
-.print-ruler .pr-overflow {
-  position: absolute; left: 0; top: 10.79in; width: 7.9in; height: 2.21in;
-  background: rgba(220,38,38,0.06);
-  -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 
 /* ── Screen only, all devices: make all option chips (checkbox + radio) match
@@ -1349,10 +1273,6 @@ body.dark-mode .action-bar {
     || (navigator.platform === 'MacIntel' && mtp > 1)
     || (/Macintosh/.test(ua) && mtp > 1);
 
-  // Allow forcing the print ruler on for any device with ?ruler=1 (handy for
-  // previewing the scale on desktop without an iPad in hand).
-  var forceRuler = /[?&]ruler=1\b/.test(location.search);
-
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
   if (isMacOS)        html.classList.add('macos');
   if (isWindows)      html.classList.add('windows');
@@ -1362,7 +1282,6 @@ body.dark-mode .action-bar {
     html.classList.add('ipad');
     html.classList.remove('macos');   // iPad is NOT a desktop Mac for print
   }
-  if (forceRuler)     html.classList.add('ruler-force');
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
@@ -1374,7 +1293,6 @@ body.dark-mode .action-bar {
       document.body.classList.add('ipad');
       document.body.classList.remove('macos');
     }
-    if (forceRuler)     document.body.classList.add('ruler-force');
   }
   if (document.body) applyToBody();
   else document.addEventListener('DOMContentLoaded', applyToBody);
@@ -2925,42 +2843,6 @@ function adjustTopPadding() {
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load',   adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
-</script>
-
-<script>
-/* ── Build the vertical scale ruler (diagnostic) ──────────────────────────
-   Injects an inch ruler into #page. CSS above decides when it actually shows
-   (iPad in print, or any device with ?ruler=1). Safe no-op everywhere else. */
-(function buildPrintRuler() {
-  function build() {
-    var page = document.getElementById('page');
-    if (!page || page.querySelector('.print-ruler')) return;
-
-    var ruler = document.createElement('div');
-    ruler.className = 'print-ruler';
-    ruler.setAttribute('aria-hidden', 'true');
-
-    var parts = [];
-    var TOTAL_QUARTERS = 13 * 4;            // 0 .. 13 inches in 1/4" steps
-    for (var i = 0; i <= TOTAL_QUARTERS; i++) {
-      var inch = i / 4;
-      var cls = (i % 4 === 0) ? 'pr-major' : (i % 2 === 0) ? 'pr-half' : 'pr-minor';
-      parts.push('<div class="pr-tick ' + cls + '" style="top:' + inch + 'in"></div>');
-      if (i % 4 === 0) {
-        parts.push('<div class="pr-label" style="top:' + inch + 'in">' + inch + '"</div>');
-      }
-    }
-    // Overflow wash + the two page-boundary markers.
-    parts.push('<div class="pr-overflow"></div>');
-    parts.push('<div class="pr-bound" style="top:10.79in"><span>page&nbsp;1 end \u2248 10.8"</span></div>');
-    parts.push('<div class="pr-bound pr-bound-11" style="top:11in"><span>11" (sheet)</span></div>');
-
-    ruler.innerHTML = parts.join('');
-    page.appendChild(ruler);
-  }
-  if (document.getElementById('page')) build();
-  else document.addEventListener('DOMContentLoaded', build);
-})();
 </script>
 
 </body>
