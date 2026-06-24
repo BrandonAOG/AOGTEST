@@ -1191,7 +1191,10 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 
 @media print {
   html { font-size: var(--fs-print-phone-base) !important; }
-  @page { size: 8.5in 11in; margin: 0; }
+  /* ~8px (0.083in = 8/96) symmetric paper margin → content prints centered with an even
+     gap on every side. Replaces the old per-side .page padding hack. Desktop overrides this
+     to 0.2in via the injected #desktop-page-margin <style> in printForm(). */
+  @page { size: 8.5in 11in; margin: 0.083in; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; animation-play-state: paused !important; transition: none !important; }
   .toolbar, .action-bar, #save-status, #theme-toggle-btn, #offline-banner, #address-suggestions, #gps-status, #gps-btn { display: none !important; }
   .header::after { display: none !important; }
@@ -1201,7 +1204,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
      dialog the page may overflow width; default scaling fits it.) */
   html { margin: 0 !important; padding: 0 !important; }
   body { margin: 0 auto !important; padding: 0 !important; width: 1050px !important; max-width: none !important; background: #ffffff !important; background-image: none !important; color: #1F2937 !important; --icon-color-section: #FA6700 !important; --cyan: #FA6700 !important; }
-  .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; padding-top: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: visible !important; background: #ffffff !important; border: 1.5pt solid #FA6700 !important; box-shadow: none !important; position: static !important; outline: none !important; }
+  .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 auto !important; padding: 0 !important; padding-top: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: visible !important; background: #ffffff !important; border: 1.5pt solid #FA6700 !important; box-shadow: none !important; position: static !important; outline: none !important; }
   .content { flex: 1 !important; min-height: 0 !important; overflow: visible !important; padding: var(--pd-print-phone-content) !important; padding-bottom: var(--pb-content-print-phone) !important; background: #ffffff !important; display: flex !important; flex-direction: column !important; gap: 0 !important; justify-content: space-between !important; height: 0 !important; }
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none !important; }
   .header { background: #ffffff !important; border-bottom: 1px solid #FA6700 !important; padding: var(--pd-print-phone-header) !important; min-height: auto !important; height: auto !important; display: flex !important; align-items: center !important; justify-content: space-between !important; flex-shrink: 0 !important; }
@@ -3525,45 +3528,9 @@ function capturePageToCanvas(_fontsReady) {
       var fs = document.getElementById('capture-force-style'); if (fs) fs.remove();
     };
 
-    // ── Grow textareas on the LIVE DOM to fit their content at the capture
-    //    font size. The onclone step replaces each textarea with a wrapping
-    //    <div> at (fontSize + 3) and white-space:pre-wrap, which can render
-    //    TALLER than the live textarea — but page.scrollHeight is measured on
-    //    the live DOM, so that extra height was never counted and html2canvas
-    //    clipped the bottom. By expanding the live textareas to the same size
-    //    here, page.scrollHeight becomes an honest measurement on every device.
-    //    Reverted automatically via _captureTweaks in restore(). ──
-    page.querySelectorAll('textarea').forEach(function(ta) {
-      _tweak(ta, function(e) {
-        var cs = window.getComputedStyle(e);
-        // Match the clone's font growth so wrapping/height line up.
-        e.style.setProperty('font-size', (parseFloat(cs.fontSize) + 3) + 'px', 'important');
-        e.style.setProperty('white-space', 'pre-wrap', 'important');
-        e.style.setProperty('word-wrap', 'break-word', 'important');
-        e.style.setProperty('overflow-wrap', 'break-word', 'important');
-        e.style.setProperty('overflow', 'hidden', 'important');
-        e.style.setProperty('box-sizing', 'border-box', 'important');
-        // Collapse to 0 first so scrollHeight reflects true content height,
-        // not a previously-set larger box.
-        e.style.setProperty('height', 'auto', 'important');
-        e.style.setProperty('max-height', 'none', 'important');
-        e.style.setProperty('min-height', '0', 'important');
-        // Now read the content height at the capture font size and lock it in.
-        var h = e.scrollHeight;
-        e.style.setProperty('height', h + 'px', 'important');
-        e.style.setProperty('min-height', h + 'px', 'important');
-      });
-    });
-    // Flush layout so the expanded textareas are reflected before measuring.
-    void document.body.offsetHeight;
-
     Promise.all(_iconPromises).then(function() {
     requestAnimationFrame(function() { requestAnimationFrame(function() {
-      // +24px safety margin guards against sub-pixel rounding differences in
-      // scrollHeight across device pixel ratios (a common cause of 1–2px
-      // bottom clipping). The page background is white so the extra strip is
-      // invisible.
-      var CAPTURE_H = Math.max(page.scrollHeight, PAPER_H) + 24;
+      var CAPTURE_H = Math.max(page.scrollHeight, PAPER_H);
       try {
         html2canvas(page, {
           scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false, imageTimeout: 15000,
@@ -3598,7 +3565,7 @@ function capturePageToCanvas(_fontsReady) {
               div.style.cssText = [
                 'width:'          + computed.width,
                 'min-height:'     + computed.height,
-                'height:auto',
+                'height:'         + computed.height,
                 'max-height:'     + computed.maxHeight,
                 'padding:'        + computed.padding,
                 // Shift text up a bit so the larger font doesn't clip at the bottom.
@@ -3611,9 +3578,7 @@ function capturePageToCanvas(_fontsReady) {
                 'border-radius:'  + computed.borderRadius,
                 'box-sizing:'     + computed.boxSizing,
                 'font-family:'    + computed.fontFamily,
-                // Live textarea already carries the capture font size, so use it
-                // as-is — do NOT add +3 again or it double-grows and overflows.
-                'font-size:'      + computed.fontSize,
+                'font-size:'      + (parseFloat(computed.fontSize) + 3) + 'px',
                 'font-weight:'    + computed.fontWeight,
                 'line-height:'    + computed.lineHeight,
                 'color:'          + computed.color,
