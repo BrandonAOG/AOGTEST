@@ -2338,10 +2338,9 @@ function openPrintPreview() {
         window.addEventListener('touchstart',  _onInteract, true);
         window.addEventListener('click',       _onInteract, true);
         // Fallback so the form can never get stuck in the print/light state if
-        // no touch ever arrives. iPad: 45s. (iPhone keeps waiting for touch.)
-        if (isIPad) {
-          _safety = setTimeout(function() { _tryRestore(0); }, 45000);
-        }
+        // no touch ever arrives. Touch still restores instantly if it comes
+        // first; otherwise this 60s timer restores for both iPhone and iPad.
+        _safety = setTimeout(function() { _tryRestore(0); }, 60000);
       } else {
         _tryRestore(300);
       }
