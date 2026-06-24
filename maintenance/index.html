@@ -1018,7 +1018,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   #tsnotes  { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
   /* Sim "Explain why" box: was missing a fixed height, so Safari printed it
      short and clipped the top line. Give it a real height + top alignment. */
-  #simperfnotes { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; vertical-align: top !important; padding-top: 3px !important; line-height: 1.15 !important; box-sizing: border-box !important; }
+  #simperfnotes { height: 46px !important; min-height: 46px !important; max-height: 46px !important; overflow: hidden !important; vertical-align: top !important; padding-top: 6px !important; line-height: 1.15 !important; box-sizing: border-box !important; }
   body.mobile-safari #simperfnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; }
   #sim-body-collapsed .test-item { align-items: flex-start !important; }
 
@@ -1102,8 +1102,8 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   /* Mobile prints the 820px layout scaled down to fit, shrinking controls.
      Bump them back up so they read the same size as desktop print. */
   body.mobile-safari .check-item input[type="checkbox"], body.mobile-safari .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
-  body.mobile-safari .yn-group { height: 19px !important; }
-  body.mobile-safari .yn-group .yn-label { min-height: 19px !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; }
+  body.mobile-safari .yn-group { height: 19px !important; align-items: center !important; box-sizing: border-box !important; }
+  body.mobile-safari .yn-group .yn-label { height: 17px !important; min-height: 0 !important; max-height: 17px !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; }
   body.mobile-safari .check-item span, body.mobile-safari .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   body.mobile-safari label { font-size: calc(0.66rem + 0.3px) !important; }
   /* Trim vertical spacing on mobile so everything + footer fits one page */
@@ -1111,6 +1111,9 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-safari .two-column { margin-bottom: 0 !important; gap: 2px !important; }
   body.mobile-safari .two-column + .section { margin-top: 0 !important; }
   body.mobile-safari .field-row { margin-bottom: 2.5px !important; }
+  /* +6mm total spread evenly across the 18 rows from Battery to the top of
+     Transfer Switch: each in-range row gets ~1.25px extra (3.75px total). */
+  body.mobile-safari .vrows-print .field-row { margin-bottom: 3.75px !important; }
   body.mobile-safari .section-body { padding: 1.5px 6px !important; }
   body.mobile-safari .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 3px !important; }
   body.mobile-safari #gas-top-row, body.mobile-safari #oil-top-row { gap: 16px !important; }
@@ -1186,8 +1189,8 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 
   /* Keep control + label sizes readable (match desktop apparent size) */
   html.ipad .check-item input[type="checkbox"], html.ipad .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
-  html.ipad .yn-group { height: 19px !important; min-height: 19px !important; max-height: 19px !important; }
-  html.ipad .yn-group .yn-label { height: 19px !important; min-height: 0 !important; max-height: 19px !important; line-height: 1 !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; }
+  html.ipad .yn-group { height: 19px !important; min-height: 19px !important; max-height: 19px !important; align-items: center !important; box-sizing: border-box !important; }
+  html.ipad .yn-group .yn-label { height: 17px !important; min-height: 0 !important; max-height: 17px !important; line-height: 1 !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; }
   html.ipad .check-item span, html.ipad .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   html.ipad label { font-size: calc(0.66rem + 0.3px) !important; }
 
@@ -1394,7 +1397,7 @@ body.dark-mode .action-bar {
 
     <!-- Battery & Generator -->
     <div class="two-column">
-      <div class="section">
+      <div class="section vrows-print">
         <div class="section-header">Battery</div>
         <div class="section-body">
           <div class="field-row">
@@ -1449,7 +1452,7 @@ body.dark-mode .action-bar {
         </div>
       </div>
 
-      <div class="section">
+      <div class="section vrows-print">
         <div class="section-header">Generator</div>
         <div class="section-body">
           <div class="field-row">
@@ -1520,7 +1523,7 @@ body.dark-mode .action-bar {
     </div>
 
     <!-- Oil & Filters -->
-    <div class="section">
+    <div class="section vrows-print">
       <div class="section-header">Oil & Filters</div>
       <div class="section-body">
         <div class="field-row" id="oil-top-row" style="justify-content:flex-start;gap:36px;flex-wrap:wrap;">
@@ -1550,7 +1553,7 @@ body.dark-mode .action-bar {
     </div>
 
     <!-- Simulated Outage Test -->
-    <div class="section" id="sim-section">
+    <div class="section vrows-print" id="sim-section">
       <div class="section-header section-header-toggle" id="sim-header" role="button" tabindex="0" title="Tap to switch view">
         <span id="sim-header-text">Simulated Power Test</span>
         <span class="section-toggle-hint" aria-hidden="true">tap</span>
@@ -1623,7 +1626,7 @@ body.dark-mode .action-bar {
     </div>
 
     <!-- Gas System -->
-    <div class="section">
+    <div class="section vrows-print">
       <div class="section-header">Gas System</div>
       <div class="section-body">
         <div class="field-row" id="gas-top-row" style="justify-content:flex-start;gap:36px;flex-wrap:wrap;">
@@ -2020,7 +2023,7 @@ function openPrintPreview() {
     // .field-row
     document.querySelectorAll('.field-row').forEach(function(el) {
       _snap(el, 'display',       'flex');
-      _snap(el, 'marginBottom',  '2.5px');
+      _snap(el, 'marginBottom',  (el.closest && el.closest('.vrows-print')) ? '3.75px' : '2.5px');
       _snap(el, 'gap',           '3px');
     });
 
@@ -2054,8 +2057,9 @@ function openPrintPreview() {
     });
 
     // Power test notes: applied AFTER the general loop so these win.
-    // Top-anchor the text and reserve top padding so the first line isn't
-    // clipped, while matching the gas notes box height (34px) on iPhone print.
+    // Give the box enough height to actually show its two lines — at the print
+    // font size a 34px box can't fit two lines, so WebKit scrolls the first
+    // line out of view (clipping the top). 46px fits both lines; top-anchored.
     (function() {
       var sp = document.getElementById('simperfnotes');
       if (sp) {
@@ -2063,13 +2067,11 @@ function openPrintPreview() {
         _snap(sp, 'minHeight',  '34px');
         _snap(sp, 'maxHeight',  '34px');
         _snap(sp, 'overflow',   'hidden');
-        _snap(sp, 'padding',    '3px 2px 0 2px');
+        _snap(sp, 'padding',    '6px 2px 0 2px');
         _snap(sp, 'lineHeight', '1.15');
         _snap(sp, 'boxSizing',  'border-box');
         _snap(sp, 'verticalAlign', 'top');
-        // WebKit prints an overflowing textarea scrolled to its last lines,
-        // pushing the first line out of view. Force scroll to the top so the
-        // first line always shows.
+        // Belt-and-suspenders: also reset scroll to the top.
         try { sp.scrollTop = 0; } catch (e) {}
       }
     })();
@@ -2112,11 +2114,13 @@ function openPrintPreview() {
       _snap(el, 'background', 'white');
       _snap(el, 'border',     '0.5px solid #D97706');
       _snap(el, 'display',    'inline-flex');
+      _snap(el, 'alignItems', 'center');
+      _snap(el, 'boxSizing',  'border-box');
     });
     document.querySelectorAll('.yn-group .yn-label').forEach(function(el) {
-      _snap(el, 'height',    '19px');
+      _snap(el, 'height',    '17px');
       _snap(el, 'minHeight', '0');
-      _snap(el, 'maxHeight', '19px');
+      _snap(el, 'maxHeight', '17px');
       _snap(el, 'lineHeight','1');
       _snap(el, 'fontSize',  'calc(0.72rem - 0.7px)');
       _snap(el, 'padding',   '0 7px');
