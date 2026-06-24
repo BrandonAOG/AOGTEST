@@ -2253,6 +2253,19 @@ function capturePageToCanvas() {
     const logoImg     = page.querySelector('.logo-img');
     const logoOrigSrc = logoImg ? logoImg.getAttribute('src') : null;
 
+    // Format an ISO date value (YYYY-MM-DD) the same way Safari shows it
+    // natively ("Jun 21, 2026"). Parsed manually (not via new Date) so the
+    // day never shifts due to UTC/timezone. Used by html2canvas onclone below,
+    // because html2canvas paints date-input segments year-first on Safari.
+    function _fmtCaptureDate(v) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+      if (!m) return v || '';
+      var mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var mi = parseInt(m[2], 10) - 1, d = parseInt(m[3], 10), y = m[1];
+      if (mi < 0 || mi > 11 || !d) return v;
+      return mons[mi] + ' ' + d + ', ' + y;
+    }
+
     // Desktop captures at the original 820px layout width. Mobile stretches a
     // bit wider so the layout has room, and bumps the root font (below, in the
     // force-style) so the content isn't too small in the mobile image.
@@ -2483,7 +2496,32 @@ function capturePageToCanvas() {
               el.classList.contains('section-toggle-hint') ||
               el.id === 'action-bar'                   ||
               el.id === 'save-status'                  ||
-              el.classList.contains('theme-toggle-btn')
+              el.classList.contains('theme-toggle-btn'),
+            onclone: function (clonedDoc) {
+              // html2canvas paints <input type="date"> segments year-first on
+              // Safari ("2026 06 21"). Replace it in the CLONE only with a span
+              // showing the nicely formatted value, styled to match the input.
+              try {
+                var _live = document.getElementById('date');
+                var _cd   = clonedDoc.getElementById('date');
+                if (_live && _cd && _live.value) {
+                  var _cs = window.getComputedStyle(_live);
+                  var _sp = clonedDoc.createElement('span');
+                  _sp.textContent = _fmtCaptureDate(_live.value);
+                  ['fontFamily','fontSize','fontWeight','fontStyle','letterSpacing',
+                   'color','lineHeight','textAlign','paddingTop','paddingRight',
+                   'paddingBottom','paddingLeft','borderBottomStyle','borderBottomWidth',
+                   'borderBottomColor','height','minHeight','width','minWidth',
+                   'boxSizing','flexGrow','flexShrink','flexBasis'
+                  ].forEach(function (p) { try { _sp.style[p] = _cs[p]; } catch (e) {} });
+                  _sp.style.display    = 'inline-flex';
+                  _sp.style.alignItems = 'center';
+                  _sp.style.whiteSpace = 'nowrap';
+                  _sp.style.overflow   = 'hidden';
+                  if (_cd.parentNode) _cd.parentNode.replaceChild(_sp, _cd);
+                }
+              } catch (e) {}
+            }
           }).then(srcCanvas => {
             restoreCapture();
 
