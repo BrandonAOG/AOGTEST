@@ -394,15 +394,10 @@ body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00F
   }
   /* Override the inline widths on Tech/Model/Serial/Hrs and the date cap */
   #cust-info-body #tech, #cust-info-body #model, #cust-info-body #serial,
-  #cust-info-body #hours {
+  #cust-info-body #hours, #cust-info-body #date, #cust-info-body #name,
+  #cust-info-body #number {
     width: auto !important; max-width: none !important; flex: 1 1 calc(100% - 80px) !important;
   }
-  /* Keep Name / Job# / Date together on the top row even on mobile */
-  #name-job-date-row { flex-wrap: nowrap !important; column-gap: 4px !important; }
-  #name-job-date-row label { flex: 0 0 auto !important; width: auto !important; }
-  #name-job-date-row #name   { flex: 2 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }
-  #name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }
-  #name-job-date-row #date   { flex: 1 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }
   /* Model / Serial # / Hrs each get their own full-width row on mobile so
      the inputs are wide enough to tap and type into. (screen only — print unaffected) */
   #model-serial-hrs-row {
@@ -1919,6 +1914,12 @@ function openPrintPreview() {
     _snapshots.push({ el: el, attr: attr, was: el.getAttribute(attr) });
     el.setAttribute(attr, val);
   }
+  // Like _snap, but sets the CSS property with !important so it can beat
+  // existing !important rules (e.g. the mobile screen layout) during capture.
+  function _snapImp(el, cssProp, val) {
+    _snapshots.push({ el: el, cssProp: cssProp, wasVal: el.style.getPropertyValue(cssProp), wasPri: el.style.getPropertyPriority(cssProp) });
+    el.style.setProperty(cssProp, val, 'important');
+  }
 
   // ── RESTORE function ──
   function restore() {
@@ -1933,6 +1934,9 @@ function openPrintPreview() {
       if (s.attr) {
         if (s.was === null) s.el.removeAttribute(s.attr);
         else s.el.setAttribute(s.attr, s.was);
+      } else if (s.cssProp) {
+        s.el.style.removeProperty(s.cssProp);
+        if (s.wasVal) s.el.style.setProperty(s.cssProp, s.wasVal, s.wasPri);
       } else {
         s.el.style[s.prop] = s.was;
       }
@@ -2240,13 +2244,13 @@ function openPrintPreview() {
     // name-job-date row
     var njd = document.getElementById('name-job-date-row');
     if (njd) {
-      _snap(njd, 'flexWrap', 'nowrap');
+      _snapImp(njd, 'flex-wrap', 'nowrap');
       var nameEl = document.getElementById('name');
       var numEl  = document.getElementById('number');
       var dateEl = document.getElementById('date');
-      if (nameEl) { _snap(nameEl, 'flex', '1 1 0'); _snap(nameEl, 'width', 'auto'); _snap(nameEl, 'minWidth', '0'); }
-      if (numEl)  { _snap(numEl,  'flex', '1 1 0'); _snap(numEl,  'width', 'auto'); _snap(numEl,  'minWidth', '0'); }
-      if (dateEl) { _snap(dateEl, 'flex', '0 0 100px'); _snap(dateEl, 'width', '100px'); _snap(dateEl, 'minWidth', '100px'); }
+      if (nameEl) { _snapImp(nameEl, 'flex', '2 1 0'); _snapImp(nameEl, 'width', 'auto'); _snapImp(nameEl, 'max-width', 'none'); _snapImp(nameEl, 'min-width', '0'); }
+      if (numEl)  { _snapImp(numEl,  'flex', '1 1 0'); _snapImp(numEl,  'width', 'auto'); _snapImp(numEl,  'max-width', 'none'); _snapImp(numEl,  'min-width', '0'); }
+      if (dateEl) { _snapImp(dateEl, 'flex', '0 0 100px'); _snapImp(dateEl, 'width', '100px'); _snapImp(dateEl, 'max-width', 'none'); _snapImp(dateEl, 'min-width', '100px'); }
     }
 
     // action-bar / save-status hidden
