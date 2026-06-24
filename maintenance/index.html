@@ -1857,6 +1857,7 @@ function clearForm() {
 function openPrintPreview() {
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var isMobileChrome = document.body.classList.contains('mobile-chrome');
+  var isIPad         = document.body.classList.contains('ipad');
   var isNarrowMobile = isMobileSafari || isMobileChrome;
   var wasDark        = document.body.classList.contains('dark-mode');
 
@@ -1908,7 +1909,7 @@ function openPrintPreview() {
     if (wasDark) {
       document.body.classList.add('dark-mode');
       document.documentElement.setAttribute('data-theme', 'dark');
-      if (isMobileSafari) {
+      if (isMobileSafari || isIPad) {
         if (typeof saveDraft === 'function') saveDraft();
         window.location.reload();
         return;
@@ -2243,7 +2244,6 @@ function openPrintPreview() {
     // bleeds a dark background behind the page and the late layout switch shows as
     // a reflow. Stamp the body white inline and force a reflow so the print layout
     // is locked before the dialog opens.
-    var isIPad = document.body.classList.contains('ipad');
     if (isIPad) {
       _snap(document.body, 'background', '#ffffff');
       _snap(document.documentElement, 'background', '#ffffff');
@@ -2283,16 +2283,31 @@ function openPrintPreview() {
     document.activeElement.blur();
   }
 
-  if (isNarrowMobile) {
-    // Double-rAF + timeout: lets the stamped styles reflow fully at 820px
-    // before the print dialog captures the layout.
-    requestAnimationFrame(function() {
+  if (isNarrowMobile || isIPad) {
+    // Fire the print after layout settles. iPhone/Android stamp an 820px layout
+    // and need a short settle; iPad locks its own layout via double-rAF.
+    if (isNarrowMobile) {
+      // Double-rAF + timeout: lets the stamped styles reflow fully at 820px
+      // before the print dialog captures the layout.
       requestAnimationFrame(function() {
-        setTimeout(function() {
-          window.print();
-        }, isMobileSafari ? 350 : 0);
+        requestAnimationFrame(function() {
+          setTimeout(function() {
+            window.print();
+          }, isMobileSafari ? 350 : 0);
+        });
       });
-    });
+    } else {
+      // iPad: let the inline white-stamp + dark-class removal paint before the
+      // print dialog samples the layout, otherwise it captures mid-reflow.
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { window.print(); });
+      });
+    }
+
+    // Devices that should hold the light/print layout until the user dismisses
+    // the print sheet AND touches the screen (prevents dark mode flashing back
+    // under the still-open preview). iPhone Safari and iPad both qualify.
+    var _deferRestore = (isMobileSafari || isIPad) && wasDark;
 
     // ── Restore strategy ──
     var _restored = false;
@@ -2311,7 +2326,7 @@ function openPrintPreview() {
     }
 
     function _armDeferredRestore() {
-      if (isMobileSafari && wasDark) {
+      if (_deferRestore) {
         clearTimeout(_safety);
         function _onInteract() {
           window.removeEventListener('pointerdown', _onInteract, true);
@@ -2322,6 +2337,11 @@ function openPrintPreview() {
         window.addEventListener('pointerdown', _onInteract, true);
         window.addEventListener('touchstart',  _onInteract, true);
         window.addEventListener('click',       _onInteract, true);
+        // Fallback so the form can never get stuck in the print/light state if
+        // no touch ever arrives. iPad: 45s. (iPhone keeps waiting for touch.)
+        if (isIPad) {
+          _safety = setTimeout(function() { _tryRestore(0); }, 45000);
+        }
       } else {
         _tryRestore(300);
       }
@@ -2340,22 +2360,16 @@ function openPrintPreview() {
     function _apHandler() { if (!_sawPrint) _tryRestore(0); }
     window.addEventListener('afterprint', _apHandler);
 
-    var _safety = (isMobileSafari && wasDark)
+    // Safety net before the print dialog is ever seen. Devices that defer the
+    // restore start with no pre-print timer (the deferred path arms its own).
+    var _safety = _deferRestore
       ? null
       : setTimeout(function() { _tryRestore(0); }, 30000);
 
   } else {
-    // Desktop / iPad print
+    // Desktop print
     window.addEventListener('afterprint', restore);
-    if (document.body.classList.contains('ipad')) {
-      // iPad: let the inline white-stamp + dark-class removal paint before the
-      // print dialog samples the layout, otherwise it captures mid-reflow.
-      requestAnimationFrame(function() {
-        requestAnimationFrame(function() { window.print(); });
-      });
-    } else {
-      window.print();
-    }
+    window.print();
   }
 }
 
