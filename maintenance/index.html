@@ -128,20 +128,6 @@ body.dark-mode::before {
   overflow-x: hidden;
 }
 
-/* Vertical print ruler — hidden by default; only revealed on iPhone print
-   (see the body.mobile-safari @media print block). Lets you eyeball vertical
-   spacing in mm against the actual printed page. */
-.print-ruler { display: none; }
-.print-ruler span {
-  position: absolute;
-  left: 0;
-  font-size: 6px;
-  line-height: 1;
-  color: #DC2626;
-  font-family: Arial, sans-serif;
-  transform: translateY(-50%);
-}
-
 body.dark-mode .page {
   background: linear-gradient(135deg,rgba(15,21,53,0.95) 0%,rgba(10,14,39,0.98) 100%);
   border-color: #00FFC8;
@@ -1105,34 +1091,6 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    change with screen scale). */
 @media print {
   body.mobile-safari .page { padding: 4px 3px 0 3px !important; min-height: 0 !important; height: auto !important; margin-top: 0 !important; margin-bottom: 0 !important; }
-  /* Vertical mm ruler down the left edge — iPhone print only. Tick bands every
-     1mm (faint) with bolder lines at 5mm and 10mm; numeric labels every 10mm.
-     position:absolute against the relative .page; does not affect layout flow. */
-  body.mobile-safari .print-ruler {
-    display: block !important;
-    position: absolute !important;
-    top: 0 !important; left: 0 !important;
-    width: 9px !important; height: 100% !important;
-    z-index: 9999 !important;
-    pointer-events: none !important;
-    border-right: 0.4px solid rgba(220,38,38,0.5) !important;
-    background-image:
-      repeating-linear-gradient(to bottom, rgba(220,38,38,0.9) 0, rgba(220,38,38,0.9) 0.3px, transparent 0.3px, transparent 10mm),
-      repeating-linear-gradient(to bottom, rgba(220,38,38,0.6) 0, rgba(220,38,38,0.6) 0.25px, transparent 0.25px, transparent 5mm),
-      repeating-linear-gradient(to bottom, rgba(220,38,38,0.3) 0, rgba(220,38,38,0.3) 0.2px, transparent 0.2px, transparent 1mm) !important;
-    background-position: left top !important;
-    background-repeat: repeat-y !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  body.mobile-safari .print-ruler span {
-    display: block !important;
-    left: 10px !important;
-    color: #DC2626 !important; -webkit-text-fill-color: #DC2626 !important;
-    font-size: 6px !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  /* Nudge content right a hair so the ruler doesn't overlap the page border/text. */
-  body.mobile-safari .content { padding-left: 12px !important; }
   body.mobile-safari .footer { margin-top: 0 !important; margin-bottom: 0 !important; padding-bottom: 0 !important; }
   body.mobile-safari .two-column { grid-template-columns: 1fr 1fr !important; }
   body.mobile-safari .field-row-nowrap { flex-wrap: nowrap !important; }
@@ -1383,36 +1341,6 @@ body.dark-mode .action-bar {
 </script>
 
 <div class="page" id="page">
-  <div class="print-ruler" aria-hidden="true">
-    <span style="top:0mm">0</span>
-    <span style="top:10mm">1</span>
-    <span style="top:20mm">2</span>
-    <span style="top:30mm">3</span>
-    <span style="top:40mm">4</span>
-    <span style="top:50mm">5</span>
-    <span style="top:60mm">6</span>
-    <span style="top:70mm">7</span>
-    <span style="top:80mm">8</span>
-    <span style="top:90mm">9</span>
-    <span style="top:100mm">10</span>
-    <span style="top:110mm">11</span>
-    <span style="top:120mm">12</span>
-    <span style="top:130mm">13</span>
-    <span style="top:140mm">14</span>
-    <span style="top:150mm">15</span>
-    <span style="top:160mm">16</span>
-    <span style="top:170mm">17</span>
-    <span style="top:180mm">18</span>
-    <span style="top:190mm">19</span>
-    <span style="top:200mm">20</span>
-    <span style="top:210mm">21</span>
-    <span style="top:220mm">22</span>
-    <span style="top:230mm">23</span>
-    <span style="top:240mm">24</span>
-    <span style="top:250mm">25</span>
-    <span style="top:260mm">26</span>
-    <span style="top:270mm">27</span>
-  </div>
   <div class="header">
     <div class="header-logo" style="padding-left:30px;">
       <img src="../logo.png" alt="logo" width="40" height="40" class="logo-img">
@@ -2049,7 +1977,7 @@ function openPrintPreview() {
     if (content) {
       _snap(content, 'display',   'block');
       _snap(content, 'overflow',  'visible');
-      _snap(content, 'padding',   '3px 0 0 12px');
+      _snap(content, 'padding',   '3px 0 0 0');
       _snap(content, 'margin',    '0');
     }
 
