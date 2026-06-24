@@ -836,6 +836,14 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
     background: #ffffff !important; color: #1F2937 !important;
     color-scheme: light !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
+  /* The dark theme paints a fixed full-viewport gradient via body.dark-mode::before.
+     A pseudo-element is NOT matched by the `body.dark-mode *` rule below, so without
+     this it survives into print and bleeds a dark background behind the page
+     (most visible on iPad). Neutralize it explicitly. */
+  body.dark-mode::before, body.dark-mode::after,
+  html.dark-mode-pending body::before, html.dark-mode-pending body::after {
+    display: none !important; background: #ffffff !important; content: none !important;
+  }
   body.dark-mode *, html.dark-mode-pending body * {
     background: #ffffff !important; background-color: #ffffff !important;
     color: #1F2937 !important; -webkit-text-fill-color: #1F2937 !important;
@@ -2160,7 +2168,7 @@ function openPrintPreview() {
       vp.setAttribute('content', 'width=820, initial-scale=1');
     }
   } else {
-    // Desktop — just stamp compName/docTitle colors as before
+    // Desktop / iPad — stamp accent colors as before
     var compName = document.querySelector('.company-name');
     var docTitle = document.querySelector('.doc-title');
     if (compName) _snapAttr(compName, 'style', 'color:#D97706!important;text-shadow:none!important;');
@@ -2168,6 +2176,19 @@ function openPrintPreview() {
     document.querySelectorAll('.footer-text, .footer span').forEach(function(el) {
       _snapAttr(el, 'style', 'color:#9CA3AF!important;text-shadow:none!important;');
     });
+
+    // iPad: the dark theme's fixed full-viewport gradient (body.dark-mode::before)
+    // is painted by a pseudo-element the @media print `*` rules can't reach, so it
+    // bleeds a dark background behind the page and the late layout switch shows as
+    // a reflow. Stamp the body white inline and force a reflow so the print layout
+    // is locked before the dialog opens.
+    var isIPad = document.body.classList.contains('ipad');
+    if (isIPad) {
+      _snap(document.body, 'background', '#ffffff');
+      _snap(document.documentElement, 'background', '#ffffff');
+      var _pg = document.getElementById('page');
+      if (_pg) void _pg.getBoundingClientRect();
+    }
   }
 
   // ── Inject force-print-light (dark mode only, colors only — layout already stamped) ──
@@ -2184,6 +2205,7 @@ function openPrintPreview() {
       '  .section-header, .section-header * { color:#D97706!important; background:#f5f5f5!important; }',
       '  .section-header::before { background:#D97706!important; }',
       '  html,body { background:white!important; }',
+      '  body.dark-mode::before, body.dark-mode::after { display:none!important; content:none!important; background:white!important; }',
       '  .page { border:1.5pt solid #D97706!important;background:white!important; }',
       '  .company-name { color:#D97706!important; }',
       '  .doc-title { color:#D97706!important; }',
@@ -2262,9 +2284,17 @@ function openPrintPreview() {
       : setTimeout(function() { _tryRestore(0); }, 30000);
 
   } else {
-    // Desktop print
+    // Desktop / iPad print
     window.addEventListener('afterprint', restore);
-    window.print();
+    if (document.body.classList.contains('ipad')) {
+      // iPad: let the inline white-stamp + dark-class removal paint before the
+      // print dialog samples the layout, otherwise it captures mid-reflow.
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { window.print(); });
+      });
+    } else {
+      window.print();
+    }
   }
 }
 
