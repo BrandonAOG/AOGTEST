@@ -115,8 +115,16 @@ html.ipad .page {
    layer from the scrolling page, making borders appear to "stick" while the
    page rubber-bands. Pin the gradient to its own GPU layer and keep the action
    bar on one too so they don't fight the scroll layer. */
-html.ipad body.dark-mode::before { transform: translateZ(0); will-change: transform; }
-html.ipad .action-bar { transform: translateZ(0); will-change: transform; }
+/* iPadOS fix for "sticking" borders: a position:fixed full-viewport layer
+   (body.dark-mode::before) desyncs from the scrolling page during fast scroll,
+   so the page border appears to stick while content rubber-bands. On iPad,
+   kill that fixed layer and paint the gradient directly on the (scrolling)
+   body instead — one layer, nothing to desync. */
+html.ipad body.dark-mode::before { display: none !important; content: none !important; }
+html.ipad body.dark-mode {
+  background: linear-gradient(135deg,#0A0E27 0%,#0F1535 25%,#0A1628 50%,#0F1535 75%,#0A0E27 100%) !important;
+  background-attachment: scroll !important;
+}
 
 body.dark-mode {
   background: #0A0E27;
