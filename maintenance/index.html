@@ -2079,9 +2079,26 @@ function openPrintPreview() {
       _snap(el, 'height',    '12px');
       _snap(el, 'minWidth',  '12px');
       _snap(el, 'minHeight', '12px');
+      if (el.checked) _snap(el, 'accentColor', '#D97706');
     });
     document.querySelectorAll('.check-item span, .opt span').forEach(function(el) {
       _snap(el, 'fontSize', 'calc(0.66rem + 0.3px)');
+      // If this span's check-item is selected, stamp the amber/bold emphasis
+      // inline so it survives the reflow (matches the @media print :checked rule).
+      var ci = el.closest && el.closest('.check-item');
+      if (ci && ci.querySelector('input:checked')) {
+        _snap(el, 'color', '#D97706');
+        _snap(el, 'webkitTextFillColor', '#D97706');
+        _snap(el, 'fontWeight', 'bold');
+      }
+    });
+    // Stamp the selected outline on checked check-items themselves.
+    document.querySelectorAll('.check-item').forEach(function(el) {
+      if (el.querySelector('input:checked')) {
+        _snap(el, 'outline',     '1.5px solid #D97706');
+        _snap(el, 'borderColor',  '#D97706');
+        _snap(el, 'background',    'transparent');
+      }
     });
 
     // .yn-group sizing — must match the per-device @media print CSS
@@ -2102,14 +2119,36 @@ function openPrintPreview() {
       _snap(el, 'lineHeight','1');
       _snap(el, 'fontSize',  'calc(0.72rem - 0.7px)');
       _snap(el, 'padding',   '0 7px');
-      _snap(el, 'background','white');
-      _snap(el, 'color',     '#6B7280');
       _snap(el, 'display',   'flex');
       _snap(el, 'alignItems','center');
+      // The radio that controls this label sits immediately before it.
+      // Stamp the SELECTED colors inline so the green/red fill survives the
+      // reflow — otherwise the flat white/gray below would override the
+      // @media print :checked rule (inline always wins).
+      var radio = el.previousElementSibling;
+      var on = radio && radio.tagName === 'INPUT' && radio.checked;
+      if (on && el.classList.contains('yn-label-y')) {
+        _snap(el, 'background', '#059669');
+        _snap(el, 'color', '#fff');
+        _snap(el, 'webkitTextFillColor', '#fff');
+      } else if (on && el.classList.contains('yn-label-n')) {
+        _snap(el, 'background', '#DC2626');
+        _snap(el, 'color', '#fff');
+        _snap(el, 'webkitTextFillColor', '#fff');
+      } else {
+        _snap(el, 'background', 'white');
+        _snap(el, 'color',      '#6B7280');
+      }
     });
 
     // labels
     document.querySelectorAll('label').forEach(function(el) {
+      // Skip Y/N pill labels (their selected colors were stamped above) and any
+      // label belonging to a checked .check-item — graying these would wipe the
+      // selected-state emphasis after the reflow.
+      if (el.classList.contains('yn-label')) return;
+      var ci = el.closest && el.closest('.check-item');
+      if (ci && ci.querySelector('input:checked')) return;
       _snap(el, 'color',    '#6B7280');
       _snap(el, 'fontSize', 'calc(0.66rem + 0.3px)');
     });
