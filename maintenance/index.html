@@ -1131,10 +1131,10 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
     min-height: 0 !important; height: auto !important;
     border: 1.5px solid #D97706 !important;
   }
-  html.ipad .footer { margin-top: 4px !important; margin-bottom: 0 !important; padding-bottom: 1px !important; }
+  html.ipad .footer { margin-top: 0 !important; margin-bottom: 0 !important; padding-bottom: 0 !important; }
 
   /* Two-column layout + non-wrapping field rows (same intent as iPhone) */
-  html.ipad .two-column { grid-template-columns: 1fr 1fr !important; margin-bottom: 1px !important; gap: 2px !important; }
+  html.ipad .two-column { grid-template-columns: 1fr 1fr !important; margin-bottom: 0 !important; gap: 2px !important; }
   html.ipad .field-row-nowrap { flex-wrap: nowrap !important; }
   html.ipad #name { flex: 0 1 50% !important; min-width: 0 !important; }
   html.ipad #date, html.ipad #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
@@ -1151,11 +1151,12 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ipad .check-item span, html.ipad .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   html.ipad label { font-size: calc(0.66rem + 0.3px) !important; }
 
-  /* Vertical spacing — trimmed so the form + footer aim for one page */
-  html.ipad .section { margin-bottom: 1px !important; }
+  /* Vertical spacing — matched to the iPhone reference (mobile-safari) */
+  html.ipad .section { margin-bottom: 0 !important; }
   html.ipad .two-column + .section { margin-top: 0 !important; }
   html.ipad .field-row { margin-bottom: 0.5px !important; }
   html.ipad .section-body { padding: 1.5px 6px !important; }
+  html.ipad #other-section label { font-size: calc(0.66rem - 0.2px) !important; }
 
   /* Keep tight groups on one line, like the iPhone build */
   html.ipad .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 3px !important; }
@@ -1210,9 +1211,11 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
     font-family: Arial, Helvetica, sans-serif;
     -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
-  /* Push page content right so the ruler never overlaps text */
+  /* Anchor the ruler to the page without shifting content sideways, so the
+     iPad's horizontal layout stays identical to the iPhone reference. The
+     ruler floats on top; its number labels get a white chip for legibility. */
   html.ipad .page,
-  html.ruler-force .page { padding-left: 0.42in !important; position: relative !important; }
+  html.ruler-force .page { position: relative !important; }
 }
 
 /* Shared ruler tick / label / boundary styling (used by both modes above) */
@@ -1222,7 +1225,8 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 .print-ruler .pr-major { width: 0.22in; border-top: 0.7px solid #000; }
 .print-ruler .pr-label {
   position: absolute; left: 0.015in; transform: translateY(-1px);
-  font-size: 7px; line-height: 1; color: #000;
+  font-size: 7px; line-height: 1; color: #000; font-weight: bold;
+  padding: 0.5px 1px; background: rgba(255,255,255,0.85); border-radius: 1px;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 .print-ruler .pr-bound {
