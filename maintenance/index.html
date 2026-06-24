@@ -87,7 +87,6 @@ body {
   width: 100%;
   margin: 0 auto;
   padding: 0;
-  padding-top: calc(44px + env(safe-area-inset-top, 0px));
   padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
   scroll-padding-top: calc(48px + env(safe-area-inset-top, 0px));
   -webkit-text-size-adjust: 100%;
@@ -107,10 +106,6 @@ html.ipad, html.ipad body {
   min-height: 0;
   height: auto;
   -webkit-overflow-scrolling: touch;
-}
-html.ipad body {
-  /* The action bar is ~34px tall on iPad; sit the page just under it. */
-  padding-top: calc(36px + env(safe-area-inset-top, 0px));
 }
 html.ipad .page {
   min-height: 0;
@@ -183,7 +178,7 @@ body.dark-mode .page {
 .page-corner-br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
 
 @media (max-width: 768px) {
-  body { padding: 0; padding-top: calc(44px + env(safe-area-inset-top, 0px)); }
+  body { padding: 0; }
   .page { box-shadow: none; border: none; max-width: 100%; }
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none; }
   .header { flex-wrap: nowrap; gap: 6px; padding: 6px 8px; min-height: auto; justify-content: space-between; }
@@ -2441,6 +2436,7 @@ function capturePageToCanvas() {
       const prevHeight    = page.style.height;
       const prevMinHeight = page.style.minHeight;
       const prevMarginTop = page.style.marginTop;
+      const prevPaddingTop = page.style.paddingTop;
       const prevBodyPad   = document.body.style.padding;
 
       page.style.width     = CAPTURE_WIDTH + 'px';
@@ -2450,6 +2446,7 @@ function capturePageToCanvas() {
       page.style.height    = 'auto';
       page.style.minHeight = '0';
       page.style.marginTop = '0';
+      page.style.paddingTop = '0';
       document.body.style.padding = '0';
 
       const forceStyle = document.createElement('style');
@@ -2596,6 +2593,7 @@ function capturePageToCanvas() {
         page.style.height    = prevHeight;
         page.style.minHeight = prevMinHeight;
         page.style.marginTop = prevMarginTop;
+        page.style.paddingTop = prevPaddingTop;
         document.body.style.padding = prevBodyPad;
         const fs = document.getElementById('capture-force-style');
         if (fs) fs.remove();
@@ -3064,12 +3062,18 @@ function adjustTopPadding() {
   const bar    = document.getElementById('action-bar');
   const page   = document.getElementById('page');
   const status = document.getElementById('save-status');
-  if (bar && page)   page.style.marginTop = bar.offsetHeight + 'px';
-  if (bar && status) status.style.top     = bar.offsetHeight + 'px';
+  if (bar && page)   page.style.paddingTop = bar.offsetHeight + 'px';
+  if (bar && status) status.style.top      = bar.offsetHeight + 'px';
 }
 window.addEventListener('resize', adjustTopPadding);
+window.addEventListener('orientationchange', adjustTopPadding);
 window.addEventListener('load',   adjustTopPadding);
+// Re-measure after first paint and after fonts settle so the bar's final
+// height is captured (otherwise the page can sit a few px under/over the bar).
+document.addEventListener('DOMContentLoaded', adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
+setTimeout(adjustTopPadding, 500);
+if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTopPadding); }
 </script>
 
 </body>
