@@ -1191,10 +1191,61 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 
 @media print {
   html { font-size: var(--fs-print-phone-base) !important; }
-  /* ~8px (0.083in = 8/96) symmetric paper margin → content prints centered with an even
-     gap on every side. Replaces the old per-side .page padding hack. Desktop overrides this
-     to 0.2in via the injected #desktop-page-margin <style> in printForm(). */
-  @page { size: 8.5in 11in; margin: 0.083in; }
+  @page { size: 8.5in 11in; margin: 0; }
+
+  /* ════════════ mm TRIM RULERS (print only) ════════════
+     The layout is 1050px wide and gets Fit-to-Page scaled onto 8.5x11in paper.
+     In this 1050px layout coordinate space:
+       1 mm horizontal = 1050 / 215.9mm = 4.8634 px
+       1 page tall     = 1056 * (1050/816) = 1358.82 px  (the page-1 cutoff)
+       1 mm vertical   = 1358.82 / 279.4mm = 4.8634 px
+     So a 1mm grid tick = 4.8634px on BOTH axes. The rulers live inside #page
+     so they scale exactly with your content. The red PAGE 1 LIMIT line shows
+     where the printer cuts — anything below it is what you must shave. */
+  #aog-ruler-h, #aog-ruler-v, #aog-page1-limit { display: block !important; }
+}
+
+/* Rulers hidden on screen, only shown in print via the rules above */
+#aog-ruler-h, #aog-ruler-v, #aog-page1-limit { display: none; }
+
+#aog-ruler-h {
+  position: absolute; top: 0; left: 0;
+  width: 1050px; height: 24px;
+  pointer-events: none; z-index: 99990;
+  /* major tick every 10mm (48.634px), minor every 1mm (4.8634px) */
+  background-image:
+    repeating-linear-gradient(to right, #000 0 1px, transparent 1px 48.634px),
+    repeating-linear-gradient(to right, rgba(0,0,0,0.45) 0 0.5px, transparent 0.5px 4.8634px);
+  background-position: 0 0, 0 12px;
+  background-size: 48.634px 16px, 4.8634px 8px;
+  background-repeat: repeat-x, repeat-x;
+  border-bottom: 0.75px solid #000;
+}
+#aog-ruler-v {
+  position: absolute; top: 0; left: 0;
+  width: 24px; height: 1358.82px;
+  pointer-events: none; z-index: 99990;
+  background-image:
+    repeating-linear-gradient(to bottom, #000 0 1px, transparent 1px 48.634px),
+    repeating-linear-gradient(to bottom, rgba(0,0,0,0.45) 0 0.5px, transparent 0.5px 4.8634px);
+  background-position: 0 0, 12px 0;
+  background-size: 16px 48.634px, 8px 4.8634px;
+  background-repeat: repeat-y, repeat-y;
+  border-right: 0.75px solid #000;
+}
+#aog-page1-limit {
+  position: absolute; left: 0; top: 1358.82px;
+  width: 1050px; height: 0;
+  border-top: 1.5px dashed #DC2626;
+  pointer-events: none; z-index: 99991;
+}
+#aog-page1-limit::after {
+  content: "▲ PAGE 1 LIMIT (279mm) — anything below this prints on page 2";
+  position: absolute; right: 4px; top: -16px;
+  font: 700 11px/1 Arial, sans-serif; color: #DC2626;
+  background: #fff; padding: 1px 4px;
+}
+@media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; animation-play-state: paused !important; transition: none !important; }
   .toolbar, .action-bar, #save-status, #theme-toggle-btn, #offline-banner, #address-suggestions, #gps-status, #gps-btn { display: none !important; }
   .header::after { display: none !important; }
@@ -1204,7 +1255,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
      dialog the page may overflow width; default scaling fits it.) */
   html { margin: 0 !important; padding: 0 !important; }
   body { margin: 0 auto !important; padding: 0 !important; width: 1050px !important; max-width: none !important; background: #ffffff !important; background-image: none !important; color: #1F2937 !important; --icon-color-section: #FA6700 !important; --cyan: #FA6700 !important; }
-  .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 auto !important; padding: 0 !important; padding-top: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: visible !important; background: #ffffff !important; border: 1.5pt solid #FA6700 !important; box-shadow: none !important; position: static !important; outline: none !important; }
+  .page { width: 1050px !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; padding-top: 0 !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: visible !important; background: #ffffff !important; border: 1.5pt solid #FA6700 !important; box-shadow: none !important; position: relative !important; outline: none !important; }
   .content { flex: 1 !important; min-height: 0 !important; overflow: visible !important; padding: var(--pd-print-phone-content) !important; padding-bottom: var(--pb-content-print-phone) !important; background: #ffffff !important; display: flex !important; flex-direction: column !important; gap: 0 !important; justify-content: space-between !important; height: 0 !important; }
   .page::before, .page::after, .page-corner-bl, .page-corner-br { display: none !important; }
   .header { background: #ffffff !important; border-bottom: 1px solid #FA6700 !important; padding: var(--pd-print-phone-header) !important; min-height: auto !important; height: auto !important; display: flex !important; align-items: center !important; justify-content: space-between !important; flex-shrink: 0 !important; }
@@ -1913,64 +1964,6 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   html:not(.ipad-print):not(.desktop-print) .footer { margin-top: 0 !important; margin-bottom: 0 !important; padding-bottom: 0 !important; }
 }
 
-/* ============================================================================
-   LOCKED-SCALE iPad PDF (.ipad-fixed) — absolute one-page fix
-   ----------------------------------------------------------------------------
-   Problem: iOS Safari picks its OWN fit-to-page scale from the device print
-   viewport; that scale differs by iPad model/firmware, so the same layout lands
-   on 1 page on some iPads and 2 on others.
-   Fix: make the @page box EXACTLY the Letter pixel size (816x1056 @96dpi) and
-   apply a single deterministic transform we control (816/1050 = 0.77714) to the
-   1050px-authored layout. Page == scaled-content == paper, so Safari's fit has
-   nothing left to scale. Height is hard-capped + clipped so nothing can spill.
-   This branch INHERITS the phone-path layout rules above (they aren't excluded
-   by :not(.ipad-fixed)), so all existing 1050px tuning is reused — we only pin
-   the box and lock the scale. ============================================== */
-@media print {
-  html.ipad-fixed { font-size: var(--fs-print-phone-base) !important; }
-
-  /* Page box == physical Letter at 96dpi, zero margin. The 8px breathing room is
-     applied as padding on the wrapper below so it scales WITH the content. */
-  html.ipad-fixed { width: 816px !important; }
-
-  /* Lock the 1050px layout via a fixed transform WE choose (not Safari).
-     Leave an even ~8px frame: usable 816-16=800px wide, so scale = 800/1050 =
-     0.76190. Translate 8px,8px so the gap is symmetric. transform-origin top-left
-     so the math is exact and predictable. */
-  html.ipad-fixed body {
-    width: 1050px !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    transform: translate(8px, 8px) scale(0.76190) !important;   /* 800 / 1050 */
-    transform-origin: top left !important;
-    background: #ffffff !important;
-    overflow: hidden !important;
-  }
-
-  /* Cap pre-scale height so it maps to one page: usable height 1056-16=1040px,
-     1040 / 0.76190 = 1365px of pre-scale content fills the framed area exactly.
-     Clip beyond so a long entry is bounded, never a 2nd page. */
-  html.ipad-fixed .page {
-    width: 1050px !important;
-    max-width: none !important;
-    height: auto !important;
-    max-height: 1365px !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-    border: 1.5pt solid #FA6700 !important;
-  }
-
-  /* Keep the content flowing top-down (no space-between distribution that could
-     change height per device); footer sits right after the last section. */
-  html.ipad-fixed .content { display: block !important; height: auto !important; min-height: 0 !important; overflow: hidden !important; }
-  html.ipad-fixed .footer { margin-top: 0 !important; }
-
-  @page :first { size: 816px 1056px; margin: 0; }
-}
-
 /* ---- iPAD print sizing (mirrors the old injected safari-page-fix; the html.ipad-print
         block above already carries most of these — kept here for parity / resilience) ---- */
 @media print {
@@ -2130,6 +2123,10 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 </div>
 <div id="save-status" style="position:fixed;top:44px;left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;" aria-live="polite"></div>
 <div class="page" id="page">
+
+  <div id="aog-ruler-h"></div>
+  <div id="aog-ruler-v"></div>
+  <div id="aog-page1-limit"></div>
 
   <div class="header">
     <div class="header-logo">
@@ -2955,12 +2952,10 @@ function printForm() {
     el = document.getElementById('no-transitions');   if (el) el.remove();
     el = document.getElementById('print-instant-switch'); if (el) el.remove();
     el = document.getElementById('desktop-page-margin'); if (el) el.remove();
-    el = document.getElementById('ipad-fixed-page-margin'); if (el) el.remove();
     if (wasDark) document.body.classList.add('dark-mode');
     document.documentElement.classList.remove('desktop-print');
     document.documentElement.classList.remove('desktop-print-safari');
     document.documentElement.classList.remove('ipad-print');
-    document.documentElement.classList.remove('ipad-fixed');
     document.documentElement.style.colorScheme = _prevColorScheme || '';
     if (wasMobileSafariClass) document.body.classList.add('mobile-safari');
     _printSeasonalClasses.forEach(function(c) { document.body.classList.add(c); });
@@ -3112,22 +3107,6 @@ function printForm() {
   // stay on one page.)
   // ══════════════════════════════════════════
   if (isMobileSafari && isIpadSafari) {
-    // LOCKED-SCALE iPad path: add .ipad-fixed so the @page box and the layout are both
-    // exactly 816x1056px (Letter @96dpi). When page == content == paper, Safari's
-    // fit-to-page has nothing to scale, so the per-device scale factor that caused the
-    // 1-vs-2-page split is removed. Height is hard-capped with overflow:hidden.
-    document.documentElement.classList.add('ipad-fixed');
-    // @page can't be class-scoped in static CSS, so inject a zero-margin page box
-    // for this path only (same pattern desktop uses for its 0.2in margin). This
-    // overrides the global @page{margin:0.083in} so the 816x1056 box is exact and
-    // Safari has zero margin to scale around. Removed in restore().
-    var _ipfM = document.getElementById('ipad-fixed-page-margin');
-    if (!_ipfM) {
-      _ipfM = document.createElement('style');
-      _ipfM.id = 'ipad-fixed-page-margin';
-      _ipfM.textContent = '@page { size: 816px 1056px; margin: 0; }';
-      document.head.appendChild(_ipfM);
-    }
     doSpanReplace();
     flushPrintLayout();
     armRestoreAndPrint(true);
