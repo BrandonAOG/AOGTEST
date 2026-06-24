@@ -1127,7 +1127,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
     width: 100% !important; max-width: 100% !important;
     /* ~0.22in each side: keeps the same content width that fits on one page,
        but centered instead of shoved to the right */
-    padding: 4px 0.25in 0 0.25in !important;
+    padding: 4px 0.22in 0 0.22in !important;
     margin: 0 auto !important;
     min-height: 0 !important; height: auto !important;
     border: 1.5px solid #D97706 !important;
@@ -1143,8 +1143,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
      date value fits and the row stops stacking on smaller iPads. */
   html.ipad #name-job-date-row #date { flex: 0 0 120px !important; width: 120px !important; min-width: 120px !important; }
 
-  /* Notes boxes — these are the biggest vertical levers. Adjust these heights
-     first if the form spills past the bottom of page 1. */
+  /* Notes boxes — kept at the same heights as iPhone (54 / 34). */
   html.ipad #batnotes, html.ipad #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
   html.ipad #oilnotes, html.ipad #gasnotes, html.ipad #tsnotes { height: 34px !important; min-height: 34px !important; max-height: 34px !important; overflow: hidden !important; }
 
@@ -1155,11 +1154,14 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ipad .check-item span, html.ipad .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   html.ipad label { font-size: calc(0.66rem + 0.3px) !important; }
 
-  /* Vertical spacing — trimmed so the form + footer aim for one page */
-  html.ipad .section { margin-bottom: 1px !important; }
+  /* Vertical spacing — recover ~0.3in here (not from the notes) so the footer
+     clears Safari's larger bottom print margin and stays on page 1. Notes,
+     text, inputs, radios and Y/N sizes are all left at iPhone sizes. */
+  html.ipad .section { margin-bottom: 0 !important; }
   html.ipad .two-column + .section { margin-top: 0 !important; }
   html.ipad .field-row { margin-bottom: 0.5px !important; }
-  html.ipad .section-body { padding: 1.5px 6px !important; }
+  html.ipad .section-header { padding: 2px 7px !important; }
+  html.ipad .section-body { padding: 1px 6px !important; }
 
   /* Keep tight groups on one line, like the iPhone build */
   html.ipad .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 3px !important; }
@@ -2827,10 +2829,35 @@ function setupSimToggle() {
 }
 
 if ('serviceWorker' in navigator) {
+  // Auto-reload once when a newly activated service worker takes control, so a
+  // freshly deployed version replaces a stale cached one without manual cache
+  // clearing. Guarded so it can only fire a single reload (no loops).
+  var _swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (_swRefreshing) return;
+    _swRefreshing = true;
+    window.location.reload();
+  });
+
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('../sw.js', { scope: '../' })
-      .then(reg => console.log('[SW] Registered, scope:', reg.scope))
-      .catch(err => console.warn('[SW] Registration failed:', err));
+      .then(function (reg) {
+        console.log('[SW] Registered, scope:', reg.scope);
+        // Check for a newer service worker on every load.
+        reg.update();
+        // If one is already waiting, ask it to activate immediately (works if
+        // sw.js calls self.skipWaiting() on the SKIP_WAITING message).
+        function _nudge(sw) { if (sw) { try { sw.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {} } }
+        if (reg.waiting) _nudge(reg.waiting);
+        reg.addEventListener('updatefound', function () {
+          var nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', function () {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) _nudge(reg.waiting);
+          });
+        });
+      })
+      .catch(function (err) { console.warn('[SW] Registration failed:', err); });
   });
 }
 </script>
