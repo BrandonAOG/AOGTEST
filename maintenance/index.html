@@ -1195,7 +1195,15 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ipad, html.ipad body { width: auto !important; max-width: 100% !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
 
   html.ipad .page {
-    width: 100% !important; max-width: 100% !important;
+    /* Printable width = 8.5in paper − 0.30in (@page L+R margins) ≈ 8.20in.
+       We pin the page to a FIXED width slightly OVER that so iPadOS Safari
+       (which lays out against a wide, near-desktop viewport and would otherwise
+       render ~1:1 and CLIP the right edge) is forced into WebKit's shrink-to-fit
+       print mode — the same downscale the iPhone already gets. Fixed width also
+       removes the device-dependent layout-width variable that made iPad and
+       iPhone diverge in the first place. Adjust 8.35in up/down to fine-tune how
+       much it shrinks. */
+    width: 8.35in !important; max-width: 8.35in !important;
     /* ~8px each side (was ~0.13in/12.5px): nudges the content ~8px wider still,
        even padding, to wrap long rows even less. */
     padding: 4px 8px 0 8px !important;
@@ -1916,7 +1924,7 @@ function openPrintPreview() {
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var isMobileChrome = document.body.classList.contains('mobile-chrome');
   var isIPad         = document.body.classList.contains('ipad');
-  var isNarrowMobile = isMobileSafari || isMobileChrome || isIPad;
+  var isNarrowMobile = isMobileSafari || isMobileChrome;
   var wasDark        = document.body.classList.contains('dark-mode');
 
   // ── Set document title for PDF filename (name + address + report) ──
@@ -1991,7 +1999,7 @@ function openPrintPreview() {
     var page = document.getElementById('page');
 
     // html / body sizing — locks the 820px print layout inline
-    _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '17') + 'px'); // iPhone=18.5, iPad=17, Android=17
+    _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '17') + 'px');
     _snap(html, 'width',     '820px');
     _snap(body, 'width',     '820px');
     _snap(body, 'maxWidth',  '820px');
@@ -2006,7 +2014,7 @@ function openPrintPreview() {
       _snap(page, 'display',   'block');
       _snap(page, 'width',     '100%');
       _snap(page, 'maxWidth',  '100%');
-      _snap(page, 'padding',   isIPad ? '4px 3px 2 3px' : '4px 3px 2px 3px');
+      _snap(page, 'padding',   '4px 3px 2px 3px');
       _snap(page, 'margin',    '0 auto');
       _snap(page, 'height',    'auto');
       _snap(page, 'minHeight', '0');
@@ -2078,15 +2086,12 @@ function openPrintPreview() {
     // .field-row
     document.querySelectorAll('.field-row').forEach(function(el) {
       _snap(el, 'display',       'flex');
-      _snap(el, 'marginBottom',  isIPad ? '0.5px' : ((el.closest && el.closest('.vrows-print')) ? '3.75px' : '2.5px'));
+      _snap(el, 'marginBottom',  (el.closest && el.closest('.vrows-print')) ? '3.75px' : '2.5px');
       _snap(el, 'gap',           '3px');
     });
 
     // textareas — match mobile-safari print heights
-    var taNotes = isIPad ? {
-      'batnotes': '54px', 'gennotes': '54px',
-      'oilnotes': '32px', 'gasnotes': '32px', 'tsnotes': '32px'
-    } : {
+    var taNotes = {
       'batnotes': '54px', 'gennotes': '54px',
       'oilnotes': '34px', 'gasnotes': '34px', 'tsnotes': '34px'
     };
@@ -2284,39 +2289,13 @@ function openPrintPreview() {
     if (ab) _snap(ab, 'display', 'none');
     if (ss) _snap(ss, 'display', 'none');
 
-    // ── iPad: tighten spacing to match the @media print iPad rules ──
-    // The shared stamps above use iPhone values; re-stamp iPad-specific ones.
-    if (isIPad) {
-      document.querySelectorAll('.section-header').forEach(function(el) {
-        _snap(el, 'padding', '2px 7px');
-      });
-      document.querySelectorAll('.section-body').forEach(function(el) {
-        _snap(el, 'padding', '1px 6px');
-      });
-      // Gas/ts section-body bottom padding
-      var _gbIP = document.querySelector('#gas-section .section-body');
-      var _tbIP = document.querySelector('#ts-section .section-body');
-      if (_gbIP) _snap(_gbIP, 'paddingBottom', '0.5px');
-      if (_tbIP) _snap(_tbIP, 'paddingBottom', '0.5px');
-      var _footIP = document.querySelector('.footer');
-      if (_footIP) {
-        _snap(_footIP, 'marginTop',    '4px');
-        _snap(_footIP, 'marginBottom', '0');
-        _snap(_footIP, 'paddingBottom','1px');
-      }
-      // name-job-date date field: fixed 120px on iPad
-      var _dateIP = document.getElementById('date');
-      if (_dateIP) {
-        _snap(_dateIP, 'flex',     '0 0 120px');
-        _snap(_dateIP, 'width',    '120px');
-        _snap(_dateIP, 'minWidth', '120px');
-      }
-    }
-
-    // ── Android Chrome: apply tightened padding/spacing (matches iPad's values) ──
+    // ── Android Chrome: apply the SAME tightened padding/spacing as iPad ──
     // The shared narrow-mobile stamps above use the iPhone's looser vertical
     // spacing, which tips the footer onto a 2nd page on Android Chrome. Re-stamp
-    // (mobile-chrome only) with tighter values so the form fits one page.
+    // (mobile-chrome only) with iPad's values so the form fits one page. These
+    // run after the shared stamps so they win; iPhone (mobile-safari) is left
+    // untouched. Re-stamping the same prop is safe — restore() walks the
+    // snapshot stack in reverse and still lands back on the original value.
     if (isMobileChrome) {
       var _pageMC = document.getElementById('page');
       // iPad uses 8px side padding, but Android Chrome scales the 820px layout
@@ -2361,15 +2340,8 @@ function openPrintPreview() {
     if (isMobileChrome && vp) {
       vp.setAttribute('content', 'width=820, initial-scale=1');
     }
-
-    // iPad: stamp body/html white so dark-mode::before pseudo-element doesn't
-    // bleed a dark background behind the page in the print preview.
-    if (isIPad) {
-      _snap(document.body, 'background', '#ffffff');
-      _snap(document.documentElement, 'background', '#ffffff');
-    }
   } else {
-    // Desktop only — stamp accent colors
+    // Desktop / iPad — stamp accent colors as before
     var compName = document.querySelector('.company-name');
     var docTitle = document.querySelector('.doc-title');
     if (compName) _snapAttr(compName, 'style', 'color:#D35E13!important;text-shadow:none!important;');
@@ -2377,6 +2349,18 @@ function openPrintPreview() {
     document.querySelectorAll('.footer-text, .footer span').forEach(function(el) {
       _snapAttr(el, 'style', 'color:#9CA3AF!important;text-shadow:none!important;');
     });
+
+    // iPad: the dark theme's fixed full-viewport gradient (body.dark-mode::before)
+    // is painted by a pseudo-element the @media print `*` rules can't reach, so it
+    // bleeds a dark background behind the page and the late layout switch shows as
+    // a reflow. Stamp the body white inline and force a reflow so the print layout
+    // is locked before the dialog opens.
+    if (isIPad) {
+      _snap(document.body, 'background', '#ffffff');
+      _snap(document.documentElement, 'background', '#ffffff');
+      var _pg = document.getElementById('page');
+      if (_pg) void _pg.getBoundingClientRect();
+    }
   }
 
   // ── Inject force-print-light (dark mode only, colors only — layout already stamped) ──
