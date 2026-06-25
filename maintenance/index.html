@@ -1191,9 +1191,13 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-chrome .footer { margin-top: 4px !important; margin-bottom: 0 !important; padding-bottom: 1px !important; }
 }
 @media print and (min-width: 768px) {
-  html { font-size: 18px !important; }
-  html, body { width: auto !important; max-width: 100% !important; }
-  .form-page, .page { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 3px !important; box-sizing: border-box !important; }
+  /* Excludes the iPad (html.ipad) so its inline print-width stamp from
+     openPrintPreview() is free to take effect. Without :not(.ipad), the
+     `width:auto !important` below would override the inline 820px stamp and the
+     iPad width knob would do nothing. Desktop + iPhone are unaffected. */
+  html:not(.ipad) { font-size: 18px !important; }
+  html:not(.ipad), html:not(.ipad) body { width: auto !important; max-width: 100% !important; }
+  html:not(.ipad) .form-page, html:not(.ipad) .page { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 3px !important; box-sizing: border-box !important; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -2030,7 +2034,7 @@ function openPrintPreview() {
     // Bigger = iPad content laid out wider then scaled to the sheet (smaller-
     // looking print); smaller = larger-looking print. Start at 820 to match the
     // iPhone, then nudge.
-    var _printWidth = isIPad ? '900px' : '820px';
+    var _printWidth = isIPad ? '820px' : '820px';
     _snap(html, 'fontSize',  (isSafariClass ? '18.5' : '17') + 'px');
     _snap(html, 'width',     _printWidth);
     _snap(body, 'width',     _printWidth);
