@@ -1191,26 +1191,14 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    1-page tuning — iPad is WebKit too.
    ════════════════════════════════════════════════════════════════════════ */
 @media print {
- html.ipad { 
-  font-size: 18px !important; 
-  -webkit-text-size-adjust: 150% !important;
-  text-size-adjust: 150% !important;
-}
-
-html.ipad, html.ipad body { 
-  width: 100% !important; /* Force text containers to snap to paper margins */
-  max-width: 100% !important; 
-  display: block !important; 
-  height: auto !important; 
-  min-height: 0 !important; 
-  overflow: visible !important; 
-}
+  html.ipad { font-size: 17px !important; }
+  html.ipad, html.ipad body { width: auto !important; max-width: 100% !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
 
   html.ipad .page {
     width: 100% !important; max-width: 100% !important;
     /* ~8px each side (was ~0.13in/12.5px): nudges the content ~8px wider still,
        even padding, to wrap long rows even less. */
-    padding: 4px 4px 0 4px !important;
+    padding: 4px 8px 0 8px !important;
     margin: 0 auto !important;
     min-height: 0 !important; height: auto !important;
     border: 1.5px solid #D35E13 !important;
@@ -2518,7 +2506,8 @@ function capturePageToCanvas() {
     // bit wider so the layout has room, and bumps the root font (below, in the
     // force-style) so the content isn't too small in the mobile image.
     var _isMobileCap = document.body.classList.contains('mobile-safari') ||
-                       document.body.classList.contains('mobile-chrome');
+                       document.body.classList.contains('mobile-chrome') ||
+                       document.body.classList.contains('ipad');
     const CAPTURE_WIDTH = _isMobileCap ? 1180 : 1000;
     const PAPER_RATIO   = 11 / 8.5;
     const CAPTURE_PAGE_H = Math.round(CAPTURE_WIDTH * PAPER_RATIO); // full sheet height at this width
