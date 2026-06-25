@@ -1332,7 +1332,12 @@ body.dark-mode .action-bar {
   var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
   var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
   var isWindows  = /Windows/.test(ua);
-  var isAndroid  = /Android/.test(ua);
+  // Client Hints report the true OS even in "Request Desktop Site" mode, where
+  // Android Chrome drops the "Android" UA token and masquerades as desktop Linux.
+  // uaData.platform returns "Android" on Android (incl. desktop mode) and
+  // "Linux"/"Windows"/"macOS" on real desktops, so there's no false positive.
+  var uaData     = navigator.userAgentData || null;
+  var isAndroid  = /Android/.test(ua) || (uaData && uaData.platform === 'Android');
   // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
   // NO viewport override). Only ANDROID Chrome gets the viewport-override path.
   var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
