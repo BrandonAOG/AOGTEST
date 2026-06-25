@@ -3043,7 +3043,7 @@ function isIOSDevice() {
   var ua = navigator.userAgent || '';
   var iOS = /iPad|iPhone|iPod/.test(ua);
   // iPadOS 13+ reports as Mac; detect by touch points on a Mac-like UA.
-  var iPadOS = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var iPadOS = (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints > 1 || 'ontouchstart' in window));
   return iOS || iPadOS;
 }
 // Can this browser share files at all?
