@@ -2376,6 +2376,17 @@ function openPrintPreview() {
     if (isMobileChrome && vp) {
       vp.setAttribute('content', 'width=820, initial-scale=1');
     }
+    // iPad: it normally runs with a PINNED width=440 viewport (the mobile look).
+    // In a standalone home-screen PWA the PRINT engine honors that 440 viewport,
+    // so the form lays out narrow & tall and spills onto a 2nd page (Safari, by
+    // contrast, ignores the meta viewport when printing and uses paper width, so
+    // it fits on one page). Override the viewport to the print width while
+    // printing so the standalone app lays out wide too; restore() puts the 440
+    // back when the print sheet is dismissed. Uses the same _printWidth knob.
+    if (isIPad && vp) {
+      vp.setAttribute('content', 'width=' + parseInt(_printWidth, 10) + ', initial-scale=1');
+      void document.getElementById('page').getBoundingClientRect(); // reflow at new width
+    }
   } else {
     // Desktop / iPad — stamp accent colors as before
     var compName = document.querySelector('.company-name');
@@ -3237,7 +3248,7 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
 <div id="aog-diag" title="tap to toggle full UA">loading…</div>
 <script>
 (function () {
-  var BUILD_ID = 'build-2026-06-25-a';   // ← change this string on every deploy
+  var BUILD_ID = 'build-2026-06-25-b';   // ← change this string on every deploy
   function mm(q){ return !!(window.matchMedia && window.matchMedia(q).matches); }
   var el = document.getElementById('aog-diag');
   function render(full) {
