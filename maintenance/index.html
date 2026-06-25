@@ -1183,14 +1183,17 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   iPad print tuning
-   Modern iPadOS Safari masquerades as desktop Safari, so without the .ipad
-   class it would print with the desktop-Mac rules. This block is scoped to
-   html.ipad and is placed AFTER every other print block so it wins the
-   cascade at equal specificity. It starts from the iPhone (mobile-safari)
-   1-page tuning — iPad is WebKit too.
+   iPad print tuning — DISABLED.
+   The iPad now prints via the SAME path as the iPhone: openPrintPreview()
+   folds the iPad into `isNarrowMobile` and stamps the 820px layout inline
+   before window.print(). Those inline stamps are the source of truth, so this
+   old bespoke html.ipad @media-print block (which clipped the right edge and
+   whose !important rules would override the inline stamps) must NOT apply.
+   It is parked behind a never-matching media query instead of being deleted,
+   so it's easy to restore if ever needed. To re-enable, change the query back
+   to `@media print`.
    ════════════════════════════════════════════════════════════════════════ */
-@media print {
+@media print and (min-width: 999999px) {
   html.ipad { font-size: 17px !important; }
   html.ipad, html.ipad body { width: auto !important; max-width: 100% !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
 
@@ -1203,7 +1206,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
        removes the device-dependent layout-width variable that made iPad and
        iPhone diverge in the first place. Adjust 8.35in up/down to fine-tune how
        much it shrinks. */
-    width: 8.9in !important; max-width: 8.9in !important;
+    width: 8.35in !important; max-width: 8.35in !important;
     /* ~8px each side (was ~0.13in/12.5px): nudges the content ~8px wider still,
        even padding, to wrap long rows even less. */
     padding: 4px 8px 0 8px !important;
@@ -1924,7 +1927,14 @@ function openPrintPreview() {
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var isMobileChrome = document.body.classList.contains('mobile-chrome');
   var isIPad         = document.body.classList.contains('ipad');
-  var isNarrowMobile = isMobileSafari || isMobileChrome;
+  // iPad is folded in here so it gets the SAME 820px inline-stamp print lock the
+  // iPhone uses (the real source of print-layout truth), instead of the old
+  // bespoke html.ipad @media-print path that clipped the right edge. It is
+  // treated as a Safari/iPhone-class device for the stamping below.
+  var isNarrowMobile = isMobileSafari || isMobileChrome || isIPad;
+  // True for the WebKit/Safari members of that set (iPhone + iPad) — they share
+  // the 18.5px root size and Safari padding values; Android Chrome differs.
+  var isSafariClass  = isMobileSafari || isIPad;
   var wasDark        = document.body.classList.contains('dark-mode');
 
   // ── Set document title for PDF filename (name + address + report) ──
@@ -1999,7 +2009,7 @@ function openPrintPreview() {
     var page = document.getElementById('page');
 
     // html / body sizing — locks the 820px print layout inline
-    _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '17') + 'px');
+    _snap(html, 'fontSize',  (isSafariClass ? '18.5' : '17') + 'px');
     _snap(html, 'width',     '820px');
     _snap(body, 'width',     '820px');
     _snap(body, 'maxWidth',  '820px');
@@ -2186,7 +2196,7 @@ function openPrintPreview() {
       _snap(el, 'maxHeight', '17px');
       _snap(el, 'lineHeight','1');
       _snap(el, 'fontSize',  'calc(0.72rem - 0.7px)');
-      _snap(el, 'padding',   isMobileSafari ? '0 4.5px' : '0 0.39rem');
+      _snap(el, 'padding',   isSafariClass ? '0 4.5px' : '0 0.39rem');
       _snap(el, 'display',   'flex');
       _snap(el, 'alignItems','center');
       // The radio that controls this label sits immediately before it.
@@ -2404,7 +2414,7 @@ function openPrintPreview() {
         requestAnimationFrame(function() {
           setTimeout(function() {
             window.print();
-          }, isMobileSafari ? 350 : 0);
+          }, isSafariClass ? 350 : 0);
         });
       });
     } else {
