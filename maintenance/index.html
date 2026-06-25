@@ -1220,7 +1220,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
        removes the device-dependent layout-width variable that made iPad and
        iPhone diverge in the first place. Adjust 8.35in up/down to fine-tune how
        much it shrinks. */
-    width: 8.7in !important; max-width: 8.7in !important;
+    width: 8.35in !important; max-width: 8.35in !important;
     /* ~8px each side (was ~0.13in/12.5px): nudges the content ~8px wider still,
        even padding, to wrap long rows even less. */
     padding: 4px 8px 0 8px !important;
@@ -2022,11 +2022,19 @@ function openPrintPreview() {
     var body = document.body;
     var page = document.getElementById('page');
 
-    // html / body sizing — locks the 820px print layout inline
+    // html / body sizing — locks the print layout width inline.
+    // ── iPad print-width knob ──────────────────────────────────────────────
+    // iPhone (and Android) stay at 820px. The iPad uses its OWN width so you can
+    // make the iPad print wider/narrower WITHOUT touching the iPhone. This is the
+    // lever that the old `width: 8.7in` CSS used to be — change ONLY this number.
+    // Bigger = iPad content laid out wider then scaled to the sheet (smaller-
+    // looking print); smaller = larger-looking print. Start at 820 to match the
+    // iPhone, then nudge.
+    var _printWidth = isIPad ? '840px' : '820px';
     _snap(html, 'fontSize',  (isSafariClass ? '18.5' : '17') + 'px');
-    _snap(html, 'width',     '820px');
-    _snap(body, 'width',     '820px');
-    _snap(body, 'maxWidth',  '820px');
+    _snap(html, 'width',     _printWidth);
+    _snap(body, 'width',     _printWidth);
+    _snap(body, 'maxWidth',  _printWidth);
     _snap(body, 'minWidth',  '0');
     _snap(body, 'height',    'auto');
     _snap(body, 'minHeight', '0');
