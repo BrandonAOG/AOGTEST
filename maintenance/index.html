@@ -1384,8 +1384,8 @@ body.dark-mode .action-bar {
   // touch points (real Macs report 0).
   var mtp = navigator.maxTouchPoints || 0;
   var isIPad = /iPad/.test(ua)
-    || (navigator.platform === 'MacIntel' && mtp > 1)
-    || (/Macintosh/.test(ua) && mtp > 1);
+    || (navigator.platform === 'MacIntel' && (mtp > 1 || 'ontouchstart' in window))
+    || (/Macintosh/.test(ua) && (mtp > 1 || 'ontouchstart' in window));
 
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
   if (isMacOS)        html.classList.add('macos');
@@ -1978,7 +1978,7 @@ function openPrintPreview() {
   // ── iPad: force narrow viewport + route through the phone print path ──
   // Only active during this PDF flow; origVP above captures the real value
   // so restore() will undo it automatically when the print dialog closes.
-  var isIPadNav = navigator.maxTouchPoints > 2 && /Macintosh/.test(navigator.userAgent);
+  var isIPadNav = (navigator.platform === 'MacIntel' || /Macintosh/.test(navigator.userAgent)) && (navigator.maxTouchPoints > 1 || 'ontouchstart' in window);
   if ((isIPad || isIPadNav) && vp) {
     vp.setAttribute('content', 'width=835, initial-scale=1, viewport-fit=cover');
     isNarrowMobile = true;  // use the full phone inline-stamp path
