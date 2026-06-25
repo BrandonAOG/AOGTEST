@@ -11,6 +11,20 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<script>
+/* iPad-only: pin a phone-width layout viewport so the width-based mobile @media
+   rules fire — the same thing Safari's "Request Mobile Website" does. iPad spoofs
+   a desktop "Macintosh" UA, so device-width would otherwise lay out at iPad width
+   and the mobile breakpoints (600/480/400) would never trigger. Runs before first
+   layout; works inside a standalone (home-screen) PWA too. Tune 440 to taste:
+   lower = more zoomed-in / smaller content. */
+(function () {
+  var isIPad = navigator.maxTouchPoints > 2 && /Macintosh/.test(navigator.userAgent);
+  if (!isIPad) return;
+  var vp = document.querySelector('meta[name="viewport"]');
+  if (vp) vp.setAttribute('content', 'width=440, initial-scale=1, viewport-fit=cover');
+})();
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Always On Generators - Maintenance Report</title>
@@ -1206,7 +1220,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
        removes the device-dependent layout-width variable that made iPad and
        iPhone diverge in the first place. Adjust 8.35in up/down to fine-tune how
        much it shrinks. */
-    width: 8.55in !important; max-width: 8.55in !important;
+    width: 8.6in !important; max-width: 8.6in !important;
     /* ~8px each side (was ~0.13in/12.5px): nudges the content ~8px wider still,
        even padding, to wrap long rows even less. */
     padding: 4px 8px 0 8px !important;
