@@ -1191,7 +1191,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    1-page tuning — iPad is WebKit too.
    ════════════════════════════════════════════════════════════════════════ */
 @media print {
-  html.ipad { font-size: 17px !important; }
+  html.ipad { font-size: 18px !important; }
   html.ipad, html.ipad body { width: auto !important; max-width: 100% !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
 
   html.ipad .page {
@@ -1232,15 +1232,8 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ipad .two-column + .section { margin-top: 0 !important; }
   html.ipad .field-row { margin-bottom: 0.5px !important; }
   html.ipad .section-header { padding: 2px 7px !important; }
-  html.ipad .section-body { padding: 0.5px 6px !important; }
+  html.ipad .section-body { padding: 1px 6px !important; }
   html.ipad #gas-section .section-body, html.ipad #ts-section .section-body { padding-bottom: 0.5px !important; }
-
-  /* iPad-only non-notes slack: shrink rigid header spacing and the input
-     min-height floor so the stack clears the page boundary without touching
-     the notes boxes. iPhone/Android paths are unaffected (html.ipad scope). */
-  html.ipad .header { margin-bottom: 1px !important; padding: 0 10px 2px 10px !important; }
-  html.ipad input[type="text"], html.ipad input[type="date"], html.ipad input[type="number"],
-  html.ipad input[type="email"], html.ipad input[type="tel"], html.ipad select { min-height: 14px !important; }
 
   /* Keep tight groups on one line, like the iPhone build */
   html.ipad .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 3px !important; }
@@ -2340,6 +2333,31 @@ function openPrintPreview() {
     if (isIPad) {
       _snap(document.body, 'background', '#ffffff');
       _snap(document.documentElement, 'background', '#ffffff');
+
+      // ── 820px layout pin ──────────────────────────────────────────────
+      // iPadOS Safari masquerades as desktop Safari and lays out print at the
+      // ~787px printable width, so fit-to-page scales it up ~4% MORE than the
+      // iPhone (which is pinned to 820px). That uniform magnification is why
+      // iPad text AND the fixed-px Y/N pills, checkboxes, borders all print
+      // wider than the iPhone. Pin iPad to the same 820px the iPhone uses so
+      // the printer applies the SAME scale and the two outputs match.
+      var _htmlIP = document.documentElement;
+      var _pageIP = document.getElementById('page');
+      _snap(_htmlIP, 'width', '820px');
+      _snap(document.body, 'width', '820px');
+      _snap(document.body, 'maxWidth', '820px');
+      _snap(document.body, 'minWidth', '0');
+      _snap(document.body, 'margin', '0 auto');
+      if (_pageIP) {
+        _snap(_pageIP, 'width', '100%');
+        _snap(_pageIP, 'maxWidth', '100%');
+        _snap(_pageIP, 'margin', '0 auto');
+      }
+      // Desktop-Safari print honors the viewport width for layout; set it to
+      // 820 so the print box lays out at 820px instead of the page's natural
+      // ~787px. Restored from the snapshot/origVP on restore().
+      if (vp) vp.setAttribute('content', 'width=820, initial-scale=1');
+
       var _pg = document.getElementById('page');
       if (_pg) void _pg.getBoundingClientRect();
     }
