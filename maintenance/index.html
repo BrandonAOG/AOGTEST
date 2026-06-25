@@ -1205,15 +1205,6 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   }
   html.ipad .footer { margin-top: 4px !important; margin-bottom: 0 !important; padding-bottom: 1px !important; }
 
-  /* iPad-only uniform scale-down. iPadOS Safari prints its fixed ~787px layout
-     mapped to paper, ~4% larger than the iPhone's 820px-pinned output, so iPad
-     text, Y/N pills, checkboxes and borders all come out bigger. Scale the whole
-     iPad page down to 787/820 = 0.96 so it renders at the iPhone's physical size.
-     Single tunable value: 0.96 -> smaller, 1.0 -> original. Does NOT change any
-     defined sizes (notes heights etc. stay as written); it scales the rendered
-     page only. */
-  html.ipad .page { zoom: 0.96 !important; }
-
   /* Two-column layout + non-wrapping field rows (same intent as iPhone) */
   html.ipad .two-column { grid-template-columns: 1fr 1fr !important; margin-bottom: 1px !important; gap: 2px !important; }
   html.ipad .field-row-nowrap { flex-wrap: nowrap !important; }
@@ -1354,9 +1345,21 @@ body.dark-mode .action-bar {
   // tell of iPadOS in desktop mode, (3) any Macintosh UA that also reports
   // touch points (real Macs report 0).
   var mtp = navigator.maxTouchPoints || 0;
+  // Touch signals that survive iPad "Request Desktop Site" mode — the DEFAULT in
+  // iPad Chrome — which reports a desktop "Macintosh"/MacIntel UA and can zero
+  // out maxTouchPoints and drop the CriOS token, making an iPad look like a
+  // desktop Mac. Real Macs report NONE of these, so any of them on a Mac-like
+  // UA means the device is actually an iPad. Without this, iPad Chrome failed
+  // the old `mtp > 1` test, fell through to the macOS path, and printed with the
+  // wrong (desktop-Mac) rules while iPad Safari printed correctly.
+  var hasTouch = mtp > 0
+    || ('ontouchend' in window)
+    || ('ontouchstart' in window)
+    || (window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches);
+  var isMacLikeUA = (navigator.platform === 'MacIntel') || /Macintosh/.test(ua);
   var isIPad = /iPad/.test(ua)
-    || (navigator.platform === 'MacIntel' && mtp > 1)
-    || (/Macintosh/.test(ua) && mtp > 1);
+    || (isMacLikeUA && hasTouch)
+    || (isCriOS && !/iPhone/.test(ua));
 
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
   if (isMacOS)        html.classList.add('macos');
