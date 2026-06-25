@@ -1191,7 +1191,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    1-page tuning — iPad is WebKit too.
    ════════════════════════════════════════════════════════════════════════ */
 @media print {
-  html.ipad { font-size: 20px !important; }
+  html.ipad { font-size: 18px !important; }
   html.ipad, html.ipad body { width: auto !important; max-width: 100% !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
 
   html.ipad .page {
@@ -1204,6 +1204,15 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
     border: 1.5px solid #D35E13 !important;
   }
   html.ipad .footer { margin-top: 4px !important; margin-bottom: 0 !important; padding-bottom: 1px !important; }
+
+  /* iPad-only uniform scale-down. iPadOS Safari prints its fixed ~787px layout
+     mapped to paper, ~4% larger than the iPhone's 820px-pinned output, so iPad
+     text, Y/N pills, checkboxes and borders all come out bigger. Scale the whole
+     iPad page down to 787/820 = 0.96 so it renders at the iPhone's physical size.
+     Single tunable value: 0.96 -> smaller, 1.0 -> original. Does NOT change any
+     defined sizes (notes heights etc. stay as written); it scales the rendered
+     page only. */
+  html.ipad .page { zoom: 0.96 !important; }
 
   /* Two-column layout + non-wrapping field rows (same intent as iPhone) */
   html.ipad .two-column { grid-template-columns: 1fr 1fr !important; margin-bottom: 1px !important; gap: 2px !important; }
@@ -2333,31 +2342,6 @@ function openPrintPreview() {
     if (isIPad) {
       _snap(document.body, 'background', '#ffffff');
       _snap(document.documentElement, 'background', '#ffffff');
-
-      // ── 820px layout pin ──────────────────────────────────────────────
-      // iPadOS Safari masquerades as desktop Safari and lays out print at the
-      // ~787px printable width, so fit-to-page scales it up ~4% MORE than the
-      // iPhone (which is pinned to 820px). That uniform magnification is why
-      // iPad text AND the fixed-px Y/N pills, checkboxes, borders all print
-      // wider than the iPhone. Pin iPad to the same 820px the iPhone uses so
-      // the printer applies the SAME scale and the two outputs match.
-      var _htmlIP = document.documentElement;
-      var _pageIP = document.getElementById('page');
-      _snap(_htmlIP, 'width', '820px');
-      _snap(document.body, 'width', '820px');
-      _snap(document.body, 'maxWidth', '820px');
-      _snap(document.body, 'minWidth', '0');
-      _snap(document.body, 'margin', '0 auto');
-      if (_pageIP) {
-        _snap(_pageIP, 'width', '100%');
-        _snap(_pageIP, 'maxWidth', '100%');
-        _snap(_pageIP, 'margin', '0 auto');
-      }
-      // Desktop-Safari print honors the viewport width for layout; set it to
-      // 820 so the print box lays out at 820px instead of the page's natural
-      // ~787px. Restored from the snapshot/origVP on restore().
-      if (vp) vp.setAttribute('content', 'width=820, initial-scale=1');
-
       var _pg = document.getElementById('page');
       if (_pg) void _pg.getBoundingClientRect();
     }
