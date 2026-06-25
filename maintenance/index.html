@@ -11,20 +11,6 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<script>
-/* iPad-only: pin a phone-width layout viewport so the width-based mobile @media
-   rules fire — the same thing Safari's "Request Mobile Website" does. iPad spoofs
-   a desktop "Macintosh" UA, so device-width would otherwise lay out at iPad width
-   and the mobile breakpoints (600/480/400) would never trigger. Runs before first
-   layout; works inside a standalone (home-screen) PWA too. Tune 440 to taste:
-   lower = more zoomed-in / smaller content. */
-(function () {
-  var isIPad = navigator.maxTouchPoints > 2 && /Macintosh/.test(navigator.userAgent);
-  if (!isIPad) return;
-  var vp = document.querySelector('meta[name="viewport"]');
-  if (vp) vp.setAttribute('content', 'width=440, initial-scale=1, viewport-fit=cover');
-})();
-</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Always On Generators - Maintenance Report</title>
@@ -526,6 +512,10 @@ body.dark-mode .section-toggle-hint { color: #7DD3FC; border-color: rgba(0,255,2
   margin-bottom: 4px;
 }
 .two-column .section { margin-bottom: 0; }
+/* Left column can stack two sections (Battery + Oil & Filters) beside the taller
+   Generator column, reclaiming the dead space under Battery. */
+.col-stack { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+@media print { .col-stack { gap: 2px !important; } }
 @media (max-width: 820px) {
   .two-column { grid-template-columns: 1fr; gap: 4px; margin-bottom: 4px; }
   /* iPad (incl. 768px portrait) is wide enough for the two-up split — keep
@@ -836,7 +826,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    PRINT STYLES
    ══════════════════════════════════════════════════════════════ */
 @media print {
-  @page { size: 8.5in 11in; margin: 0.15in 0.15in 0.06in 0.15in !important; }
+  @page { size: 8.7in 11in; margin: 0.15in 0.15in 0.06in 0.15in !important; }
 
   .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 4px !important; }
 
@@ -946,8 +936,8 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.macos input[type="number"],
   html.macos textarea,
   html.macos select         { font-size: calc(0.626rem - 0.45px) !important; min-height: 16px !important; }
-  html.macos #batnotes,
-  html.macos #gennotes      { height: 60px !important; min-height: 60px !important; max-height: 60px !important; overflow: hidden !important; }
+  html.macos #batnotes      { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
+  html.macos #gennotes      { height: 95px !important; min-height: 95px !important; max-height: 95px !important; overflow: hidden !important; }
   html.macos #oilnotes,
   html.macos #gasnotes,
   html.macos #tsnotes       { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
@@ -1031,7 +1021,15 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   #name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
   #name-job-date-row #date   { flex: 0 0 100px !important; width: 100px !important; min-width: 100px !important; }
   /* Spread the grouped gas/oil rows a bit wider in print (not full-width) */
-  #gas-top-row, #oil-top-row { justify-content: flex-start !important; gap: 20px !important; flex-wrap: nowrap !important; }
+  #gas-top-row { justify-content: flex-start !important; gap: 20px !important; flex-wrap: nowrap !important; }
+  /* Oil row: keep Filter Changed? snug to the right of Full/Half on one line,
+     then let Part # take the remaining width. The 4px right pad reserves
+     clearance so the N chip never touches/clips the page edge. */
+  #oil-top-row { justify-content: flex-start !important; gap: 8px !important; flex-wrap: wrap !important; padding-right: 4px !important; }
+  #oil-top-row > span:nth-child(1) { flex: 0 0 auto !important; }   /* Oil Change Type (Full/Half) */
+  #oil-top-row > span:nth-child(2) { flex: 0 0 auto !important; margin-right: 2px !important; }   /* Filter Changed? Y/N */
+  #oil-top-row > span:nth-child(3) { flex: 0 0 100% !important; width: 100% !important; min-width: 0 !important; }   /* Part # — drops to next line */
+  #oil-top-row #filterpart { width: 100% !important; min-width: 60px !important; }
   label { color: #6B7280 !important; font-size: calc(0.626rem + 0.3px) !important; letter-spacing: 0.3px !important; }
 
   input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], textarea, select {
@@ -1043,8 +1041,10 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   }
   textarea { height: auto !important; min-height: 30px !important; background: white !important; border: 0.5px solid #D35E13 !important; font-size: calc(0.706rem + 0.3px) !important; padding: 1px 3px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  #batnotes, #gennotes { height: 60px !important; min-height: 60px !important; max-height: 60px !important; overflow: hidden !important; }
+  #batnotes { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
+  #gennotes { height: 95px !important; min-height: 95px !important; max-height: 95px !important; overflow: hidden !important; }
   #oilnotes { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
+  #svcnotes { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
   #gasnotes { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
   #tsnotes  { height: 40px !important; min-height: 40px !important; max-height: 40px !important; overflow: hidden !important; }
   /* Sim "Explain why" box: was missing a fixed height, so Safari printed it
@@ -1130,13 +1130,14 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-safari #name { flex: 0 1 50% !important; min-width: 0 !important; }
   body.mobile-safari #date, body.mobile-safari #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
   /* Tightened from 60/40px to recover the ~25px lost to the new 0.25in @page bottom margin */
-  body.mobile-safari #batnotes, body.mobile-safari #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
-  body.mobile-safari #oilnotes, body.mobile-safari #gasnotes, body.mobile-safari #tsnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
+  body.mobile-safari #batnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
+  body.mobile-safari #gennotes { height: 82px !important; min-height: 82px !important; max-height: 82px !important; overflow: hidden !important; }
+  body.mobile-safari #oilnotes, body.mobile-safari #gasnotes, body.mobile-safari #tsnotes, body.mobile-safari #svcnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
   /* Mobile prints the 820px layout scaled down to fit, shrinking controls.
      Bump them back up so they read the same size as desktop print. */
   body.mobile-safari .check-item input[type="checkbox"], body.mobile-safari .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
   body.mobile-safari .yn-group { height: 19px !important; align-items: center !important; box-sizing: border-box !important; }
-  body.mobile-safari .yn-group .yn-label { height: 17px !important; min-height: 0 !important; max-height: 17px !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 4.5px !important; }
+  body.mobile-safari .yn-group .yn-label { height: 17px !important; min-height: 0 !important; max-height: 17px !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; }
   body.mobile-safari .check-item span, body.mobile-safari .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   body.mobile-safari label { font-size: calc(0.66rem + 0.3px) !important; }
   /* Trim vertical spacing on mobile so everything + footer fits one page */
@@ -1150,7 +1151,8 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-safari .section-body { padding: 1.5px 6px !important; }
   body.mobile-safari #gas-section .section-body, body.mobile-safari #ts-section .section-body { padding-bottom: 0.75px !important; }
   body.mobile-safari .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 3px !important; }
-  body.mobile-safari #gas-top-row, body.mobile-safari #oil-top-row { gap: 16px !important; }
+  body.mobile-safari #gas-top-row { gap: 16px !important; }
+  body.mobile-safari #oil-top-row { gap: 10px !important; }
   /* Transfer Switch: prevent Condition group from wrapping to a second line */
   body.mobile-safari .ts-row { flex-wrap: nowrap !important; align-items: flex-start !important; gap: 6px !important; }
   body.mobile-safari .ts-row > div { flex-shrink: 1 !important; min-width: 0 !important; }
@@ -1171,12 +1173,13 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-chrome .field-row-nowrap { flex-wrap: nowrap !important; }
   body.mobile-chrome #name { flex: 0 1 50% !important; min-width: 0 !important; }
   body.mobile-chrome #date, body.mobile-chrome #number { min-width: 120px !important; flex-shrink: 0 !important; width: auto !important; }
-  body.mobile-chrome #batnotes, body.mobile-chrome #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
-  body.mobile-chrome #oilnotes, body.mobile-chrome #gasnotes, body.mobile-chrome #tsnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
+  body.mobile-chrome #batnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
+  body.mobile-chrome #gennotes { height: 82px !important; min-height: 82px !important; max-height: 82px !important; overflow: hidden !important; }
+  body.mobile-chrome #oilnotes, body.mobile-chrome #gasnotes, body.mobile-chrome #tsnotes, body.mobile-chrome #svcnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
   /* Match desktop apparent control size on mobile Chrome too */
   body.mobile-chrome .check-item input[type="checkbox"], body.mobile-chrome .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
   body.mobile-chrome .yn-group { height: 19px !important; align-items: center !important; box-sizing: border-box !important; }
-  body.mobile-chrome .yn-group .yn-label { height: 17px !important; min-height: 0 !important; max-height: 17px !important; line-height: 1 !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 0.39rem !important; }
+  body.mobile-chrome .yn-group .yn-label { height: 17px !important; min-height: 0 !important; max-height: 17px !important; line-height: 1 !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; }
   body.mobile-chrome .check-item span, body.mobile-chrome .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   body.mobile-chrome label { font-size: calc(0.66rem + 0.3px) !important; }
   /* Trim vertical spacing on mobile so everything + footer fits one page —
@@ -1191,40 +1194,43 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   body.mobile-chrome .footer { margin-top: 4px !important; margin-bottom: 0 !important; padding-bottom: 1px !important; }
 }
 @media print and (min-width: 768px) {
-  /* Excludes the iPad (html.ipad) so its inline print-width stamp from
-     openPrintPreview() is free to take effect. Without :not(.ipad), the
-     `width:auto !important` below would override the inline 820px stamp and the
-     iPad width knob would do nothing. Desktop + iPhone are unaffected. */
-  html:not(.ipad) { font-size: 18px !important; }
-  html:not(.ipad), html:not(.ipad) body { width: auto !important; max-width: 100% !important; }
-  html:not(.ipad) .form-page, html:not(.ipad) .page { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 3px !important; box-sizing: border-box !important; }
+  html { font-size: 18.3px !important; }
+  html, body { width: auto !important; max-width: 100% !important; }
+  .form-page, .page { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 3px !important; box-sizing: border-box !important; }
+}
+
+/* ── iPhone Safari landscape 2-page fix ──
+   In landscape the print layout width crosses 768px, so the unscoped
+   `@media print and (min-width:768px)` block above fires and wipes out the
+   stamped 820px portrait column (width:auto/100%), reflowing the form wide and
+   spilling onto a 2nd page. Portrait never triggers that block, which is why it
+   stays one page. Re-assert the 820px portrait column for mobile-safari so a
+   landscape print lays out identically to portrait. Class specificity (0,1,1)
+   beats the element-level (0,0,1) rule even though both use !important, and
+   this block is placed AFTER it for good measure. */
+@media print {
+  html.mobile-safari { font-size: 18.5px !important; width: 820px !important; max-width: 820px !important; }
+  body.mobile-safari { width: 820px !important; max-width: 820px !important; margin: 0 auto !important; }
+  html.mobile-safari .page { width: 100% !important; max-width: 820px !important; margin: 0 auto !important; box-sizing: border-box !important; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   iPad print tuning — DISABLED.
-   The iPad now prints via the SAME path as the iPhone: openPrintPreview()
-   folds the iPad into `isNarrowMobile` and stamps the 820px layout inline
-   before window.print(). Those inline stamps are the source of truth, so this
-   old bespoke html.ipad @media-print block (which clipped the right edge and
-   whose !important rules would override the inline stamps) must NOT apply.
-   It is parked behind a never-matching media query instead of being deleted,
-   so it's easy to restore if ever needed. To re-enable, change the query back
-   to `@media print`.
+   iPad print tuning
+   Modern iPadOS Safari masquerades as desktop Safari, so without the .ipad
+   class it would print with the desktop-Mac rules. This block is scoped to
+   html.ipad and is placed AFTER every other print block so it wins the
+   cascade at equal specificity. It starts from the iPhone (mobile-safari)
+   1-page tuning — iPad is WebKit too.
    ════════════════════════════════════════════════════════════════════════ */
-@media print and (min-width: 999999px) {
-  html.ipad { font-size: 17px !important; }
-  html.ipad, html.ipad body { width: auto !important; max-width: 100% !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+@media print {
+  html.ipad { font-size: 18.3px !important; }
+  /* Lock the iPad PDF to a fixed 8.7in width (835px @ 96dpi). The viewport meta
+     doesn't affect print, so width:auto let iPad Safari pick its own print width;
+     pinning 835px makes the iPad PDF deterministically 8.7in wide. */
+  html.ipad, html.ipad body { width: 835px !important; max-width: 835px !important; margin: 0 auto !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
 
   html.ipad .page {
-    /* Printable width = 8.5in paper − 0.30in (@page L+R margins) ≈ 8.20in.
-       We pin the page to a FIXED width slightly OVER that so iPadOS Safari
-       (which lays out against a wide, near-desktop viewport and would otherwise
-       render ~1:1 and CLIP the right edge) is forced into WebKit's shrink-to-fit
-       print mode — the same downscale the iPhone already gets. Fixed width also
-       removes the device-dependent layout-width variable that made iPad and
-       iPhone diverge in the first place. Adjust 8.35in up/down to fine-tune how
-       much it shrinks. */
-    width: 8.35in !important; max-width: 8.35in !important;
+    width: 100% !important; max-width: 835px !important;
     /* ~8px each side (was ~0.13in/12.5px): nudges the content ~8px wider still,
        even padding, to wrap long rows even less. */
     padding: 4px 8px 0 8px !important;
@@ -1244,13 +1250,14 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ipad #name-job-date-row #date { flex: 0 0 120px !important; width: 120px !important; min-width: 120px !important; }
 
   /* Notes boxes — kept at the same heights as iPhone (54 / 34). */
-  html.ipad #batnotes, html.ipad #gennotes { height: 54px !important; min-height: 54px !important; max-height: 54px !important; overflow: hidden !important; }
-  html.ipad #oilnotes, html.ipad #gasnotes, html.ipad #tsnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
+  html.ipad #batnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
+  html.ipad #gennotes { height: 82px !important; min-height: 82px !important; max-height: 82px !important; overflow: hidden !important; }
+  html.ipad #oilnotes, html.ipad #gasnotes, html.ipad #tsnotes, html.ipad #svcnotes { height: 32px !important; min-height: 32px !important; max-height: 32px !important; overflow: hidden !important; }
 
   /* Keep control + label sizes readable (match desktop apparent size) */
   html.ipad .check-item input[type="checkbox"], html.ipad .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
   html.ipad .yn-group { height: 19px !important; min-height: 19px !important; max-height: 19px !important; align-items: center !important; box-sizing: border-box !important; }
-  html.ipad .yn-group .yn-label { height: 17px !important; min-height: 0 !important; max-height: 17px !important; line-height: 1 !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 0.39rem !important; }
+  html.ipad .yn-group .yn-label { height: 17px !important; min-height: 0 !important; max-height: 17px !important; line-height: 1 !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; }
   html.ipad .check-item span, html.ipad .opt span { font-size: calc(0.66rem + 0.3px) !important; }
   html.ipad label { font-size: calc(0.66rem + 0.3px) !important; }
 
@@ -1266,7 +1273,9 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 
   /* Keep tight groups on one line, like the iPhone build */
   html.ipad .leak-loc .check-group { flex-wrap: nowrap !important; white-space: nowrap !important; gap: 3px !important; }
-  html.ipad #gas-top-row, html.ipad #oil-top-row { gap: 16px !important; }
+  html.ipad #gas-top-row { gap: 16px !important; }
+  html.ipad #oil-top-row { gap: 10px !important; flex-wrap: wrap !important; }
+  html.ipad #oil-top-row > span:nth-child(3) { flex: 0 0 100% !important; width: 100% !important; }
   html.ipad .ts-row { flex-wrap: nowrap !important; align-items: flex-start !important; gap: 6px !important; }
   html.ipad .ts-row > div { flex-shrink: 1 !important; min-width: 0 !important; }
   html.ipad .ts-row .check-group { flex-wrap: nowrap !important; gap: 2px !important; }
@@ -1361,12 +1370,7 @@ body.dark-mode .action-bar {
   var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
   var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
   var isWindows  = /Windows/.test(ua);
-  // Client Hints report the true OS even in "Request Desktop Site" mode, where
-  // Android Chrome drops the "Android" UA token and masquerades as desktop Linux.
-  // uaData.platform returns "Android" on Android (incl. desktop mode) and
-  // "Linux"/"Windows"/"macOS" on real desktops, so there's no false positive.
-  var uaData     = navigator.userAgentData || null;
-  var isAndroid  = /Android/.test(ua) || (uaData && uaData.platform === 'Android');
+  var isAndroid  = /Android/.test(ua);
   // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
   // NO viewport override). Only ANDROID Chrome gets the viewport-override path.
   var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
@@ -1379,21 +1383,9 @@ body.dark-mode .action-bar {
   // tell of iPadOS in desktop mode, (3) any Macintosh UA that also reports
   // touch points (real Macs report 0).
   var mtp = navigator.maxTouchPoints || 0;
-  // Touch signals that survive iPad "Request Desktop Site" mode — the DEFAULT in
-  // iPad Chrome — which reports a desktop "Macintosh"/MacIntel UA and can zero
-  // out maxTouchPoints and drop the CriOS token, making an iPad look like a
-  // desktop Mac. Real Macs report NONE of these, so any of them on a Mac-like
-  // UA means the device is actually an iPad. Without this, iPad Chrome failed
-  // the old `mtp > 1` test, fell through to the macOS path, and printed with the
-  // wrong (desktop-Mac) rules while iPad Safari printed correctly.
-  var hasTouch = mtp > 0
-    || ('ontouchend' in window)
-    || ('ontouchstart' in window)
-    || (window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches);
-  var isMacLikeUA = (navigator.platform === 'MacIntel') || /Macintosh/.test(ua);
   var isIPad = /iPad/.test(ua)
-    || (isMacLikeUA && hasTouch)
-    || (isCriOS && !/iPhone/.test(ua));
+    || (navigator.platform === 'MacIntel' && mtp > 1)
+    || (/Macintosh/.test(ua) && mtp > 1);
 
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
   if (isMacOS)        html.classList.add('macos');
@@ -1481,6 +1473,7 @@ body.dark-mode .action-bar {
 
     <!-- Battery & Generator -->
     <div class="two-column">
+      <div class="col-stack">
       <div class="section vrows-print">
         <div class="section-header">Battery</div>
         <div class="section-body">
@@ -1532,9 +1525,40 @@ body.dark-mode .action-bar {
               <label class="check-item"><input type="radio" name="water" value="add"><span>Add</span></label>
             </div>
           </div>
-          <textarea id="batnotes" placeholder="Battery notes..." style="height:60px;"></textarea>
+          <textarea id="batnotes" placeholder="Battery notes..." style="min-height:50px;"></textarea>
         </div>
       </div>
+
+      <!-- Oil & Filters (moved into left column under Battery) -->
+      <div class="section vrows-print">
+        <div class="section-header">Oil &amp; Filters</div>
+        <div class="section-body">
+          <div class="field-row" id="oil-top-row" style="justify-content:flex-start;gap:14px;flex-wrap:wrap;">
+            <span style="display:flex;align-items:center;gap:4px;">
+              <label>Oil Change</label>
+              <div class="check-group" style="width:auto;flex:0 0 auto;flex-direction:column;align-items:flex-start;flex-wrap:nowrap;gap:1px;">
+                <label class="check-item"><input type="radio" name="oiltype" value="full"><span>Full</span></label>
+                <label class="check-item"><input type="radio" name="oiltype" value="half"><span>Half</span></label>
+              </div>
+            </span>
+            <span style="display:flex;align-items:center;gap:4px;">
+              <label>Filter Changed?</label>
+              <div class="yn-group">
+                <input type="radio" name="oilfilter" id="of_y" value="Y" class="yn-y">
+                <label class="yn-label yn-label-y" for="of_y">Y</label>
+                <input type="radio" name="oilfilter" id="of_n" value="N" class="yn-n">
+                <label class="yn-label yn-label-n" for="of_n">N</label>
+              </div>
+            </span>
+            <span style="display:flex;align-items:center;gap:4px;">
+              <label for="filterpart">Part #</label>
+              <input type="text" id="filterpart" class="med" placeholder="Part #" style="width:180px;">
+            </span>
+          </div>
+          <textarea id="oilnotes" placeholder="Oil &amp; filter notes..." style="min-height:50px;"></textarea>
+        </div>
+      </div>
+      </div><!-- /.col-stack -->
 
       <div class="section vrows-print">
         <div class="section-header">Generator</div>
@@ -1601,38 +1625,8 @@ body.dark-mode .action-bar {
             <label for="exercisetime">Exercise Schedule</label>
             <input type="text" id="exercisetime" size="10" class="med" placeholder="e.g., Tues 11:00am">
           </div>
-          <textarea id="gennotes" placeholder="Generator notes..." style="height:60px;"></textarea>
+          <textarea id="gennotes" placeholder="Generator notes..." style="height:82px;"></textarea>
         </div>
-      </div>
-    </div>
-
-    <!-- Oil & Filters -->
-    <div class="section vrows-print">
-      <div class="section-header">Oil & Filters</div>
-      <div class="section-body">
-        <div class="field-row" id="oil-top-row" style="justify-content:flex-start;gap:36px;flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:4px;">
-            <label>Oil Change Type</label>
-            <div class="check-group" style="width:auto;flex:0 0 auto;">
-              <label class="check-item"><input type="radio" name="oiltype" value="full"><span>Full</span></label>
-              <label class="check-item"><input type="radio" name="oiltype" value="half"><span>Half</span></label>
-            </div>
-          </span>
-          <span style="display:flex;align-items:center;gap:4px;">
-            <label>Filter Changed?</label>
-            <div class="yn-group">
-              <input type="radio" name="oilfilter" id="of_y" value="Y" class="yn-y">
-              <label class="yn-label yn-label-y" for="of_y">Y</label>
-              <input type="radio" name="oilfilter" id="of_n" value="N" class="yn-n">
-              <label class="yn-label yn-label-n" for="of_n">N</label>
-            </div>
-          </span>
-          <span style="display:flex;align-items:center;gap:4px;">
-            <label for="filterpart">Part #</label>
-            <input type="text" id="filterpart" class="med" placeholder="Part #" style="width:180px;">
-          </span>
-        </div>
-        <textarea id="oilnotes" placeholder="Oil & filter notes..." style="min-height:50px;"></textarea>
       </div>
     </div>
 
@@ -1815,7 +1809,7 @@ body.dark-mode .action-bar {
 
     <!-- Other -->
     <div class="section" id="other-section">
-      <div class="section-header">Other</div>
+      <div class="section-header">Monitoring and Protection</div>
       <div class="section-body">
         <div class="field-row">
           <div class="field-group">
@@ -1862,11 +1856,19 @@ body.dark-mode .action-bar {
       </div>
     </div>
 
+    <!-- Service Notes -->
+    <div class="section" id="service-section">
+      <div class="section-header">Service Notes</div>
+      <div class="section-body">
+        <textarea id="svcnotes" placeholder="Work performed / recommendations..." style="height:50px;"></textarea>
+      </div>
+    </div>
+
   </div><!-- /.content -->
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.0C</span>
+    <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.1A</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -1936,8 +1938,13 @@ function restoreDraft() {
 
 function clearForm() {
   if (!confirm('Clear all fields?')) return;
-  document.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], textarea').forEach(el => el.value = '');
-  document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => el.checked = false);
+  // Clear every field regardless of type: checkboxes/radios get unchecked,
+  // everything else (text, date, number, textarea, and any future type) gets
+  // its value blanked. Then drop the saved draft so it stays cleared.
+  document.querySelectorAll('input, textarea').forEach(function (el) {
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
+    else el.value = '';
+  });
   localStorage.removeItem(DRAFT_KEY);
 }
 
@@ -1945,14 +1952,11 @@ function openPrintPreview() {
   var isMobileSafari = document.body.classList.contains('mobile-safari');
   var isMobileChrome = document.body.classList.contains('mobile-chrome');
   var isIPad         = document.body.classList.contains('ipad');
-  // iPad is folded in here so it gets the SAME 820px inline-stamp print lock the
-  // iPhone uses (the real source of print-layout truth), instead of the old
-  // bespoke html.ipad @media-print path that clipped the right edge. It is
-  // treated as a Safari/iPhone-class device for the stamping below.
-  var isNarrowMobile = isMobileSafari || isMobileChrome || isIPad;
-  // True for the WebKit/Safari members of that set (iPhone + iPad) — they share
-  // the 18.5px root size and Safari padding values; Android Chrome differs.
-  var isSafariClass  = isMobileSafari || isIPad;
+  var isNarrowMobile = isMobileSafari || isMobileChrome;
+  // Real phone flag captured BEFORE the iPad blocks below reassign
+  // isMobileSafari/isNarrowMobile to true. Used for the landscape→portrait
+  // viewport override so it only targets actual phones.
+  var isPhone        = isMobileSafari || isMobileChrome;
   var wasDark        = document.body.classList.contains('dark-mode');
 
   // ── Set document title for PDF filename (name + address + report) ──
@@ -1970,6 +1974,42 @@ function openPrintPreview() {
 
   var vp = document.querySelector('meta[name="viewport"]');
   var origVP = vp ? vp.getAttribute('content') : null;
+
+  // ── iPad: force narrow viewport + route through the phone print path ──
+  // Only active during this PDF flow; origVP above captures the real value
+  // so restore() will undo it automatically when the print dialog closes.
+  var isIPadNav = navigator.maxTouchPoints > 2 && /Macintosh/.test(navigator.userAgent);
+  if ((isIPad || isIPadNav) && vp) {
+    vp.setAttribute('content', 'width=835, initial-scale=1, viewport-fit=cover');
+    isNarrowMobile = true;  // use the full phone inline-stamp path
+    isMobileSafari = true;  // use the WebKit 350 ms settle delay
+  }
+
+  // ── iPad Chrome (CriOS): explicit handling — CriOS UA on iPadOS ──
+  // Not caught by isMobileChrome (Android-only) or always by the Macintosh
+  // UA check above. Detect it directly and apply the same 835px viewport.
+  var isIPadChrome = /CriOS/.test(navigator.userAgent);
+  if (isIPadChrome && vp && !isNarrowMobile) {
+    vp.setAttribute('content', 'width=835, initial-scale=1, viewport-fit=cover');
+    isNarrowMobile = true;
+    isMobileSafari = true;
+  }
+
+  // ── Phone in landscape: force a portrait-width viewport before printing ──
+  // With width=device-width, a phone held in landscape gives a wide layout
+  // viewport, so the stamped 820px sheet renders scaled into a landscape page.
+  // Pin the viewport to the device's PORTRAIT (narrow) CSS width so the page
+  // lays out exactly as it would in portrait, regardless of physical rotation.
+  // origVP (captured above) restores the real value when the dialog closes.
+  // (Image capture path is separate and intentionally left untouched.)
+  var _isLandscape = (window.matchMedia && window.matchMedia('(orientation: landscape)').matches)
+                     || (window.innerWidth > window.innerHeight);
+  if (isPhone && _isLandscape && vp) {
+    // Math.min() = the narrow (portrait) dimension regardless of whether the
+    // browser rotates screen.width/height with orientation.
+    var _portraitW = Math.min(screen.width || 0, screen.height || 0) || 390;
+    vp.setAttribute('content', 'width=' + _portraitW + ', initial-scale=1, maximum-scale=1, viewport-fit=cover');
+  }
 
   // ── Snapshot store — every element we touch gets its original style saved ──
   var _snapshots = [];
@@ -2026,19 +2066,11 @@ function openPrintPreview() {
     var body = document.body;
     var page = document.getElementById('page');
 
-    // html / body sizing — locks the print layout width inline.
-    // ── iPad print-width knob ──────────────────────────────────────────────
-    // iPhone (and Android) stay at 820px. The iPad uses its OWN width so you can
-    // make the iPad print wider/narrower WITHOUT touching the iPhone. This is the
-    // lever that the old `width: 8.7in` CSS used to be — change ONLY this number.
-    // Bigger = iPad content laid out wider then scaled to the sheet (smaller-
-    // looking print); smaller = larger-looking print. Start at 820 to match the
-    // iPhone, then nudge.
-    var _printWidth = isIPad ? '820px' : '820px';
-    _snap(html, 'fontSize',  (isSafariClass ? '18.5' : '17') + 'px');
-    _snap(html, 'width',     _printWidth);
-    _snap(body, 'width',     _printWidth);
-    _snap(body, 'maxWidth',  _printWidth);
+    // html / body sizing — locks the 820px print layout inline
+    _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18') + 'px');
+    _snap(html, 'width',     '820px');
+    _snap(body, 'width',     '820px');
+    _snap(body, 'maxWidth',  '820px');
     _snap(body, 'minWidth',  '0');
     _snap(body, 'height',    'auto');
     _snap(body, 'minHeight', '0');
@@ -2128,8 +2160,8 @@ function openPrintPreview() {
 
     // textareas — match mobile-safari print heights
     var taNotes = {
-      'batnotes': '54px', 'gennotes': '54px',
-      'oilnotes': '34px', 'gasnotes': '34px', 'tsnotes': '34px'
+      'batnotes': '34px', 'gennotes': '82px',
+      'oilnotes': '34px', 'gasnotes': '34px', 'tsnotes': '34px', 'svcnotes': '34px'
     };
     Object.keys(taNotes).forEach(function(id) {
       var ta = document.getElementById(id);
@@ -2222,7 +2254,7 @@ function openPrintPreview() {
       _snap(el, 'maxHeight', '17px');
       _snap(el, 'lineHeight','1');
       _snap(el, 'fontSize',  'calc(0.72rem - 0.7px)');
-      _snap(el, 'padding',   isSafariClass ? '0 4.5px' : '0 0.39rem');
+      _snap(el, 'padding',   '0 7px');
       _snap(el, 'display',   'flex');
       _snap(el, 'alignItems','center');
       // The radio that controls this label sits immediately before it.
@@ -2281,7 +2313,7 @@ function openPrintPreview() {
     var gasRow = document.getElementById('gas-top-row');
     var oilRow = document.getElementById('oil-top-row');
     if (gasRow) { _snap(gasRow, 'gap', '16px'); _snap(gasRow, 'flexWrap', 'nowrap'); }
-    if (oilRow) { _snap(oilRow, 'gap', '16px'); _snap(oilRow, 'flexWrap', 'nowrap'); }
+    if (oilRow) { _snap(oilRow, 'gap', '10px'); _snap(oilRow, 'flexWrap', 'wrap'); }
 
     // leak-loc check-group
     document.querySelectorAll('.leak-loc .check-group').forEach(function(el) {
@@ -2374,18 +2406,7 @@ function openPrintPreview() {
 
     // Mobile Chrome: also override viewport so it lays out at 820px for real
     if (isMobileChrome && vp) {
-      vp.setAttribute('content', 'width=820, initial-scale=1');
-    }
-    // iPad, STANDALONE HOME-SCREEN APP ONLY: it runs with a pinned width=440
-    // viewport (the mobile look). The standalone print engine honors that 440
-    // and lays the form out narrow & tall → 2-page PDF. Safari/Chrome tabs print
-    // fine as-is, so this must NOT run there — gate it on navigator.standalone
-    // (true only in the installed app; the same `sa:true` the diagnostic shows).
-    // Swap to the print width just for printing; restore() puts the 440 back.
-    var _isStandaloneApp = (navigator.standalone === true);
-    if (isIPad && _isStandaloneApp && vp) {
-      vp.setAttribute('content', 'width=' + parseInt(_printWidth, 10) + ', initial-scale=1');
-      void document.getElementById('page').getBoundingClientRect(); // reflow at new width
+      vp.setAttribute('content', 'width=835, initial-scale=1');
     }
   } else {
     // Desktop / iPad — stamp accent colors as before
@@ -2451,7 +2472,7 @@ function openPrintPreview() {
         requestAnimationFrame(function() {
           setTimeout(function() {
             window.print();
-          }, isSafariClass ? 350 : 0);
+          }, isMobileSafari ? 350 : 0);
         });
       });
     } else {
@@ -2575,6 +2596,20 @@ function capturePageToCanvas() {
       const prevPaddingTop = page.style.paddingTop;
       const prevBodyPad   = document.body.style.padding;
 
+      // ── Render the page in its WIDE (landscape) layout for the capture ──
+      // On a phone the layout viewport is ~390px even though we stamp the page
+      // to CAPTURE_WIDTH, so the @media (max-width:600/768) MOBILE rules still
+      // fire during html2canvas cloning and collapse the form to single-column.
+      // Pin the viewport to the capture width so those narrow rules switch off
+      // and the page lays out exactly as it would in landscape. The output is
+      // still padded to a portrait 8.5x11 sheet downstream. Restored in
+      // restoreCapture. (Only needed on mobile; desktop is already wide.)
+      const _capVp     = document.querySelector('meta[name="viewport"]');
+      const _capOrigVP = _capVp ? _capVp.getAttribute('content') : null;
+      if (_isMobileCap && _capVp) {
+        _capVp.setAttribute('content', 'width=' + CAPTURE_WIDTH + ', initial-scale=1, viewport-fit=cover');
+      }
+
       page.style.width     = CAPTURE_WIDTH + 'px';
       page.style.maxWidth  = CAPTURE_WIDTH + 'px';
       // Size the page to its CONTENT height (no forced full-sheet minimum) so
@@ -2593,11 +2628,11 @@ function capturePageToCanvas() {
         // media query (max-width:600px) still matches the narrow device viewport
         // during html2canvas cloning and would otherwise force each field to its
         // own line, dropping the date below. These !important rules win in the clone.
-        '#name-job-date-row { flex-wrap: nowrap !important; column-gap: 6px !important; }',
-        '#name-job-date-row label { flex: 0 0 auto !important; width: auto !important; }',
-        '#name-job-date-row #name { flex: 2 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }',
-        '#name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }',
-        '#name-job-date-row #date { flex: 0 0 100px !important; width: 100px !important; max-width: none !important; min-width: 100px !important; }',
+        '#cust-info-body #name-job-date-row { flex-wrap: nowrap !important; column-gap: 6px !important; }',
+        '#cust-info-body #name-job-date-row label { flex: 0 0 auto !important; width: auto !important; }',
+        '#cust-info-body #name-job-date-row #name { flex: 2 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }',
+        '#cust-info-body #name-job-date-row #number { flex: 1 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }',
+        '#cust-info-body #name-job-date-row #date { flex: 1 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }',
         // Mobile renders the form smaller; bump the root font so the content
         // reads at a comfortable size. Desktop gets a slight +1.5px bump too.
         (_isMobileCap ? 'html { font-size: 29.3px !important; }' : 'html { font-size: 19.3px !important; }'),
@@ -2627,6 +2662,25 @@ function capturePageToCanvas() {
         // bottom padding / height so the border sits clear below the text.
         '.header { padding-bottom: 12px !important; min-height: 64px !important; align-items: center !important; }',
         '.header-logo { align-items: center !important; }',
+        // ── Match the PDF (print) layout in the captured image ──
+        // html2canvas evaluates media queries against the real ~390px device
+        // width, so the narrow max-width:768/600 rules fire and make the image
+        // look "mobile" (small header, stacked customer-info, 1-col test grid)
+        // while the PDF uses the wide print layout. Re-assert the wide/print
+        // values (copied from the @media print header rules) so the saved image
+        // matches the PDF side by side.
+        '.header-logo { padding-left: 0 !important; }',
+        '.logo-img { width: 46px !important; height: 46px !important; }',
+        '.company-name { font-size: calc(1.05rem + 0.3px) !important; letter-spacing: 1px !important; white-space: nowrap !important; }',
+        '.doc-title { font-size: calc(1.05rem + 0.3px) !important; letter-spacing: 1.5px !important; white-space: nowrap !important; }',
+        // Customer-info: keep fields on single rows (undo the max-width:600 stacking)
+        '#cust-info-body .field-row, #cust-info-body .field-row-nowrap { flex-wrap: nowrap !important; }',
+        '#cust-info-body .field-row label { flex: 0 0 auto !important; width: auto !important; }',
+        '#cust-info-body .field-row input, #cust-info-body .field-row select { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; max-width: none !important; }',
+        '#model-serial-hrs-row { flex-wrap: nowrap !important; gap: 6px !important; }',
+        '#model-serial-hrs-row > span { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }',
+        // Sim "Simulated Power Test" grid: keep two-up like the print layout
+        '.test-grid { grid-template-columns: 1fr 1fr !important; }',
         // Hide placeholder hint text in the captured image.
         'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; }',
         'input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: transparent !important; opacity: 0 !important; }',
@@ -2733,6 +2787,7 @@ function capturePageToCanvas() {
       }
 
       function restoreCapture() {
+        if (_capVp && _capOrigVP != null) _capVp.setAttribute('content', _capOrigVP);
         page.style.width     = prevWidth;
         page.style.maxWidth  = prevMaxWidth;
         page.style.height    = prevHeight;
@@ -2822,6 +2877,35 @@ function capturePageToCanvas() {
                   _sp.style.whiteSpace = 'nowrap';
                   _sp.style.overflow   = 'hidden';
                   if (_cd.parentNode) _cd.parentNode.replaceChild(_sp, _cd);
+                }
+              } catch (e) {}
+
+              // ── Force Name/Job#/Date proportions INLINE in the clone ──
+              // The injected capture-force-style kept losing to the
+              // @media(max-width:600px) !important rules inside html2canvas's
+              // clone (portrait collapsed the row). Inline styles on the cloned
+              // elements can't be outranked by any stylesheet/media query, so
+              // set the 2/1/1 split directly. Mirrors the landscape target.
+              try {
+                var _row2 = clonedDoc.getElementById('name-job-date-row');
+                if (_row2) {
+                  _row2.style.setProperty('flex-wrap', 'nowrap', 'important');
+                  _row2.style.setProperty('column-gap', '6px', 'important');
+                  Array.prototype.forEach.call(_row2.querySelectorAll('label'), function (l) {
+                    l.style.setProperty('flex', '0 0 auto', 'important');
+                    l.style.setProperty('width', 'auto', 'important');
+                  });
+                  function _setFlex2(el, grow) {
+                    if (!el) return;
+                    el.style.setProperty('flex', grow + ' 1 0', 'important');
+                    el.style.setProperty('width', 'auto', 'important');
+                    el.style.setProperty('min-width', '0', 'important');
+                    el.style.setProperty('max-width', 'none', 'important');
+                  }
+                  _setFlex2(clonedDoc.getElementById('name'), 2);
+                  _setFlex2(clonedDoc.getElementById('number'), 1);
+                  _setFlex2(clonedDoc.getElementById('date'), 1); // present if no date value
+                  if (typeof _sp !== 'undefined' && _sp) _setFlex2(_sp, 1); // the date span
                 }
               } catch (e) {}
             }
@@ -3118,6 +3202,27 @@ document.addEventListener('input', function () {
   _saveTimer = setTimeout(saveDraft, 600);
 });
 
+// ── Flush a save immediately when the app is backgrounded or closed ──
+// The input save is debounced 600ms, so typing then instantly closing or
+// switching away (common on mobile/PWA) could drop the last keystrokes.
+// These handlers cancel the pending debounce and save the current DOM state
+// right away, guaranteeing everything entered is persisted. saveDraft reads
+// live field values, so a single direct call captures every field type.
+function _flushSave() {
+  clearTimeout(_saveTimer);
+  try { saveDraft(); } catch (e) {}
+}
+// visibilitychange (hidden) is the most reliable mobile/PWA "leaving" signal.
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'hidden') _flushSave();
+});
+// pagehide fires on tab/app close and bfcache navigation (more reliable than
+// beforeunload on iOS Safari). beforeunload added as a desktop belt-and-braces.
+window.addEventListener('pagehide', _flushSave);
+window.addEventListener('beforeunload', _flushSave);
+// Also flush when the window loses focus (e.g. switching apps without hiding).
+window.addEventListener('blur', _flushSave);
+
 document.addEventListener('DOMContentLoaded', function () {
   const todayInput = document.getElementById('date');
   if (todayInput && !todayInput.value) {
@@ -3225,54 +3330,6 @@ document.addEventListener('DOMContentLoaded', adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
 setTimeout(adjustTopPadding, 500);
 if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTopPadding); }
-</script>
-
-<!-- ─────────────────────────────────────────────────────────────────────────
-     DIAGNOSTIC TAG (screen only — hidden in print).
-     Shows the build id + exactly what this device/web-view reports, so you can
-     confirm from INSIDE the installed home-screen app:
-       • BUILD  — bump BUILD_ID below on each deploy; if the app shows an old id,
-                  it's running a stale service-worker cache (the fix won't be in it).
-       • cls    — the classes applied to <html> (look for "ipad"; if you see
-                  "macos" the device was mis-detected as a desktop Mac).
-       • mtp/plat/sa/dm — the raw signals the detection uses.
-     Tap the tag to expand the full user-agent string. Remove this whole block
-     once everything checks out. -->
-<style>
-  #aog-diag { position: fixed; left: 4px; bottom: 4px; z-index: 2147483647;
-    font: 10px/1.35 monospace; color: #fff; background: rgba(0,0,0,0.78);
-    padding: 4px 6px; border-radius: 5px; max-width: 92vw; white-space: pre-wrap;
-    word-break: break-all; pointer-events: auto; }
-  @media print { #aog-diag { display: none !important; } }
-</style>
-<div id="aog-diag" title="tap to toggle full UA">loading…</div>
-<script>
-(function () {
-  var BUILD_ID = 'build-2026-06-25-c';   // ← change this string on every deploy
-  function mm(q){ return !!(window.matchMedia && window.matchMedia(q).matches); }
-  var el = document.getElementById('aog-diag');
-  function render(full) {
-    var cls = (document.documentElement.className || '(none)').trim() || '(none)';
-    var vp  = document.querySelector('meta[name="viewport"]');
-    var line =
-      BUILD_ID +
-      '  cls:[' + cls + ']' +
-      '\nmtp:' + (navigator.maxTouchPoints||0) +
-      '  plat:' + (navigator.platform||'?') +
-      '  sa:' + (navigator.standalone === true) +
-      '  dm-standalone:' + mm('(display-mode: standalone)') +
-      '\nvp-width:' + (vp ? (vp.getAttribute('content').match(/width=([^,]+)/)||[])[1] : '?') +
-      (full ? '\nUA: ' + navigator.userAgent : '  (tap for UA)');
-    el.textContent = line;
-  }
-  var _full = false;
-  if (el) {
-    el.addEventListener('click', function(){ _full = !_full; render(_full); });
-    // Render after the detection script has had a chance to add classes.
-    setTimeout(function(){ render(false); }, 0);
-    setTimeout(function(){ render(_full); }, 600);
-  }
-})();
 </script>
 
 </body>
