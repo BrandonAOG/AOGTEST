@@ -3216,5 +3216,53 @@ setTimeout(adjustTopPadding, 500);
 if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTopPadding); }
 </script>
 
+<!-- ─────────────────────────────────────────────────────────────────────────
+     DIAGNOSTIC TAG (screen only — hidden in print).
+     Shows the build id + exactly what this device/web-view reports, so you can
+     confirm from INSIDE the installed home-screen app:
+       • BUILD  — bump BUILD_ID below on each deploy; if the app shows an old id,
+                  it's running a stale service-worker cache (the fix won't be in it).
+       • cls    — the classes applied to <html> (look for "ipad"; if you see
+                  "macos" the device was mis-detected as a desktop Mac).
+       • mtp/plat/sa/dm — the raw signals the detection uses.
+     Tap the tag to expand the full user-agent string. Remove this whole block
+     once everything checks out. -->
+<style>
+  #aog-diag { position: fixed; left: 4px; bottom: 4px; z-index: 2147483647;
+    font: 10px/1.35 monospace; color: #fff; background: rgba(0,0,0,0.78);
+    padding: 4px 6px; border-radius: 5px; max-width: 92vw; white-space: pre-wrap;
+    word-break: break-all; pointer-events: auto; }
+  @media print { #aog-diag { display: none !important; } }
+</style>
+<div id="aog-diag" title="tap to toggle full UA">loading…</div>
+<script>
+(function () {
+  var BUILD_ID = 'build-2026-06-25-a';   // ← change this string on every deploy
+  function mm(q){ return !!(window.matchMedia && window.matchMedia(q).matches); }
+  var el = document.getElementById('aog-diag');
+  function render(full) {
+    var cls = (document.documentElement.className || '(none)').trim() || '(none)';
+    var vp  = document.querySelector('meta[name="viewport"]');
+    var line =
+      BUILD_ID +
+      '  cls:[' + cls + ']' +
+      '\nmtp:' + (navigator.maxTouchPoints||0) +
+      '  plat:' + (navigator.platform||'?') +
+      '  sa:' + (navigator.standalone === true) +
+      '  dm-standalone:' + mm('(display-mode: standalone)') +
+      '\nvp-width:' + (vp ? (vp.getAttribute('content').match(/width=([^,]+)/)||[])[1] : '?') +
+      (full ? '\nUA: ' + navigator.userAgent : '  (tap for UA)');
+    el.textContent = line;
+  }
+  var _full = false;
+  if (el) {
+    el.addEventListener('click', function(){ _full = !_full; render(_full); });
+    // Render after the detection script has had a chance to add classes.
+    setTimeout(function(){ render(false); }, 0);
+    setTimeout(function(){ render(_full); }, 600);
+  }
+})();
+</script>
+
 </body>
 </html>
