@@ -9844,6 +9844,33 @@ async function geocodeBest(rawQuery){
   }
   return cands[0];
 }
+/* Which county is a lat/lng in? Light wrapper over the FDOT county boundary layer, used to decide
+   whether an address-point anchor (Collier etc.) applies. Returns the county NAME or null. */
+async function countyNameAt(lat,lng){
+  try{
+    const c=await arcQuery(EP.county, lat, lng, 'NAME', false, 6000);
+    if(c && !c.__err && c.features && c.features[0]) return c.features[0].attributes.NAME;
+  }catch(e){}
+  return null;
+}
+/* AUTHORITATIVE ADDRESS-POINT ANCHOR (pre-parcel).
+   Geocoders (Census/OSM/Esri) interpolate a house's position from the street's number range and
+   routinely land 1-3 lots off — which then drives the parcel point-in-polygon onto the NEIGHBOUR's
+   lot (the 652-typed / 642-highlighted bug). For counties that publish a live Site Address Point
+   layer (ADDRPOINT_FEEDS, e.g. Collier), look the typed house number up DIRECTLY in that layer and,
+   when found, replace the geocoded point with the county's authoritative point before any parcel
+   lookup runs. If the county has no point for the address, we return null and the caller keeps the
+   geocoded point (graceful fallback). */
+async function anchorToAddrPoint(g, searchCtx){
+  if(!g || !searchCtx || !searchCtx.hn) return null;
+  const county = await countyNameAt(g.lat, g.lng);
+  if(!county || !ADDRPOINT_FEEDS[norm(county)]) return null;   // not an address-point county
+  const hit = await forwardAddrPoint(county, searchCtx, g.lat, g.lng).catch(()=>null);
+  if(hit && isFinite(hit.lat) && isFinite(hit.lng)){
+    return { lat:hit.lat, lng:hit.lng, label:hit.addr||g.label, src:titleCase(county)+' County address point', county };
+  }
+  return null;
+}
 async function doSearch(){
   const q=document.getElementById('addr').value.trim();
   if(!q) return;
@@ -9878,11 +9905,23 @@ async function doSearch(){
     if(sw && isFinite(sw.lat) && isFinite(sw.lng)) g={lat:sw.lat,lng:sw.lng,label:sw.label||q,src:'FL parcel roll'};
   }
   if(!g){ results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
+  // AUTHORITATIVE ANCHOR: for address-point counties (Collier), replace the interpolated geocoder
+  // point with the county's own address point for the typed house number, so the parcel lookup can't
+  // drift onto the neighbour's lot. Falls back to the geocoded point when the county has no match.
+  let anchored=false;
+  if(searchCtx.hn){
+    results.innerHTML=setStatus('busy','Confirming exact lot (county address points)…');
+    const a=await anchorToAddrPoint(g, searchCtx).catch(()=>null);
+    if(a){ g=a; anchored=true; }
+  }
   addToHistory(g.label || q);
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
   map.setView([g.lat,g.lng], 18);
   await runLookup(g.lat,g.lng, searchCtx);
-  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
+  const tail = anchored
+    ? 'authoritative county address point; confirm the marker is on the right lot.'
+    : 'parcel resolved below; confirm the marker is on the right lot.';
+  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — ${tail}</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 document.getElementById('go').onclick=doSearch;
