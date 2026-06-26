@@ -1400,19 +1400,6 @@ body.dark-mode .action-bar {
     // cause of the iPad "displaying what the iPhone sees" + sticking. Strip
     // them so the iPad is treated purely as an iPad.
     html.classList.remove('mobile-safari', 'ios');
-
-    // ── PWA viewport fix ──
-    // Installed (home-screen) PWAs on iPadOS resolve `width=device-width` to a
-    // WIDE logical viewport (e.g. 1093px) instead of the ~820 you get in Safari,
-    // so the app lays out desktop-wide and the PDF prints wide to match. Pin the
-    // viewport to the device's true PORTRAIT width so the standalone app lays out
-    // exactly like Safari's mobile site (the case that already prints correctly).
-    try {
-      var _vpEl = document.querySelector('meta[name="viewport"]');
-      var _portW = Math.min(screen.width || 0, screen.height || 0) || 820;
-      if (_vpEl) _vpEl.setAttribute('content',
-        'width=' + _portW + ', initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover');
-    } catch (e) {}
   }
 
   function applyToBody() {
@@ -2035,6 +2022,7 @@ function openPrintPreview() {
     el.setAttribute(attr, val);
   }
 
+
   // ── RESTORE function ──
   function restore() {
     document.title = prevTitle;
@@ -2079,11 +2067,20 @@ function openPrintPreview() {
     var body = document.body;
     var page = document.getElementById('page');
 
-    // html / body sizing — locks the 820px print layout inline
+    // html / body sizing — locks the print layout inline
+    // iPad (incl. standalone PWA): use 8.5in (816px) and LEFT-ALIGN. In a PWA the
+    // layout viewport is ~1093px, so the default `html.ipad{margin:0 auto}` centers
+    // the page and iOS print (which chops from the viewport's left edge at the 8.7in
+    // page width) cut off the right side. Left-aligning removes that offset; 8.5in
+    // leaves a safety margin inside the 8.7in sheet. Phones keep 820px (their
+    // viewport is narrower than the content, so there's no centering offset).
+    var _ipadPath = (isIPad || isIPadNav);
+    var _printW = _ipadPath ? '816px' : '820px';
     _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18') + 'px');
-    _snap(html, 'width',     '820px');
-    _snap(body, 'width',     '820px');
-    _snap(body, 'maxWidth',  '820px');
+    _snap(html, 'width',     _printW);
+    _snap(html, 'margin',    '0');        // left-align (kills the PWA centering clip)
+    _snap(body, 'width',     _printW);
+    _snap(body, 'maxWidth',  _printW);
     _snap(body, 'minWidth',  '0');
     _snap(body, 'height',    'auto');
     _snap(body, 'minHeight', '0');
