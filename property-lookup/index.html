@@ -284,6 +284,60 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .zoning-legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px;opacity:.85}
   @media (max-width:640px){ .zoning-legend{top:auto;bottom:12px;left:12px;font-size:10px;max-width:150px;max-height:40vh;overflow:auto} }
   @media (max-width:640px){ .radarclock{bottom:auto;top:54px;right:12px} }
+  /* ---- Weather info panel (NHC storm details + NWS warning legend).
+     Shares the lower-left slot with the zoning legend; higher z-index so that when both
+     are open the weather panel sits on top and hides the zoning legend behind it. ---- */
+  .wx-legend{position:absolute;z-index:1002;bottom:18px;left:14px;
+    background:var(--search-bg);border:1px solid var(--line);border-radius:8px;padding:0;
+    font-family:var(--disp);font-size:11px;color:var(--dim);box-shadow:0 6px 20px var(--shadow-soft);line-height:1.5;
+    width:230px;max-width:calc(100vw - 28px);max-height:62vh;overflow:hidden;display:none;flex-direction:column}
+  .wx-legend.show{display:flex}
+  .wx-legend .wx-scroll{overflow:auto;padding:9px 11px}
+  .wx-legend .wx-sec{margin-bottom:10px}
+  .wx-legend .wx-sec:last-child{margin-bottom:0}
+  .wx-legend .wx-title{font-family:var(--mono);font-weight:600;color:var(--signal);margin-bottom:5px;
+    letter-spacing:.16em;text-transform:uppercase;font-size:9.5px}
+  .wx-legend .wx-storm{color:var(--ink);font-size:11.5px;line-height:1.55}
+  .wx-legend .wx-storm .wx-name{font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:.02em;color:var(--signal2)}
+  .wx-legend .wx-storm .wx-cat{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:600;
+    letter-spacing:.06em;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:1px;
+    background:var(--warnbox-bg);border:1px solid var(--warnbox-line);color:var(--warnbox-ink)}
+  .wx-legend .wx-row{display:flex;justify-content:space-between;gap:10px;padding:1px 0}
+  .wx-legend .wx-row b{color:var(--ink);font-weight:600}
+  .wx-legend .wx-row span{font-family:var(--mono);color:var(--dim);white-space:nowrap}
+  .wx-legend .wx-sub{color:var(--faint);font-size:10px;margin-top:4px;line-height:1.4}
+  .wx-legend .wx-leg-item{display:flex;align-items:center;gap:7px;padding:1.5px 0;color:var(--ink);font-size:10.5px;line-height:1.3}
+  .wx-legend .wx-leg-item img{flex:none;width:16px;height:14px;border-radius:2px;image-rendering:pixelated}
+  .wx-legend .wx-leg-item i{flex:none;width:14px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.25)}
+  .wx-legend hr{border:none;border-top:1px solid var(--line);margin:9px 0}
+  /* Storm sub-layer controls (wind field / watch-warn / surge) + track scrubber */
+  .wx-legend .wx-chips{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 6px}
+  .wx-legend .wx-chip{font-family:var(--mono);font-size:9px;letter-spacing:.04em;text-transform:uppercase;
+    padding:3px 8px;border-radius:20px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);cursor:pointer;user-select:none;white-space:nowrap}
+  .wx-legend .wx-chip.on{background:var(--signal2);border-color:var(--signal2);color:#08121a;font-weight:600}
+  .wx-legend .wx-chip.busy{opacity:.55;cursor:progress}
+  .wx-legend .wx-scrub{display:flex;align-items:center;gap:7px;margin:5px 0 1px}
+  .wx-legend .wx-scrub button{flex:none;width:22px;height:22px;border-radius:5px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--ink);cursor:pointer;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .wx-legend .wx-scrub input[type=range]{flex:1;min-width:0;height:3px;accent-color:var(--signal2)}
+  .wx-legend .wx-scrubrd{font-family:var(--mono);font-size:9.5px;color:var(--ink);margin-top:2px;min-height:12px}
+  .wx-legend .wx-windleg{display:flex;flex-wrap:wrap;gap:9px;margin:3px 0 2px;font-family:var(--mono);font-size:9px;color:var(--dim)}
+  .wx-legend .wx-windleg span{display:inline-flex;align-items:center;gap:4px}
+  .wx-legend .wx-windleg i{width:10px;height:9px;border-radius:2px;display:inline-block}
+  .wx-legend .wx-wwleg{display:flex;flex-wrap:wrap;gap:8px;margin:3px 0 2px;font-family:var(--mono);font-size:8.5px;color:var(--dim)}
+  .wx-legend .wx-wwleg span{display:inline-flex;align-items:center;gap:4px}
+  .wx-legend .wx-wwleg i{width:12px;height:4px;border-radius:2px;display:inline-block}
+  @media (max-width:640px){ .wx-legend{bottom:12px;left:12px;width:200px;max-height:48vh} }
+  /* Leaflet popup themed to the panel for NHC storm-point details */
+  .leaflet-popup.wx-pop .leaflet-popup-content-wrapper{background:var(--panel);color:var(--ink);
+    border:1px solid var(--signal2);border-radius:9px;box-shadow:0 10px 30px var(--shadow-strong)}
+  .leaflet-popup.wx-pop .leaflet-popup-tip{background:var(--panel);border:1px solid var(--signal2)}
+  .leaflet-popup.wx-pop .leaflet-popup-content{margin:10px 12px;font-family:var(--disp);font-size:12px;line-height:1.5}
+  .leaflet-popup.wx-pop .wx-name{font-weight:700;font-size:13.5px;color:var(--signal2);letter-spacing:.02em}
+  .leaflet-popup.wx-pop .wx-row{display:flex;justify-content:space-between;gap:14px}
+  .leaflet-popup.wx-pop .wx-row b{color:var(--ink);font-weight:600}
+  .leaflet-popup.wx-pop .wx-row span{font-family:var(--mono);color:var(--dim);white-space:nowrap}
+  .leaflet-popup.wx-pop .wx-when{color:var(--faint);font-size:10px;margin-top:5px;font-family:var(--mono)}
   .bnd-tip{background:var(--bnd-bg);color:var(--bnd-ink);border:none;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.04em;padding:2px 7px;box-shadow:0 2px 8px var(--shadow-soft)}
   .bnd-tip .leaflet-tooltip-tip{background:var(--bnd-bg)}
   /* Hover card shown over a looked-up parcel polygon (address / parcel / owner) */
@@ -294,6 +348,53 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .parcel-tip .pt-lbl{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--blueprint);display:block;margin-bottom:1px}
   .parcel-tip .pt-val{font-weight:600;color:var(--ink)}
   .parcel-tip .pt-row+.pt-row{margin-top:6px}
+  /* Cone hover tooltip: nearest NHC forecast point follows the cursor */
+  .wx-cone-tip{min-width:140px;max-width:230px}
+  .wx-cone-tip .ct-name{font-family:var(--disp);font-weight:700;font-size:12.5px;color:var(--signal2);letter-spacing:.02em}
+  .wx-cone-tip .ct-cat{font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:var(--warnbox-ink);margin:1px 0 5px}
+  .wx-cone-tip .ct-row{display:flex;justify-content:space-between;gap:12px;line-height:1.45}
+  .wx-cone-tip .ct-row b{color:var(--ink);font-weight:600}
+  .wx-cone-tip .ct-row span{font-family:var(--mono);color:var(--dim);white-space:nowrap}
+  .wx-cone-tip .ct-when{color:var(--faint);font-size:9.5px;font-family:var(--mono);margin-top:5px}
+  /* Floating cone hover tip (positioned manually at the cursor) */
+  .wx-cone-float{position:absolute;z-index:1200;pointer-events:none;display:none;
+    transform:translate(-50%,calc(-100% - 16px));
+    background:var(--panel);color:var(--ink);border:1px solid var(--signal2);border-radius:8px;
+    font-family:var(--body);font-size:11.5px;line-height:1.45;padding:8px 10px;min-width:150px;max-width:250px;
+    box-shadow:0 8px 26px var(--shadow-strong)}
+  .wx-cone-float.show{display:block}
+  .wx-cone-float .ct-name{font-family:var(--disp);font-weight:700;font-size:12.5px;color:var(--signal2);letter-spacing:.02em}
+  .wx-cone-float .ct-cat{font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:var(--warnbox-ink);margin:1px 0 5px}
+  .wx-cone-float .ct-row{display:flex;justify-content:space-between;gap:12px}
+  .wx-cone-float .ct-row b{color:var(--ink);font-weight:600}
+  .wx-cone-float .ct-row span{font-family:var(--mono);color:var(--dim);white-space:nowrap}
+  .wx-cone-float .ct-desc{font-family:var(--mono);font-size:10.5px;color:var(--dim);white-space:normal;line-height:1.4;margin-top:1px}
+  .wx-cone-float .ct-when{color:var(--faint);font-size:9.5px;font-family:var(--mono);margin-top:5px}
+  /* Combined storm card: divider between folded sections (cone / wind / surge) */
+  .wx-cone-float .ct-merge-div{height:1px;background:var(--signal2);opacity:.28;margin:7px 0}
+  .wx-cone-float .ct-merge-sec{display:block}
+  /* Floating tip listing every NWS warning under the cursor */
+  .wx-warn-float{position:absolute;z-index:1200;pointer-events:none;display:none;
+    transform:translate(-50%,calc(-100% - 16px));
+    background:var(--panel);color:var(--ink);border:1px solid var(--warn,#e2542c);border-radius:8px;
+    font-family:var(--body);font-size:11.5px;line-height:1.5;padding:8px 10px;min-width:150px;max-width:250px;
+    box-shadow:0 8px 26px var(--shadow-strong)}
+  .wx-warn-float.show{display:block}
+  .wx-warn-float .wf-title{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--warn,#e2542c);margin-bottom:4px}
+  .wx-warn-float .wf-item{display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:600;padding:1px 0}
+  .wx-warn-float .wf-item i{flex:none;width:12px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.3)}
+  .wx-warn-float .wf-item img{flex:none;width:14px;height:11px;border-radius:2px;image-rendering:pixelated}
+  /* Legend category toggles */
+  .wx-legend .wx-leg-item.wx-tog{cursor:pointer;user-select:none;padding:3px 0}
+  .wx-legend .wx-leg-item.wx-tog input{appearance:none;-webkit-appearance:none;flex:none;
+    width:13px;height:13px;border:1.5px solid var(--dim);border-radius:3px;margin:0;cursor:pointer;position:relative;background:transparent}
+  .wx-legend .wx-leg-item.wx-tog input:checked{background:var(--signal2);border-color:var(--signal2)}
+  .wx-legend .wx-leg-item.wx-tog input:checked::after{content:'';position:absolute;left:3.5px;top:1px;
+    width:3px;height:6px;border:solid #08121a;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .wx-legend .wx-leg-item.wx-tog.off span{opacity:.45;text-decoration:line-through}
+  .wx-legend .wx-allrow{display:flex;gap:10px;margin:2px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:.04em}
+  .wx-legend .wx-allrow a{color:var(--signal2);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--signal2)}
   .nbr-num{background:rgba(10,16,22,.74);color:#bfe9ff;border:1px solid rgba(57,211,255,.45);border-radius:5px;
     font-family:var(--mono);font-size:10px;font-weight:600;line-height:1;letter-spacing:.02em;padding:2px 4px;
     white-space:nowrap;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.45);pointer-events:none;transform:translate(-50%,-50%);
@@ -462,6 +563,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     #map{ inset:var(--abh,48px) 0 0 600px; }
     .cardflow{ column-count:1; }   /* one category at a time — no masonry in tabbed mode */
     .zoning-legend{ left:614px; bottom:18px; }  /* clear the 600px sidebar; lower-left of map */
+    .wx-legend{ left:614px; }                    /* clear the 600px sidebar */
   }
 
   /* ---- Mobile: panel becomes a snapping, draggable bottom sheet ---- */
@@ -861,6 +963,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
       <button data-bm="sat" class="active">Satellite</button>
       <button data-bm="aerial" title="Aerial imagery with no place labels — unobstructed photo view">Aerial (clean)</button>
       <button data-bm="sarco" title="Local high-res county aerials — auto-switches to whichever county you're viewing (Sarasota, Lee, Charlotte, Collier, Manatee). Falls back to Esri imagery elsewhere.">📷 Local HD</button>
+      <button data-bm="collier2026" title="Collier County 2026 imagery (experimental). Decoded client-side from the county's LERC2D cache — only covers a small area around Naples/North Naples and may be slightly misaligned. Falls back to Esri imagery outside its coverage.">🆕 Collier 2026 (experimental)</button>
       <button id="localAerialRefresh" class="zl-refresh-row" title="Reload the local aerial for the county you're currently viewing (use after panning across a county line)">⟳ Refresh aerial to this view</button>
       <button data-bm="street">Street</button>
       <button data-bm="gray" title="Minimal light-gray basemap — makes parcel / flood / city overlays read clearly">Gray</button>
@@ -963,6 +1066,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://unpkg.com/lerc@4.1.1/LercDecode.js"></script>
 <script>
 /* ============================================================
    VERIFIED OFFICIAL ENDPOINTS (checked against live REST dirs)
@@ -1291,11 +1395,14 @@ function saveLoc(lat,lng){ lastLoc={lat,lng}; STORE.set('fl_loc', JSON.stringify
    ⚠️ Endpoints marked "verify" were located via the county's public GIS but not test-queried
    from this build environment; confirm in a browser. Layer must allow public CORS. */
 const COUNTY_LIVE = {
-COLLIER: { label: "Collier County (Property Appraiser, nightly)", urls: [
-  // ✅ ONLY reliable public endpoint — CORS-friendly, no auth required
-  // Fields: OwnerLine1, Folio, SiteStreetAddress, SiteCity, SiteZipCode
-  "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcel/FeatureServer/2/query",
-]}
+  COLLIER : { label:"Collier County (Property Appraiser, nightly)", urls:[
+    // ✅ confirmed: Collier's parcels layer on ArcGIS Online (CORS-friendly, same org as zoning).
+    // Fields: NAME1 (owner, NAME2-5 additional), FOLIO (parcel), LOTUNIT, TOTALACRES. Lean layer —
+    // value/site/sales come from the statewide roll fallback; "Verify on appraiser" covers deep detail.
+    "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcels/FeatureServer/42/query",
+    // Secondary: Collier enterprise GIS (Property Appraiser source). CORS not guaranteed from county server.
+    "https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/MapServer/0/query"
+  ]},
   LEE     : { label:"Lee County (Property Appraiser, nightly)", urls:[
     // ✅ confirmed: Lee's hosted parcels layer on ArcGIS Online (CORS-friendly), updated nightly.
     // Fields: O_NAME (owner), STRAP (parcel), SITEADDR/SITECITY, JUST (value), HEATEDAREA, S_1AMOUNT/S_1DATE (sale).
@@ -1906,7 +2013,7 @@ const map = L.map('map',{
 // Bigger canvas padding => the vector canvas is drawn well beyond the viewport, so short pans
 // reuse the already-rendered bitmap instead of triggering a full redraw on every frame.
 const canvasRenderer = L.canvas({ padding:2, tolerance:4 });   // shared canvas for all vector layers
-const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+const sat = L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?_cb=1",
   {maxZoom:23,maxNativeZoom:19,attribution:"Imagery &copy; Esri",updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
 const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
   {maxZoom:23,maxNativeZoom:19,opacity:.9,updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
@@ -1919,11 +2026,132 @@ const topo = L.tileLayer("https://basemap.nationalmap.gov/arcgis/rest/services/U
   {maxZoom:23,maxNativeZoom:16,attribution:"Topo &copy; USGS The National Map",updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
 // Clean aerial: the same Esri imagery as Satellite but WITHOUT the place-label overlay, for an
 // unobstructed photo view of roofs / pads / setbacks.
-const aerialClean = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+const aerialClean = L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?_cb=1",
   {maxZoom:23,maxNativeZoom:19,attribution:"Imagery &copy; Esri",updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
 // Light gray canvas: minimal, low-noise basemap so parcel lines / flood / city overlays read clearly.
 const gray = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
   {maxZoom:23,maxNativeZoom:16,attribution:"&copy; Esri",updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
+
+// =================== COLLIER 2026 (EXPERIMENTAL — LERC2D client-side decode) ===================
+// Collier's ImageryAll2026 service publishes its newest flight ONLY as a LERC2D pre-cached raster
+// (singleFusedMapCache, format LERC2D, max LOD 11) — NOT png/jpg, so a normal <img> tile layer
+// shows nothing even though /tile/{z}/{y}/{x} returns 200. This layer fetches the LERC blob,
+// decodes it client-side with Esri's `lerc` WASM library, draws the 3 RGB bands to a <canvas>,
+// and hands that canvas to Leaflet as the tile.
+//
+// COVERAGE & ALIGNMENT CAVEATS (read before relying on this for siting/measurements):
+//  - Service extent is small (~13km x ~11km in Web Mercator, roughly the Naples/North Naples
+//    area) — outside that box every tile is empty/error and Esri imagery shows through.
+//  - Service LODs (0-11) are NOT the same grid as standard slippy tiles: resolution at service
+//    LOD n is close to (but ~2% finer than) standard zoom (n+9), AND the tile origin differs from
+//    the standard Web-Mercator slippy origin. This layer picks the nearest LOD and the single
+//    nearest source tile — there is NO sub-tile cropping/resampling, so imagery can be offset by
+//    a fraction of a tile (visually: features may sit slightly shifted from their true position).
+//    Good enough to confirm "does the new structure exist", NOT for precise setback measurement —
+//    use the parcel polygon / survey for that.
+const COLLIER2026_R_MERC = 20037508.342789244;
+const COLLIER2026_ORIGIN_X = -20037507.8427882;
+const COLLIER2026_ORIGIN_Y = 30240971.4583861;
+const COLLIER2026_BASE_URL = "https://tiledimageservices2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/ImageryAll2026/ImageServer";
+const COLLIER2026_MAX_LOD = 11;
+// Actual resolutions per LOD level, taken from the service's tileInfo.lods (m/px, EPSG:3857).
+const COLLIER2026_LOD_RES = [
+  312.115824231649, 156.057912115825, 78.0289560579123, 39.0144780289562,
+  19.5072390144781, 9.75361950723904, 4.87680975361952, 2.43840487680976,
+  1.21920243840488, 0.60960121920244, 0.30480060960122, 0.15240030480061
+];
+const COLLIER2026_EXTENT = { // Web Mercator (3857)
+  xmin:-9116598.8339, ymin:2969998.32586421, xmax:-9000963.1214285754, ymax:3065766.2201999985
+};
+// Sub-tile cropping: spanPx≈250.8 means each Leaflet tile's content comes from a crop region inside
+// the source grid that may straddle up to 2 source tiles per axis (since frac+spanPx/256 can exceed
+// 1). We fetch the floor tile and, if the crop spans into the next tile, fetch that too and
+// composite both onto an oversized canvas before cropping to the final 256x256.
+const COLLIER2026_COL_OFFSET = 0;
+const COLLIER2026_ROW_OFFSET = 0;
+window.__collier2026Debug = [];
+let _lercReady = null;
+function lercEnsureLoaded(){
+  if(!_lercReady) _lercReady = Lerc.load();
+  return _lercReady;
+}
+const Collier2026Layer = L.GridLayer.extend({
+  options: { maxZoom:23, minZoom:11, maxNativeZoom:20, tileSize:256, updateWhenZooming:false, keepBuffer:4,
+             attribution:"Imagery © Collier County (2026, experimental)" },
+  createTile: function(coords, done){
+    const tile = document.createElement('canvas');
+    tile.width = 256; tile.height = 256;
+    const ctx = tile.getContext('2d');
+    // Compute this Leaflet tile's bounds in Web Mercator.
+    const n = Math.pow(2, coords.z), tsz = 2*COLLIER2026_R_MERC/n;
+    const xmin = -COLLIER2026_R_MERC + coords.x*tsz, ymax = COLLIER2026_R_MERC - coords.y*tsz;
+    const cx = xmin + tsz/2, cy = ymax - tsz/2;
+    // Outside the 2026 extent → transparent (Esri base shows through).
+    if(cx<COLLIER2026_EXTENT.xmin || cx>COLLIER2026_EXTENT.xmax || cy<COLLIER2026_EXTENT.ymin || cy>COLLIER2026_EXTENT.ymax){
+      setTimeout(()=>done(null, tile), 0);
+      return tile;
+    }
+    // Map standard zoom -> nearest service LOD (LOD ~= z-9, clamped to [0,11]).
+    const lod = Math.max(0, Math.min(COLLIER2026_MAX_LOD, coords.z - 9));
+    const lodRes = COLLIER2026_LOD_RES[lod];
+    // Exact (fractional) source-tile coords of this Leaflet tile's NW corner.
+    const exactCol = (xmin - COLLIER2026_ORIGIN_X) / (lodRes*256);
+    const exactRow = (COLLIER2026_ORIGIN_Y - ymax) / (lodRes*256);
+    const col0 = Math.floor(exactCol) + COLLIER2026_COL_OFFSET;
+    const row0 = Math.floor(exactRow) + COLLIER2026_ROW_OFFSET;
+    // Fractional pixel offset into tile (col0,row0), in SOURCE pixels (0-256).
+    const offX = (exactCol - Math.floor(exactCol)) * 256;
+    const offY = (exactRow - Math.floor(exactRow)) * 256;
+    // Source pixels spanned by this Leaflet tile (≈250.8).
+    const spanPx = tsz / lodRes;
+    // Crop region [offX, offX+spanPx) may spill into tile col0+1 (and similarly for rows). Fetch up
+    // to a 2x2 block of source tiles, decode each onto a combined (up to 512x512) canvas at the
+    // right offset, then crop [offX,offY,spanPx,spanPx] from that and scale to 256x256.
+    const needRight  = (offX + spanPx) > 256;
+    const needBottom = (offY + spanPx) > 256;
+    const tiles = [[col0,row0,0,0]];
+    if(needRight)            tiles.push([col0+1, row0,   256, 0]);
+    if(needBottom)           tiles.push([col0,   row0+1, 0, 256]);
+    if(needRight&&needBottom)tiles.push([col0+1, row0+1, 256, 256]);
+    if(window.__collier2026Debug) window.__collier2026Debug.push({leafletZ:coords.z, leafletX:coords.x, leafletY:coords.y, lod, col0, row0, offX, offY, spanPx, needRight, needBottom, centerLngLat: [(cx/COLLIER2026_R_MERC)*180, (Math.atan(Math.exp(cy/COLLIER2026_R_MERC*Math.PI))*2-Math.PI/2)*180/Math.PI]});
+    const combined = document.createElement('canvas');
+    combined.width = 512; combined.height = 512;
+    const cctx = combined.getContext('2d');
+    lercEnsureLoaded().then(()=>Promise.all(tiles.map(([c,r,dx,dy])=>{
+      const url = `${COLLIER2026_BASE_URL}/tile/${lod}/${r}/${c}`;
+      return fetch(url).then(resp=>{
+        if(!resp.ok) return null;             // missing neighbor → leave that quadrant blank
+        return resp.arrayBuffer();
+      }).then(buf=>{
+        if(!buf) return;
+        const result = Lerc.decode(buf);
+        const { width, height, pixels, mask } = result;
+        const img = cctx.createImageData(width, height);
+        const rr=pixels[0], gg=pixels[1]||pixels[0], bb=pixels[2]||pixels[0];
+        for(let i=0;i<width*height;i++){
+          img.data[i*4+0] = rr[i];
+          img.data[i*4+1] = gg[i];
+          img.data[i*4+2] = bb[i];
+          img.data[i*4+3] = (mask && !mask[i]) ? 0 : 255;
+        }
+        const tmp=document.createElement('canvas'); tmp.width=width; tmp.height=height;
+        tmp.getContext('2d').putImageData(img,0,0);
+        cctx.drawImage(tmp, dx, dy);
+      }).catch(()=>{});
+    }))).then(()=>{
+      // Crop [offX,offY,spanPx,spanPx] from the combined canvas and scale to fill 256x256.
+      ctx.drawImage(combined, offX, offY, spanPx, spanPx, 0, 0, 256, 256);
+      done(null, tile);
+    }).catch(()=>{
+      setTimeout(()=>done(null, tile), 0);
+    });
+    return tile;
+  }
+});
+const collier2026 = new Collier2026Layer();
+const collier2026EsriBase = L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?_cb=1",
+  {maxZoom:23,maxNativeZoom:19,attribution:"Imagery &copy; Esri",updateWhenIdle:L.Browser.mobile,updateWhenZooming:false,keepBuffer:4});
+const collier2026Group = L.layerGroup([collier2026EsriBase, collier2026, labels]);
 
 // =================== LOCAL HD AERIAL (one toggle, auto-picks the county) ===================
 // A single "Local HD" basemap that automatically serves whichever county's OWN high-res aerial
@@ -1960,12 +2188,13 @@ const LOCAL_AERIAL = {
                  "https://agis3.charlottecountyfl.gov/arcgis/rest/services/Imagery/Aerial_2024/ImageServer",
                  "https://ca.dep.state.fl.us/image/rest/services/FDOT_Yearly_Aerials/Aerial_Imagery_2023/ImageServer",
                  "https://ca.dep.state.fl.us/image/rest/services/FDOT_Yearly_Aerials/Aerial_Imagery_2021/ImageServer" ] },
-  COLLIER:  { label:"Collier County (2026)", bounds:[-81.90,25.80,-80.85,26.55], kind:"tilexyz",
-    // ✅ CONFIRMED via network tab: Collier's current HD aerial is a TILED ArcGIS Online layer
-    // (singleFusedMapCache), captured from the county's DFIRM/imagery viewer as a /tile/{z}/{y}/{x}
-    // request. Lead with this; keep the FDEP statewide ortho + old county guesses as fallback.
-    candidates:[ "https://tiledimageservices2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/ImageryAll2026/ImageServer",
-                 "https://ca.dep.state.fl.us/image/rest/services/FDOT_Yearly_Aerials/Aerial_Imagery_2023/ImageServer",
+  COLLIER:  { label:"Collier County", bounds:[-81.90,25.80,-80.85,26.55], kind:"export",
+    // ⚠️ ImageryAll2026 (tiledimageservices2...SlIq32SqARUHIhSx) was investigated and is NOT usable
+    // as a Leaflet tile layer: its cache format is LERC2D (analytical raster, not png/jpeg) and its
+    // max LOD is only 11 — Leaflet's <img> tiles can't decode LERC2D regardless of zoom, so it
+    // renders nothing. Would need Esri's ImageryTileLayer (client-side LERC decode) or a server-
+    // side LERC→PNG conversion to use this source. Leading with the verified FDEP ortho instead.
+    candidates:[ "https://ca.dep.state.fl.us/image/rest/services/FDOT_Yearly_Aerials/Aerial_Imagery_2023/ImageServer",
                  "https://ca.dep.state.fl.us/image/rest/services/FDOT_Yearly_Aerials/Aerial_Imagery_2021/ImageServer",
                  "https://ags2.colliercountyfl.gov/gis/rest/services/Public/Aerials_2024/ImageServer",
                  "https://ags2.colliercountyfl.gov/gis/rest/services/Public/Aerials/MapServer" ] },
@@ -1991,6 +2220,20 @@ const LOCAL_AERIAL = {
                  "https://ca.dep.state.fl.us/image/rest/services/FDOT_Yearly_Aerials/Aerial_Imagery_2019/ImageServer" ] }
 };
 // Resolved-at-runtime state: which counties' services actually responded, and their working URLs.
+// ✅ COLLIER is pre-seeded here (not left to the async probe below): the ImageryAll2026 tile
+// endpoint was confirmed working directly (200 OK on /tile/{z}/{y}/{x}), but the probe's
+// "?f=json" metadata check on this hosted ArcGIS Online service may fail/CORS-block or report a
+// spatialReference/cache shape the probe doesn't recognize, silently falling through to the FDEP
+// fallback. Seeding it here guarantees Collier's "Local HD" uses the 2026 imagery immediately,
+// regardless of what the probe decides. If Esri ever retires this exact URL, the probe will still
+// fall back through the remaining `candidates` for COLLIER.
+// ⚠️ ImageryAll2026 (confirmed via ?f=json): max cached LOD is level 11 (not 20), AND its tile
+// format is LERC2D — a compressed analytical raster format, NOT png/jpeg. A standard <img>-based
+// Leaflet tile layer cannot decode LERC2D, so /tile/{z}/{y}/{x} requests either 404 (z>11) or
+// return non-image bytes the browser silently fails to render (z<=11) — explaining "200 OK but
+// nothing shows". This service needs Esri's JS API (ImageryTileLayer, which decodes LERC client-
+// side) or a server-side conversion, not a Leaflet tile URL. Until that's built, COLLIER falls
+// through to the export-kind candidates below (FDEP ortho), which serve real JPEG/PNG.
 const LOCAL_AERIAL_ACTIVE = {};        // KEY -> { url, kind, label }
 // The mutable URL the layer is currently drawing from (auto-switcher repoints this).
 const LOCAL_URL_REF = { url:null, kind:"export" };
@@ -2048,7 +2291,7 @@ const localAerial = new LocalAerial("", {
 });
 // Esri imagery sits UNDER the local aerial so any gap (outside a wired county, or a not-yet-loaded
 // tile) still shows photography rather than blank. It caps at native z19 and upsamples to fill.
-const localEsriBase = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+const localEsriBase = L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?_cb=1",
   {maxZoom:23,maxNativeZoom:19,updateWhenIdle:false,updateWhenZooming:false,keepBuffer:6});
 const sarcoGroup = L.layerGroup([localEsriBase, localAerial, labels]);   // the "Local HD" basemap
 // Switch the local layer to the county under the current map center; returns the active key (or null).
@@ -2092,10 +2335,10 @@ function updateLocalAerial(force){
 const btnBasemap=document.getElementById('btnBasemap');
 const basemapMenu=document.getElementById('basemapMenu');
 const basemapLbl=document.getElementById('basemapLbl');
-const BM_LABEL={sat:'Satellite',street:'Street',topo:'⛰ Topo',aerial:'Aerial',gray:'Gray',sarco:'Local HD'};
+const BM_LABEL={sat:'Satellite',street:'Street',topo:'⛰ Topo',aerial:'Aerial',gray:'Gray',sarco:'Local HD',collier2026:'Collier 2026 (exp.)'};
 // The basemaps are mutually exclusive; overlays (city limits / flood / parcels / radar) sit on top.
 // All basemaps live in the low tilePane, so they always render beneath the overlays regardless of order.
-const BM_LAYER={sat:satGroup,street:street,topo:topo,aerial:aerialClean,gray:gray,sarco:sarcoGroup};
+const BM_LAYER={sat:satGroup,street:street,topo:topo,aerial:aerialClean,gray:gray,sarco:sarcoGroup,collier2026:collier2026Group};
 let _curBasemap='sat';
 function setBasemap(which){
   Object.values(BM_LAYER).forEach(l=>{ if(map.hasLayer(l)) map.removeLayer(l); });
@@ -2935,35 +3178,253 @@ function filterAtlantic(data){
   return { cone:keep(data.cone), track:keep(data.track), pts:keep(data.pts) };
 }
 
+/* ---- Shared lower-right weather panel (NHC storm details + NWS warning legend) ----
+   Two independent sections live in one box; either can be filled/cleared on its own,
+   and the box shows itself whenever at least one section has content. */
+function wxPanelEl(){
+  let el=document.getElementById('wxLegend');
+  if(!el){
+    el=document.createElement('div'); el.id='wxLegend'; el.className='wx-legend';
+    el.innerHTML='<div class="wx-scroll"><div id="wxStorm" class="wx-sec"></div><div id="wxStormCtl" class="wx-sec"></div><div id="wxWarn" class="wx-sec"></div></div>';
+    // Mount in the SAME parent as the zoning legend (a sibling of #map) so the shared
+    // left/bottom CSS lands both panels in exactly the same lower-left slot.
+    const zl=document.getElementById('zoningLegend');
+    const host=(zl&&zl.parentNode) || (document.getElementById('map')&&document.getElementById('map').parentNode) || document.body;
+    host.appendChild(el);
+  }
+  return el;
+}
+function wxPanelSync(){
+  const el=wxPanelEl();
+  const s=document.getElementById('wxStorm'), w=document.getElementById('wxWarn'), c=document.getElementById('wxStormCtl');
+  const has=(s&&s.innerHTML.trim())||(w&&w.innerHTML.trim())||(c&&c.innerHTML.trim());
+  el.classList.toggle('show', !!has);
+}
+function wxSetStorm(html){ wxPanelEl(); const s=document.getElementById('wxStorm'); if(s) s.innerHTML=html||''; wxPanelSync(); }
+function wxSetWarn(html){ wxPanelEl(); const w=document.getElementById('wxWarn'); if(w) w.innerHTML=html||''; wxPanelSync(); }
+
+/* ---- NHC attribute helpers ----
+   Field names vary in case/spelling across NHC layers, so look up a list of candidates.
+   Winds & gusts come back in KNOTS; pressure in millibars. */
+function nhcPick(props, names){
+  if(!props) return undefined;
+  for(const n of names){
+    if(props[n]!=null && props[n]!=='' && String(props[n]).toUpperCase()!=='NULL') return props[n];
+    // case-insensitive fallback
+    for(const k in props){ if(k.toLowerCase()===n.toLowerCase() && props[k]!=null && props[k]!=='' && String(props[k]).toUpperCase()!=='NULL') return props[k]; }
+  }
+  return undefined;
+}
+const KT_TO_MPH=1.15078;
+function ktToMph(kt){ const n=parseFloat(kt); return isFinite(n)?Math.round(n*KT_TO_MPH):null; }
+function saffirCat(mph){
+  if(mph==null) return null;
+  if(mph>=157) return 'Category 5';
+  if(mph>=130) return 'Category 4';
+  if(mph>=111) return 'Category 3';
+  if(mph>=96)  return 'Category 2';
+  if(mph>=74)  return 'Category 1';
+  if(mph>=39)  return 'Tropical Storm';
+  return 'Tropical Depression';
+}
+function stormName(props){
+  props=props||{};
+  return nhcPick(props,['STORMNAME','stormname','STORMNME','TCNAME','STORMTYPE'])||'Tropical system';
+}
+function stormType(props){ return nhcPick(props,['TCDVLP','STORMTYPE','DVLBL','DVLABEL']); }
 function stormLabel(props){
   props=props||{};
-  const name=props.STORMNAME||props.stormname||props.STORMNME||props.TCNAME||props.STORMTYPE||'Tropical system';
-  const adv =props.ADVISNUM||props.advisnum||props.ADVNUM;
+  const name=stormName(props);
+  const adv =nhcPick(props,['ADVISNUM','advisnum','ADVNUM']);
   return name + (adv?(' · adv '+adv):'');
+}
+// Pull the most useful numbers from a forecast point's properties.
+function pointStats(props){
+  props=props||{};
+  const windKt=nhcPick(props,['MAXWIND','maxwind','INTENSITY','WINDSPEED']);
+  const gustKt=nhcPick(props,['GUST','gust','MAXGUST']);
+  const mslp  =nhcPick(props,['MSLP','mslp','PRESSURE','MINPRESS']);
+  const windMph=ktToMph(windKt), gustMph=ktToMph(gustKt);
+  let cat=stormType(props);
+  if(!cat || /^[hsdt]$/i.test(String(cat))) cat=saffirCat(windMph)||cat; // expand 1-letter dev codes
+  const when=nhcPick(props,['FLDATELBL','DATELBL','VALIDTIME','FCSTPRD','TAU']);
+  const moveDir=nhcPick(props,['STORMDIR','MOVEMENTDIR','DIR']);
+  const moveSpd=nhcPick(props,['STORMSPD','MOVEMENTSPD','SPEED']);
+  return {windKt,windMph,gustKt,gustMph,mslp,cat,when,moveDir,moveSpd};
+}
+function pointPopupHTML(props){
+  const s=pointStats(props), rows=[];
+  if(s.windMph!=null) rows.push(`<div class="wx-row"><b>Max sustained</b><span>${s.windMph} mph (${Math.round(parseFloat(s.windKt))} kt)</span></div>`);
+  if(s.gustMph!=null) rows.push(`<div class="wx-row"><b>Gusts</b><span>${s.gustMph} mph (${Math.round(parseFloat(s.gustKt))} kt)</span></div>`);
+  if(s.mslp!=null)    rows.push(`<div class="wx-row"><b>Pressure</b><span>${Math.round(parseFloat(s.mslp))} mb</span></div>`);
+  if(s.moveDir!=null||s.moveSpd!=null) rows.push(`<div class="wx-row"><b>Moving</b><span>${[s.moveDir,(s.moveSpd!=null?s.moveSpd+' kt':'')].filter(Boolean).join(' @ ')}</span></div>`);
+  const adv=nhcPick(props,['ADVISNUM','ADVNUM']);
+  return `<div class="wx-name">${esc(stormName(props))}</div>`
+    + (s.cat?`<div style="color:var(--warnbox-ink);font-family:var(--mono);font-size:10px;letter-spacing:.04em;margin:1px 0 5px">${esc(String(s.cat))}</div>`:'')
+    + (rows.join('')||'<div class="wx-row"><span>No intensity data on this point.</span></div>')
+    + (s.when?`<div class="wx-when">Forecast valid: ${esc(String(s.when))}</div>`:'')
+    + (adv?`<div class="wx-when">NHC advisory ${esc(String(adv))}</div>`:'');
+}
+// Build the lower-right storm summary from the strongest / first-named forecast point.
+function buildStormSummary(data){
+  const feats=(data.pts&&data.pts.features)||[];
+  if(!feats.length){ if(coneOn) wxSetStorm(''); return; }
+  // group points by storm name; for each, the lead (current) point is usually the first / lowest TAU
+  const byStorm={};
+  feats.forEach(f=>{ const p=f.properties||{}; const nm=stormName(p);
+    (byStorm[nm]=byStorm[nm]||[]).push(p); });
+  let html='<div class="wx-title">NHC active systems</div>';
+  Object.keys(byStorm).forEach((nm,i)=>{
+    // current conditions = point with smallest forecast hour, else max wind
+    const pts=byStorm[nm].slice().sort((a,b)=>{
+      const ta=parseFloat(nhcPick(a,['TAU','FCSTHR']))||0, tb=parseFloat(nhcPick(b,['TAU','FCSTHR']))||0; return ta-tb; });
+    const cur=pts[0]; const s=pointStats(cur);
+    // peak forecast wind across the track
+    let peak=null; byStorm[nm].forEach(p=>{ const w=ktToMph(nhcPick(p,['MAXWIND','INTENSITY'])); if(w!=null&&(peak==null||w>peak)) peak=w; });
+    if(i>0) html+='<hr>';
+    html+='<div class="wx-storm">';
+    html+=`<div><span class="wx-name">${esc(nm)}</span>${s.cat?`<span class="wx-cat">${esc(String(s.cat))}</span>`:''}</div>`;
+    if(s.windMph!=null) html+=`<div class="wx-row"><b>Max wind</b><span>${s.windMph} mph</span></div>`;
+    if(s.gustMph!=null) html+=`<div class="wx-row"><b>Gusts</b><span>${s.gustMph} mph</span></div>`;
+    if(s.mslp!=null)    html+=`<div class="wx-row"><b>Pressure</b><span>${Math.round(parseFloat(s.mslp))} mb</span></div>`;
+    if(s.moveDir!=null||s.moveSpd!=null) html+=`<div class="wx-row"><b>Moving</b><span>${[s.moveDir,(s.moveSpd!=null?s.moveSpd+' kt':'')].filter(Boolean).join(' @ ')}</span></div>`;
+    if(peak!=null && peak!==s.windMph) html+=`<div class="wx-row"><b>Peak forecast</b><span>${peak} mph</span></div>`;
+    html+='<div class="wx-sub">Tap any track point for the full forecast at that time.</div>';
+    html+='</div>';
+  });
+  wxSetStorm(html);
+}
+// ---- Cone hover: manual point-in-polygon + floating tip (canvas paths don't reliably
+//      fire mousemove, so we drive it from the map's own mousemove instead). ----
+// Compact tip describing the nearest forecast center point to the cursor.
+function pointTipHTML(props, distMeters){
+  const s=pointStats(props), named=stormName(props);
+  let h='';
+  if(named && named!=='Tropical system') h+=`<div class="ct-name">${esc(named)}</div>`;
+  if(s.cat) h+=`<div class="ct-cat">${esc(String(s.cat))}</div>`;
+  if(s.windMph!=null) h+=`<div class="ct-row"><b>Max wind</b><span>${s.windMph} mph</span></div>`;
+  if(s.gustMph!=null) h+=`<div class="ct-row"><b>Gusts</b><span>${s.gustMph} mph</span></div>`;
+  if(s.mslp!=null)    h+=`<div class="ct-row"><b>Pressure</b><span>${Math.round(parseFloat(s.mslp))} mb</span></div>`;
+  if(s.moveDir!=null||s.moveSpd!=null) h+=`<div class="ct-row"><b>Moving</b><span>${[s.moveDir,(s.moveSpd!=null?s.moveSpd+' kt':'')].filter(Boolean).join(' @ ')}</span></div>`;
+  if(s.when) h+=`<div class="ct-when">Forecast valid: ${esc(String(s.when))}</div>`;
+  if(distMeters!=null && isFinite(distMeters)) h+=`<div class="ct-when">Nearest forecast point · ~${Math.round(distMeters/1609.34)} mi</div>`;
+  return h || '<div class="ct-row"><span>Forecast cone</span></div>';
+}
+let _coneMoveH=null, _coneOutH=null, _conePolys=[], _conePoints=[];
+function _coneFloatEl(){
+  let el=document.getElementById('coneFloat');
+  if(!el){ el=document.createElement('div'); el.id='coneFloat'; el.className='wx-cone-float';
+    (document.getElementById('map')||document.body).appendChild(el); }
+  return el;
+}
+function _pointInRing(lng,lat,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    if(((yi>lat)!==(yj>lat)) && (lng < (xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function _pointInPoly(lng,lat,poly){ let inside=false; for(const ring of poly){ if(_pointInRing(lng,lat,ring)) inside=!inside; } return inside; }
+/* Position a floating hover tip near the cursor, trying above → below → right → left and
+   choosing the first spot that stays on-map AND doesn't cover the lower-left weather panel. */
+function placeFloat(el, cp){
+  const mapEl=document.getElementById('map');
+  if(!mapEl){ el.style.transform='translate(-50%,calc(-100% - 16px))'; el.style.left=cp.x+'px'; el.style.top=cp.y+'px'; return; }
+  const mw=mapEl.clientWidth, mh=mapEl.clientHeight, w=el.offsetWidth||180, h=el.offsetHeight||60, g=16;
+  let panelR=null; const panel=document.getElementById('wxLegend');
+  if(panel && panel.classList.contains('show')){
+    const mr=mapEl.getBoundingClientRect(), pr=panel.getBoundingClientRect();
+    panelR={x1:pr.left-mr.left-6, y1:pr.top-mr.top-6, x2:pr.left-mr.left+pr.width+6, y2:pr.top-mr.top+pr.height+6};
+  }
+  const cands=[ {x:cp.x-w/2, y:cp.y-g-h}, {x:cp.x-w/2, y:cp.y+g}, {x:cp.x+g, y:cp.y-h/2}, {x:cp.x-g-w, y:cp.y-h/2} ];
+  const inView=c=>!(c.x<4||c.y<4||c.x+w>mw-4||c.y+h>mh-4);
+  const clear=c=>!panelR||(c.x+w<panelR.x1||c.x>panelR.x2||c.y+h<panelR.y1||c.y>panelR.y2);
+  let pick=cands.find(c=>inView(c)&&clear(c)) || cands.find(inView) || cands[0];
+  el.style.transform='none'; el.style.left=Math.round(pick.x)+'px'; el.style.top=Math.round(pick.y)+'px';
+}
+function _conePolysFrom(features){
+  const polys=[];
+  (features||[]).forEach(f=>{ const g=f.geometry; if(!g) return;
+    if(g.type==='Polygon') polys.push(g.coordinates);
+    else if(g.type==='MultiPolygon') g.coordinates.forEach(p=>polys.push(p)); });
+  return polys;
+}
+function clearConeHover(){
+  if(_coneMoveH){ map.off('mousemove',_coneMoveH); map.off('mouseout',_coneOutH); }
+  _coneMoveH=_coneOutH=null; _conePolys=[]; _conePoints=[];
+  const el=document.getElementById('coneFloat'); if(el) el.classList.remove('show');
+}
+/* Returns the cone hover-tip HTML for a given latlng, or '' if the cursor is
+   outside the forecast cone. Shared by the standalone cone float and the merged
+   storm card so both report identical forecast-point info. */
+function _coneTipFor(ll){
+  if(!_conePolys.length) return '';
+  let inside=false;
+  for(const poly of _conePolys){ if(_pointInPoly(ll.lng,ll.lat,poly)){ inside=true; break; } }
+  if(!inside) return '';
+  let best=null,bd=Infinity;
+  for(const p of _conePoints){ const d=map.distance(ll,p.ll); if(d<bd){ bd=d; best=p; } }
+  if(!best) return '';
+  return pointTipHTML(best.props, bd);
+}
+function setupConeHover(data){
+  clearConeHover();
+  _conePolys=_conePolysFrom(data.cone && data.cone.features);
+  _conePoints=[];
+  if(data.pts && data.pts.features){
+    data.pts.features.forEach(f=>{ const c=f.geometry&&f.geometry.coordinates;
+      if(c && isFinite(c[0]) && isFinite(c[1])) _conePoints.push({ ll:L.latLng(c[1],c[0]), props:f.properties||{} }); });
+  }
+  // Fall back to the cone polygon vertices if the service returned no point layer,
+  // so hover still reports the nearest part of the forecast track.
+  if(!_conePoints.length && _conePolys.length){
+    _conePolys.forEach(poly=>poly[0] && poly[0].forEach(c=>_conePoints.push({ ll:L.latLng(c[1],c[0]), props:{} })));
+  }
+  if(!_conePolys.length) return;
+  const el=_coneFloatEl();
+  _coneMoveH=function(e){
+    // When storm sub-layer tips (wind field / surge) are active, the cone info is
+    // folded into that single combined card instead — so the standalone cone float
+    // stays hidden and we let _renderStormFloat() draw everything together.
+    if(nhcSub.wind.on || nhcSub.surge.on){ el.classList.remove('show'); return; }
+    const html=_coneTipFor(e.latlng);
+    if(!html){ el.classList.remove('show'); return; }
+    el.innerHTML=html;
+    el.classList.add('show'); placeFloat(el, e.containerPoint);
+  };
+  _coneOutH=function(){ el.classList.remove('show'); };
+  map.on('mousemove',_coneMoveH); map.on('mouseout',_coneOutH);
 }
 function drawCone(data){
   if(coneLayer){ map.removeLayer(coneLayer); coneLayer=null; }
   coneLayer=L.featureGroup();
   if(data.cone && data.cone.features && data.cone.features.length){
-    L.geoJSON(data.cone,{ renderer:canvasRenderer, style:{ color:'#ff8a3c', weight:2, dashArray:'5 4', fillColor:'#ff8a3c', fillOpacity:.12 },
-      onEachFeature:(f,l)=>l.bindTooltip(stormLabel(f.properties)+' — forecast cone',{sticky:true,direction:'top',className:'parcel-tip'})
-    }).addTo(coneLayer);
+    L.geoJSON(data.cone,{ renderer:canvasRenderer, interactive:false,
+      style:{ color:'#ff8a3c', weight:2, dashArray:'5 4', fillColor:'#ff8a3c', fillOpacity:.12 } }).addTo(coneLayer);
   }
   if(data.track && data.track.features && data.track.features.length){
-    L.geoJSON(data.track,{ renderer:canvasRenderer, style:{ color:'#ff5d5d', weight:2.5, opacity:.95 } }).addTo(coneLayer);
+    L.geoJSON(data.track,{ renderer:canvasRenderer, interactive:false,
+      style:{ color:'#ff5d5d', weight:2.5, opacity:.95 } }).addTo(coneLayer);
   }
   if(data.pts && data.pts.features && data.pts.features.length){
     L.geoJSON(data.pts,{ renderer:canvasRenderer, pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:4,color:'#ff5d5d',weight:1.5,fillColor:'#fff',fillOpacity:.9}),
-      onEachFeature:(f,l)=>l.bindTooltip(stormLabel(f.properties),{direction:'top',className:'parcel-tip'})
+      onEachFeature:(f,l)=>{ l.bindPopup(pointPopupHTML(f.properties),{className:'wx-pop',maxWidth:260,minWidth:190}); }
     }).addTo(coneLayer);
   }
   coneLayer.addTo(map);
+  setupConeHover(data);
+  buildStormSummary(data);
+  buildScrubData(data);
+  renderStormControls();
 }
 const btnCone=document.getElementById('btnCone');
 if(btnCone) btnCone.onclick=async function(){
   if(coneOn){  // turn off
     coneOn=false; this.classList.remove('active');
     if(coneLayer){ map.removeLayer(coneLayer); coneLayer=null; }
+    clearConeHover(); clearStormSub();
+    wxSetStorm(''); const ctl=document.getElementById('wxStormCtl'); if(ctl){ ctl.innerHTML=''; wxPanelSync(); }
     clearInterval(coneTimer); coneTimer=null; return;
   }
   this.classList.add('active'); mapToast('Checking NHC for active tropical systems…', 2000);
@@ -2977,7 +3438,7 @@ if(btnCone) btnCone.onclick=async function(){
   const n=coneStormCount(data);
   mapToast(n+' active tropical system'+(n>1?'s':'')+' — showing NHC cone'+(n>1?'s':'')+' & track', 3200);
   try{ map.fitBounds(coneLayer.getBounds().pad(0.15),{maxZoom:8}); }catch(e){}
-  clearInterval(coneTimer); coneTimer=setInterval(async()=>{ if(coneOn){ coneFetchedAt=0; drawCone(await fetchCone()); } }, 15*60*1000);
+  clearInterval(coneTimer); coneTimer=setInterval(async()=>{ if(coneOn){ coneFetchedAt=0; drawCone(await fetchCone()); refreshStormSub(); } }, 15*60*1000);
 };
 /* Passive check on load: if a system is active, light up the Cone button so it's noticed. */
 (async()=>{ try{ const d=await fetchCone(); if(coneStormCount(d)>0 && btnCone){ btnCone.classList.add('alert');
@@ -2985,22 +3446,559 @@ if(btnCone) btnCone.onclick=async function(){
   const bw=document.getElementById('btnWeather'); if(bw){ bw.classList.add('alert'); bw.title='Active tropical system — open for the NHC cone, radar & warnings'; }
 } }catch(e){} })();
 
+/* ================= NHC storm sub-layers + track scrubber =================
+   Wind-field radii (34/50/64 kt), coastal Watch/Warning bands, Storm-Surge
+   Watch/Warning + potential inundation, and a slider to scrub the forecast track.
+   Layer IDs differ between NOAA services and change over time, so we DISCOVER them
+   by name from the service catalog at runtime rather than hard-coding numbers, and
+   silently skip any product NOAA isn't currently issuing. */
+const NHC_FOLDER='https://mapservices.weather.noaa.gov/tropical/rest/services/tropical?f=json';
+const NHC_SVCROOT='https://mapservices.weather.noaa.gov/tropical/rest/services/';
+let _nhcCat=null;
+let nhcSub={ wind:{on:false,layer:null}, ww:{on:false,layer:null}, surge:{on:false,layer:null,tiles:null} };
+let scrubPts=[], scrubMarker=null, scrubTimer=null, scrubIdx=0;
+let windGeoms=[], surgeGeoms=[], inunGeoms=[], _stormSubMoveH=null, _stormSubOutH=null;
+
+async function _svcLayers(svc){
+  try{ const j=await fetch(svc+'?f=json').then(r=>r.ok?r.json():null);
+    return ((j&&j.layers)||[]).map(l=>({id:l.id,name:String(l.name||'')})); }catch(e){ return []; }
+}
+function _pickLayer(idx, re, noRe){ for(const l of idx){ if(re.test(l.name) && !(noRe&&noRe.test(l.name))) return l.id; } return null; }
+async function nhcCatalog(){
+  if(_nhcCat) return _nhcCat;
+  const cat={ summary:NHC_BASE, surgeWW:null, surgeInun:null, windIdx:[], swwIdx:[], sinIdx:[], wwLayer:null };
+  try{
+    const fj=await fetch(NHC_FOLDER).then(r=>r.ok?r.json():null);
+    const svcs=(fj&&fj.services)||[];
+    const find=re=>{ const s=svcs.find(s=>re.test(s.name)); return s?(NHC_SVCROOT+s.name+'/'+s.type):null; };
+    cat.summary  = find(/summary/i) || NHC_BASE;
+    cat.surgeWW  = find(/surge.*(watch|warn)|(watch|warn).*surge/i) || find(/surge/i);
+    cat.surgeInun= find(/inundation/i);
+  }catch(e){}
+  const sidx=await _svcLayers(cat.summary);
+  cat.wwLayer = _pickLayer(sidx, /watch|warn/i, /cone|track|surge|wind/i);
+  cat.windIdx = sidx.filter(l=>/wind/i.test(l.name) && /(radi|field|extent|34|50|64)/i.test(l.name));
+  cat.swwIdx  = cat.surgeWW   ? await _svcLayers(cat.surgeWW)   : [];
+  cat.sinIdx  = cat.surgeInun ? await _svcLayers(cat.surgeInun) : [];
+  _nhcCat=cat; return cat;
+}
+// Fetch one layer as Atlantic-filtered GeoJSON.
+async function _nhcGeo(svc, id){
+  if(id==null) return null;
+  try{ const j=await fetch(svc+'/'+id+NHC_Q).then(r=>r.ok?r.json():null);
+    if(!j||!j.features) return j;
+    return Object.assign({},j,{features:j.features.filter(f=>_geomTouchesAtl(f&&f.geometry))}); }catch(e){ return null; }
+}
+
+/* ---- Wind-field radii ---- */
+function _windThreshold(props){
+  let t=null; for(const k in (props||{})){ const v=String(props[k]).trim(); if(v==='34'||v==='50'||v==='64'){ const n=+v; if(t==null||n>t) t=n; } } return t;
+}
+function _windColor(t){ return t===64?'#ff2d2d':t===50?'#ff9500':'#ffd23f'; }
+async function toggleWind(on){
+  if(nhcSub.wind.layer){ map.removeLayer(nhcSub.wind.layer); nhcSub.wind.layer=null; }
+  nhcSub.wind.on=on;
+  if(!on){ windGeoms=[]; _syncStormSubHover(); renderStormControls(); return; }
+  const cat=await nhcCatalog();
+  const collected=[];
+  for(const wl of (cat.windIdx||[])){
+    const lt=(wl.name.match(/\b(34|50|64)\b/)||[])[1];
+    const gj=await _nhcGeo(cat.summary, wl.id);
+    if(gj&&gj.features) gj.features.forEach(f=>collected.push({f, t:_windThreshold(f.properties)||(lt?+lt:null)}));
+  }
+  if(!collected.length){ mapToast('No wind-field radii published for this storm right now.',2800); nhcSub.wind.on=false; windGeoms=[]; _syncStormSubHover(); renderStormControls(); return; }
+  collected.sort((a,b)=>(a.t||0)-(b.t||0)); // draw 34kt first (underneath), 64kt on top
+  const grp=L.featureGroup(); windGeoms=[];
+  collected.forEach(({f,t})=>{ const c=_windColor(t);
+    L.geoJSON(f,{renderer:canvasRenderer,interactive:false,style:{color:c,weight:1,opacity:.8,fillColor:c,fillOpacity:.13}}).addTo(grp);
+    _featPolys(f).forEach(poly=>windGeoms.push({poly,t})); });
+  nhcSub.wind.layer=grp.addTo(map);
+  _syncStormSubHover();
+  renderStormControls();
+}
+
+/* ---- Coastal Watch / Warning bands ---- */
+function _wwColor(props){
+  const t=_normType(nhcPick(props,['TCWW','tcww','SEVERITY','severity','prod_type','TYPE','type','Label','label','SS'])||'');
+  if(/hurricane warning/.test(t)) return '#c8102e';
+  if(/hurricane watch/.test(t))   return '#ff69b4';
+  if(/(tropical storm|storm|trop strm).*warning|ts warning/.test(t)) return '#1f6feb';
+  if(/(tropical storm|storm|trop strm).*watch|ts watch/.test(t))     return '#f2c200';
+  return '#ff8a3c';
+}
+async function toggleWW(on){
+  if(nhcSub.ww.layer){ map.removeLayer(nhcSub.ww.layer); nhcSub.ww.layer=null; }
+  nhcSub.ww.on=on;
+  if(!on){ renderStormControls(); return; }
+  const cat=await nhcCatalog();
+  const gj=await _nhcGeo(cat.summary, cat.wwLayer);
+  if(!gj||!gj.features||!gj.features.length){ mapToast('No coastal watches/warnings issued for this storm right now.',2800); nhcSub.ww.on=false; renderStormControls(); return; }
+  nhcSub.ww.layer=L.geoJSON(gj,{renderer:canvasRenderer,interactive:false,
+    style:f=>({color:_wwColor(f.properties),weight:5,opacity:.95})}).addTo(map);
+  renderStormControls();
+}
+
+/* ---- Storm-surge watch/warning + potential inundation ---- */
+function _surgeColor(props){
+  const t=_normType(nhcPick(props,['TCWW','SEVERITY','prod_type','TYPE','Label','label'])||'');
+  if(/warning/.test(t)) return '#b524f7';
+  if(/watch/.test(t))   return '#db7ff7';
+  return '#b524f7';
+}
+function _surgeLabel(props){
+  const t=_normType(nhcPick(props,['TCWW','SEVERITY','prod_type','TYPE','Label','label'])||'');
+  if(/warning/.test(t)) return 'Storm Surge Warning';
+  if(/watch/.test(t))   return 'Storm Surge Watch';
+  return 'Storm Surge';
+}
+/* Inundation depth: NHC publishes potential flooding as height-above-ground bands
+   (e.g. "Greater than 3 feet", "1-3 ft"). Pull whatever depth text the feature carries,
+   falling back to the layer's own name, and rank it so hover can pick the deepest band. */
+function _inunLabel(props, lname){
+  for(const k in (props||{})){ const v=String(props[k]).trim();
+    if(/(\bft\b|feet|foot|greater than|more than|less than|>\s*\d|\b\d+\s*-\s*\d+\b)/i.test(v) && v.length<40) return v; }
+  if(lname && /\d/.test(lname)) return lname;
+  return 'Inundation';
+}
+function _inunRank(label){ const m=String(label).match(/\d+/); return m?+m[0]:0; }
+function _inunColor(label){ const n=_inunRank(label);
+  if(n>=9) return '#d11149'; if(n>=6) return '#ff7f11'; if(n>=3) return '#ffd23f'; return '#1f9be0'; }
+async function toggleSurge(on){
+  if(nhcSub.surge.layer){ map.removeLayer(nhcSub.surge.layer); nhcSub.surge.layer=null; }
+  if(nhcSub.surge.tiles){ map.removeLayer(nhcSub.surge.tiles); nhcSub.surge.tiles=null; }
+  nhcSub.surge.on=on;
+  if(!on){ surgeGeoms=[]; inunGeoms=[]; _syncStormSubHover(); renderStormControls(); return; }
+  const cat=await nhcCatalog(); const grp=L.featureGroup(); let any=false; surgeGeoms=[]; inunGeoms=[];
+  if(cat.surgeWW){
+    for(const l of (cat.swwIdx||[])){
+      const gj=await _nhcGeo(cat.surgeWW, l.id);
+      if(gj&&gj.features&&gj.features.length){
+        L.geoJSON(gj,{renderer:canvasRenderer,interactive:false,
+          style:f=>({color:_surgeColor(f.properties),weight:5,opacity:.95,fillColor:_surgeColor(f.properties),fillOpacity:.18})}).addTo(grp); any=true;
+        gj.features.forEach(f=>{ const type=_surgeLabel(f.properties); _featPolys(f).forEach(poly=>surgeGeoms.push({poly,type})); });
+      }
+    }
+  }
+  // Inundation: try to pull the depth polygons as vectors (so hover can report the band &
+  // we can color by depth). Geometry is simplified to keep the payload light. If the service
+  // only serves a raster (ImageServer) or vectors fail, fall back to the rendered tile overlay.
+  let inunVector=false;
+  if(cat.surgeInun && !/ImageServer/i.test(cat.surgeInun) && (cat.sinIdx||[]).length){
+    const off=Math.max(Math.abs(map.getBounds().getEast()-map.getBounds().getWest())/Math.max(map.getSize().x,1)*3, 0.0006);
+    const collected=[];
+    for(const l of cat.sinIdx){
+      try{
+        const j=await fetch(cat.surgeInun+'/'+l.id+'/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&maxAllowableOffset='+off+'&geometryPrecision=4&f=geojson').then(r=>r.ok?r.json():null);
+        const feats=((j&&j.features)||[]).filter(f=>_geomTouchesAtl(f&&f.geometry));
+        feats.forEach(f=>{ const label=_inunLabel(f.properties, l.name); collected.push({f,label,rank:_inunRank(label)}); });
+      }catch(e){}
+    }
+    if(collected.length){
+      inunVector=true; any=true;
+      collected.sort((a,b)=>a.rank-b.rank); // shallow first (underneath), deepest on top
+      collected.forEach(({f,label,rank})=>{ const c=_inunColor(label);
+        L.geoJSON(f,{renderer:canvasRenderer,interactive:false,style:{color:c,weight:.5,opacity:.6,fillColor:c,fillOpacity:.45}}).addTo(grp);
+        _featPolys(f).forEach(poly=>inunGeoms.push({poly,label,rank})); });
+    }
+  }
+  if(cat.surgeInun && !inunVector){
+    const isImg=/ImageServer/i.test(cat.surgeInun);
+    const path=isImg?'/exportImage':'/export';
+    const tl=new ArcGISExportTiles(cat.surgeInun+path+'?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857&size=256,256&f=image&bbox={bbox}',
+      {tileSize:256,opacity:.55,minZoom:5,maxZoom:19,zIndex:243,attribution:'Surge &copy; NOAA/NHC'});
+    tl.addTo(map); nhcSub.surge.tiles=tl; any=true;
+  }
+  if(!any){ mapToast('No storm-surge watch/warning or inundation issued right now.',2800); nhcSub.surge.on=false; surgeGeoms=[]; inunGeoms=[]; _syncStormSubHover(); renderStormControls(); return; }
+  if(grp.getLayers().length) nhcSub.surge.layer=grp.addTo(map);
+  _syncStormSubHover();
+  renderStormControls();
+}
+
+/* ---- Hover tip for the wind-field & surge overlays (point-in-polygon, like the cone) ---- */
+function _featPolys(f){
+  const g=f&&f.geometry, out=[];
+  if(!g) return out;
+  if(g.type==='Polygon') out.push(g.coordinates);
+  else if(g.type==='MultiPolygon') g.coordinates.forEach(p=>out.push(p));
+  return out;
+}
+function _stormFloatEl(){
+  let el=document.getElementById('stormFloat');
+  if(!el){ el=document.createElement('div'); el.id='stormFloat'; el.className='wx-cone-float';
+    (document.getElementById('map')||document.body).appendChild(el); }
+  return el;
+}
+let _lastStormCp=null, _lastStormLL=null, _surgeIdInfo=null, _surgeIdTimer=null, _surgeIdKey='';
+/* ArcGIS identify at the cursor point — works whether the surge service serves coastal
+   LINES, polygons, or a raster, so we can report Warning/Watch status and inundation depth
+   regardless of geometry type. Debounced; result cached and merged into the tip. */
+function _surgeIdentify(latlng){
+  const cat=_nhcCat; if(!cat) return;
+  const b=map.getBounds(), sz=map.getSize();
+  const ext=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].join(',');
+  const disp=sz.x+','+sz.y+',96';
+  const svcs=[]; if(cat.surgeWW) svcs.push(cat.surgeWW); if(cat.surgeInun) svcs.push(cat.surgeInun);
+  if(!svcs.length) return;
+  Promise.all(svcs.map(svc=>{
+    const u=svc+'/identify?geometry='+encodeURIComponent(latlng.lng+','+latlng.lat)
+      +'&geometryType=esriGeometryPoint&sr=4326&tolerance=5&mapExtent='+encodeURIComponent(ext)
+      +'&imageDisplay='+encodeURIComponent(disp)+'&layers=all&returnGeometry=false&f=json';
+    return fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
+  })).then(results=>{
+    const out={wwType:null, depth:null};
+    results.forEach(j=>((j&&j.results)||[]).forEach(res=>{
+      const a=res.attributes||{};
+      const raw=_normType(nhcPick(a,['TCWW','SEVERITY','prod_type','TYPE','Label','label'])||res.layerName||'');
+      if(/surge/.test(raw)||/surge/i.test(res.layerName||'')){ if(/warning/.test(raw)) out.wwType='Storm Surge Warning'; else if(/watch/.test(raw)) out.wwType='Storm Surge Watch'; }
+      const dl=_inunLabel(a, res.layerName);
+      if(/ft|feet|foot|greater than|more than|\d+\s*-\s*\d+/i.test(dl)){ if(!out.depth || _inunRank(dl)>_inunRank(out.depth)) out.depth=dl; }
+    }));
+    _surgeIdInfo=(out.wwType||out.depth)?out:null;
+    _renderStormFloat();
+  }).catch(()=>{});
+}
+function _renderStormFloat(){
+  const el=document.getElementById('stormFloat'); if(!el||!_lastStormLL) return;
+  const lng=_lastStormLL.lng, lat=_lastStormLL.lat; let html='';
+  // Fold the forecast-cone tip into this single combined card (when the cursor is
+  // inside the cone) so it never stacks as a second floating box.
+  const coneHtml=_coneTipFor(_lastStormLL);
+  if(coneHtml) html+='<div class="ct-merge-sec">'+coneHtml+'</div>';
+  if(nhcSub.wind.on && windGeoms.length){
+    let best=null; for(const w of windGeoms){ if(_pointInPoly(lng,lat,w.poly) && (best==null||w.t>best)) best=w.t; }
+    if(best!=null){
+      const lbl=best===64?'Hurricane-force (64+ kt · 74+ mph)':best===50?'Damaging winds (50+ kt · 58+ mph)':'Tropical-storm-force (34+ kt · 39+ mph)';
+      if(html) html+='<div class="ct-merge-div"></div>';
+      html+=`<div class="ct-name" style="color:${_windColor(best)}">${best}-kt wind field</div><div class="ct-desc">${lbl}</div>`;
+    }
+  }
+  if(nhcSub.surge.on){
+    const lines=[];
+    if(surgeGeoms.length){ const types=[]; for(const s of surgeGeoms){ if(_pointInPoly(lng,lat,s.poly)&&!types.includes(s.type)) types.push(s.type); } types.forEach(t=>lines.push(esc(t))); }
+    if(inunGeoms.length){ let d=null; for(const g of inunGeoms){ if(_pointInPoly(lng,lat,g.poly)){ if(!d||g.rank>d.rank) d=g; } } if(d) lines.push('Inundation: '+esc(d.label)); }
+    if(_surgeIdInfo){ if(_surgeIdInfo.wwType && !lines.includes(_surgeIdInfo.wwType)) lines.unshift(esc(_surgeIdInfo.wwType));
+      if(_surgeIdInfo.depth && !lines.some(l=>/Inundation/.test(l))) lines.push('Inundation: '+esc(_surgeIdInfo.depth)); }
+    if(lines.length){ if(html) html+='<div class="ct-merge-div"></div>';
+      html+='<div class="ct-name" style="color:#b524f7">Storm surge</div>'+lines.map(t=>`<div class="ct-desc">${t}</div>`).join(''); }
+  }
+  if(!html){ el.classList.remove('show'); return; }
+  el.innerHTML=html; el.classList.add('show'); if(_lastStormCp) placeFloat(el,_lastStormCp);
+  // Combined card owns the cone info now — keep the standalone cone float hidden.
+  const cf=document.getElementById('coneFloat'); if(cf) cf.classList.remove('show');
+}
+function _syncStormSubHover(){
+  const want = nhcSub.wind.on || nhcSub.surge.on;
+  if(want && !_stormSubMoveH){
+    _stormFloatEl();
+    _stormSubMoveH=function(e){
+      _lastStormCp=e.containerPoint; _lastStormLL=e.latlng;
+      if(nhcSub.surge.on){
+        const key=Math.round(e.latlng.lng*40)+','+Math.round(e.latlng.lat*40);
+        if(key!==_surgeIdKey){ _surgeIdKey=key; clearTimeout(_surgeIdTimer);
+          _surgeIdTimer=setTimeout(()=>_surgeIdentify(e.latlng), 200); }
+      }
+      _renderStormFloat();
+    };
+    _stormSubOutH=function(){ const el=document.getElementById('stormFloat'); if(el) el.classList.remove('show'); };
+    map.on('mousemove',_stormSubMoveH); map.on('mouseout',_stormSubOutH);
+  } else if(!want && _stormSubMoveH){
+    map.off('mousemove',_stormSubMoveH); map.off('mouseout',_stormSubOutH);
+    _stormSubMoveH=_stormSubOutH=null; _surgeIdInfo=null; _surgeIdKey='';
+    const el=document.getElementById('stormFloat'); if(el) el.classList.remove('show');
+  }
+}
+function refreshStormSub(){ if(nhcSub.wind.on) toggleWind(true); if(nhcSub.ww.on) toggleWW(true); if(nhcSub.surge.on) toggleSurge(true); }
+function clearStormSub(){
+  ['wind','ww','surge'].forEach(k=>{ if(nhcSub[k].layer){ map.removeLayer(nhcSub[k].layer); nhcSub[k].layer=null; } nhcSub[k].on=false; });
+  if(nhcSub.surge.tiles){ map.removeLayer(nhcSub.surge.tiles); nhcSub.surge.tiles=null; }
+  windGeoms=[]; surgeGeoms=[]; inunGeoms=[]; _syncStormSubHover();
+  if(scrubMarker){ map.removeLayer(scrubMarker); scrubMarker=null; }
+  if(scrubTimer){ clearInterval(scrubTimer); scrubTimer=null; }
+  scrubPts=[];
+}
+
+/* ---- Track scrubber ---- */
+function buildScrubData(data){
+  scrubPts=((data&&data.pts&&data.pts.features)||[]).map(f=>{
+    const c=f.geometry&&f.geometry.coordinates;
+    return c?{ ll:L.latLng(c[1],c[0]), props:f.properties||{} }:null;
+  }).filter(Boolean);
+  scrubPts.sort((a,b)=>(parseFloat(nhcPick(a.props,['TAU','FCSTHR']))||0)-(parseFloat(nhcPick(b.props,['TAU','FCSTHR']))||0));
+  if(scrubIdx>=scrubPts.length) scrubIdx=0;
+}
+function showScrub(i){
+  if(!scrubPts.length) return;
+  scrubIdx=Math.max(0,Math.min(i,scrubPts.length-1));
+  const p=scrubPts[scrubIdx]; if(!p) return;
+  if(!scrubMarker){ scrubMarker=L.circleMarker(p.ll,{radius:7,color:'#fff',weight:2,fillColor:'#39d3ff',fillOpacity:.95,renderer:canvasRenderer}).addTo(map); }
+  else scrubMarker.setLatLng(p.ll);
+  const s=pointStats(p.props), rd=document.getElementById('wxScrubRd');
+  const hr=nhcPick(p.props,['TAU','FCSTHR']);
+  if(rd) rd.textContent=[ (s.when?String(s.when):(hr!=null?('+'+hr+' h'):('Step '+(scrubIdx+1)))),
+                          s.cat||'', (s.windMph!=null?s.windMph+' mph':'') ].filter(Boolean).join(' · ');
+}
+function stopScrubPlay(){ if(scrubTimer){ clearInterval(scrubTimer); scrubTimer=null; }
+  const b=document.querySelector('#wxStormCtl [data-scrub=play]'); if(b) b.textContent='▶'; }
+function toggleScrubPlay(btn){
+  if(scrubTimer){ stopScrubPlay(); return; }
+  if(scrubPts.length<2) return;
+  btn.textContent='⏸';
+  scrubTimer=setInterval(()=>{
+    let n=scrubIdx+1; if(n>=scrubPts.length) n=0;
+    const r=document.querySelector('#wxStormCtl input[data-scrub=range]'); if(r) r.value=n;
+    showScrub(n);
+  }, 850);
+}
+function wireStormControls(){
+  document.querySelectorAll('#wxStormCtl .wx-chip').forEach(ch=>{
+    ch.onclick=function(){ const k=this.dataset.sub; if(this.classList.contains('busy')) return;
+      this.classList.add('busy');
+      const done=()=>this.classList.remove('busy');
+      if(k==='wind') toggleWind(!nhcSub.wind.on).then(done,done);
+      else if(k==='ww') toggleWW(!nhcSub.ww.on).then(done,done);
+      else if(k==='surge') toggleSurge(!nhcSub.surge.on).then(done,done);
+    };
+  });
+  const range=document.querySelector('#wxStormCtl input[data-scrub=range]');
+  if(range) range.oninput=function(){ stopScrubPlay(); showScrub(+this.value); };
+  const play=document.querySelector('#wxStormCtl [data-scrub=play]');
+  if(play) play.onclick=function(){ toggleScrubPlay(this); };
+}
+function renderStormControls(){
+  const el=document.getElementById('wxStormCtl'); if(!el) return;
+  if(!coneOn){ el.innerHTML=''; wxPanelSync(); return; }
+  const max=Math.max(scrubPts.length-1,0);
+  let h='<div class="wx-title">Storm layers</div>'
+    +'<div class="wx-chips">'
+    + `<span class="wx-chip${nhcSub.wind.on?' on':''}" data-sub="wind">Wind field</span>`
+    + `<span class="wx-chip${nhcSub.ww.on?' on':''}" data-sub="ww">Watch / Warn</span>`
+    + `<span class="wx-chip${nhcSub.surge.on?' on':''}" data-sub="surge">Surge</span>`
+    + '</div>';
+  if(nhcSub.wind.on) h+='<div class="wx-windleg"><span><i style="background:#ffd23f"></i>34kt (TS)</span>'
+      +'<span><i style="background:#ff9500"></i>50kt</span><span><i style="background:#ff2d2d"></i>64kt (hurr)</span></div>';
+  if(nhcSub.ww.on) h+='<div class="wx-wwleg"><span><i style="background:#c8102e"></i>Hurr Warn</span>'
+      +'<span><i style="background:#ff69b4"></i>Hurr Watch</span><span><i style="background:#1f6feb"></i>TS Warn</span>'
+      +'<span><i style="background:#f2c200"></i>TS Watch</span></div>';
+  if(nhcSub.surge.on) h+='<div class="wx-wwleg"><span><i style="background:#b524f7"></i>Surge Warn</span>'
+      +'<span><i style="background:#db7ff7"></i>Surge Watch</span></div>';
+  if(nhcSub.surge.on && inunGeoms.length) h+='<div class="wx-wwleg"><span><i style="background:#1f9be0"></i>&gt;1 ft</span>'
+      +'<span><i style="background:#ffd23f"></i>&gt;3 ft</span><span><i style="background:#ff7f11"></i>&gt;6 ft</span>'
+      +'<span><i style="background:#d11149"></i>&gt;9 ft</span></div>';
+  if(scrubPts.length>1){
+    h+='<div class="wx-scrub"><button data-scrub="play" title="Animate the forecast track">▶</button>'
+      +`<input type="range" min="0" max="${max}" value="${Math.min(scrubIdx,max)}" data-scrub="range" title="Scrub the forecast track"></div>`
+      +'<div class="wx-scrubrd" id="wxScrubRd"></div>';
+  }
+  el.innerHTML=h; wxPanelSync(); wireStormControls();
+  if(scrubPts.length>1) showScrub(Math.min(scrubIdx,max));
+}
+
+
 /* ---------- NWS live Watches & Warnings (rendered PNG overlay, like the flood layer) ----------
    NOAA event-driven WWA map service, refreshed every few minutes. Shows active tornado / flood /
    tropical / severe polygons. Same ArcGISExportTiles technique as the flood fill. */
 const NWS_WWA_MS = "https://mapservices.weather.noaa.gov/eventdriven/rest/services/WWA/watch_warn_adv/MapServer";
-const warnLayer = new ArcGISExportTiles(
-  NWS_WWA_MS + "/export?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857"
-            + "&size=256,256&layers=show:1&f=image&bbox={bbox}",
+const WARN_BASE = NWS_WWA_MS + "/export?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857"
+            + "&size=256,256&layers=show:1&f=image&bbox={bbox}";
+const warnHidden = new Set();   // exact prod_type strings the user has switched off
+function warnUrl(){
+  let u=WARN_BASE;
+  if(warnHidden.size){
+    const list=Array.from(warnHidden).map(t=>"'"+String(t).replace(/'/g,"''")+"'").join(',');
+    u += "&layerDefs="+encodeURIComponent('{"1":"prod_type NOT IN ('+list+')"}');
+  }
+  return u;
+}
+function applyWarnFilter(){ try{ warnLayer.setUrl(warnUrl()); }catch(e){} }
+const warnLayer = new ArcGISExportTiles(WARN_BASE,
   { tileSize:256, opacity:0.5, minZoom:5, maxZoom:19, zIndex:245,
     attribution:'Warnings &copy; NOAA/NWS', updateWhenIdle:L.Browser.mobile });
-let warnOn=false, warnRefresh=null;
+let warnOn=false, warnRefresh=null, warnLegendCache=null;
+/* Fetch the live legend swatches straight from the NWS WWA service so the labels &
+   colors always match exactly what the overlay paints. Layer 1 = Warnings. The legend
+   endpoint returns each class as a base64 PNG swatch, which we render inline.
+   We then show ONLY the swatches for warning types actually present in the current map
+   view (queried live), so the legend reflects what's on screen rather than a full list. */
+function _normType(s){ return String(s==null?'':s).toLowerCase().replace(/\s+/g,' ').trim(); }
+let warnGeoms=[];   // [{type, rings}] for the current view — powers the hover lookup
+// One query per view: pull warning polygons (geometry + prod_type) intersecting the map.
+// Populates warnGeoms for hover and returns a Map of normalized->original type (null on fail).
+async function fetchWarnInView(){
+  try{
+    const b=map.getBounds();
+    const env=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].join(',');
+    const degW=Math.abs(b.getEast()-b.getWest());
+    const off=Math.max(degW/Math.max(map.getSize().x,1)*2, 0.0004);  // ~2px geometry simplify
+    const url=NWS_WWA_MS+'/1/query?where=1%3D1'
+      +'&geometry='+encodeURIComponent(env)+'&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326'
+      +'&spatialRel=esriSpatialRelIntersects&outFields=prod_type&returnGeometry=true'
+      +'&geometryPrecision=3&maxAllowableOffset='+off+'&f=json';
+    const r=await fetch(url); if(!r.ok){ warnGeoms=[]; return null; }
+    const j=await r.json();
+    const feats=(j&&j.features)||[];
+    const m=new Map(); const geoms=[];
+    feats.forEach(f=>{ const a=f.attributes||{}; const t=a.prod_type||a.PROD_TYPE;
+      if(t){ const n=_normType(t); if(!m.has(n)) m.set(n,String(t)); }
+      const g=f.geometry; if(g&&g.rings&&g.rings.length) geoms.push({type:String(t||''), rings:g.rings}); });
+    warnGeoms=geoms;
+    return m;
+  }catch(e){ warnGeoms=[]; return null; }
+}
+// Swatch image (base64) for a warning type, pulled from the cached legend.
+function warnSwatch(type){
+  if(!warnLegendCache) return null;
+  const lyr=(warnLegendCache.layers||[]).find(l=>l.layerId===1)||(warnLegendCache.layers||[])[0];
+  return _swatchFor((lyr&&lyr.legend)||[], _normType(type));
+}
+// ---- Hover anywhere on the warnings overlay → list EVERY active warning at that point ----
+let _warnMoveH=null, _warnOutH=null;
+function _warnFloatEl(){
+  let el=document.getElementById('warnFloat');
+  if(!el){ el=document.createElement('div'); el.id='warnFloat'; el.className='wx-warn-float';
+    (document.getElementById('map')||document.body).appendChild(el); }
+  return el;
+}
+function clearWarnHover(){
+  if(_warnMoveH){ map.off('mousemove',_warnMoveH); map.off('mouseout',_warnOutH); }
+  _warnMoveH=_warnOutH=null;
+  const el=document.getElementById('warnFloat'); if(el) el.classList.remove('show');
+}
+function setupWarnHover(){
+  clearWarnHover();
+  const el=_warnFloatEl();
+  _warnMoveH=function(e){
+    if(!warnGeoms.length){ el.classList.remove('show'); return; }
+    const lng=e.latlng.lng, lat=e.latlng.lat, hits=[];
+    for(const g of warnGeoms){
+      if(warnHidden.has(g.type)) continue;                 // toggled-off categories aren't on the map
+      if(_pointInPoly(lng,lat,g.rings) && !hits.includes(g.type)) hits.push(g.type);
+    }
+    if(!hits.length){ el.classList.remove('show'); return; }
+    hits.sort();
+    el.innerHTML='<div class="wf-title">Active warnings here ('+hits.length+')</div>'
+      + hits.map(t=>`<div class="wf-item">${warnSwatchHTML(t)}<span>${esc(t)}</span></div>`).join('');
+    el.classList.add('show'); placeFloat(el, e.containerPoint);
+  };
+  _warnOutH=function(){ el.classList.remove('show'); };
+  map.on('mousemove',_warnMoveH); map.on('mouseout',_warnOutH);
+}
+// Find the legend swatch image whose label matches a given warning type.
+function _swatchFor(items, normType){
+  for(const it of items){ const lbl=_normType(it.label);
+    if(lbl===normType || lbl.includes(normType) || normType.includes(lbl))
+      return it.imageData?('data:'+(it.contentType||'image/png')+';base64,'+it.imageData):null;
+  }
+  return null;
+}
+/* Official NWS Watch/Warning/Advisory color table (NWSI 10-1701 / weather.gov/help-map),
+   so legend & hover swatches match exactly what NOAA publishes — no muddy rendered PNGs. */
+const NWS_COLORS = {
+  "tsunami warning":"#fd6347","tornado warning":"#ff0000","extreme wind warning":"#ff8c00",
+  "severe thunderstorm warning":"#ffa500","flash flood warning":"#8b0000","flash flood statement":"#8b0000",
+  "severe weather statement":"#00ffff","shelter in place warning":"#fa8072","evacuation immediate":"#7fff00",
+  "civil danger warning":"#ffb6c1","nuclear power plant warning":"#4b0082","radiological hazard warning":"#4b0082",
+  "hazardous materials warning":"#4b0082","fire warning":"#a0522d","civil emergency message":"#ffb6c1",
+  "law enforcement warning":"#c0c0c0","storm surge warning":"#b524f7","hurricane force wind warning":"#cd5c5c",
+  "hurricane warning":"#dc143c","typhoon warning":"#dc143c","tropical storm warning":"#b22222",
+  "storm warning":"#9400d3","tsunami advisory":"#d2691e","tsunami watch":"#ff00ff","avalanche warning":"#1e90ff",
+  "earthquake warning":"#8b4513","volcano warning":"#2f4f4f","ashfall warning":"#a9a9a9",
+  "coastal flood warning":"#228b22","lakeshore flood warning":"#228b22","flood warning":"#00ff00",
+  "high wind warning":"#daa520","extreme heat warning":"#c71585","excessive heat warning":"#c71585",
+  "wind chill warning":"#b0c4de","extreme cold warning":"#0000ff","ice storm warning":"#8b008b",
+  "winter storm warning":"#ff69b4","high wind watch":"#b8860b","tropical storm watch":"#f08080",
+  "hurricane watch":"#ff00ff","hurricane force wind watch":"#9932cc","typhoon watch":"#ff00ff",
+  "storm surge watch":"#db7ff7","heat advisory":"#ff7f50","excessive heat watch":"#800000",
+  "extreme heat watch":"#800000","blizzard warning":"#ff4500","flood watch":"#2e8b57",
+  "coastal flood watch":"#66cdaa","lakeshore flood watch":"#66cdaa","flash flood watch":"#2e8b57",
+  "high wind warning ":"#daa520","wind advisory":"#d2b48c","lake wind advisory":"#d2b48c",
+  "brisk wind advisory":"#d8bfd8","small craft advisory":"#d8bfd8","flood advisory":"#00ff7f",
+  "coastal flood advisory":"#7fffd4","lakeshore flood advisory":"#7fffd4","frost advisory":"#6495ed",
+  "freeze warning":"#483d8b","freeze watch":"#00ffff","dense fog advisory":"#708090",
+  "winter weather advisory":"#7b68ee","wind chill advisory":"#afeeee","extreme cold watch":"#0000ff",
+  "wind chill watch":"#5f9ea0","winter storm watch":"#4682b4","air quality alert":"#808080",
+  "special weather statement":"#ffe4b5","hydrologic outlook":"#90ee90","red flag warning":"#ff1493",
+  "fire weather watch":"#ffdead","gale warning":"#dda0dd","gale watch":"#ffc0cb",
+  "lake effect snow warning":"#008b8b","lake effect snow advisory":"#48d1cc","lake effect snow watch":"#87cefa",
+  "dense smoke advisory":"#f0e68c","ashfall advisory":"#696969","blowing dust advisory":"#bdb76b",
+  "dust storm warning":"#ffe4c4","high surf warning":"#228b22","high surf advisory":"#ba55d3",
+  "rip current statement":"#40e0d0","beach hazards statement":"#40e0d0","flood statement":"#00ff00",
+  "hard freeze warning":"#9400d3","hard freeze watch":"#4169e1","frost advisory ":"#6495ed",
+  "snow squall warning":"#c71585","storm surge ":"#b524f7","tropical storm wind":"#b22222"
+};
+function warnColor(type){ return NWS_COLORS[_normType(type)] || null; }
+// Swatch markup: prefer the exact official NWS hex; fall back to the rendered PNG, then neutral.
+function warnSwatchHTML(type){
+  const c=warnColor(type);
+  if(c) return `<i style="background:${c}"></i>`;
+  const src=warnSwatch(type);
+  return src?`<img alt="" src="${src}">`:'<i style="background:var(--warn)"></i>';
+}
+function _wireWarnToggles(){
+  document.querySelectorAll('#wxWarn .wx-tog input').forEach(cb=>{
+    cb.onchange=function(){
+      const t=this.dataset.type||'';
+      if(this.checked) warnHidden.delete(t); else warnHidden.add(t);
+      const row=this.closest('.wx-tog'); if(row) row.classList.toggle('off', !this.checked);
+      applyWarnFilter();
+    };
+  });
+  const on=document.getElementById('wxWarnAllOn'), off=document.getElementById('wxWarnAllOff');
+  if(on) on.onclick=function(){ document.querySelectorAll('#wxWarn .wx-tog input').forEach(cb=>{ warnHidden.delete(cb.dataset.type); }); applyWarnFilter(); buildWarnLegend(); };
+  if(off) off.onclick=function(){ document.querySelectorAll('#wxWarn .wx-tog input').forEach(cb=>{ if(cb.dataset.type) warnHidden.add(cb.dataset.type); }); applyWarnFilter(); buildWarnLegend(); };
+}
+async function buildWarnLegend(){
+  wxSetWarn('<div class="wx-title">NWS warnings</div><div class="wx-sub">Loading…</div>');
+  try{
+    if(!warnLegendCache){
+      const r=await fetch(NWS_WWA_MS+'/legend?f=json');
+      warnLegendCache = r.ok ? await r.json() : null;
+    }
+    const lyr=(warnLegendCache&&warnLegendCache.layers||[]).find(l=>l.layerId===1)
+            || (warnLegendCache&&warnLegendCache.layers||[])[0];
+    const items=(lyr&&lyr.legend)||[];
+
+    const inView=await fetchWarnInView();        // Map norm->original (+ populates warnGeoms)
+    if(!warnOn) return;                          // toggled off while fetching
+
+    // Query failed → can't filter by view; show the full legend without toggles.
+    if(!inView){
+      if(!items.length){ wxSetWarn('<div class="wx-title">NWS warnings</div><div class="wx-sub">Legend unavailable — overlay still active.</div>'); return; }
+      let h='<div class="wx-title">NWS warnings</div>';
+      items.forEach(it=>{ h+='<div class="wx-leg-item">'+warnSwatchHTML(it.label||'')+`<span>${esc(it.label||'Warning')}</span></div>`; });
+      wxSetWarn(h); return;
+    }
+    if(inView.size===0){
+      wxSetWarn('<div class="wx-title">NWS warnings</div><div class="wx-sub">No active warnings in this view. Pan or zoom out to find them.</div>');
+      return;
+    }
+
+    // One toggle row per warning type on screen.
+    const types=Array.from(inView.entries()).sort((a,b)=>a[1].localeCompare(b[1])); // [norm, original]
+    let html='<div class="wx-title">NWS warnings · in view</div>';
+    html+='<div class="wx-allrow"><a id="wxWarnAllOn">All on</a><a id="wxWarnAllOff">All off</a></div>';
+    types.forEach(([norm,orig])=>{
+      const on=!warnHidden.has(orig);
+      const label=esc(orig.replace(/\b\w/g,c=>c.toUpperCase()));
+      html+=`<label class="wx-leg-item wx-tog${on?'':' off'}">`
+          +`<input type="checkbox" data-type="${esc(orig)}"${on?' checked':''}>`
+          +warnSwatchHTML(orig)
+          +`<span>${label}</span></label>`;
+    });
+    html+='<div class="wx-sub">Toggle a category to show/hide it on the map. On-screen only · live NOAA/NWS.</div>';
+    wxSetWarn(html);
+    _wireWarnToggles();
+  }catch(e){ wxSetWarn('<div class="wx-title">NWS warnings</div><div class="wx-sub">Legend unavailable — overlay still active.</div>'); }
+}
+let warnMoveTimer=null;
+function scheduleWarnLegend(){ if(!warnOn) return; clearTimeout(warnMoveTimer); warnMoveTimer=setTimeout(buildWarnLegend, 450); }
 const btnWarn=document.getElementById('btnWarn');
 if(btnWarn) btnWarn.onclick=function(){
   warnOn=!warnOn; this.classList.toggle('active',warnOn);
-  if(warnOn){ warnLayer.addTo(map); mapToast('Live NWS watches & warnings', 2400);
-    clearInterval(warnRefresh); warnRefresh=setInterval(()=>{ if(warnOn) warnLayer.redraw(); }, 5*60*1000); }
-  else { map.removeLayer(warnLayer); clearInterval(warnRefresh); warnRefresh=null; }
+  if(warnOn){ if(zoningOn && btnZoning) btnZoning.click();   // warnings & zoning share the lower-left panel — turn zoning off
+    applyWarnFilter(); warnLayer.addTo(map); mapToast('Live NWS watches & warnings', 2400); buildWarnLegend(); setupWarnHover();
+    map.on('moveend', scheduleWarnLegend);
+    clearInterval(warnRefresh); warnRefresh=setInterval(()=>{ if(warnOn){ warnLayer.redraw(); buildWarnLegend(); } }, 5*60*1000); }
+  else { map.removeLayer(warnLayer); wxSetWarn(''); clearWarnHover(); map.off('moveend', scheduleWarnLegend); clearInterval(warnRefresh); warnRefresh=null; }
 };
 
 /* ---------- Weather popup (groups Radar / Cone / Warnings — independent toggles) ---------- */
@@ -9477,7 +10475,7 @@ window.Sheet=Sheet;
 
   // Selectors for the page's own floating UI that sits over the map — hidden only
   // during capture so they don't clutter the screenshot. The map LAYERS stay visible.
-  const UI_OVERLAYS = ['#coordReadout','#radarClock','#zoningLegend','.layerswitch',
+  const UI_OVERLAYS = ['#coordReadout','#radarClock','#zoningLegend','#wxLegend','#coneFloat','#warnFloat','#stormFloat','.layerswitch',
                        '#sheetTab','#coordReadout','.crosshair','.leaflet-control-container'];
 
   function filenameStamp(){
