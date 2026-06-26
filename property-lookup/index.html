@@ -9853,44 +9853,121 @@ async function countyNameAt(lat,lng){
   }catch(e){}
   return null;
 }
-/* AUTHORITATIVE ADDRESS-POINT ANCHOR (pre-parcel).
-   Geocoders (Census/OSM/Esri) interpolate a house's position from the street's number range and
-   routinely land 1-3 lots off — which then drives the parcel point-in-polygon onto the NEIGHBOUR's
-   lot (the 652-typed / 642-highlighted bug). For counties that publish a live Site Address Point
-   layer (ADDRPOINT_FEEDS, e.g. Collier), look the typed house number up DIRECTLY in that layer and,
-   when found, replace the geocoded point with the county's authoritative point before any parcel
-   lookup runs. If the county has no point for the address, we return null and the caller keeps the
-   geocoded point (graceful fallback). */
-async function anchorToAddrPoint(g, searchCtx){
-  if(!g || !searchCtx || !searchCtx.hn) return null;
-  const county = await countyNameAt(g.lat, g.lng);
-  if(!county || !ADDRPOINT_FEEDS[norm(county)]) return null;   // not an address-point county
-  const hit = await forwardAddrPoint(county, searchCtx, g.lat, g.lng).catch(()=>null);
-  if(hit && isFinite(hit.lat) && isFinite(hit.lng)){
-    return { lat:hit.lat, lng:hit.lng, label:hit.addr||g.label, src:titleCase(county)+' County address point', county };
+/* ---------- AUTHORITATIVE COUNTY PARCEL RESOLVERS (address -> exact lot, no geocoder) ----------
+   Some counties publish a parcel layer that carries BOTH correct geometry AND a correct site-address
+   field. For those, we resolve a typed address straight against that layer: filter server-side by
+   house number + street, require an exact match, and anchor the map/marker/parcel to the returned
+   polygon's centroid. This is deterministic — it cannot drift onto a neighbour the way an
+   interpolating geocoder does. Counties WITHOUT such a layer simply aren't listed here and fall
+   through to the normal geocoder path.
+
+   Collier note: the county's Site_Address_Points layer mis-files several blocks under the wrong
+   street (e.g. Bougainvillea Rd parcels recorded as "8th St N"), so it is NOT trustworthy for
+   address resolution. The Parcel/FeatureServer/2 "Parcels" layer, by contrast, carries the correct
+   SiteStreetAddress ("652 BOUGAINVILLEA RD" -> Folio 17860400008). We resolve against THAT. */
+const COUNTY_PARCEL_RESOLVERS = {
+  COLLIER: {
+    url: "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcel/FeatureServer/2/query",
+    addrField: "SiteStreetAddress",
+    cityField: "SiteCity",
+    zipField:  "SiteZipCode",
+    folioField:"Folio",
+    ownerField:"OwnerLine1"
   }
-  return null;
+};
+/* Suffix/abbreviation folding so "Rd"/"Road", "Ct"/"Court", "Dr"/"Drive" etc. all compare equal,
+   and a search with NO suffix still matches. Returns a normalized token list for the street part. */
+function addrMatchKey(s){
+  return streetTokens(s).join(' ');   // streetTokens already maps ROAD->RD, COURT->CT, drops house#
+}
+/* Resolve a typed address to an exact parcel via a county's authoritative parcel layer.
+   Returns { lat, lng, label, folio, owner, src, multi } on a confident single match,
+   { multi:true, candidates:[...] } when several lots share the number+street (units),
+   or null when the layer has no such address (caller then falls back to the geocoder). */
+async function resolveCountyParcel(countyName, searchCtx){
+  const cfg = countyName ? COUNTY_PARCEL_RESOLVERS[norm(countyName)] : null;
+  if(!cfg || !searchCtx || !searchCtx.hn) return null;
+  const hn = String(searchCtx.hn).replace(/'/g,"''");
+  // Pull every parcel whose site address STARTS with the house number, then match the street locally
+  // (suffix-folded) so Rd/Ct/Road/etc. don't cause misses or false hits.
+  const where = `${cfg.addrField} LIKE '${hn} %' OR ${cfg.addrField} = '${hn}'`;
+  const params = `where=${encodeURIComponent(where)}`+
+    `&outFields=${encodeURIComponent([cfg.addrField,cfg.cityField,cfg.zipField,cfg.folioField,cfg.ownerField].filter(Boolean).join(','))}`+
+    `&returnGeometry=true&outSR=4326&resultRecordCount=100&f=json`;
+  let feats;
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+    const r=await fetch(cfg.url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return null; const j=await r.json(); if(j.error) return null;
+    feats=(j.features)||[];
+  }catch(e){ return null; }
+  if(!feats.length) return null;
+  // Match: exact house number AND street-name overlap (suffix-folded). When the user typed a street,
+  // require the distinctive street token(s) to be present so "652 Bougainvillea" can't match
+  // "652 Broad Ave". When no street was typed, accept the bare house-number hit only if unique.
+  const wantCore = new Set(streetCore(searchCtx.raw||''));
+  const matches=[];
+  for(const f of feats){
+    const a=f.attributes||{}; const addr=a[cfg.addrField]; if(!addr) continue;
+    if(houseNum(addr)!==searchCtx.hn) continue;
+    if(wantCore.size){
+      const toks=new Set(streetTokens(addr));
+      let overlap=false; wantCore.forEach(t=>{ if(toks.has(t)) overlap=true; });
+      if(!overlap) continue;                       // street must match when one was typed
+    }
+    const c=featCentroid(f); if(!c) continue;       // [x,y] = [lng,lat]
+    matches.push({
+      lat:c[1], lng:c[0],
+      label:[addr, a[cfg.cityField], a[cfg.zipField]].filter(Boolean).join(', '),
+      folio:a[cfg.folioField]||null, owner:a[cfg.ownerField]||null
+    });
+  }
+  if(!matches.length) return null;
+  if(matches.length===1){
+    const m=matches[0];
+    return { lat:m.lat, lng:m.lng, label:m.label, folio:m.folio, owner:m.owner,
+             src:titleCase(countyName)+' County parcel', multi:false };
+  }
+  // Several lots share this number+street (e.g. a multi-unit address). Don't guess.
+  return { multi:true, candidates:matches, src:titleCase(countyName)+' County parcel' };
 }
 async function doSearch(){
   const q=document.getElementById('addr').value.trim();
   if(!q) return;
   const searchCtx = { raw:q, hn:houseNum(q), toks:new Set(streetTokens(q)), unit:searchUnit(q) };
 
-  // NG911-FIRST (Lee, Collier): if the typed address resolves cleanly in a configured NG911 layer,
-  // use that authoritative point and SKIP the external geocoder entirely. Falls through to the
-  // geocoder for everywhere else, or if NG911 is ambiguous/misses/unreachable.
+  // AUTHORITATIVE COUNTY-PARCEL FIRST (e.g. Collier): if the search is in a county whose parcel layer
+  // carries correct site addresses, resolve the EXACT lot there — by street + house number, server-
+  // side — and skip the interpolating geocoder entirely. This is what makes the result exact every
+  // time instead of drifting onto a neighbour. We first need to know the county; a quick geocode of
+  // the typed text gives us a rough point to identify it, then the parcel layer gives the truth.
   if(searchCtx.hn){
-    results.innerHTML=setStatus('busy','Locating address (county records)…');
-    const ng = await resolveAddressNG911Any(searchCtx).catch(()=>null);
-    if(ng && isFinite(ng.lat) && isFinite(ng.lng)){
-      addToHistory(ng.addr || q);
-      results.innerHTML=setStatus('busy','Pinpointing the parcel…');
-      map.setView([ng.lat,ng.lng], 18);
-      await runLookup(ng.lat, ng.lng, searchCtx);
-      const label = ng.addr ? esc(ng.addr) : esc(q);
-      const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(titleCase(ng.county))} County NG911): <b style="color:var(--ink)">${label}</b> — authoritative address point; confirm the marker is on the right lot.</div>`;
-      results.insertAdjacentHTML('afterbegin',conf);
-      return;
+    results.innerHTML=setStatus('busy','Locating address (county parcel records)…');
+    // Rough county identification: try a fast geocode just to find WHICH county, not to place the pin.
+    let county=null;
+    const rough=await geocodeBest(q).catch(()=>null);
+    if(rough && isFinite(rough.lat) && isFinite(rough.lng)) county=await countyNameAt(rough.lat,rough.lng).catch(()=>null);
+    if(county && COUNTY_PARCEL_RESOLVERS[norm(county)]){
+      const pr=await resolveCountyParcel(county, searchCtx).catch(()=>null);
+      if(pr && pr.multi && pr.candidates && pr.candidates.length){
+        // Several lots share this number+street — show them rather than guess one.
+        const list=pr.candidates.slice(0,8).map(c=>`<div class="sg" style="cursor:default"><span>${esc(c.label)}</span>${c.folio?`<span class="sgsrc">${esc(c.folio)}</span>`:''}</div>`).join('');
+        results.innerHTML=setStatus('err',`Found ${pr.candidates.length} lots matching “${esc(q)}”. Pick the exact one on the map, or add a unit/more detail.`)+`<div style="margin-top:6px">${list}</div>`;
+        // Still center the map on the first candidate so the user sees the area.
+        map.setView([pr.candidates[0].lat,pr.candidates[0].lng],18);
+        return;
+      }
+      if(pr && isFinite(pr.lat) && isFinite(pr.lng)){
+        addToHistory(pr.label || q);
+        results.innerHTML=setStatus('busy','Pinpointing the parcel…');
+        map.setView([pr.lat,pr.lng], 18);
+        await runLookup(pr.lat, pr.lng, searchCtx);
+        const fol = pr.folio ? ` · Folio ${esc(pr.folio)}` : '';
+        const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(pr.src)}): <b style="color:var(--ink)">${esc(pr.label)}</b>${fol} — authoritative county parcel; confirm the marker is on the right lot.</div>`;
+        results.insertAdjacentHTML('afterbegin',conf);
+        return;
+      }
+      // county is covered but the address wasn't found in its parcel layer → fall through to geocoder.
     }
   }
 
@@ -9905,23 +9982,11 @@ async function doSearch(){
     if(sw && isFinite(sw.lat) && isFinite(sw.lng)) g={lat:sw.lat,lng:sw.lng,label:sw.label||q,src:'FL parcel roll'};
   }
   if(!g){ results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
-  // AUTHORITATIVE ANCHOR: for address-point counties (Collier), replace the interpolated geocoder
-  // point with the county's own address point for the typed house number, so the parcel lookup can't
-  // drift onto the neighbour's lot. Falls back to the geocoded point when the county has no match.
-  let anchored=false;
-  if(searchCtx.hn){
-    results.innerHTML=setStatus('busy','Confirming exact lot (county address points)…');
-    const a=await anchorToAddrPoint(g, searchCtx).catch(()=>null);
-    if(a){ g=a; anchored=true; }
-  }
   addToHistory(g.label || q);
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
   map.setView([g.lat,g.lng], 18);
   await runLookup(g.lat,g.lng, searchCtx);
-  const tail = anchored
-    ? 'authoritative county address point; confirm the marker is on the right lot.'
-    : 'parcel resolved below; confirm the marker is on the right lot.';
-  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — ${tail}</div>`;
+  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 document.getElementById('go').onclick=doSearch;
