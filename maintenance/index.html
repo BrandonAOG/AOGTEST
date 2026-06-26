@@ -1366,46 +1366,34 @@ body.dark-mode .action-bar {
 (function () {
   var ua = navigator.userAgent;
   var html = document.documentElement;
-  var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
-  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
+  var isCriOS    = /CriOS/.test(ua);
+  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
   var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
-  // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
-  // NO viewport override). Only ANDROID Chrome gets the viewport-override path.
   var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
   var isMobileChrome = isAndroidChrome;
 
-  // ── iPad detection ──────────────────────────────────────────────────────
-  // Modern iPadOS Safari lies and reports a desktop "Macintosh" UA, so it would
-  // otherwise be mis-tagged as macOS and inherit the desktop-Mac print rules.
-  // We catch it three ways: (1) classic "iPad" UA, (2) the MacIntel + touch
-  // tell of iPadOS in desktop mode, (3) any Macintosh UA that also reports
-  // touch points (real Macs report 0).
   var mtp = navigator.maxTouchPoints || 0;
   var isIPad = /iPad/.test(ua)
     || (navigator.platform === 'MacIntel' && (mtp > 1 || 'ontouchstart' in window))
     || (/Macintosh/.test(ua) && (mtp > 1 || 'ontouchstart' in window));
+
+  // === IPAD ONLY - FORCE MOBILE LAYOUT ===
+  if (isIPad) {
+    const vp = document.querySelector('meta[name="viewport"]');
+    if (vp) {
+      vp.setAttribute('content', 'width=820, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover');
+    }
+    html.classList.add('ipad', 'mobile-safari');
+    html.classList.remove('macos', 'ios');
+  }
 
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
   if (isMacOS)        html.classList.add('macos');
   if (isWindows)      html.classList.add('windows');
   if (isAndroid)      html.classList.add('android');
   if (isMobileChrome) html.classList.add('mobile-chrome');
-  if (isIPad) {
-    html.classList.add('ipad', 'mobile-safari');
-    html.classList.remove('macos');   // iPad is NOT a desktop Mac for print
-    // A classic-UA iPad also matched isIOS above and got 'mobile-safari'/'ios',
-    // which made it inherit the iPHONE layout, scroll, and print rules — the
-    // cause of the iPad "displaying what the iPhone sees" + sticking. Strip
-    // them so the iPad is treated purely as an iPad.
-    html.classList.remove('mobile-safari', 'ios');
-    // === FORCE 820px WIDTH ON IPAD ONLY ===
-  const vp = document.querySelector('meta[name="viewport"]');
-  if (vp) {
-    vp.setAttribute('content', 'width=820, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover');
-  }
-  }
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
@@ -1414,11 +1402,11 @@ body.dark-mode .action-bar {
     if (isAndroid)      document.body.classList.add('android');
     if (isMobileChrome) document.body.classList.add('mobile-chrome');
     if (isIPad) {
-      document.body.classList.add('ipad');
-      document.body.classList.remove('macos');
-      document.body.classList.remove('mobile-safari', 'ios');
+      document.body.classList.add('ipad', 'mobile-safari');
+      document.body.classList.remove('macos', 'ios');
     }
   }
+
   if (document.body) applyToBody();
   else document.addEventListener('DOMContentLoaded', applyToBody);
 })();
@@ -1873,7 +1861,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span id="ver-tag" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.1b</span>
+    <span id="ver-tag" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.1C</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
