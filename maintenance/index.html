@@ -1366,42 +1366,54 @@ body.dark-mode .action-bar {
 (function () {
   var ua = navigator.userAgent;
   var html = document.documentElement;
+  var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
+  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+  var isWindows  = /Windows/.test(ua);
+  var isAndroid  = /Android/.test(ua);
+  // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
+  // NO viewport override). Only ANDROID Chrome gets the viewport-override path.
+  var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
+  var isMobileChrome = isAndroidChrome;
 
-  var isIPhone = /iPhone|iPod/.test(ua);
-  var isIPad   = /iPad/.test(ua) ||
-                 (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints > 1 || 'ontouchstart' in window)) ||
-                 (/Macintosh/.test(ua) && (navigator.maxTouchPoints > 1 || 'ontouchstart' in window));
+  // ── iPad detection ──────────────────────────────────────────────────────
+  // Modern iPadOS Safari lies and reports a desktop "Macintosh" UA, so it would
+  // otherwise be mis-tagged as macOS and inherit the desktop-Mac print rules.
+  // We catch it three ways: (1) classic "iPad" UA, (2) the MacIntel + touch
+  // tell of iPadOS in desktop mode, (3) any Macintosh UA that also reports
+  // touch points (real Macs report 0).
+  var mtp = navigator.maxTouchPoints || 0;
+  var isIPad = /iPad/.test(ua)
+    || (navigator.platform === 'MacIntel' && (mtp > 1 || 'ontouchstart' in window))
+    || (/Macintosh/.test(ua) && (mtp > 1 || 'ontouchstart' in window));
 
-  var isIOS = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
-
-  // Phones get full iPhone treatment
-  if (isIPhone || (isIOS && !isIPad)) {
-    html.classList.add('ios', 'mobile-safari');
-  }
-
-  // iPad gets its own treatment
+  if (isIOS)          html.classList.add('ios', 'mobile-safari');
+  if (isMacOS)        html.classList.add('macos');
+  if (isWindows)      html.classList.add('windows');
+  if (isAndroid)      html.classList.add('android');
+  if (isMobileChrome) html.classList.add('mobile-chrome');
   if (isIPad) {
     html.classList.add('ipad');
-    html.classList.remove('mobile-safari', 'ios', 'macos');
-
-    // Force 8.7in print width on iPad
-    const vp = document.querySelector('meta[name="viewport"]');
-    if (vp) {
-      vp.setAttribute('content', 'width=820, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover');
-    }
+    html.classList.remove('macos');   // iPad is NOT a desktop Mac for print
+    // A classic-UA iPad also matched isIOS above and got 'mobile-safari'/'ios',
+    // which made it inherit the iPHONE layout, scroll, and print rules — the
+    // cause of the iPad "displaying what the iPhone sees" + sticking. Strip
+    // them so the iPad is treated purely as an iPad.
+    html.classList.remove('mobile-safari', 'ios');
   }
 
-  // Apply same classes to body
   function applyToBody() {
-    if (isIPhone || (isIOS && !isIPad)) {
-      document.body.classList.add('ios', 'mobile-safari');
-    }
+    if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
+    if (isMacOS)        document.body.classList.add('macos');
+    if (isWindows)      document.body.classList.add('windows');
+    if (isAndroid)      document.body.classList.add('android');
+    if (isMobileChrome) document.body.classList.add('mobile-chrome');
     if (isIPad) {
       document.body.classList.add('ipad');
-      document.body.classList.remove('mobile-safari', 'ios', 'macos');
+      document.body.classList.remove('macos');
+      document.body.classList.remove('mobile-safari', 'ios');
     }
   }
-
   if (document.body) applyToBody();
   else document.addEventListener('DOMContentLoaded', applyToBody);
 })();
@@ -1856,7 +1868,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span id="ver-tag" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.1A</span>
+    <span id="ver-stamp" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.1A</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -3320,121 +3332,245 @@ setTimeout(adjustTopPadding, 500);
 if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTopPadding); }
 </script>
 
+
+<!-- ══════════════════════════════════════════════════════════════
+     DEBUG PANEL — triple-tap "Ver 1.1A" in the footer to open.
+     Dumps all detection signals + the exact openPrintPreview branch.
+     Use the COPY button to send the dump.
+     ══════════════════════════════════════════════════════════════ -->
+<div id="dbg-panel" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.88);overflow:auto;-webkit-overflow-scrolling:touch;padding:12px 10px 24px;">
+  <div style="max-width:620px;margin:0 auto;background:#0A0E27;border:1.5px solid #00FFC8;border-radius:4px;padding:14px 14px 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;">
+      <span style="color:#00FFC8;font-family:'Orbitron',monospace;font-size:0.65rem;letter-spacing:2.5px;flex-shrink:0;">◈ DEBUG DUMP</span>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button id="dbg-copy" style="background:rgba(0,255,200,0.08);border:1px solid #00FFC8;color:#00FFC8;font-family:'Share Tech Mono',monospace;font-size:11px;padding:4px 14px;cursor:pointer;border-radius:2px;letter-spacing:1px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">COPY</button>
+        <button id="dbg-close" style="background:rgba(248,113,113,0.08);border:1px solid #f87171;color:#f87171;font-family:'Share Tech Mono',monospace;font-size:11px;padding:4px 14px;cursor:pointer;border-radius:2px;letter-spacing:1px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">CLOSE</button>
+      </div>
+    </div>
+    <pre id="dbg-pre" style="color:#E0F7FF;font-family:'Share Tech Mono',monospace;font-size:11px;line-height:1.65;white-space:pre-wrap;word-break:break-all;margin:0;"></pre>
+  </div>
+</div>
+
 <script>
-/* ── DEBUG PANEL ──────────────────────────────────────────────────────────
-   Triple-tap the footer "Ver" text (or load with #debug) to open a panel that
-   dumps every signal the device detection uses, plus which print branch
-   openPrintPreview() would take. Tap "Copy" and paste it back for diagnosis.
-   Purely diagnostic — changes no behavior. */
 (function () {
-  function val(x){ try { return String(x); } catch(e){ return '(err)'; } }
-  function buildReport() {
-    var ua  = navigator.userAgent;
-    var plat = navigator.platform;
-    var mtp = navigator.maxTouchPoints || 0;
-    var touch = ('ontouchstart' in window);
-    var standaloneMM = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || false;
-    var standaloneNav = (navigator.standalone === true);
-    var crios = /CriOS/.test(ua);
+  'use strict';
 
-    // Re-derive detection exactly like the head script
-    var isIOS   = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
-    var isMacOS = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
-    var isAndroid = /Android/.test(ua);
+  // ── Triple-tap the version stamp to open ──────────────────────
+  var verEl = document.getElementById('ver-stamp');
+  if (!verEl) return;
+  verEl.style.cursor = 'default';
+  verEl.style.userSelect = 'none';
+  verEl.style.webkitUserSelect = 'none';
+
+  var _taps = 0, _tapTimer;
+  function _onTap() {
+    _taps++;
+    clearTimeout(_tapTimer);
+    if (_taps >= 3) {
+      _taps = 0;
+      _showDebug();
+    } else {
+      _tapTimer = setTimeout(function () { _taps = 0; }, 700);
+    }
+  }
+  verEl.addEventListener('click', _onTap);
+  verEl.addEventListener('touchend', function (e) { e.preventDefault(); _onTap(); });
+
+  // ── Close & Copy buttons ──────────────────────────────────────
+  document.getElementById('dbg-close').addEventListener('click', function () {
+    document.getElementById('dbg-panel').style.display = 'none';
+  });
+
+  document.getElementById('dbg-copy').addEventListener('click', function () {
+    var text = document.getElementById('dbg-pre').textContent;
+    var btn  = document.getElementById('dbg-copy');
+    function _ack() { btn.textContent = 'COPIED ✓'; setTimeout(function () { btn.textContent = 'COPY'; }, 2200); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(_ack).catch(function () { _fallback(text); _ack(); });
+    } else { _fallback(text); _ack(); }
+  });
+
+  function _fallback(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;font-size:16px;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  // ── Main dump builder ─────────────────────────────────────────
+  function _showDebug() {
+    var ua   = navigator.userAgent;
+    var html = document.documentElement;
+
+    // ── Re-run the exact detection logic from the IIFE ──
+    var isCriOS         = /CriOS/.test(ua);
+    var isIOS           = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
+    var isMacOS         = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+    var isWindows       = /Windows/.test(ua);
+    var isAndroid       = /Android/.test(ua);
     var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
-    var isIPad = /iPad/.test(ua)
-      || (plat === 'MacIntel' && (mtp > 1 || touch))
-      || (/Macintosh/.test(ua) && (mtp > 1 || touch));
+    var isMobileChrome  = isAndroidChrome;
+    var mtp             = navigator.maxTouchPoints || 0;
+    var isIPadDetect    = /iPad/.test(ua)
+      || (navigator.platform === 'MacIntel' && (mtp > 1 || 'ontouchstart' in window))
+      || (/Macintosh/.test(ua)              && (mtp > 1 || 'ontouchstart' in window));
 
-    // What openPrintPreview would do
-    var bodyCls = document.body.className || '(none)';
-    var htmlCls = document.documentElement.className || '(none)';
-    var b_ms = document.body.classList.contains('mobile-safari');
-    var b_mc = document.body.classList.contains('mobile-chrome');
-    var b_ipad = document.body.classList.contains('ipad');
-    var isIPadNav = (plat === 'MacIntel' || /Macintosh/.test(ua)) && (mtp > 1 || touch);
-    var branch;
-    if (b_ipad || isIPadNav) branch = 'iPad path → locks 835px (8.7in)';
-    else if (b_ms || b_mc)   branch = 'mobile stamp path (820px)';
-    else                     branch = 'DESKTOP path (window.print, no lock) ← problem if you see this';
+    // ── Current classes applied to html / body ──
+    var htmlCls = Array.from(html.classList).join(' ') || '(none)';
+    var bodyCls = Array.from(document.body.classList).join(' ') || '(none)';
 
-    return [
-      '── DEVICE DEBUG ──',
-      'UA: ' + ua,
-      'platform: ' + val(plat),
-      'maxTouchPoints: ' + mtp,
-      "'ontouchstart' in window: " + touch,
-      'display-mode standalone: ' + standaloneMM,
-      'navigator.standalone: ' + standaloneNav,
-      'CriOS(Chrome iOS): ' + crios,
-      'innerWxH: ' + window.innerWidth + 'x' + window.innerHeight,
-      'screen WxH: ' + screen.width + 'x' + screen.height,
-      'devicePixelRatio: ' + window.devicePixelRatio,
+    // ── Simulate openPrintPreview branch logic exactly ──
+    // (mirrors the function — any change there must be mirrored here)
+    var p_mobileSafari  = document.body.classList.contains('mobile-safari');
+    var p_mobileChrome  = document.body.classList.contains('mobile-chrome');
+    var p_ipad          = document.body.classList.contains('ipad');
+    var p_narrowMobile  = p_mobileSafari || p_mobileChrome;
+    var p_isPhone       = p_mobileSafari || p_mobileChrome;   // captured before iPad override
+    var p_isLandscape   = !!(window.matchMedia && window.matchMedia('(orientation: landscape)').matches)
+                          || (window.innerWidth > window.innerHeight);
+
+    // iPad nav check (same as in openPrintPreview line ~1981)
+    var p_isIPadNav     = (/MacIntel/.test(navigator.platform) || /Macintosh/.test(ua))
+                          && (mtp > 1 || 'ontouchstart' in window);
+    // CriOS check (same as line ~1991)
+    var p_isIPadChrome  = /CriOS/.test(ua);
+
+    // Simulate the two viewport-override blocks
+    var sim_narrowMobile  = p_narrowMobile;
+    var sim_mobileSafari  = p_mobileSafari;
+    var sim_vpNote        = 'none';
+
+    if (p_ipad || p_isIPadNav) {
+      // Block 1: always fires when isIPad || isIPadNav (no !isNarrowMobile guard)
+      sim_vpNote       = 'width=835 [iPad block]';
+      sim_narrowMobile = true;
+      sim_mobileSafari = true;
+    } else if (p_isIPadChrome && !sim_narrowMobile) {
+      // Block 2: CriOS that wasn't already caught
+      sim_vpNote       = 'width=835 [CriOS block]';
+      sim_narrowMobile = true;
+      sim_mobileSafari = true;
+    }
+
+    // Landscape phone viewport override (isPhone uses pre-override value)
+    var sim_portraitW = null;
+    if (p_isPhone && p_isLandscape) {
+      sim_portraitW = Math.min(screen.width || 0, screen.height || 0) || 390;
+    }
+
+    // Determine final print branch and settle delay
+    var branch, delay, deferRestore;
+    if (sim_narrowMobile) {
+      delay        = sim_mobileSafari ? '350 ms (WebKit)' : '0 ms';
+      branch       = 'MOBILE — inline stamp + rAF×2 + setTimeout(' + delay + ')';
+      deferRestore = sim_mobileSafari || p_ipad;  // mirrors line ~2492
+    } else if (p_ipad) {
+      // Reached only if iPad was not caught by the nav-check above (edge case)
+      branch       = 'IPAD DIRECT — rAF×2, no timeout';
+      deferRestore = true;
+    } else {
+      branch       = 'DESKTOP — window.print() + afterprint → restore';
+      deferRestore = false;
+    }
+
+    // ── Standalone / PWA ──
+    var standalone = false;
+    try {
+      standalone = (window.navigator.standalone === true)
+        || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+        || !!(window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches);
+    } catch (e) {}
+
+    // ── localStorage ──
+    var lsTheme = '—', lsDraft = '—';
+    try {
+      lsTheme = localStorage.getItem('aog_maint_theme') || '(not set)';
+      var _d  = localStorage.getItem('aog_maint_draft');
+      lsDraft = _d ? _d.length + ' chars saved' : '(empty)';
+    } catch (e) { lsTheme = lsDraft = 'BLOCKED'; }
+
+    // ── orientation API ──
+    var orientAPI = '—';
+    try { orientAPI = screen.orientation ? screen.orientation.type : 'n/a'; } catch (e) {}
+
+    // ── html2canvas present? ──
+    var h2c = typeof window.html2canvas !== 'undefined' ? 'loaded' : 'NOT loaded (deferred?)';
+
+    function _bool(v) { return v ? '✓ YES' : '✗ no'; }
+    function _pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
+    function _row(label, val) { return _pad(label, 22) + ': ' + val; }
+
+    var lines = [
+      '═══ AOG DEBUG DUMP ══════════════════════════════',
+      _row('App version',    'Ver 1.1A'),
+      _row('Timestamp',      new Date().toISOString()),
       '',
-      'derived isIPad: ' + isIPad,
-      'derived isMacOS: ' + isMacOS,
-      'derived isIOS: ' + isIOS,
-      'derived isAndroidChrome: ' + isAndroidChrome,
+      '── USER AGENT ──────────────────────────────────',
+      ua,
       '',
-      'html.class: ' + htmlCls,
-      'body.class: ' + bodyCls,
-      'body has mobile-safari: ' + b_ms,
-      'body has mobile-chrome: ' + b_mc,
-      'body has ipad: ' + b_ipad,
-      'isIPadNav (print): ' + isIPadNav,
+      '── NAVIGATOR ───────────────────────────────────',
+      _row('platform',       navigator.platform || '?'),
+      _row('maxTouchPoints', mtp),
+      _row('ontouchstart',   _bool('ontouchstart' in window)),
+      _row('standalone/PWA', _bool(standalone)),
+      _row('cookieEnabled',  _bool(navigator.cookieEnabled)),
       '',
-      '>>> PRINT BRANCH: ' + branch
+      '── SCREEN / VIEWPORT ───────────────────────────',
+      _row('window.inner',   window.innerWidth + ' × ' + window.innerHeight + ' px'),
+      _row('screen',         screen.width + ' × ' + screen.height + ' px'),
+      _row('devicePixelRatio', (window.devicePixelRatio || 1).toFixed(2)),
+      _row('orientation',    (p_isLandscape ? 'LANDSCAPE' : 'portrait') + '  [API: ' + orientAPI + ']'),
+      '',
+      '── DETECTION SIGNALS (IIFE) ────────────────────',
+      _row('isCriOS',        _bool(isCriOS)),
+      _row('isIOS',          _bool(isIOS)),
+      _row('isMacOS',        _bool(isMacOS)),
+      _row('isWindows',      _bool(isWindows)),
+      _row('isAndroid',      _bool(isAndroid)),
+      _row('isAndroidChrome',_bool(isAndroidChrome)),
+      _row('isMobileChrome', _bool(isMobileChrome)),
+      _row('isIPad (detect)',_bool(isIPadDetect)),
+      '',
+      '── APPLIED CLASSES ─────────────────────────────',
+      _row('html',           htmlCls),
+      _row('body',           bodyCls),
+      '',
+      '── PRINT BRANCH SIMULATION ─────────────────────',
+      _row('body.mobile-safari', _bool(p_mobileSafari)),
+      _row('body.mobile-chrome', _bool(p_mobileChrome)),
+      _row('body.ipad',          _bool(p_ipad)),
+      _row('isNarrowMobile',     _bool(p_narrowMobile)),
+      _row('isPhone (pre-ovr)',   _bool(p_isPhone)),
+      _row('isIPadNav (in-fn)',   _bool(p_isIPadNav)),
+      _row('isIPadChrome(CriOS)', _bool(p_isIPadChrome)),
+      _row('isLandscape',        _bool(p_isLandscape)),
+      '  — overrides applied —',
+      _row('viewport override',   sim_vpNote),
+      _row('portrait pin',        sim_portraitW ? sim_portraitW + 'px' : 'n/a'),
+      _row('sim_narrowMobile',    _bool(sim_narrowMobile)),
+      _row('sim_mobileSafari',    _bool(sim_mobileSafari)),
+      '',
+      '  ▶ BRANCH : ' + branch,
+      '  ▶ deferRestore : ' + _bool(deferRestore),
+      '',
+      '── STORAGE ─────────────────────────────────────',
+      _row('theme (localStorage)', lsTheme),
+      _row('draft (localStorage)', lsDraft),
+      '',
+      '── ASSETS ──────────────────────────────────────',
+      _row('html2canvas',    h2c),
+      '',
+      '════════════════════════════════════════════════',
     ].join('\n');
-  }
 
-  function show() {
-    var old = document.getElementById('dbg-overlay'); if (old) old.remove();
-    var txt = buildReport();
-    var ov = document.createElement('div');
-    ov.id = 'dbg-overlay';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,0.92);color:#0f0;font:12px/1.5 monospace;padding:16px;overflow:auto;-webkit-overflow-scrolling:touch;';
-    var pre = document.createElement('pre');
-    pre.textContent = txt;
-    pre.style.cssText = 'white-space:pre-wrap;word-break:break-word;margin:0 0 12px;';
-    var copy = document.createElement('button');
-    copy.textContent = 'Copy';
-    copy.style.cssText = 'background:#0a0;color:#fff;border:none;border-radius:6px;padding:10px 22px;font-size:14px;margin-right:10px;';
-    copy.onclick = function () {
-      function done(){ copy.textContent = 'Copied!'; }
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(txt).then(done, function(){ fallback(); });
-        } else { fallback(); }
-      } catch (e) { fallback(); }
-      function fallback(){
-        var r = document.createRange(); r.selectNodeContents(pre);
-        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
-        try { document.execCommand('copy'); done(); } catch(e){ copy.textContent='Select text manually'; }
-      }
-    };
-    var close = document.createElement('button');
-    close.textContent = 'Close';
-    close.style.cssText = 'background:#c33;color:#fff;border:none;border-radius:6px;padding:10px 22px;font-size:14px;';
-    close.onclick = function () { ov.remove(); };
-    ov.appendChild(pre); ov.appendChild(copy); ov.appendChild(close);
-    document.body.appendChild(ov);
+    document.getElementById('dbg-pre').textContent = lines;
+    document.getElementById('dbg-panel').style.display = 'block';
+    // Scroll panel to top in case it was open before
+    document.getElementById('dbg-panel').scrollTop = 0;
   }
-
-  // Triple-tap the version tag
-  var tag = document.getElementById('ver-tag');
-  if (tag) {
-    tag.style.cursor = 'pointer';
-    var taps = 0, t;
-    tag.addEventListener('click', function () {
-      taps++; clearTimeout(t);
-      t = setTimeout(function(){ taps = 0; }, 600);
-      if (taps >= 3) { taps = 0; show(); }
-    });
-  }
-  // Or open via #debug
-  if (location.hash === '#debug') show();
-  // Expose for manual call
-  window.__showDebug = show;
 })();
 </script>
 
