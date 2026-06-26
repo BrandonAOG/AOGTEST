@@ -1414,7 +1414,11 @@ body.dark-mode .action-bar {
   // Distinguish the two iPad UA modes so each can be styled separately:
   //   ipad-macintel  = Request Desktop Site / installed PWA  (UA = Macintosh/MacIntel)
   //   ipad (without) = Request Mobile Site                   (UA contains "iPad")
-  var isIPadDeskUA = isIPad && !/iPad/.test(ua);
+  // Scoped to screens THIS WIDE OR SMALLER (your iPad's portrait width = 820pt).
+  // Larger iPads (e.g. 1024pt 12.9" Pro) stay as plain 'ipad'. Change 820 to
+  // raise/lower the cutoff.
+  var _ipadPortW = Math.min(screen.width || 0, screen.height || 0);
+  var isIPadDeskUA = isIPad && !/iPad/.test(ua) && _ipadPortW <= 820;
   if (isIPadDeskUA) html.classList.add('ipad-macintel');
 
   function applyToBody() {
