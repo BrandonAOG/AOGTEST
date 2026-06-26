@@ -910,6 +910,13 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   html.ios * { transform: none !important; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
   html.ios .page, html.ios body, html.ios html { display: block !important; min-height: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
 
+  /* iPad (incl. standalone PWA): the html.ios rule above can't reach the iPad —
+     its 'ios' class is stripped, leaving only 'ipad' — so iOS text auto-boosting
+     stays ON and inflates all text ~10% wider than the mobile site. That extra
+     width also overflows the no-wrap rows and clips the right edge on print
+     (worst in the PWA, whose viewport is widest). Disable the boost for iPad. */
+  html.ipad * { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+
   /* ── macOS Safari tuning (zoom removed — native print decides scaling) ── */
   html.macos { font-size: 17.05px !important; }
   html.macos body { margin: 0 !important; width: auto !important; max-width: 100% !important; }
@@ -1227,10 +1234,12 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   /* Lock the iPad PDF to a fixed 8.7in width (835px @ 96dpi). The viewport meta
      doesn't affect print, so width:auto let iPad Safari pick its own print width;
      pinning 835px makes the iPad PDF deterministically 8.7in wide. */
-  html.ipad, html.ipad body { width: 830px !important; max-width: 830px !important; margin: 0 auto !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  html.ipad, html.ipad body { width: 835px !important; max-width: 835px !important; margin: 0 auto !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  /* Desktop-UA iPad (Request Desktop Site / installed PWA) — 1000px */
+  html.ipad.ipad-macintel, html.ipad.ipad-macintel body { width: 1000px !important; max-width: 1000px !important; }
 
   html.ipad .page {
-    width: 100% !important; max-width: 1037px !important;
+    width: 100% !important; max-width: 835px !important;
     /* ~8px each side (was ~0.13in/12.5px): nudges the content ~8px wider still,
        even padding, to wrap long rows even less. */
     padding: 4px 8px 0 8px !important;
@@ -1238,6 +1247,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
     min-height: 0 !important; height: auto !important;
     border: 1.5px solid #D35E13 !important;
   }
+  html.ipad.ipad-macintel .page { max-width: 1000px !important; }
   html.ipad .footer { margin-top: 4px !important; margin-bottom: 0 !important; padding-bottom: 1px !important; }
 
   /* Two-column layout + non-wrapping field rows (same intent as iPhone) */
@@ -1401,6 +1411,11 @@ body.dark-mode .action-bar {
     // them so the iPad is treated purely as an iPad.
     html.classList.remove('mobile-safari', 'ios');
   }
+  // Distinguish the two iPad UA modes so each can be styled separately:
+  //   ipad-macintel  = Request Desktop Site / installed PWA  (UA = Macintosh/MacIntel)
+  //   ipad (without) = Request Mobile Site                   (UA contains "iPad")
+  var isIPadDeskUA = isIPad && !/iPad/.test(ua);
+  if (isIPadDeskUA) html.classList.add('ipad-macintel');
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
@@ -1413,6 +1428,7 @@ body.dark-mode .action-bar {
       document.body.classList.remove('macos');
       document.body.classList.remove('mobile-safari', 'ios');
     }
+    if (isIPadDeskUA) document.body.classList.add('ipad-macintel');
   }
   if (document.body) applyToBody();
   else document.addEventListener('DOMContentLoaded', applyToBody);
@@ -2075,7 +2091,8 @@ function openPrintPreview() {
     // leaves a safety margin inside the 8.7in sheet. Phones keep 820px (their
     // viewport is narrower than the content, so there's no centering offset).
     var _ipadPath = (isIPad || isIPadNav);
-    var _printW = _ipadPath ? '816px' : '820px';
+    var _isMacIntelPad = document.documentElement.classList.contains('ipad-macintel');
+    var _printW = _ipadPath ? (_isMacIntelPad ? '1000px' : '835px') : '820px';
     _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18') + 'px');
     _snap(html, 'width',     _printW);
     _snap(html, 'margin',    '0');        // left-align (kills the PWA centering clip)
