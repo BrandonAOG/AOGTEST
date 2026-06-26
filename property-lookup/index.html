@@ -4167,7 +4167,13 @@ function useLabel(v){
   const s=String(v).trim();
   // if it's already descriptive text (not just a code), show it as-is
   if(/[a-z]/i.test(s) && s.length>3) return s.replace(/\b\w/g,c=>c.toUpperCase());
-  const code=s.replace(/[^0-9]/g,'').padStart(2,'0').slice(0,2);
+  // Normalize to the DOR 2-digit code. County rolls store these as 2- OR 3-digit zero-padded strings
+  // ("01" and "001" are both single-family; "010" is vacant-commercial "10"). Parsing as an integer
+  // and re-padding to 2 digits handles both: "001"->"01", "010"->"10". (The old code sliced the
+  // FIRST two chars, turning "001" into "00" = "Vacant residential" — a wrong label on real houses.)
+  const digits=s.replace(/[^0-9]/g,'');
+  if(!digits) return s?('Use code '+esc(s)):null;
+  const code=String(parseInt(digits,10)).padStart(2,'0');
   return DOR_USE[code] || (s?('Use code '+esc(s)):null);
 }
 
@@ -7401,8 +7407,7 @@ const ADDRPOINT_FILES = {
   SARASOTA: "sarasota_compact_v3.json.gz",
   // Charlotte: address-point shapefile (reprojected from State Plane) joined to the
   // appraiser cd.txt on account number via build_county.py.
-  CHARLOTTE: "charlotte_compact_v3.json.gz",
-  SARASOTA: "sarasota_compact_v3.json.gz"
+  CHARLOTTE: "charlotte_compact_v3.json.gz"
 };
 // Cache the parsed file per URL so it's fetched + indexed only once per session.
 const _fileCache = new Map();
@@ -8857,10 +8862,28 @@ async function runLookup(lat,lng,searchCtx){
             try{
               const _aAttr=al.features[0].attributes||{};
               if(!parcelAddrText(_aAttr) && ADDRPOINT_FEEDS[norm(countyName)]){
+                // AUTHORITATIVE-FIRST: if this county has a correct parcel layer, get the site address
+                // straight from it by FOLIO (the parcel id we already matched). This avoids the
+                // poisoned address-point reverse-lookup that mislabels blocks (e.g. Bougainvillea Rd
+                // parcels shown as "669 …" / "8th St N"). Only if that fails do we fall back below.
+                let _authAddr=null;
+                if(COUNTY_PARCEL_RESOLVERS[norm(countyName)]){
+                  const _folio = _aAttr.FOLIO || _aAttr.Folio || _aAttr.folio ||
+                                 _aAttr.PARCELNO || _aAttr.PARCEL_ID || _aAttr.STRAP || null;
+                  if(_folio){
+                    const _byFolio=await lookupCountyParcelByFolio(countyName, _folio).catch(()=>null);
+                    if(_byFolio && _byFolio.addr){
+                      _authAddr=[_byFolio.addr, _byFolio.city].filter(Boolean).join(', ');
+                      _aAttr.SITEADDR=_authAddr;
+                      al.__matchedAddr=_authAddr;
+                      al.__authByFolio=true;   // tells the living-area enrichment the parcel is trustworthy
+                    }
+                  }
+                }
                 const _pLat = (al.__ngLat!=null?al.__ngLat:lat), _pLng=(al.__ngLng!=null?al.__ngLng:lng);
                 const _hn = (searchCtx && searchCtx.hn) ? searchCtx.hn : null;
                 const _sraw = (searchCtx && searchCtx.raw) ? searchCtx.raw : null;
-                const _ap = await reverseAddrPoint(countyName, _pLat, _pLng, _hn, _sraw).catch(()=>null);
+                const _ap = _authAddr ? null : await reverseAddrPoint(countyName, _pLat, _pLng, _hn, _sraw).catch(()=>null);
                 if(_ap && _ap.addr){
                   let _spliced=false;
                   // If we matched the typed house number at a point away from the geocoded spot, re-anchor
@@ -8945,12 +8968,25 @@ async function runLookup(lat,lng,searchCtx){
   // away from the geocoded point, the statewide record we fetched is the wrong parcel — its spliced
   // living-area / year-built / value would be the neighbour's. Re-query the roll AT the corrected
   // point and use that instead, so every roll-sourced field matches the parcel actually shown.
-  if(liveRes && isFinite(liveRes.__ngLat) && isFinite(liveRes.__ngLng)){
-    const _dd=(liveRes.__ngLat-lat)*(liveRes.__ngLat-lat)+(liveRes.__ngLng-lng)*(liveRes.__ngLng-lng);
+  // PRIORITY: when the live parcel was matched authoritatively by folio (Collier), anchor the roll to
+  // the SELECTED PARCEL's own centroid — the most reliable point — instead of any address-point coord
+  // (which for Collier comes from the mislabeled layer and can re-drift living area to a neighbour).
+  let _rollAnchor=null;
+  if(liveRes && liveRes.__authByFolio && liveRes.features && liveRes.features[0]){
+    const _c=featCentroid(liveRes.features[0]);     // [lng,lat]
+    if(_c) _rollAnchor={lat:_c[1], lng:_c[0]};
+  }
+  if(!_rollAnchor && liveRes && isFinite(liveRes.__ngLat) && isFinite(liveRes.__ngLng)){
+    _rollAnchor={lat:liveRes.__ngLat, lng:liveRes.__ngLng};
+  }
+  if(_rollAnchor){
+    const _dd=(_rollAnchor.lat-lat)*(_rollAnchor.lat-lat)+(_rollAnchor.lng-lng)*(_rollAnchor.lng-lng);
     if(_dd > 1e-9){   // ~> a few metres: only re-fetch when the point actually moved
-      const _reParcel = await arcQueryRetry(EP.parcel, liveRes.__ngLat, liveRes.__ngLng, '*', true)
+      const _reParcel = await arcQueryRetry(EP.parcel, _rollAnchor.lat, _rollAnchor.lng, '*', true)
         .catch(()=>null);
       if(_reParcel && !_reParcel.__err && _reParcel.features && _reParcel.features[0]){
+        // Trust the re-anchored record only if its house number matches the authoritative address
+        // (guards against the roll itself being sparse at the centroid).
         parcel = _reParcel;
       }
     }
@@ -9931,6 +9967,29 @@ async function resolveCountyParcel(countyName, searchCtx){
   // Several lots share this number+street (e.g. a multi-unit address). Don't guess.
   return { multi:true, candidates:matches, src:titleCase(countyName)+' County parcel' };
 }
+/* Fetch authoritative attributes for a parcel by its FOLIO/parcel id from a county's correct parcel
+   layer (COUNTY_PARCEL_RESOLVERS). Used to fix the live-feed card when the lean county feed has the
+   right parcel/owner but the WRONG site address & living area (those come from the poisoned
+   address-point layer). Keyed by the exact folio the resolver already matched, so it can't drift.
+   Returns { addr, city, zip, folio, owner } or null. */
+async function lookupCountyParcelByFolio(countyName, folio){
+  const cfg = countyName ? COUNTY_PARCEL_RESOLVERS[norm(countyName)] : null;
+  if(!cfg || !folio) return null;
+  const fol=String(folio).replace(/'/g,"''");
+  const where = `${cfg.folioField}='${fol}'`;
+  const params = `where=${encodeURIComponent(where)}`+
+    `&outFields=${encodeURIComponent([cfg.addrField,cfg.cityField,cfg.zipField,cfg.folioField,cfg.ownerField].filter(Boolean).join(','))}`+
+    `&returnGeometry=false&f=json`;
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),10000);
+    const r=await fetch(cfg.url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return null; const j=await r.json(); if(j.error) return null;
+    const f=(j.features||[])[0]; if(!f) return null; const a=f.attributes||{};
+    const addr=a[cfg.addrField]; if(!addr) return null;
+    return { addr:String(addr).trim(), city:a[cfg.cityField]||null, zip:a[cfg.zipField]||null,
+             folio:a[cfg.folioField]||folio, owner:a[cfg.ownerField]||null };
+  }catch(e){ return null; }
+}
 async function doSearch(){
   const q=document.getElementById('addr').value.trim();
   if(!q) return;
@@ -10056,6 +10115,38 @@ function rankSuggestions(items, typed){
 
 /* fetch up to ~6 candidate addresses; Census first (best for US street addresses), then Esri
    (strong on rural addresses the others miss, e.g. Glades/Moore Haven), Nominatim as backup */
+/* Turn a verbose OSM display_name into a tidy address line. OSM returns things like
+   "652, Bougainvillea Road, Ridgeview Lakes, Naples, Collier County, Florida, 34102, United States".
+   We drop the subdivision/neighborhood (the part between street and city), the "… County" token, and
+   the country, then collapse to "652 Bougainvillea Road, Naples FL 34102". This is purely cosmetic —
+   the actual lookup is driven by the typed house# + street and the authoritative county parcel layer. */
+function tidyOsmLabel(name){
+  if(!name) return name;
+  let parts=String(name).split(',').map(s=>s.trim()).filter(Boolean);
+  parts=parts.filter(p=>!/^united states$/i.test(p) && !/\bcounty$/i.test(p));
+  // fold a leading bare house number back onto the street ("652","Bougainvillea Road" -> one part)
+  if(parts.length>=2 && /^\d+[A-Za-z]?$/.test(parts[0])){
+    parts=[parts[0]+' '+parts[1], ...parts.slice(2)];
+  }
+  // identify the tail: state (FL/Florida) and optional ZIP, from the end
+  let zip=null, state=null;
+  while(parts.length){
+    const last=parts[parts.length-1];
+    if(/^\d{5}(-\d{4})?$/.test(last)){ zip=last; parts.pop(); continue; }
+    if(/^FL$|^florida$/i.test(last)){ state='FL'; parts.pop(); continue; }
+    break;
+  }
+  // now parts = [street, (subdivision...), city]. street is parts[0]; city is the LAST remaining part.
+  // Everything strictly between them is subdivision/neighborhood — drop it. Keep street + city.
+  let street=parts[0]||'';
+  let city=parts.length>1 ? parts[parts.length-1] : '';
+  let out=[street];
+  if(city && city!==street) out.push(city);
+  let s=out.join(', ');
+  if(state){ s += ', '+state; if(zip) s += ' '+zip; }
+  else if(zip){ s += ' '+zip; }
+  return s;
+}
 async function fetchSuggestions(q, signal){
   const cacheKey = q.toLowerCase().replace(/\s+/g,' ').trim();
   const cached = sugCacheGet(cacheKey);
@@ -10093,8 +10184,9 @@ async function fetchSuggestions(q, signal){
       const j=await (await fetch(u, signal?{signal}:{})).json();
       for(const m of (j||[])){
         if(out.length>=6) break;
-        if(out.some(o=>o.label===m.display_name)) continue;
-        out.push({lat:+m.lat,lng:+m.lon,label:m.display_name,src:'OSM'});
+        const lbl=tidyOsmLabel(m.display_name);   // strip "Ridgeview Lakes, …, Collier County, …, United States"
+        if(out.some(o=>o.label===lbl)) continue;
+        out.push({lat:+m.lat,lng:+m.lon,label:lbl,src:'OSM'});
       }
     }catch(e){}
   }
@@ -10106,17 +10198,42 @@ async function fetchSuggestions(q, signal){
 async function chooseSuggestion(it){
   const typed=(addrEl.value||'').trim();           // what the user actually typed (before we overwrite it)
   hideSuggest();
-  addrEl.value=it.label;
-  STORE.set('fl_addr',it.label);
-  addToHistory(it.label);
-  results.innerHTML=setStatus('busy','Pinpointing the parcel…');
   // Anchor on what the user TYPED (house #, street, unit) — not the verbose suggestion label, which
-  // is comma-mangled and loses the unit. This drives the same address/unit matching as the search button.
-  const basis = houseNum(typed) ? typed : it.label;
+  // is comma-mangled ("…, Ridgeview Lakes, Naples, Collier County, Florida, 34102, United States")
+  // and whose OSM coordinate is interpolated (lands on the wrong house). Prefer the typed text.
+  const basis = houseNum(typed) ? typed : cleanAddress(it.label);
   const searchCtx = { raw:basis, hn:houseNum(basis), toks:new Set(streetTokens(basis)), unit:searchUnit(basis) };
-  // Use the suggestion's own coordinate directly. We no longer re-geocode (slow) or pre-snap (slow)
-  // here — runLookup resolves the exact parcel via the county NG911 address layer and recenters the
-  // marker authoritatively. This removes two network round-trips from the search.
+  // AUTHORITATIVE COUNTY-PARCEL FIRST: if the suggestion sits in a county whose parcel layer carries
+  // correct site addresses (e.g. Collier), resolve the EXACT lot there by street+number and ignore
+  // the interpolated OSM coordinate entirely — same deterministic path as the FIND button. This is
+  // what stops the click landing on the neighbour.
+  results.innerHTML=setStatus('busy','Locating address (county parcel records)…');
+  let county = (it.lat!=null && it.lng!=null) ? await countyNameAt(it.lat,it.lng).catch(()=>null) : null;
+  if(searchCtx.hn && county && COUNTY_PARCEL_RESOLVERS[norm(county)]){
+    const pr=await resolveCountyParcel(county, searchCtx).catch(()=>null);
+    if(pr && pr.multi && pr.candidates && pr.candidates.length){
+      addrEl.value=basis;
+      const list=pr.candidates.slice(0,8).map(c=>`<div class="sg" style="cursor:default"><span>${esc(c.label)}</span>${c.folio?`<span class="sgsrc">${esc(c.folio)}</span>`:''}</div>`).join('');
+      results.innerHTML=setStatus('err',`Found ${pr.candidates.length} lots matching “${esc(basis)}”. Pick the exact one on the map, or add a unit/more detail.`)+`<div style="margin-top:6px">${list}</div>`;
+      map.setView([pr.candidates[0].lat,pr.candidates[0].lng],18);
+      return;
+    }
+    if(pr && isFinite(pr.lat) && isFinite(pr.lng)){
+      addrEl.value = pr.label || basis;            // show the clean authoritative address, not the OSM blob
+      STORE.set('fl_addr',addrEl.value); addToHistory(addrEl.value);
+      results.innerHTML=setStatus('busy','Pinpointing the parcel…');
+      map.setView([pr.lat,pr.lng], 18);
+      await runLookup(pr.lat, pr.lng, searchCtx);
+      const fol = pr.folio ? ` · Folio ${esc(pr.folio)}` : '';
+      const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(pr.src)}): <b style="color:var(--ink)">${esc(pr.label)}</b>${fol} — authoritative county parcel; confirm the marker is on the right lot.</div>`;
+      results.insertAdjacentHTML('afterbegin',conf);
+      return;
+    }
+    // county covered but address not found in its parcel layer → fall through to the OSM coordinate.
+  }
+  // FALLBACK (non-resolver counties): use the suggestion's own coordinate; runLookup resolves the parcel.
+  addrEl.value=basis; STORE.set('fl_addr',basis); addToHistory(it.label);
+  results.innerHTML=setStatus('busy','Pinpointing the parcel…');
   map.setView([it.lat,it.lng], 18);
   await runLookup(it.lat,it.lng, searchCtx);
   const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched: <b style="color:var(--ink)">${esc(it.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
