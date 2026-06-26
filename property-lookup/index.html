@@ -1291,14 +1291,14 @@ function saveLoc(lat,lng){ lastLoc={lat,lng}; STORE.set('fl_loc', JSON.stringify
    ⚠️ Endpoints marked "verify" were located via the county's public GIS but not test-queried
    from this build environment; confirm in a browser. Layer must allow public CORS. */
 const COUNTY_LIVE = {
-  COLLIER : { label:"Collier County (Property Appraiser, nightly)", urls:[
-    // ✅ confirmed: Collier's parcels layer on ArcGIS Online (CORS-friendly, same org as zoning).
-    // Fields: NAME1 (owner, NAME2-5 additional), FOLIO (parcel), LOTUNIT, TOTALACRES. Lean layer —
-    // value/site/sales come from the statewide roll fallback; "Verify on appraiser" covers deep detail.
-    "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcels/FeatureServer/2/query",
-    // Secondary: Collier enterprise GIS (Property Appraiser source). CORS not guaranteed from county server.
-    "https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/MapServer/0/query"
-  ]},
+COLLIER: { label: "Collier County (Property Appraiser, nightly)", urls: [
+  // ✅ confirmed: Collier parcels on ArcGIS Online (CORS-friendly).
+  // Fields: OwnerLine1 (owner), Folio (parcel ID), SiteStreetAddress,
+  // SiteCity, SiteZipCode, Shape__Area (lot), Shape__Length (perimeter).
+  "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcel/FeatureServer/2/query",
+  // Secondary: Collier enterprise GIS. CORS not guaranteed.
+  "https://ags2.colliercountyfl.gov/gis/rest/services/agency/parcels/MapServer/0/query"
+]}
   LEE     : { label:"Lee County (Property Appraiser, nightly)", urls:[
     // ✅ confirmed: Lee's hosted parcels layer on ArcGIS Online (CORS-friendly), updated nightly.
     // Fields: O_NAME (owner), STRAP (parcel), SITEADDR/SITECITY, JUST (value), HEATEDAREA, S_1AMOUNT/S_1DATE (sale).
