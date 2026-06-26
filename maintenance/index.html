@@ -1400,6 +1400,23 @@ body.dark-mode .action-bar {
     // cause of the iPad "displaying what the iPhone sees" + sticking. Strip
     // them so the iPad is treated purely as an iPad.
     html.classList.remove('mobile-safari', 'ios');
+
+    // ── PWA standalone viewport fix ──────────────────────────────────────
+    // In PWA (home-screen) mode iPadOS ignores width=device-width and gives
+    // the app a wide viewport (e.g. 1093px) instead of the expected 820px.
+    // None of the <=820px mobile CSS fires, so the page renders in desktop
+    // layout and prints like "Request Desktop Site". Detect standalone and
+    // pin the viewport to 820px immediately so the page always starts in
+    // the correct narrow state — identical to "Request Mobile Site".
+    var _isStandalone = (navigator.standalone === true)
+      || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || !!(window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches);
+    if (_isStandalone) {
+      var _vpMeta = document.querySelector('meta[name="viewport"]');
+      if (_vpMeta) {
+        _vpMeta.setAttribute('content', 'width=820, initial-scale=1, maximum-scale=1, viewport-fit=cover');
+      }
+    }
   }
 
   function applyToBody() {
