@@ -1400,6 +1400,19 @@ body.dark-mode .action-bar {
     // cause of the iPad "displaying what the iPhone sees" + sticking. Strip
     // them so the iPad is treated purely as an iPad.
     html.classList.remove('mobile-safari', 'ios');
+
+    // ── PWA viewport fix ──
+    // Installed (home-screen) PWAs on iPadOS resolve `width=device-width` to a
+    // WIDE logical viewport (e.g. 1093px) instead of the ~820 you get in Safari,
+    // so the app lays out desktop-wide and the PDF prints wide to match. Pin the
+    // viewport to the device's true PORTRAIT width so the standalone app lays out
+    // exactly like Safari's mobile site (the case that already prints correctly).
+    try {
+      var _vpEl = document.querySelector('meta[name="viewport"]');
+      var _portW = Math.min(screen.width || 0, screen.height || 0) || 820;
+      if (_vpEl) _vpEl.setAttribute('content',
+        'width=' + _portW + ', initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover');
+    } catch (e) {}
   }
 
   function applyToBody() {
@@ -2020,25 +2033,6 @@ function openPrintPreview() {
   function _snapAttr(el, attr, val) {
     _snapshots.push({ el: el, attr: attr, was: el.getAttribute(attr) });
     el.setAttribute(attr, val);
-  }
-
-  // ── iPad PWA print-width correction (zoom) ──
-  // In standalone (home-screen) mode, iPadOS IGNORES the viewport width pin:
-  // the debug confirms `viewport meta = width=820` yet `window.inner = 1093`.
-  // So the installed app lays out wide and the PDF prints wide, while every
-  // browser case (inner ~820) prints fine. The viewport meta can't reach print,
-  // but CSS `zoom` reflows the layout AND is honored by WebKit's print, so we
-  // compress the page to the true portrait width here. SCOPED to iPad + PWA
-  // only; _snap auto-restores it when the print dialog closes. No other case is
-  // affected, and the on-screen layout is untouched (this runs only on print).
-  var _standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-                    || navigator.standalone === true;
-  if ((isIPad || isIPadNav) && _standalone) {
-    var _tgtW = Math.min(screen.width || 0, screen.height || 0) || 820;
-    var _zoom = _tgtW / (window.innerWidth || _tgtW);
-    if (_zoom > 0.4 && _zoom < 0.999) {
-      _snap(document.documentElement, 'zoom', String(_zoom));
-    }
   }
 
   // ── RESTORE function ──
