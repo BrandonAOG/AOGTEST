@@ -1227,10 +1227,10 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   /* Lock the iPad PDF to a fixed 8.7in width (835px @ 96dpi). The viewport meta
      doesn't affect print, so width:auto let iPad Safari pick its own print width;
      pinning 835px makes the iPad PDF deterministically 8.7in wide. */
-  html.ipad, html.ipad body { width: 835px !important; max-width: 8235px !important; margin: 0 auto !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  html.ipad, html.ipad body { width: 835px !important; max-width: 835px !important; margin: 0 auto !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
 
   html.ipad .page {
-    width: 94% !important; max-width: 835px !important;
+    width: 100% !important; max-width: 835px !important;
     /* ~8px each side (was ~0.13in/12.5px): nudges the content ~8px wider still,
        even padding, to wrap long rows even less. */
     padding: 4px 8px 0 8px !important;
@@ -1366,34 +1366,41 @@ body.dark-mode .action-bar {
 (function () {
   var ua = navigator.userAgent;
   var html = document.documentElement;
-  var isCriOS    = /CriOS/.test(ua);
-  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
+  var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
+  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);            // any iOS WebKit incl. CriOS
   var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
   var isWindows  = /Windows/.test(ua);
   var isAndroid  = /Android/.test(ua);
+  // Chrome-on-iPhone is WebKit, so it must follow the Safari path (CSS width,
+  // NO viewport override). Only ANDROID Chrome gets the viewport-override path.
   var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
   var isMobileChrome = isAndroidChrome;
 
+  // ── iPad detection ──────────────────────────────────────────────────────
+  // Modern iPadOS Safari lies and reports a desktop "Macintosh" UA, so it would
+  // otherwise be mis-tagged as macOS and inherit the desktop-Mac print rules.
+  // We catch it three ways: (1) classic "iPad" UA, (2) the MacIntel + touch
+  // tell of iPadOS in desktop mode, (3) any Macintosh UA that also reports
+  // touch points (real Macs report 0).
   var mtp = navigator.maxTouchPoints || 0;
   var isIPad = /iPad/.test(ua)
     || (navigator.platform === 'MacIntel' && (mtp > 1 || 'ontouchstart' in window))
     || (/Macintosh/.test(ua) && (mtp > 1 || 'ontouchstart' in window));
-
-  // === IPAD ONLY - FORCE MOBILE LAYOUT ===
-  if (isIPad) {
-    const vp = document.querySelector('meta[name="viewport"]');
-    if (vp) {
-      vp.setAttribute('content', 'width=420, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover');
-    }
-    html.classList.add('ipad', 'mobile-safari');
-    html.classList.remove('macos', 'ios');
-  }
 
   if (isIOS)          html.classList.add('ios', 'mobile-safari');
   if (isMacOS)        html.classList.add('macos');
   if (isWindows)      html.classList.add('windows');
   if (isAndroid)      html.classList.add('android');
   if (isMobileChrome) html.classList.add('mobile-chrome');
+  if (isIPad) {
+    html.classList.add('ipad');
+    html.classList.remove('macos');   // iPad is NOT a desktop Mac for print
+    // A classic-UA iPad also matched isIOS above and got 'mobile-safari'/'ios',
+    // which made it inherit the iPHONE layout, scroll, and print rules — the
+    // cause of the iPad "displaying what the iPhone sees" + sticking. Strip
+    // them so the iPad is treated purely as an iPad.
+    html.classList.remove('mobile-safari', 'ios');
+  }
 
   function applyToBody() {
     if (isIOS)          document.body.classList.add('ios', 'mobile-safari');
@@ -1402,28 +1409,20 @@ body.dark-mode .action-bar {
     if (isAndroid)      document.body.classList.add('android');
     if (isMobileChrome) document.body.classList.add('mobile-chrome');
     if (isIPad) {
-      document.body.classList.add('ipad', 'mobile-safari');
-      document.body.classList.remove('macos', 'ios');
+      document.body.classList.add('ipad');
+      document.body.classList.remove('macos');
+      document.body.classList.remove('mobile-safari', 'ios');
     }
   }
-
   if (document.body) applyToBody();
   else document.addEventListener('DOMContentLoaded', applyToBody);
-/* Force 8.7in print width on iPad while keeping desktop layout on screen */
+  /* Force 8.7in print width on iPad while keeping desktop layout on screen */
 html.ipad .page {
   width: 835px !important;      /* 8.7 inches at 96dpi */
   max-width: 835px !important;
   margin: 0 auto !important;
   padding: 4px 8px !important;
   box-sizing: border-box !important;
-}
-
-/* Make sure corners stay in place */
-html.ipad .page::before,
-html.ipad .page::after,
-html.ipad .page-corner-bl,
-html.ipad .page-corner-br {
-  border-width: 2px !important;
 }
 })();
 </script>
@@ -1877,7 +1876,7 @@ html.ipad .page-corner-br {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span id="ver-tag" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.1C</span>
+    <span id="ver-tag" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.1A</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
