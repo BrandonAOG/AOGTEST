@@ -1194,16 +1194,17 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   html {
     height: auto !important; margin: 0 !important; padding: 0 !important;
     overflow: visible !important;
+    font-size: 18px !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
   body { margin: 0 !important; padding: 0 !important; }
   .action-bar, .toolbar, #save-status, #aog-debug, #scale-tuner { display: none !important; }
 
-  /* Desktop print width: 900px. (Mobile/iPad stamp their own 820px inline,
+  /* Desktop print width: 935px. (Mobile/iPad stamp their own width inline,
      which wins over this rule, so this governs the desktop window.print() path.) */
-  body { width: 900px !important; max-width: 900px !important; margin: 0 auto !important; }
-  .page { width: 900px !important; max-width: 900px !important; margin: 0 auto !important; }
+  body { width: 935px !important; max-width: 935px !important; margin: 0 auto !important; }
+  .page { width: 935px !important; max-width: 935px !important; margin: 0 auto !important; }
 
   /* Vertical spacing — ported from maintenance's desktop print rules so the
      desktop PDF matches. (Mobile/iPad get the same values via inline stamps
@@ -1252,10 +1253,10 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .section:has(#ready_notes) .section-body { padding-bottom: 3.5px !important; }
   .content { padding-bottom: 0 !important; }
   .footer { margin-top: 3.5px !important; padding: 4px 14px !important; }
-  /* Bottom corner brackets overlap the footer's bottom-right (z-index 10 over
-     the footer) and clip "Ver. 1.1". Hide them in print — the page border
-     already frames the sheet. */
-  .page-corner-bl, .page-corner-br { display: none !important; }
+  /* Corner brackets sit at z-index 10 over the header/footer and clip the
+     logo text (top) and "Ver. 1.1" (bottom). Hide all four in print — the
+     page border already frames the sheet. */
+  .page-corner-bl, .page-corner-br, .page::before, .page::after { display: none !important; }
   #ver-span { padding-right: 4px !important; }
 
   /* Keep Customer/Property side-by-side and grids multi-column in the PDF,
@@ -1268,7 +1269,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 
   /* ── Top Customer/Property columns: matched spacing ── */
   .top-col { padding: 8px 12px !important; }
-  .top-col .field-row { min-height: 0 !important; height: auto !important; margin-bottom: 9px !important; }
+  .top-col .field-row, .top-col .field-block { min-height: 0 !important; height: auto !important; margin-bottom: 9px !important; }
   .col-label { margin-bottom: 8px !important; padding: 1px 8px 1px 6px !important; }
   .top-col label { line-height: 1.25 !important; margin-bottom: 1px !important; }
   .top-col input { min-height: 18px !important; }
@@ -1277,7 +1278,8 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     height: 19px !important; min-height: 19px !important; max-height: 19px !important;
     padding: 0 4px !important; line-height: 1.25 !important;
   }
-  .top-col .field-row { margin-bottom: 9px !important; gap: 3px !important; }
+  .top-col .field-row, .top-col .field-block { margin-bottom: 9px !important; gap: 3px !important; }
+  .top-col .divider { margin: 9px 0 !important; }
 
   /* ── Header: shrink the logo/title band, kill dead space ── */
   .header { padding: 2px 12px !important; min-height: 0 !important; }
@@ -1290,6 +1292,10 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   /* Remove the screen-only action-bar clearance padding above the header in print. */
   .page { padding-top: 0 !important; }
   .header { align-items: flex-start !important; }
+  /* Header is top-aligned (no dead space above the logo), but vertically center
+     just "Installation Estimate" against the two-line company name block. */
+  .header-logo { align-self: stretch !important; }
+  .doc-title { align-self: center !important; }
 }
 
 
@@ -2471,7 +2477,7 @@ function openPrintPreview() {
     // scaled down harder by iOS, shrinking content so page 1 fits. Wider phones
     // (Plus/Max, >=400px) already print fine, so keep them at 820.
     var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
-    var _baseW = 915; // phones + iPad base print width at 100% zoom
+    var _baseW = 935; // phones + iPad base print width at 100% zoom
     // ── Zoom correction with per-device damping ────────────────────────────
     // Applying the FULL measured zoom over-corrects on iPhone Safari: at 115%
     // the sheet came out too wide and printed small/centered. Safari's own
