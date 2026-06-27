@@ -2111,6 +2111,33 @@ function openPrintPreview() {
     var body = document.body;
     var page = document.getElementById('page');
 
+    // ── iOS page-zoom (Aa %) compensation ───────────────────────────────
+    // The Aa zoom menu (50%–200%) scales the layout viewport: at zoom Z the
+    // CSS-pixel viewport width = deviceWidth / Z. iOS print samples that
+    // viewport, so a non-100% zoom changes how the stamped sheet fills the
+    // page — making the PDF look different per user. We measure Z and divide
+    // it out so the print sheet always lays out as if at 100%, no matter the
+    // user's zoom. Probe: a fixed 100vw-independent element vs the real device
+    // width. We compare document.documentElement.clientWidth (CSS px, zoomed)
+    // against the device's physical portrait width derived from screen + DPR.
+    var _zoom = 1;
+    try {
+      // screen.width is in CSS px at 100% (device-independent of Aa zoom on iOS).
+      var _devW = Math.min(screen.width || 0, screen.height || 0) || 0;
+      // layout viewport width in current (zoomed) CSS px
+      var _vvW = (window.visualViewport && window.visualViewport.width)
+                 ? window.visualViewport.width
+                 : (html.clientWidth || window.innerWidth || 0);
+      if (_devW > 0 && _vvW > 0) {
+        // At zoom Z, visualViewport.width ≈ _devW / Z  →  Z ≈ _devW / _vvW
+        _zoom = _devW / _vvW;
+      }
+      if (!isFinite(_zoom) || _zoom <= 0) _zoom = 1;
+      // Clamp to the Aa menu's real range (50%–200%) so a bad reading can't
+      // produce an absurd sheet.
+      _zoom = Math.max(0.5, Math.min(2.0, _zoom));
+    } catch(e){ _zoom = 1; }
+
     // html / body sizing — locks the print layout inline
     // iPad (incl. standalone PWA): use 8.5in (816px) and LEFT-ALIGN. In a PWA the
     // layout viewport is ~1093px, so the default `html.ipad{margin:0 auto}` centers
@@ -2125,8 +2152,11 @@ function openPrintPreview() {
     // scaled down harder by iOS, shrinking content so page 1 fits. Wider phones
     // (Plus/Max, >=400px) already print fine, so keep them at 820.
     var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
-    var _narrowPhoneW = '820px'; // phones all 820 on print
-    var _printW = _ipadPath ? '820px' : _narrowPhoneW;
+    var _baseW = 820; // phones + iPad base print width at 100% zoom
+    // Multiply by zoom so a zoomed-in user (e.g. 115%) gets a proportionally
+    // wider sheet that iOS scales back to the same printed result as 100%.
+    var _corrW = Math.round(_baseW * _zoom);
+    var _printW = _corrW + 'px';
     // Print base font is tunable live via the FONT slider (window.__printFS).
     // Falls back to each path's original baseline when the slider is untouched:
     // iPad 18.3, iPhone 18.5, other 18.
@@ -2148,7 +2178,9 @@ function openPrintPreview() {
       if (_diag) _diag.textContent = 'STAMPED ' + (+_stampFS).toFixed(1) + 'px';
       var _eff = getComputedStyle(html).fontSize;
       var _diag2 = document.getElementById('st-val');
-      if (_diag2) _diag2.textContent = 'eff ' + _eff;
+      if (_diag2) _diag2.textContent = 'zoom ' + _zoom.toFixed(2) + 'x';
+      var _devEl = document.getElementById('st-dev');
+      if (_devEl) _devEl.innerHTML += '<br>→ corrected width <b>' + _corrW + 'px</b> @ ' + Math.round(_zoom*100) + '%';
     } catch(e){}
     // width must be !important to beat `@media print html.mobile-safari{width:..!important}`,
     // so the screen-width branch (_printW) is the single source of truth.
