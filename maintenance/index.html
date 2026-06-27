@@ -1327,13 +1327,18 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 /* ── ACTION BAR ── */
 .action-bar {
   position: fixed !important;
-  top: auto !important; left: 0 !important; right: 0 !important;
+  top: 0 !important; /* or env(safe-area-inset-top) if you want it fully under */
+  left: 0 !important;
+  right: 0 !important;
   z-index: 99999;
   width: 100%;
   background: var(--panel);
-  padding: 4px 8px;
-  padding-top: calc(4px + env(safe-area-inset-top, 0px));
-  display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
+  padding: calc(4px + env(safe-area-inset-top, 0px)) 8px 4px; /* top padding handles island */
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border);
   transition: background-color 0.3s ease;
