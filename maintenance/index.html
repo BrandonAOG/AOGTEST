@@ -3578,11 +3578,14 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
   border-radius:10px; padding:10px 12px; box-shadow:0 4px 16px rgba(0,0,0,.4);
   display:none; user-select:none; -webkit-user-select:none; width:172px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-    <span style="color:#D35E13;">SCALE</span>
-    <span id="st-val" style="font-size:15px;">100%</span>
+    <span style="color:#D35E13;">FONT</span>
+    <span id="st-val" style="font-size:15px;">0</span>
   </div>
-  <input id="st-range" type="range" min="70" max="110" step="1" value="100"
+  <input id="st-range" type="range" min="-50" max="50" step="1" value="0"
     style="width:100%; accent-color:#D35E13; margin:0;">
+  <div style="display:flex; justify-content:space-between; font-size:9px; color:#888; margin-top:2px;">
+    <span>-50</span><span id="st-px">19.0px</span><span>+50</span>
+  </div>
   <div style="display:flex; gap:6px; margin-top:8px;">
     <button id="st-reset" style="flex:1; font:600 11px sans-serif; background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:5px 0;">Reset</button>
     <button id="st-hide" style="flex:1; font:600 11px sans-serif; background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:5px 0;">Hide</button>
@@ -3595,27 +3598,34 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
   var tuner = document.getElementById('scale-tuner');
   var range = document.getElementById('st-range');
   var valEl = document.getElementById('st-val');
-  var page  = document.getElementById('page');
-  if (!tuner || !range || !page) return;
+  var pxEl  = document.getElementById('st-px');
+  var htmlEl = document.documentElement;
+  if (!tuner || !range || !htmlEl) return;
   tuner.style.display = 'block';
 
-  function apply(pct){
-    var s = pct/100;
-    // transform-scale the on-screen sheet from its top so it shrinks visually
-    // exactly like dialing the Aa slider down, WITHOUT reflowing the print layout.
-    page.style.transformOrigin = 'top center';
-    page.style.transform = (pct === 100) ? '' : ('scale(' + s + ')');
-    valEl.textContent = pct + '%';
+  var BASE = 19; // current on-screen root font-size in px (0 on the slider)
+
+  function apply(n){
+    // n is -50..+50. Map to a multiplier: -50 => 0.5x, 0 => 1x, +50 => 1.5x.
+    var mult = 1 + (n / 100);
+    var px = BASE * mult;
+    if (n === 0) {
+      htmlEl.style.fontSize = '';            // truly untouched at 0
+    } else {
+      htmlEl.style.setProperty('font-size', px.toFixed(2) + 'px', 'important');
+    }
+    valEl.textContent = (n > 0 ? '+' : '') + n;
+    pxEl.textContent = px.toFixed(1) + 'px';
   }
   range.addEventListener('input', function(){ apply(+range.value); });
   document.getElementById('st-reset').addEventListener('click', function(){
-    range.value = 100; apply(100);
+    range.value = 0; apply(0);
   });
   document.getElementById('st-hide').addEventListener('click', function(){
     tuner.style.display = 'none';
   });
-  // Make sure the scale is cleared before any print so it never affects output.
-  window.addEventListener('beforeprint', function(){ page.style.transform = ''; });
+  // Clear the override before any print so it never affects output.
+  window.addEventListener('beforeprint', function(){ htmlEl.style.fontSize = ''; });
 })();
 </script>
 </body>
