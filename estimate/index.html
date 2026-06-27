@@ -782,6 +782,14 @@ body.dark-mode .page {
   box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15), 0 0 40px rgba(59,130,246,0.08), inset 0 0 60px rgba(0,255,200,0.02);
 }
 
+/* On-screen page frame uses the dark-mode teal in light mode too, and overrides
+   seasonal themes. #page (id) + !important beats the seasonal body.seasonal-X .page
+   rules. Scoped to screen so the PDF border is unaffected. */
+@media screen {
+  #page { border-color: #00FFC8 !important; }
+  #page::before, #page::after, .page-corner-bl, .page-corner-br { border-color: #00FFC8 !important; }
+}
+
 .page::before, .page::after { content: ''; position: absolute; width: 24px; height: 24px; border-color: var(--cyan); border-style: solid; z-index: 10; }
 .page::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
 .page::after  { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
@@ -1194,17 +1202,17 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   html {
     height: auto !important; margin: 0 !important; padding: 0 !important;
     overflow: visible !important;
-    font-size: 18px !important;
+    font-size: 20px !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
   body { margin: 0 !important; padding: 0 !important; }
   .action-bar, .toolbar, #save-status, #aog-debug, #scale-tuner { display: none !important; }
 
-  /* Desktop print width: 935px. (Mobile/iPad stamp their own width inline,
+  /* Desktop print width: 980px. (Mobile/iPad stamp their own width inline,
      which wins over this rule, so this governs the desktop window.print() path.) */
-  body { width: 935px !important; max-width: 935px !important; margin: 0 auto !important; }
-  .page { width: 935px !important; max-width: 935px !important; margin: 0 auto !important; }
+  body { width: 980px !important; max-width: 980px !important; margin: 0 auto !important; }
+  .page { width: 980px !important; max-width: 980px !important; margin: 0 auto !important; }
 
   /* Vertical spacing — ported from maintenance's desktop print rules so the
      desktop PDF matches. (Mobile/iPad get the same values via inline stamps
@@ -1237,7 +1245,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .check-item input[type="checkbox"], .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
   /* Note textareas — sized to show exactly 2 lines without clipping. */
   #gen_notes, #pad_notes, #gas_notes, #ready_notes {
-    height: 36px !important; min-height: 36px !important; max-height: 36px !important;
+    height: 40px !important; min-height: 40px !important; max-height: 40px !important;
     line-height: 1.25 !important; padding: 2px 5px !important;
     box-sizing: border-box !important; overflow: hidden !important; margin-bottom: 0 !important;
     font-size: calc(0.756rem + 0.3px) !important;
@@ -1258,9 +1266,30 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .section:has(#ready_notes) .section-body { padding-bottom: 3.5px !important; }
   .content { padding-bottom: 0 !important; }
   .footer { margin-top: 3.5px !important; padding: 4px 14px !important; }
+  /* Footer "· CONFIDENTIAL" line — fixed size on the desktop PDF only. Scoped to
+     exclude the mobile/iPad classes so their print footer keeps its own size. */
+  body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) .footer-text { font-size: 10px !important; }
+  /* "© 2026 Always On Generators" — fixed size on the desktop PDF too (!important
+     beats its inline font-size). */
+  body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) #copyright-span { font-size: 10px !important; }
+  /* "Ver. 1.1" — fixed size on the desktop PDF too. */
+  body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) #ver-span { font-size: 10px !important; }
+  /* Flood-bar row (Flood Zone / Parcel / Estimate Done On / Estimator) — desktop
+     PDF. Keep the label up at the top of the cell and drop the input value down so
+     there's a clear gap between the label and the input text. */
+  body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) .flood-item {
+    padding: 2px 12px 4px !important; gap: 9px !important; justify-content: flex-start !important;
+  }
+  body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) .flood-item > label {
+    line-height: 1.1 !important; margin: 0 !important; align-self: flex-start !important;
+  }
   /* Corner brackets sit at z-index 10 over the header/footer and clip the
      logo text (top) and "Ver. 1.1" (bottom). Hide all four in print — the
      page border already frames the sheet. */
+  /* Hide the native date-picker (calendar) icon in the PDF — it's an interactive
+     control with no purpose in a printout. */
+  input[type="date"]::-webkit-calendar-picker-indicator { display: none !important; opacity: 0 !important; }
+  input[type="date"]::-webkit-inner-spin-button { display: none !important; }
   .page-corner-bl, .page-corner-br, .page::before, .page::after { display: none !important; }
   #ver-span { padding-right: 4px !important; }
 
@@ -2492,7 +2521,7 @@ function openPrintPreview() {
     // scaled down harder by iOS, shrinking content so page 1 fits. Wider phones
     // (Plus/Max, >=400px) already print fine, so keep them at 820.
     var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
-    var _baseW = 945; // phones + iPad base print width at 100% zoom
+    var _baseW = 955; // phones + iPad base print width at 100% zoom
     // ── Zoom correction with per-device damping ────────────────────────────
     // Applying the FULL measured zoom over-corrects on iPhone Safari: at 115%
     // the sheet came out too wide and printed small/centered. Safari's own
@@ -2519,8 +2548,8 @@ function openPrintPreview() {
     var _pScale = (typeof window.__printScale === 'number' && window.__printScale > 0)
                   ? window.__printScale : 1;
     if (page && _pScale !== 1) {
-      _snap(page, 'transformOrigin', 'top center');
-      _snap(page, 'transform', 'scale(' + _pScale + ')');
+      _snapI(page, 'transform-origin', 'top center');
+      _snapI(page, 'transform', 'scale(' + _pScale + ')');
     }
     // NOTE: must be !important. A stylesheet `html.mobile-safari{font-size:..!important}`
     // rule (in @media print) otherwise beats a plain inline style and pins the size.
@@ -2658,8 +2687,8 @@ function openPrintPreview() {
 
     // textareas — match mobile-safari print heights
     var taNotes = {
-      'gen_notes': '36px', 'pad_notes': '36px',
-      'gas_notes': '36px', 'ready_notes': '36px'
+      'gen_notes': '40px', 'pad_notes': '40px',
+      'gas_notes': '40px', 'ready_notes': '40px'
     };
     Object.keys(taNotes).forEach(function(id) {
       var ta = document.getElementById(id);
@@ -2912,6 +2941,18 @@ function openPrintPreview() {
       _snapI(el, 'background', '#DCEBF9');
       _snapI(el, 'color',      '#D35E13');
     });
+
+    // Desktop print: honor the scale-tuner slider too. __printScale was previously
+    // read only on the mobile branch, so on desktop the slider did nothing. Stamp
+    // the uniform .page transform here as well (with !important so it can't be
+    // overridden), scaled from the top-center like the mobile path.
+    var _dPage = document.getElementById('page');
+    var _dScale = (typeof window.__printScale === 'number' && window.__printScale > 0)
+                  ? window.__printScale : 1;
+    if (_dPage && _dScale !== 1) {
+      _snapI(_dPage, 'transform-origin', 'top center');
+      _snapI(_dPage, 'transform', 'scale(' + _dScale + ')');
+    }
 
     // iPad: the dark theme's fixed full-viewport gradient (body.dark-mode::before)
     // is painted by a pseudo-element the @media print `*` rules can't reach, so it
