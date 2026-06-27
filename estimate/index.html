@@ -2717,6 +2717,17 @@ function openPrintPreview() {
       _snap(el, 'padding',     '0 2px');
     });
 
+    // The general loop above strips notes textareas down to a bottom border (the
+    // underline look used for inputs), which made the notes boxes invisible on the
+    // iPhone/iPad PDF. Restore a full box border + padding on the four notes fields.
+    ['gen_notes', 'pad_notes', 'gas_notes', 'ready_notes'].forEach(function(id) {
+      var ta = document.getElementById(id);
+      if (ta) {
+        _snap(ta, 'border',  '0.5px solid #D35E13');
+        _snap(ta, 'padding', '2px 5px');
+      }
+    });
+
     // .check-item controls sizing
     document.querySelectorAll('.check-item input[type="checkbox"], .check-item input[type="radio"]').forEach(function(el) {
       _snap(el, 'width',     '12px');
