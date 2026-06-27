@@ -1202,7 +1202,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 body.mobile-safari { -webkit-print-color-adjust: exact; }
 
 @media print {
-  @page { size: 8.7in 11in; margin: 0.15in 0.15in 0.06in 0.15in !important; }
+  @page { size: 8.7in 11in; margin: 0.15in 0.25in 0.06in 0.25in !important; }
   html {
     height: auto !important; margin: 0 !important; padding: 0 !important;
     overflow: visible !important;
@@ -1219,8 +1219,9 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   input::-moz-placeholder, textarea::-moz-placeholder { color: transparent !important; opacity: 0 !important; }
   input:-ms-input-placeholder, textarea:-ms-input-placeholder { color: transparent !important; opacity: 0 !important; }
 
-  /* Desktop print width: 990px. (Mobile/iPad stamp their own width inline,
-     which wins over this rule, so this governs the desktop window.print() path.) */
+  /* Desktop print width: body and .page both 990px so the page centers evenly.
+     (Mobile/iPad stamp their own width inline, which wins over this rule, so this
+     governs the desktop window.print() path.) */
   body { width: 990px !important; max-width: 990px !important; margin: 0 auto !important; }
   .page { width: 990px !important; max-width: 990px !important; margin: 0 auto !important; }
 
@@ -1299,6 +1300,13 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .section:has(#ready_notes) .section-body { padding-bottom: 4.5px !important; }
   .content { padding-bottom: 0 !important; }
   .footer { margin-top: 4.5px !important; padding: 4px 14px !important; }
+
+  /* Desktop print: .content has flex:1 and .page is min-height:100vh, so the
+     content stretches to fill the page and pins the footer to the very bottom
+     with a gap above it. Stop the stretch (desktop only — mobile/iPad use inline
+     stamps) so the footer sits directly under the last section. */
+  body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) .content { flex: 0 0 auto !important; }
+  body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) .page { min-height: 0 !important; }
   /* Footer "· CONFIDENTIAL" line — fixed size on the desktop PDF only. Scoped to
      exclude the mobile/iPad classes so their print footer keeps its own size. */
   body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) .footer-text { font-size: 10px !important; }
@@ -1518,7 +1526,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
 }
 
 /* ===== DESKTOP SCREEN — all elements ===== */
-@media screen and (min-width: 1035px) and (pointer: fine) {
+@media screen and (min-width: 1025px) and (pointer: fine) {
   .company-name          { font-size: var(--fs-desktop-company-name) !important; }
   .doc-title             { font-size: var(--fs-desktop-doc-title) !important; }
   .section-header        { font-size: var(--fs-desktop-section-header) !important; padding: var(--pd-desktop-section-header) !important; }
@@ -2910,7 +2918,7 @@ function openPrintPreview() {
     // scaled down harder by iOS, shrinking content so page 1 fits. Wider phones
     // (Plus/Max, >=400px) already print fine, so keep them at 820.
     var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
-    var _baseW = 1025; // phones + iPad base print width at 100% zoom
+    var _baseW = 1020; // phones + iPad base print width at 100% zoom
     // ── Zoom correction with per-device damping ────────────────────────────
     // Applying the FULL measured zoom over-corrects on iPhone Safari: at 115%
     // the sheet came out too wide and printed small/centered. Safari's own
