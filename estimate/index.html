@@ -3177,9 +3177,9 @@ function capturePageToCanvas(_fontsReady) {
     page.style.minHeight = PAPER_H + 'px';
     page.style.overflow  = 'visible';
     // Image capture renders the on-screen styles, where the page frame is teal.
-    // Force it orange for the captured image. Inline !important beats the
-    // @media screen #page teal rule.
-    page.style.setProperty('border-color', '#FA6700', 'important');
+    // Match the maintenance capture (and the printed PDF): render the frame in
+    // #D35E13 orange. Inline !important beats the @media screen #page teal rule.
+    page.style.setProperty('border-color', '#D35E13', 'important');
     document.body.style.padding = '0';
 
     // ── PATCH: Strip seasonal + dark-mode classes for clean light-mode capture ──
@@ -3260,8 +3260,8 @@ function capturePageToCanvas(_fontsReady) {
       '.header::after { display: none !important; }',
       'body { max-width: ' + CAPTURE_W + 'px !important; }',
       '#page { width: ' + CAPTURE_W + 'px !important; max-width: ' + CAPTURE_W + 'px !important; height: auto !important; min-height: ' + PAPER_H + 'px !important; overflow: visible !important; display: flex !important; flex-direction: column !important; }',
-      /* Corner L-brackets orange in the captured image (they're teal on screen). */
-      '#page::before, #page::after, .page-corner-bl, .page-corner-br { border-color: #FA6700 !important; }',
+      /* Corner L-brackets match the maintenance capture / PDF orange (teal on screen). */
+      '#page::before, #page::after, .page-corner-bl, .page-corner-br { border-color: #D35E13 !important; }',
       '.content { overflow: visible !important; min-height: 0 !important; }',
       '.top-grid { grid-template-columns: 1fr 1fr !important; }',
       '.top-col:first-child { border-right: 1px solid rgba(250,103,0,0.25) !important; border-bottom: none !important; }',
