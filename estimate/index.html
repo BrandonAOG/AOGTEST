@@ -3640,7 +3640,7 @@ function capturePageToCanvas(_fontsReady) {
           }
         }).then(function(canvas) {
           restore();
-          resolve(fitCanvasToLetter(cropCanvasToContent(canvas)));
+          resolve(addCaptureMargin(padCanvasToLetter(cropCanvasToContent(canvas))));
         }).catch(function(err) {
           restore();
           reject(err);
@@ -3766,7 +3766,7 @@ function saveSmart() {
     }).catch(function (err) {
       setStatus(typeof html2canvas === 'undefined'
         ? 'Image library failed to load. Try the PDF button instead.'
-        : 'Render failed. Try the PDF button instead.');
+        : 'Render failed: ' + (err && err.message ? err.message : err));
     });
   }, 250);
 }
@@ -3802,7 +3802,7 @@ function saveForIPhone() {
     }).catch(function(err) {
       lbl.textContent = typeof html2canvas === 'undefined'
         ? 'Image library failed to load. Try the PDF button instead.'
-        : 'Render failed. Try the PDF button instead.';
+        : 'Render failed: ' + (err && err.message ? err.message : err);
       lbl.style.color = '#f87171';
       setStatus('Render failed.');
     });
@@ -3824,7 +3824,7 @@ function saveForAndroid() {
       setStatus('Saved: ' + filename);
       setTimeout(function() { setStatus(''); }, 4000);
     }).catch(function(err) {
-      setStatus(typeof html2canvas === 'undefined' ? 'Image library failed to load. Try PDF instead.' : 'Render failed. Try PDF instead.');
+      setStatus(typeof html2canvas === 'undefined' ? 'Image library failed to load. Try PDF instead.' : 'Render failed: ' + (err && err.message ? err.message : err));
     });
   }, 250);
 }
