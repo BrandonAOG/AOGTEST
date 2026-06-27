@@ -1315,6 +1315,12 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) #copyright-span { font-size: 10px !important; }
   /* "Ver. 1.1" — fixed size on the desktop PDF too. */
   body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) #ver-span { font-size: 10px !important; }
+  /* Match the iOS (iPhone/iPad) print footer to desktop: 10px for the footer
+     line, version, and copyright (they otherwise fall back to the larger phone
+     vars — 0.55rem / 0.72rem — since the desktop rules above exclude them). */
+  body.mobile-safari .footer-text,
+  body.mobile-safari #copyright-span,
+  body.mobile-safari #ver-span { font-size: 10px !important; }
   /* Flood-bar row (Flood Zone / Parcel / Estimate Done On / Estimator) — desktop
      PDF. Keep the label up at the top of the cell and drop the input value down so
      there's a clear gap between the label and the input text. */
@@ -1972,12 +1978,12 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
     // iOS (iPhone/iPad) print share-sheet applies its OWN page margins, so ours
     // double up. @page can't be scoped by a body class in CSS, so inject the
     // page margins here — only on iOS. Top/sides are 0 (the OS adds its own), but
-    // bottom is 0.15in to keep content off the very bottom edge. Appended after
-    // the main stylesheet, so this @page wins; desktop never gets it. Only
-    // affects print, so it's safe to leave in place permanently.
+    // bottom is 0.06in: enough to keep content off the bottom edge without eating
+    // the vertical room that pushes the footer to page 2. Appended after the main
+    // stylesheet, so this @page wins; desktop never gets it.
     var iosZeroPageMargin = document.createElement('style');
     iosZeroPageMargin.id = 'ios-zero-page-margin';
-    iosZeroPageMargin.textContent = '@media print { @page { margin: 0 0 0.1in 0 !important; } }';
+    iosZeroPageMargin.textContent = '@media print { @page { margin: 0 0 0.06in 0 !important; } }';
     (document.head || document.documentElement).appendChild(iosZeroPageMargin);
   }
 })();
