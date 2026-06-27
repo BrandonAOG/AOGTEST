@@ -3076,10 +3076,39 @@ function openPrintPreview() {
       });
     }
 
-    // Restore exactly like desktop: only on afterprint, no timers, no
-    // visibility watcher. The visibility/timer approaches were closing the
-    // print preview early on iOS, so we mirror the desktop behavior instead.
-    window.addEventListener('afterprint', restore);
+    // ── Restore strategy (exactly as the old working version did it) ──
+    var isMobile = true;
+    var _triggered = false;
+    function triggerRestore(delay) {
+      if (_triggered) return;
+      _triggered = true;
+      clearTimeout(_safetyTimer);
+      window.removeEventListener('afterprint', _onAfterPrint);
+      document.removeEventListener('visibilitychange', _onVisible);
+      setTimeout(restore, delay);
+    }
+    // afterprint restores: instantly on desktop, and on mobile after a delay long
+    // enough for Safari's PDF snapshot to complete (the PDF is generated after preview).
+    function _onAfterPrint() { triggerRestore(isMobile ? 1500 : 0); }
+    window.addEventListener('afterprint', _onAfterPrint);
+    // Secondary path: require the page to stay visible for 1 continuous second before
+    // restoring. A brief flicker to visible (e.g. interacting with the Scale control in
+    // the print sheet) won't trigger restore. If the page hides again before the 1s
+    // elapses, the pending restore is cancelled.
+    var _visibleTimer = null;
+    function _onVisible() {
+      if (document.visibilityState === 'visible') {
+        if (_visibleTimer) return;
+        _visibleTimer = setTimeout(function() {
+          _visibleTimer = null;
+          triggerRestore(isMobile ? 400 : 300);
+        }, 1000);
+      } else {
+        if (_visibleTimer) { clearTimeout(_visibleTimer); _visibleTimer = null; }
+      }
+    }
+    document.addEventListener('visibilitychange', _onVisible);
+    var _safetyTimer = setTimeout(function() { triggerRestore(0); }, 30000);
 
 
   } else {
