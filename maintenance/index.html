@@ -2071,6 +2071,12 @@ function openPrintPreview() {
           if (s.was) {
             s.el.style.setProperty('font-size', s.was, s.wasPriority || '');
           }
+        } else if (s.cssProp) {
+          // width / max-width set with !important — clear and restore original.
+          s.el.style.removeProperty(s.cssProp);
+          if (s.was) {
+            s.el.style.setProperty(s.cssProp, s.was, s.wasPriority || '');
+          }
         } else {
           s.el.style[s.prop] = s.was;
         }
@@ -2112,7 +2118,13 @@ function openPrintPreview() {
     // viewport is narrower than the content, so there's no centering offset).
     var _ipadPath = (isIPad || isIPadNav);
     var _isMacIntelPad = document.documentElement.classList.contains('ipad-macintel');
-    var _printW = '835px'; // unified: phone / iPad / intel-iPad all 835
+    // Phone print width by screen size. Narrow iPhones (<400px: regular Pro and
+    // smaller) print badly at 820, so stamp them wider — a wider sheet gets
+    // scaled down harder by iOS, shrinking content so page 1 fits. Wider phones
+    // (Plus/Max, >=400px) already print fine, so keep them at 820.
+    var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
+    var _narrowPhoneW = (_phoneScreenW < 400) ? '850px' : '820px';
+    var _printW = _ipadPath ? '835px' : _narrowPhoneW;
     // Print base font for phones is tunable live via the FONT slider
     // (window.__printFS). Falls back to the original 18.5/18 when unset.
     var _phonePrintFS = (typeof window.__printFS === 'number' && window.__printFS > 0)
@@ -2133,10 +2145,16 @@ function openPrintPreview() {
       var _diag2 = document.getElementById('st-val');
       if (_diag2) _diag2.textContent = 'eff ' + _eff;
     } catch(e){}
-    _snap(html, 'width',     _printW);
+    // width must be !important to beat `@media print html.mobile-safari{width:..!important}`,
+    // so the screen-width branch (_printW) is the single source of truth.
+    var _wParts = [[html,'width'],[body,'width'],[body,'maxWidth']];
+    for (var _wi=0; _wi<_wParts.length; _wi++){
+      var _wel=_wParts[_wi][0], _wp=_wParts[_wi][1], _wcss=(_wp==='maxWidth'?'max-width':'width');
+      _snapshots.push({ el:_wel, prop:_wp, was:_wel.style[_wp],
+                        cssProp:_wcss, wasPriority:_wel.style.getPropertyPriority(_wcss) });
+      _wel.style.setProperty(_wcss, _printW, 'important');
+    }
     _snap(html, 'margin',    '0');        // left-align (kills the PWA centering clip)
-    _snap(body, 'width',     _printW);
-    _snap(body, 'maxWidth',  _printW);
     _snap(body, 'minWidth',  '0');
     _snap(body, 'height',    'auto');
     _snap(body, 'minHeight', '0');
