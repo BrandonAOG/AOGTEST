@@ -2120,32 +2120,31 @@ function openPrintPreview() {
     // user's zoom. Probe: a fixed 100vw-independent element vs the real device
     // width. We compare document.documentElement.clientWidth (CSS px, zoomed)
     // against the device's physical portrait width derived from screen + DPR.
+    var _ipadPath = (isIPad || isIPadNav);
     var _zoom = 1;
     try {
-      // screen.width is in CSS px at 100% (device-independent of Aa zoom on iOS).
       var _devW = Math.min(screen.width || 0, screen.height || 0) || 0;
-      // layout viewport width in current (zoomed) CSS px
       var _vvW = (window.visualViewport && window.visualViewport.width)
                  ? window.visualViewport.width
                  : (html.clientWidth || window.innerWidth || 0);
-      if (_devW > 0 && _vvW > 0) {
-        // At zoom Z, visualViewport.width ≈ _devW / Z  →  Z ≈ _devW / _vvW
-        _zoom = _devW / _vvW;
+      if (_ipadPath) {
+        // ── iPad zoom branch ──────────────────────────────────────────────
+        // iPad's layout viewport (~1093px in PWA) and zoom mechanics differ
+        // from the phone. Until we confirm the Safari numbers, iPad uses the
+        // same ratio but is isolated here so its formula can diverge.
+        if (_devW > 0 && _vvW > 0) _zoom = _devW / _vvW;
+      } else {
+        // ── iPhone zoom branch ────────────────────────────────────────────
+        // Confirmed working on Chrome (CriOS): screen.width stays fixed in CSS
+        // px while visualViewport.width shrinks with Aa zoom, so the ratio is
+        // the zoom factor. (Safari numbers pending — may need its own path.)
+        if (_devW > 0 && _vvW > 0) _zoom = _devW / _vvW;
       }
       if (!isFinite(_zoom) || _zoom <= 0) _zoom = 1;
-      // Clamp to the Aa menu's real range (50%–200%) so a bad reading can't
-      // produce an absurd sheet.
       _zoom = Math.max(0.5, Math.min(2.0, _zoom));
     } catch(e){ _zoom = 1; }
 
     // html / body sizing — locks the print layout inline
-    // iPad (incl. standalone PWA): use 8.5in (816px) and LEFT-ALIGN. In a PWA the
-    // layout viewport is ~1093px, so the default `html.ipad{margin:0 auto}` centers
-    // the page and iOS print (which chops from the viewport's left edge at the 8.7in
-    // page width) cut off the right side. Left-aligning removes that offset; 8.5in
-    // leaves a safety margin inside the 8.7in sheet. Phones keep 820px (their
-    // viewport is narrower than the content, so there's no centering offset).
-    var _ipadPath = (isIPad || isIPadNav);
     var _isMacIntelPad = document.documentElement.classList.contains('ipad-macintel');
     // Phone print width by screen size. Narrow iPhones (<400px: regular Pro and
     // smaller) print badly at 820, so stamp them wider — a wider sheet gets
@@ -2153,9 +2152,18 @@ function openPrintPreview() {
     // (Plus/Max, >=400px) already print fine, so keep them at 820.
     var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
     var _baseW = 820; // phones + iPad base print width at 100% zoom
-    // Multiply by zoom so a zoomed-in user (e.g. 115%) gets a proportionally
-    // wider sheet that iOS scales back to the same printed result as 100%.
-    var _corrW = Math.round(_baseW * _zoom);
+    // ── Zoom correction with per-device damping ────────────────────────────
+    // Applying the FULL measured zoom over-corrects on iPhone Safari: at 115%
+    // the sheet came out too wide and printed small/centered. Safari's own
+    // print pipeline already absorbs most of the zoom, so we only apply a
+    // FRACTION of it. effectiveZoom = 1 + (_zoom - 1) * DAMP.
+    //   DAMP = 0  → ignore zoom entirely (always behave as 100%)
+    //   DAMP = 1  → full correction (old behavior, over-shoots on Safari)
+    var _DAMP_PHONE = 0.0;   // iPhone Safari already compensates → start at 0
+    var _DAMP_IPAD  = 1.0;   // iPad pending its own screenshots
+    var _damp = _ipadPath ? _DAMP_IPAD : _DAMP_PHONE;
+    var _effZoom = 1 + (_zoom - 1) * _damp;
+    var _corrW = Math.round(_baseW * _effZoom);
     var _printW = _corrW + 'px';
     // Print base font is tunable live via the FONT slider (window.__printFS).
     // Falls back to each path's original baseline when the slider is untouched:
@@ -2180,7 +2188,12 @@ function openPrintPreview() {
       var _diag2 = document.getElementById('st-val');
       if (_diag2) _diag2.textContent = 'zoom ' + _zoom.toFixed(2) + 'x';
       var _devEl = document.getElementById('st-dev');
-      if (_devEl) _devEl.innerHTML += '<br>→ corrected width <b>' + _corrW + 'px</b> @ ' + Math.round(_zoom*100) + '%';
+      if (_devEl) _devEl.innerHTML += '<br>→ width <b>' + _corrW + 'px</b> | meas ' + Math.round(_zoom*100) + '% eff ' + Math.round(_effZoom*100) + '% damp ' + _damp +
+        '<br>raw: screen=' + (Math.min(screen.width||0,screen.height||0)) +
+        ' vv=' + ((window.visualViewport&&window.visualViewport.width)?Math.round(window.visualViewport.width):'?') +
+        ' inner=' + window.innerWidth +
+        ' cw=' + html.clientWidth +
+        ' dpr=' + (window.devicePixelRatio||'?');
     } catch(e){}
     // width must be !important to beat `@media print html.mobile-safari{width:..!important}`,
     // so the screen-width branch (_printW) is the single source of truth.
@@ -3715,10 +3728,24 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
     else if (/Safari/.test(ua))  browser = 'Safari';
     else                         browser = 'other';
     if (isStandalone) browser += ' / PWA';
-    devEl.innerHTML =
-      type + ' · ' + browser + '<br>' +
-      'screen ' + sw + '×' + sh + '  (inner ' + window.innerWidth + '×' + window.innerHeight + ')<br>' +
-      'print width → <b>' + willStamp + 'px</b>';
+    function _liveReadout(){
+      var _s = Math.min(screen.width||0, screen.height||0);
+      var _vv = (window.visualViewport && window.visualViewport.width) ? Math.round(window.visualViewport.width) : 0;
+      var _z = (_s>0 && _vv>0) ? (_s/_vv) : 1;
+      devEl.innerHTML =
+        type + ' · ' + browser + '<br>' +
+        'screen ' + sw + '×' + sh + '<br>' +
+        'inner ' + window.innerWidth + ' · vv ' + _vv + ' · cw ' + document.documentElement.clientWidth + '<br>' +
+        'dpr ' + (window.devicePixelRatio||'?') + ' · <b>zoom ' + _z.toFixed(2) + 'x</b><br>' +
+        'print → <b>' + Math.round(820*Math.max(0.5,Math.min(2,_z))) + 'px</b>';
+    }
+    _liveReadout();
+    // Update live as the user changes the Aa zoom (fires resize/vv events).
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', _liveReadout);
+      window.visualViewport.addEventListener('scroll', _liveReadout);
+    }
+    window.addEventListener('resize', _liveReadout);
   })();
 
   // This slider tunes the PRINT base font-size (what you get when you hit PDF).
