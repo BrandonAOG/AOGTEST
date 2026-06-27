@@ -1234,12 +1234,12 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   /* Lock the iPad PDF to a fixed 8.7in width (835px @ 96dpi). The viewport meta
      doesn't affect print, so width:auto let iPad Safari pick its own print width;
      pinning 835px makes the iPad PDF deterministically 8.7in wide. */
-  html.ipad, html.ipad body { width: 835px !important; max-width: 835px !important; margin: 0 auto !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  html.ipad, html.ipad body { width: 820px !important; max-width: 820px !important; margin: 0 auto !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
   /* Desktop-UA iPad (Request Desktop Site / installed PWA) — 1000px */
-  html.ipad.ipad-macintel, html.ipad.ipad-macintel body { width: 835px !important; max-width: 835px !important; }
+  html.ipad.ipad-macintel, html.ipad.ipad-macintel body { width: 820px !important; max-width: 820px !important; }
 
   html.ipad .page {
-    width: 100% !important; max-width: 835px !important;
+    width: 100% !important; max-width: 820px !important;
     /* ~8px each side (was ~0.13in/12.5px): nudges the content ~8px wider still,
        even padding, to wrap long rows even less. */
     padding: 4px 8px 0 8px !important;
@@ -1247,7 +1247,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
     min-height: 0 !important; height: auto !important;
     border: 1.5px solid #D35E13 !important;
   }
-  html.ipad.ipad-macintel .page { max-width: 835px !important; }
+  html.ipad.ipad-macintel .page { max-width: 820px !important; }
   html.ipad .footer { margin-top: 4px !important; margin-bottom: 0 !important; padding-bottom: 1px !important; }
 
   /* Two-column layout + non-wrapping field rows (same intent as iPhone) */
@@ -2124,13 +2124,16 @@ function openPrintPreview() {
     // (Plus/Max, >=400px) already print fine, so keep them at 820.
     var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
     var _narrowPhoneW = (_phoneScreenW < 400) ? '850px' : '820px';
-    var _printW = _ipadPath ? '835px' : _narrowPhoneW;
-    // Print base font for phones is tunable live via the FONT slider
-    // (window.__printFS). Falls back to the original 18.5/18 when unset.
+    var _printW = _ipadPath ? '820px' : _narrowPhoneW;
+    // Print base font is tunable live via the FONT slider (window.__printFS).
+    // Falls back to each path's original baseline when the slider is untouched:
+    // iPad 18.3, iPhone 18.5, other 18.
+    var _fsBase = _ipadPath ? 18.3 : (isMobileSafari ? 18.5 : 18);
     var _phonePrintFS = (typeof window.__printFS === 'number' && window.__printFS > 0)
                         ? window.__printFS
-                        : (isMobileSafari ? 18.5 : 18);
-    var _stampFS = (_ipadPath ? (isMobileSafari ? 18.5 : 18) : _phonePrintFS);
+                        : _fsBase;
+    // All WebKit print paths (phone + iPad) now read the slider value.
+    var _stampFS = _phonePrintFS;
     // NOTE: must be !important. A stylesheet `html.mobile-safari{font-size:..!important}`
     // rule (in @media print) otherwise beats a plain inline style and pins the size.
     _snapshots.push({ el: html, prop: 'fontSize', was: html.style.fontSize,
@@ -3664,18 +3667,33 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
     var sw = screen.width || 0, sh = screen.height || 0;
     var narrow = Math.min(sw || 999, sh || 999);
     // mirror the print-width branch so the screenshot shows what WILL be stamped
-    var willStamp = (b.indexOf('ipad') > -1) ? '835'
+    var willStamp = (b.indexOf('ipad') > -1) ? '820'
                     : (narrow < 400 ? '850' : '820');
+    // Browser / install context
+    var ua = navigator.userAgent || '';
+    var browser;
+    var isStandalone = (navigator.standalone === true) ||
+                       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (/CriOS/.test(ua))        browser = 'Chrome';
+    else if (/FxiOS/.test(ua))   browser = 'Firefox';
+    else if (/EdgiOS/.test(ua))  browser = 'Edge';
+    else if (/Chrome/.test(ua) && !/Edg/.test(ua)) browser = 'Chrome';
+    else if (/Edg/.test(ua))     browser = 'Edge';
+    else if (/Safari/.test(ua))  browser = 'Safari';
+    else                         browser = 'other';
+    if (isStandalone) browser += ' / PWA';
     devEl.innerHTML =
-      type + '<br>' +
+      type + ' · ' + browser + '<br>' +
       'screen ' + sw + '×' + sh + '  (inner ' + window.innerWidth + '×' + window.innerHeight + ')<br>' +
       'print width → <b>' + willStamp + 'px</b>';
   })();
 
   // This slider tunes the PRINT base font-size (what you get when you hit PDF).
   // 0 = the original default; -50..+50 shifts it by ±1% per step.
-  var isMS = document.body.classList.contains('mobile-safari');
-  var PRINT_BASE = isMS ? 18.5 : 18;   // original print stamp value
+  var _bc = document.body.className || '';
+  var _isIpadCls = _bc.indexOf('ipad') > -1;
+  var isMS = _bc.indexOf('mobile-safari') > -1;
+  var PRINT_BASE = _isIpadCls ? 18.3 : (isMS ? 18.5 : 18);   // per-path baseline
   window.__printFS = PRINT_BASE;        // print code reads this
 
   function apply(n){
