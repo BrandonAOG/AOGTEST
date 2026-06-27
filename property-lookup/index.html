@@ -9025,14 +9025,23 @@ async function runLookup(lat,lng,searchCtx){
           }
         }catch(e){}
         if(_num(_fileSqft) && _num(_rollLiv)){
-          // Both sources have a value. Heated/living area is always <= an adjusted/under-roof
-          // figure (e.g. Collier "Adj Area") and <= a multi-structure sum, so take the SMALLER:
-          // it corrects the file when IT carries the gross figure (this parcel) AND the roll when
-          // IT sums secondary structures (the Brynwood case).
-          const _f=Number(_fileSqft), _r=Number(String(_rollLiv).replace(/[^0-9.]/g,''));
-          const _small=Math.min(_f,_r), _big=Math.max(_f,_r);
-          _la.TOT_LVG_AR=_small; det.liv='TOT_LVG_AR';
-          if(_big-_small>1) window.__livOverride={shown:_small, other:_big};
+          // Collier's compact file now carries the appraiser's OWN living-area figure (primary-
+          // structure BaseArea, built from INT_BUILDINGS), so it is authoritative — use it and
+          // ignore the statewide roll entirely (the roll sums secondary structures: e.g. 652
+          // Bougainvillea appraiser 2,638 vs roll 12,246). For other counties keep the prior
+          // min() heuristic, which guards against either source carrying a gross/summed figure.
+          if(norm(countyName)==='COLLIER'){
+            _la.TOT_LVG_AR=_fileSqft; det.liv='TOT_LVG_AR';
+          } else {
+            // Both sources have a value. Heated/living area is always <= an adjusted/under-roof
+            // figure (e.g. Collier "Adj Area") and <= a multi-structure sum, so take the SMALLER:
+            // it corrects the file when IT carries the gross figure (this parcel) AND the roll when
+            // IT sums secondary structures (the Brynwood case).
+            const _f=Number(_fileSqft), _r=Number(String(_rollLiv).replace(/[^0-9.]/g,''));
+            const _small=Math.min(_f,_r), _big=Math.max(_f,_r);
+            _la.TOT_LVG_AR=_small; det.liv='TOT_LVG_AR';
+            if(_big-_small>1) window.__livOverride={shown:_small, other:_big};
+          }
         } else if(_num(_fileSqft)){ _la.TOT_LVG_AR=_fileSqft; det.liv='TOT_LVG_AR';
         } else if(_num(_rollLiv)){ _la.TOT_LVG_AR=_rollLiv; det.liv='TOT_LVG_AR'; }
       }
