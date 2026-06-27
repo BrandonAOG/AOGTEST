@@ -1658,7 +1658,7 @@ body.dark-mode .action-bar {
       </div>
 
       <!-- Collapsed view: was the test performed? -->
-      <div class="section-body sim-hidden" id="sim-body-collapsed">
+      <div class="section-body" id="sim-body-collapsed">
         <div class="test-grid" style="grid-template-columns:1fr;">
           <div class="test-item">
             <label>Was simulation power test performed?</label>
@@ -1677,7 +1677,7 @@ body.dark-mode .action-bar {
       </div>
 
       <!-- Full view: detailed test grid -->
-      <div class="section-body" id="sim-body-full">
+      <div class="section-body sim-hidden" id="sim-body-full">
         <div class="test-grid">
           <div class="test-item">
             <label>Generator Started Up?</label>
@@ -1966,6 +1966,14 @@ function clearForm() {
     else el.value = '';
   });
   localStorage.removeItem(DRAFT_KEY);
+  // Reset the Simulated Power Test section back to the notes (collapsed) view
+  try { localStorage.removeItem('aog_sim_view'); } catch (e) {}
+  var simFull = document.getElementById('sim-body-full');
+  var simCollapsed = document.getElementById('sim-body-collapsed');
+  if (simFull && simCollapsed) {
+    simFull.classList.add('sim-hidden');
+    simCollapsed.classList.remove('sim-hidden');
+  }
 }
 
 function openPrintPreview() {
@@ -2015,16 +2023,20 @@ function openPrintPreview() {
     isMobileSafari = true;
   }
 
-  // ── Phone in landscape: force a portrait-width viewport before printing ──
-  // With width=device-width, a phone held in landscape gives a wide layout
-  // viewport, so the stamped 820px sheet renders scaled into a landscape page.
-  // Pin the viewport to the device's PORTRAIT (narrow) CSS width so the page
-  // lays out exactly as it would in portrait, regardless of physical rotation.
+  // ── Phone: force an explicit portrait-width viewport before printing ──
+  // iOS Safari uses the viewport meta to determine the print layout width.
+  // With width=device-width the browser keeps its own interpretation of the
+  // layout viewport (393px on iPhone 15 Pro in portrait), so even though we
+  // stamp html/body to 820px inline the print dialog may still capture the
+  // narrow 393px screen width — collapsing the two-column layout and spilling
+  // content onto a 2nd page.  Setting an explicit pixel value (width=393) tells
+  // Safari to commit to exactly that width before the 820px stamp widens the
+  // content, which lets the print layout resolve to 820px correctly in both
+  // portrait AND landscape.  (Without this fix portrait printed wrong while
+  // landscape — which already set this override — printed correctly.)
   // origVP (captured above) restores the real value when the dialog closes.
   // (Image capture path is separate and intentionally left untouched.)
-  var _isLandscape = (window.matchMedia && window.matchMedia('(orientation: landscape)').matches)
-                     || (window.innerWidth > window.innerHeight);
-  if (isPhone && _isLandscape && vp) {
+  if (isPhone && vp) {
     // Math.min() = the narrow (portrait) dimension regardless of whether the
     // browser rotates screen.width/height with orientation.
     var _portraitW = Math.min(screen.width || 0, screen.height || 0) || 390;
@@ -3285,8 +3297,8 @@ function setupSimToggle() {
     try { localStorage.setItem(KEY, view); } catch (e) {}
   }
 
-  var saved = 'full';
-  try { saved = localStorage.getItem(KEY) || 'full'; } catch (e) {}
+  var saved = 'collapsed';
+  try { saved = localStorage.getItem(KEY) || 'collapsed'; } catch (e) {}
   apply(saved);
 
   function toggle() {
