@@ -2065,7 +2065,15 @@ function openPrintPreview() {
         if (s.was === null) s.el.removeAttribute(s.attr);
         else s.el.setAttribute(s.attr, s.was);
       } else {
-        s.el.style[s.prop] = s.was;
+        if (s.prop === 'fontSize') {
+          // This one was set with !important; clear and reapply properly.
+          s.el.style.removeProperty('font-size');
+          if (s.was) {
+            s.el.style.setProperty('font-size', s.was, s.wasPriority || '');
+          }
+        } else {
+          s.el.style[s.prop] = s.was;
+        }
       }
     }
     _snapshots = [];
@@ -2110,7 +2118,21 @@ function openPrintPreview() {
     var _phonePrintFS = (typeof window.__printFS === 'number' && window.__printFS > 0)
                         ? window.__printFS
                         : (isMobileSafari ? 18.5 : 18);
-    _snap(html, 'fontSize',  (_ipadPath ? (isMobileSafari ? 18.5 : 18) : _phonePrintFS) + 'px');
+    var _stampFS = (_ipadPath ? (isMobileSafari ? 18.5 : 18) : _phonePrintFS);
+    // NOTE: must be !important. A stylesheet `html.mobile-safari{font-size:..!important}`
+    // rule (in @media print) otherwise beats a plain inline style and pins the size.
+    _snapshots.push({ el: html, prop: 'fontSize', was: html.style.fontSize,
+                      wasPriority: html.style.getPropertyPriority('font-size') });
+    html.style.setProperty('font-size', _stampFS + 'px', 'important');
+    // DIAGNOSTIC: surface what the PDF path actually stamped, so we can see
+    // on-screen whether the slider value is reaching print.
+    try {
+      var _diag = document.getElementById('st-px');
+      if (_diag) _diag.textContent = 'STAMPED ' + (+_stampFS).toFixed(1) + 'px';
+      var _eff = getComputedStyle(html).fontSize;
+      var _diag2 = document.getElementById('st-val');
+      if (_diag2) _diag2.textContent = 'eff ' + _eff;
+    } catch(e){}
     _snap(html, 'width',     _printW);
     _snap(html, 'margin',    '0');        // left-align (kills the PWA centering clip)
     _snap(body, 'width',     _printW);
