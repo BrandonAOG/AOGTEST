@@ -2105,7 +2105,12 @@ function openPrintPreview() {
     var _ipadPath = (isIPad || isIPadNav);
     var _isMacIntelPad = document.documentElement.classList.contains('ipad-macintel');
     var _printW = _ipadPath ? (_isMacIntelPad ? '900px' : '835px') : '820px';
-    _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18') + 'px');
+    // Print base font for phones is tunable live via the FONT slider
+    // (window.__printFS). Falls back to the original 18.5/18 when unset.
+    var _phonePrintFS = (typeof window.__printFS === 'number' && window.__printFS > 0)
+                        ? window.__printFS
+                        : (isMobileSafari ? 18.5 : 18);
+    _snap(html, 'fontSize',  (_ipadPath ? (isMobileSafari ? 18.5 : 18) : _phonePrintFS) + 'px');
     _snap(html, 'width',     _printW);
     _snap(html, 'margin',    '0');        // left-align (kills the PWA centering clip)
     _snap(body, 'width',     _printW);
@@ -3584,7 +3589,7 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
   <input id="st-range" type="range" min="-50" max="50" step="1" value="0"
     style="width:100%; accent-color:#D35E13; margin:0;">
   <div style="display:flex; justify-content:space-between; font-size:9px; color:#888; margin-top:2px;">
-    <span>-50</span><span id="st-px">19.0px</span><span>+50</span>
+    <span>-50</span><span id="st-px">print 18.5px</span><span>+50</span>
   </div>
   <div style="display:flex; gap:6px; margin-top:8px;">
     <button id="st-reset" style="flex:1; font:600 11px sans-serif; background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:5px 0;">Reset</button>
@@ -3603,19 +3608,18 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
   if (!tuner || !range || !htmlEl) return;
   tuner.style.display = 'block';
 
-  var BASE = 19; // current on-screen root font-size in px (0 on the slider)
+  // This slider tunes the PRINT base font-size (what you get when you hit PDF).
+  // 0 = the original default; -50..+50 shifts it by ±1% per step.
+  var isMS = document.body.classList.contains('mobile-safari');
+  var PRINT_BASE = isMS ? 18.5 : 18;   // original print stamp value
+  window.__printFS = PRINT_BASE;        // print code reads this
 
   function apply(n){
-    // n is -50..+50. Map to a multiplier: -50 => 0.5x, 0 => 1x, +50 => 1.5x.
     var mult = 1 + (n / 100);
-    var px = BASE * mult;
-    if (n === 0) {
-      htmlEl.style.fontSize = '';            // truly untouched at 0
-    } else {
-      htmlEl.style.setProperty('font-size', px.toFixed(2) + 'px', 'important');
-    }
+    var px = PRINT_BASE * mult;
+    window.__printFS = px;              // <-- carried into the PDF stamp
     valEl.textContent = (n > 0 ? '+' : '') + n;
-    pxEl.textContent = px.toFixed(1) + 'px';
+    pxEl.textContent = 'print ' + px.toFixed(1) + 'px';
   }
   range.addEventListener('input', function(){ apply(+range.value); });
   document.getElementById('st-reset').addEventListener('click', function(){
@@ -3624,8 +3628,7 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
   document.getElementById('st-hide').addEventListener('click', function(){
     tuner.style.display = 'none';
   });
-  // Clear the override before any print so it never affects output.
-  window.addEventListener('beforeprint', function(){ htmlEl.style.fontSize = ''; });
+  apply(0);
 })();
 </script>
 </body>
