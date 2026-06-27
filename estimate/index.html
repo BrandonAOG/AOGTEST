@@ -1215,10 +1215,10 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   input::-moz-placeholder, textarea::-moz-placeholder { color: transparent !important; opacity: 0 !important; }
   input:-ms-input-placeholder, textarea:-ms-input-placeholder { color: transparent !important; opacity: 0 !important; }
 
-  /* Desktop print width: 980px. (Mobile/iPad stamp their own width inline,
+  /* Desktop print width: 990px. (Mobile/iPad stamp their own width inline,
      which wins over this rule, so this governs the desktop window.print() path.) */
-  body { width: 980px !important; max-width: 980px !important; margin: 0 auto !important; }
-  .page { width: 980px !important; max-width: 980px !important; margin: 0 auto !important; }
+  body { width: 990px !important; max-width: 990px !important; margin: 0 auto !important; }
+  .page { width: 990px !important; max-width: 990px !important; margin: 0 auto !important; }
 
   /* Vertical spacing — ported from maintenance's desktop print rules so the
      desktop PDF matches. (Mobile/iPad get the same values via inline stamps
@@ -1245,7 +1245,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   textarea { height: auto !important; line-height: 1.25 !important; padding: 1px 2px !important; }
   label, .inline-label, legend { font-size: calc(0.72rem - 0.7px) !important; }
   .check-item span, .opt span { font-size: calc(0.66rem + 0.3px) !important; }
-  .col-label { font-size: calc(0.66rem + 0.3px) !important; }
+  .col-label { font-size: 0.84rem !important; }
   .yn-group { height: 19px !important; min-height: 19px !important; max-height: 19px !important; }
   .yn-group .yn-label { height: 17px !important; max-height: 17px !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; line-height: 1 !important; }
   .check-item input[type="checkbox"], .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
@@ -1336,9 +1336,9 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr !important; }
 
   /* ── Top Customer/Property columns: matched spacing ── */
-  .top-col { padding: 9px 12px !important; }
-  .top-col .field-row, .top-col .field-block { min-height: 0 !important; height: auto !important; margin-bottom: 10px !important; }
-  .col-label { margin-bottom: 10px !important; padding: 1px 8px 1px 6px !important; }
+  .top-col { padding: 6px 12px !important; }
+  .top-col .field-row, .top-col .field-block { min-height: 0 !important; height: auto !important; margin-bottom: 5px !important; }
+  .col-label { margin-bottom: 6px !important; padding: 1px 8px 1px 6px !important; }
   .top-col label { line-height: 1.25 !important; margin-bottom: 1px !important; }
   .top-col input { min-height: 18px !important; }
   .top-col input[type="text"], .top-col input[type="email"], .top-col input[type="tel"],
@@ -1355,7 +1355,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .header-logo { gap: 8px !important; }
   .company-name { line-height: 1.05 !important; }
   .content { padding-top: 2px !important; }
-  .top-grid { margin-top: 0 !important; }
+  .top-grid { margin-top: 0 !important; margin-bottom: 0 !important; }
 
   /* Remove the screen-only action-bar clearance padding above the header in print. */
   .page { padding-top: 0 !important; }
@@ -3385,9 +3385,14 @@ function capturePageToCanvas(_fontsReady) {
           e.style.setProperty('line-height', '1.05', 'important');
         }
         // Section titles + the top column labels (Customer/Property Info) a touch larger in the capture.
-        else if (e.matches('.section-header, .col-label')) {
+        else if (e.matches('.section-header')) {
           e.style.setProperty('font-size', '17px', 'important');
-          // Match section titles + the two top pills to one light-blue background.
+          e.style.setProperty('background', '#DCEBF9', 'important');
+        }
+        else if (e.matches('.col-label')) {
+          // Pills carry more padding + letter-spacing, so a slightly smaller font
+          // makes them read the same size as the section title bars.
+          e.style.setProperty('font-size', '15px', 'important');
           e.style.setProperty('background', '#DCEBF9', 'important');
         }
         // Make every field/inline label the same size in the capture: the plain field labels,
