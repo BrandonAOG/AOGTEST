@@ -3635,6 +3635,7 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
     <button id="st-reset" style="flex:1; font:600 11px sans-serif; background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:5px 0;">Reset</button>
     <button id="st-hide" style="flex:1; font:600 11px sans-serif; background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:5px 0;">Hide</button>
   </div>
+  <div id="st-dev" style="margin-top:7px; font-size:10px; color:#4Fd0e0; text-align:center; line-height:1.4; border-top:1px solid #444; padding-top:6px; word-break:break-word;">device…</div>
   <div style="margin-top:6px; font-size:10px; color:#999; text-align:center;">screen-only · drag to test</div>
 </div>
 <script>
@@ -3647,6 +3648,29 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
   var htmlEl = document.documentElement;
   if (!tuner || !range || !htmlEl) return;
   tuner.style.display = 'block';
+
+  // ── Device readout (for screenshotting) ──
+  (function(){
+    var devEl = document.getElementById('st-dev');
+    if (!devEl) return;
+    var b = document.body.className || '';
+    var type = 'desktop';
+    if (b.indexOf('mobile-safari') > -1)      type = 'iPhone (Safari)';
+    else if (b.indexOf('mobile-chrome') > -1) type = 'Android Chrome';
+    else if (b.indexOf('ipad-macintel') > -1) type = 'iPad (Desktop UA)';
+    else if (b.indexOf('ipad') > -1)          type = 'iPad';
+    else if (b.indexOf('macos') > -1)         type = 'Mac';
+    else if (b.indexOf('windows') > -1)       type = 'Windows';
+    var sw = screen.width || 0, sh = screen.height || 0;
+    var narrow = Math.min(sw || 999, sh || 999);
+    // mirror the print-width branch so the screenshot shows what WILL be stamped
+    var willStamp = (b.indexOf('ipad') > -1) ? '835'
+                    : (narrow < 400 ? '850' : '820');
+    devEl.innerHTML =
+      type + '<br>' +
+      'screen ' + sw + '×' + sh + '  (inner ' + window.innerWidth + '×' + window.innerHeight + ')<br>' +
+      'print width → <b>' + willStamp + 'px</b>';
+  })();
 
   // This slider tunes the PRINT base font-size (what you get when you hit PDF).
   // 0 = the original default; -50..+50 shifts it by ±1% per step.
