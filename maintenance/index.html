@@ -73,8 +73,9 @@ body {
   width: 100%;
   margin: 0 auto;
   padding: 0;
+  padding-top: max(48px, calc(48px + env(safe-area-inset-top, 0px)));
   padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
-  scroll-padding-top: calc(48px + env(safe-area-inset-top, 0px));
+  scroll-padding-top: max(48px, calc(48px + env(safe-area-inset-top, 0px)));
   -webkit-text-size-adjust: 100%;
   overflow-x: clip;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -1216,9 +1217,23 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
    beats the element-level (0,0,1) rule even though both use !important, and
    this block is placed AFTER it for good measure. */
 @media print {
-  html.mobile-safari { font-size: 18.5px !important; width: 820px !important; max-width: 820px !important; }
-  body.mobile-safari { width: 820px !important; max-width: 820px !important; margin: 0 auto !important; }
-  html.mobile-safari .page { width: 100% !important; max-width: 820px !important; margin: 0 auto !important; box-sizing: border-box !important; }
+  html.mobile-safari { font-size: 18.5px !important; width: 816px !important; max-width: 816px !important; }
+  body.mobile-safari { width: 816px !important; max-width: 816px !important; margin: 0 auto !important; }
+  html.mobile-safari .page { width: 100% !important; max-width: 816px !important; margin: 0 auto !important; box-sizing: border-box !important; }
+}
+
+/* Portrait-optimized: keep 816px (8.5" page width) */
+@media print and (orientation: portrait) {
+  html.mobile-safari { width: 816px !important; max-width: 816px !important; }
+  body.mobile-safari { width: 816px !important; max-width: 816px !important; }
+  html.mobile-safari .page { max-width: 816px !important; }
+}
+
+/* Landscape-optimized: can use up to 820px safely in landscape orientation */
+@media print and (orientation: landscape) {
+  html.mobile-safari { width: 820px !important; max-width: 820px !important; }
+  body.mobile-safari { width: 820px !important; max-width: 820px !important; }
+  html.mobile-safari .page { max-width: 820px !important; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1328,16 +1343,18 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 .action-bar {
   position: fixed !important;
   top: 0 !important; left: 0 !important; right: 0 !important;
-  z-index: 99999;
+  z-index: 99999 !important;
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
-  padding-top: calc(4px + env(safe-area-inset-top, 0px));
+  padding-top: max(4px, calc(4px + env(safe-area-inset-top, 0px)));
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
   display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border);
   transition: background-color 0.3s ease;
   box-sizing: border-box;
+  min-height: 44px;
 }
 body.dark-mode .action-bar {
   background: linear-gradient(90deg,rgba(15,21,53,0.9) 0%,rgba(26,40,71,0.8) 50%,rgba(15,21,53,0.9) 100%);
@@ -1888,7 +1905,7 @@ body.dark-mode .action-bar {
 
   <div class="footer">
     <span class="footer-text">GENERATOR MAINTENANCE REPORT · CONFIDENTIAL</span>
-    <span id="ver-tag" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.1B</span>
+    <span id="ver-tag" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);">Ver 1.1A</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -2023,20 +2040,16 @@ function openPrintPreview() {
     isMobileSafari = true;
   }
 
-  // ── Phone: force an explicit portrait-width viewport before printing ──
-  // iOS Safari uses the viewport meta to determine the print layout width.
-  // With width=device-width the browser keeps its own interpretation of the
-  // layout viewport (393px on iPhone 15 Pro in portrait), so even though we
-  // stamp html/body to 820px inline the print dialog may still capture the
-  // narrow 393px screen width — collapsing the two-column layout and spilling
-  // content onto a 2nd page.  Setting an explicit pixel value (width=393) tells
-  // Safari to commit to exactly that width before the 820px stamp widens the
-  // content, which lets the print layout resolve to 820px correctly in both
-  // portrait AND landscape.  (Without this fix portrait printed wrong while
-  // landscape — which already set this override — printed correctly.)
+  // ── Phone in landscape: force a portrait-width viewport before printing ──
+  // With width=device-width, a phone held in landscape gives a wide layout
+  // viewport, so the stamped 820px sheet renders scaled into a landscape page.
+  // Pin the viewport to the device's PORTRAIT (narrow) CSS width so the page
+  // lays out exactly as it would in portrait, regardless of physical rotation.
   // origVP (captured above) restores the real value when the dialog closes.
   // (Image capture path is separate and intentionally left untouched.)
-  if (isPhone && vp) {
+  var _isLandscape = (window.matchMedia && window.matchMedia('(orientation: landscape)').matches)
+                     || (window.innerWidth > window.innerHeight);
+  if (isPhone && _isLandscape && vp) {
     // Math.min() = the narrow (portrait) dimension regardless of whether the
     // browser rotates screen.width/height with orientation.
     var _portraitW = Math.min(screen.width || 0, screen.height || 0) || 390;
@@ -2104,11 +2117,11 @@ function openPrintPreview() {
     // layout viewport is ~1093px, so the default `html.ipad{margin:0 auto}` centers
     // the page and iOS print (which chops from the viewport's left edge at the 8.7in
     // page width) cut off the right side. Left-aligning removes that offset; 8.5in
-    // leaves a safety margin inside the 8.7in sheet. Phones keep 820px (their
+    // leaves a safety margin inside the 8.7in sheet. Phones use 816px (fits 8.5" page
     // viewport is narrower than the content, so there's no centering offset).
     var _ipadPath = (isIPad || isIPadNav);
     var _isMacIntelPad = document.documentElement.classList.contains('ipad-macintel');
-    var _printW = _ipadPath ? (_isMacIntelPad ? '900px' : '835px') : '820px';
+    var _printW = _ipadPath ? (_isMacIntelPad ? '900px' : '835px') : '816px';
     _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18') + 'px');
     _snap(html, 'width',     _printW);
     _snap(html, 'margin',    '0');        // left-align (kills the PWA centering clip)
