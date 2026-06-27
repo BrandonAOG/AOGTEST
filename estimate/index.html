@@ -782,16 +782,12 @@ body.dark-mode .page {
   box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15), 0 0 40px rgba(59,130,246,0.08), inset 0 0 60px rgba(0,255,200,0.02);
 }
 
-/* On-screen page frame: the teal frame is the DARK theme's signature, so force it
-   only in dark mode. In light mode the border follows the active seasonal theme
-   (body.seasonal-X .page border-color) — or the default amber when no season is
-   set. Scoped to dark-mode + screen so neither light-mode seasons nor the PDF
-   border are affected. body.dark-mode #page keeps ID-level specificity so it still
-   beats the seasonal rules while dark mode is on. */
+/* On-screen page frame uses the dark-mode teal in light mode too, and overrides
+   seasonal themes. #page (id) + !important beats the seasonal body.seasonal-X .page
+   rules. Scoped to screen so the PDF border is unaffected. */
 @media screen {
-  body.dark-mode #page { border-color: #00FFC8 !important; }
-  body.dark-mode #page::before, body.dark-mode #page::after,
-  body.dark-mode .page-corner-bl, body.dark-mode .page-corner-br { border-color: #00FFC8 !important; }
+  #page { border-color: #00FFC8 !important; }
+  #page::before, #page::after, .page-corner-bl, .page-corner-br { border-color: #00FFC8 !important; }
 }
 
 .page::before, .page::after { content: ''; position: absolute; width: 24px; height: 24px; border-color: var(--cyan); border-style: solid; z-index: 10; }
@@ -1219,9 +1215,8 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   input::-moz-placeholder, textarea::-moz-placeholder { color: transparent !important; opacity: 0 !important; }
   input:-ms-input-placeholder, textarea:-ms-input-placeholder { color: transparent !important; opacity: 0 !important; }
 
-  /* Desktop print width: body and .page both 990px so the page centers evenly.
-     (Mobile/iPad stamp their own width inline, which wins over this rule, so this
-     governs the desktop window.print() path.) */
+  /* Desktop print width: 990px. (Mobile/iPad stamp their own width inline,
+     which wins over this rule, so this governs the desktop window.print() path.) */
   body { width: 990px !important; max-width: 990px !important; margin: 0 auto !important; }
   .page { width: 990px !important; max-width: 990px !important; margin: 0 auto !important; }
 
@@ -1300,13 +1295,6 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .section:has(#ready_notes) .section-body { padding-bottom: 4.5px !important; }
   .content { padding-bottom: 0 !important; }
   .footer { margin-top: 4.5px !important; padding: 4px 14px !important; }
-
-  /* Desktop print: .content has flex:1 and .page is min-height:100vh, so the
-     content stretches to fill the page and pins the footer to the very bottom
-     with a gap above it. Stop the stretch (desktop only — mobile/iPad use inline
-     stamps) so the footer sits directly under the last section. */
-  body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) .content { flex: 0 0 auto !important; }
-  body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) .page { min-height: 0 !important; }
   /* Footer "· CONFIDENTIAL" line — fixed size on the desktop PDF only. Scoped to
      exclude the mobile/iPad classes so their print footer keeps its own size. */
   body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) .footer-text { font-size: 10px !important; }
@@ -1315,12 +1303,6 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) #copyright-span { font-size: 10px !important; }
   /* "Ver. 1.1" — fixed size on the desktop PDF too. */
   body:not(.mobile-safari):not(.mobile-chrome):not(.ipad) #ver-span { font-size: 10px !important; }
-  /* Match the iOS (iPhone/iPad) print footer to desktop: 10px for the footer
-     line, version, and copyright (they otherwise fall back to the larger phone
-     vars — 0.55rem / 0.72rem — since the desktop rules above exclude them). */
-  body.mobile-safari .footer-text,
-  body.mobile-safari #copyright-span,
-  body.mobile-safari #ver-span { font-size: 10px !important; }
   /* Flood-bar row (Flood Zone / Parcel / Estimate Done On / Estimator) — desktop
      PDF. Keep the label up at the top of the cell and drop the input value down so
      there's a clear gap between the label and the input text. */
@@ -1600,357 +1582,6 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
      .dark-mode-pending / seasonal-* classes are still present. The unscoped variants
      below catch that case. Placed LAST so it wins the cascade over every dark rule.
    ============================================================================ */
-
-/* ============================================================================
-   PERMANENT FORCE-LIGHT PRINT OVERRIDE  (unconditional — never JS-stripped)
-   ----------------------------------------------------------------------------
-   The old approach injected #force-print-light from JS only when dark mode was
-   on, and the post-print restore() removed it. On mobile Safari / Chrome /
-   Android the native print sheet's *Scale* control re-renders the preview from
-   the live DOM — so if restore() had already fired (visibility flicker or its
-   timer), dark-mode classes were back and the override gone, flipping the
-   preview/PDF to dark. These rules live in static CSS, scoped to dark-mode and
-   seasonal classes with !important, and are placed LAST so nothing can strip or
-   outrank them. Print is now ALWAYS light, regardless of JS state or when the
-   OS re-samples the layout while dialing in Scale.
-   ============================================================================ */
-@media print {
-  :root, html, body,
-  html.dark-mode-pending, html.dark-mode-pending body,
-  body.dark-mode {
-    color-scheme: light !important;
-    --cyan: #D35E13 !important;
-    --bg: #FFFFFF !important;
-    --panel: #FFFFFF !important;
-    --text: #1F2937 !important;
-    --text-muted: #6B7280 !important;
-    --text-dim: #9CA3AF !important;
-  }
-
-  html, body, html.dark-mode-pending body, body.dark-mode {
-    background: #FFFFFF !important;
-  }
-
-  /* Kill the dark theme's full-viewport gradient pseudo-elements. */
-  body.dark-mode::before, body.dark-mode::after,
-  html.dark-mode-pending body::before, html.dark-mode-pending body::after {
-    display: none !important;
-    content: none !important;
-    background: #FFFFFF !important;
-  }
-
-  /* Blanket light repaint — covers dark-mode and any seasonal theme. */
-  body *, body *::before, body *::after,
-  body.dark-mode *, body.dark-mode *::before, body.dark-mode *::after {
-    background: #FFFFFF !important;
-    color: #1F2937 !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-    animation: none !important;
-    transition: none !important;
-  }
-
-  /* Field labels use the lighter muted grey (match true light mode). */
-  body label, body .inline-label, body legend, body .survey-legend,
-  body .gas-appliances-label, body .flood-item > label,
-  body.dark-mode label, body.dark-mode .inline-label, body.dark-mode legend,
-  body.dark-mode .survey-legend, body.dark-mode .gas-appliances-label {
-    color: #6B7280 !important;
-    -webkit-text-fill-color: #6B7280 !important;
-  }
-
-  body .check-item:not(:has(input:checked)) span,
-  body .opt:not(:has(input:checked)) span,
-  body.dark-mode .check-item:not(:has(input:checked)) span,
-  body.dark-mode .opt:not(:has(input:checked)) span {
-    color: #1F2937 !important;
-    -webkit-text-fill-color: #1F2937 !important;
-  }
-
-  /* SVG icons stay transparent so pill backgrounds show through. */
-  body svg, body svg *, body .col-label svg, body .section-header svg,
-  body .icon-themed,
-  body.dark-mode svg, body.dark-mode svg *, body.dark-mode .icon-themed {
-    background: transparent !important;
-  }
-
-  body .section-header, body .section-header *,
-  body.dark-mode .section-header, body.dark-mode .section-header * {
-    color: #D35E13 !important;
-    background: #DCEBF9 !important;
-  }
-  body .section-header::before,
-  body.dark-mode .section-header::before {
-    background: #D35E13 !important;
-  }
-
-  body .col-label, body .col-label *,
-  body.dark-mode .col-label, body.dark-mode .col-label * {
-    color: #D35E13 !important;
-    background: #DCEBF9 !important;
-  }
-  body .col-label::before,
-  body.dark-mode .col-label::before {
-    background: #D35E13 !important;
-  }
-
-  body .page, body.dark-mode .page {
-    border: 1.5pt solid #D35E13 !important;
-    background: #FFFFFF !important;
-  }
-  body .company-name, body.dark-mode .company-name { color: #D35E13 !important; }
-  body .doc-title,    body.dark-mode .doc-title    { color: #D35E13 !important; }
-
-  body input, body textarea, body select,
-  body.dark-mode input, body.dark-mode textarea, body.dark-mode select {
-    background: #FFFFFF !important;
-    color: #1F2937 !important;
-  }
-
-  body .footer-text, body .footer span,
-  body.dark-mode .footer-text, body.dark-mode .footer span {
-    color: #9CA3AF !important;
-  }
-
-  body .action-bar, body #save-status { display: none !important; }
-
-  /* All-mode print: field underlines + notes box solid orange (light mode is a
-     faint 25% orange on screen; print should be the full brand orange). The
-     dark-mode block below restates this at higher specificity for dark prints. */
-  body input[type="text"], body input[type="email"], body input[type="tel"],
-  body input[type="date"], body input[type="number"], body select {
-    border-bottom-color: #D35E13 !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  body textarea {
-    border-color: #D35E13 !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-
-  /* ------------------------------------------------------------------------
-     CHECKED-STATE OVERRIDES (dark-mode-scoped)
-     The dark theme styles checked pills / Y-N labels with selectors like
-     body.dark-mode .check-item:has(input:checked) — HIGHER specificity than a
-     blanket "body *" rule, so even with !important the teal/cyan fills survive
-     a native print re-render while the dark class is still on the page (the
-     "some still get through on Scale" bug). These mirror the dark selectors
-     exactly and come later in source order, so they win the cascade and repaint
-     the checked states in the light-mode amber / green / red.
-     ------------------------------------------------------------------------ */
-  body.dark-mode .check-item input[type="checkbox"],
-  body.dark-mode .check-item input[type="radio"],
-  html.dark-mode-pending body .check-item input[type="checkbox"],
-  html.dark-mode-pending body .check-item input[type="radio"] {
-    accent-color: #D35E13 !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-
-  body.dark-mode .check-item:has(input:checked),
-  body.dark-mode .opt:has(input:checked),
-  html.dark-mode-pending body .check-item:has(input:checked),
-  html.dark-mode-pending body .opt:has(input:checked) {
-    background: rgba(250,103,0,0.40) !important;
-    border-color: #D35E13 !important;
-    box-shadow: none !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-
-  body.dark-mode .check-item:has(input:checked) span,
-  body.dark-mode .opt:has(input:checked) span,
-  html.dark-mode-pending body .check-item:has(input:checked) span,
-  html.dark-mode-pending body .opt:has(input:checked) span {
-    color: #D35E13 !important;
-    -webkit-text-fill-color: #D35E13 !important;
-    text-shadow: none !important;
-    font-weight: bold !important;
-  }
-
-  body.dark-mode .yn-group .yn-y:checked + .yn-label-y,
-  html.dark-mode-pending body .yn-group .yn-y:checked + .yn-label-y {
-    background: #059669 !important;
-    color: #fff !important;
-    -webkit-text-fill-color: #fff !important;
-    text-shadow: none !important;
-    box-shadow: none !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  body.dark-mode .yn-group .yn-n:checked + .yn-label-n,
-  html.dark-mode-pending body .yn-group .yn-n:checked + .yn-label-n {
-    background: #DC2626 !important;
-    color: #fff !important;
-    -webkit-text-fill-color: #fff !important;
-    text-shadow: none !important;
-    box-shadow: none !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-
-  /* Unselected Y/N labels: plain muted grey, no teal text/border bleed. */
-  body.dark-mode .yn-group .yn-label,
-  html.dark-mode-pending body .yn-group .yn-label {
-    color: #6B7280 !important;
-    -webkit-text-fill-color: #6B7280 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  /* ------------------------------------------------------------------------
-     GLOW / BORDER OVERRIDES (dark-mode-scoped)
-     These dark selectors carry their own !important + higher specificity than a
-     blanket "body *" rule, so the teal glow behind the title, the header glow,
-     the field underlines, and the notes-box border survive a native print
-     re-render while the dark class is still on (the last "Scale" bleed-through).
-     Mirror each selector at equal/greater specificity, later in source order.
-     ------------------------------------------------------------------------ */
-
-  /* Title: kill the teal glow behind "Installation Estimate". */
-  body.dark-mode .doc-title,
-  html.dark-mode-pending body .doc-title {
-    color: #D35E13 !important;
-    text-shadow: none !important;
-    box-shadow: none !important;
-  }
-  body.dark-mode .company-name,
-  html.dark-mode-pending body .company-name {
-    color: #D35E13 !important;
-    text-shadow: none !important;
-  }
-
-  /* Header: drop the teal box-shadow glow and the animated scanline strip. */
-  body.dark-mode .header,
-  html.dark-mode-pending body .header {
-    background: #FFFFFF !important;
-    box-shadow: none !important;
-    border-bottom-color: #D35E13 !important;
-  }
-  body.dark-mode .header::after, body.dark-mode .header::before,
-  html.dark-mode-pending body .header::after, html.dark-mode-pending body .header::before {
-    display: none !important;
-    content: none !important;
-    background: none !important;
-    box-shadow: none !important;
-    animation: none !important;
-  }
-
-  /* Field underlines + notes box: SOLID ORANGE borders on print, no teal glow.
-     Mirrors the dark attribute-selector specificity so it wins. */
-  body.dark-mode input[type="text"], body.dark-mode input[type="email"],
-  body.dark-mode input[type="tel"], body.dark-mode input[type="date"],
-  body.dark-mode input[type="number"], body.dark-mode textarea, body.dark-mode select,
-  html.dark-mode-pending body input[type="text"], html.dark-mode-pending body input[type="email"],
-  html.dark-mode-pending body input[type="tel"], html.dark-mode-pending body input[type="date"],
-  html.dark-mode-pending body input[type="number"], html.dark-mode-pending body textarea,
-  html.dark-mode-pending body select {
-    background: #FFFFFF !important;
-    color: #1F2937 !important;
-    -webkit-text-fill-color: #1F2937 !important;
-    border-color: #D35E13 !important;
-    border-bottom-color: #D35E13 !important;
-    box-shadow: none !important;
-    caret-color: #1F2937 !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  body.dark-mode textarea, html.dark-mode-pending body textarea {
-    border-color: #D35E13 !important;
-    background: #FFFFFF !important;
-    box-shadow: none !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-
-  /* Unchecked option-pill borders + the Y/N box and its Y|N divider. The dark
-     theme tints all of these teal at higher specificity than the blanket rule,
-     so they survive a Scale re-render. Repaint to the light-mode amber. */
-  body.dark-mode .check-item,
-  html.dark-mode-pending body .check-item {
-    background: #FFFFFF !important;
-    border-color: rgba(250,103,0,0.25) !important;
-    box-shadow: none !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  body.dark-mode .yn-group,
-  html.dark-mode-pending body .yn-group {
-    background: #FFFFFF !important;
-    border-color: rgba(250,103,0,0.30) !important;
-    box-shadow: none !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  body.dark-mode .yn-group .yn-label,
-  html.dark-mode-pending body .yn-group .yn-label {
-    border-color: rgba(250,103,0,0.20) !important;
-  }
-  body.dark-mode .yn-group .yn-label:first-of-type,
-  html.dark-mode-pending body .yn-group .yn-label:first-of-type {
-    border-right-color: rgba(250,103,0,0.20) !important;
-  }
-
-  /* ------------------------------------------------------------------------
-     CONTAINER BORDERS + ACCENT STRIPS (dark-mode-scoped)
-     Section / Property-Info (top-grid + columns) / Flood / Gas-appliance box
-     borders and their thin top accent lines are hard-coded teal by the dark
-     theme at higher specificity than the blanket rule, so they survive a Scale
-     re-render. Repaint borders to the light amber and the accent strips to the
-     amber gradient (matching light mode).
-     ------------------------------------------------------------------------ */
-  body.dark-mode .section,
-  html.dark-mode-pending body .section {
-    background: #FFFFFF !important;
-    border-color: rgba(250,103,0,0.25) !important;
-    box-shadow: none !important;
-  }
-  body.dark-mode .top-grid,
-  html.dark-mode-pending body .top-grid {
-    background: #FFFFFF !important;
-    border-color: rgba(250,103,0,0.25) !important;
-  }
-  body.dark-mode .top-col,
-  html.dark-mode-pending body .top-col {
-    background: #FFFFFF !important;
-    border-color: rgba(250,103,0,0.25) !important;
-  }
-  body.dark-mode .flood-bar,
-  html.dark-mode-pending body .flood-bar {
-    background: #FFFFFF !important;
-    border-color: rgba(250,103,0,0.25) !important;
-  }
-  body.dark-mode .flood-item,
-  html.dark-mode-pending body .flood-item {
-    background: #FFFFFF !important;
-    border-color: rgba(250,103,0,0.25) !important;
-    border-right-color: rgba(250,103,0,0.25) !important;
-  }
-  body.dark-mode .gas-appliances-box,
-  html.dark-mode-pending body .gas-appliances-box {
-    background: #FFFFFF !important;
-    border-color: rgba(250,103,0,0.20) !important;
-  }
-  body.dark-mode .divider,
-  html.dark-mode-pending body .divider {
-    border-top-color: rgba(250,103,0,0.15) !important;
-  }
-  body.dark-mode .divider::before,
-  html.dark-mode-pending body .divider::before {
-    color: #6B7280 !important;
-    background: #FFFFFF !important;
-    text-shadow: none !important;
-  }
-  /* Thin top accent strips: amber gradient instead of teal. */
-  body.dark-mode .section::before, body.dark-mode .top-grid::before,
-  body.dark-mode .gas-appliances-box::before,
-  html.dark-mode-pending body .section::before,
-  html.dark-mode-pending body .top-grid::before,
-  html.dark-mode-pending body .gas-appliances-box::before {
-    background: linear-gradient(90deg, #D35E13, transparent 60%) !important;
-    opacity: 1 !important;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-
-  /* Line above the footer (its top border) + drop the dark glow. */
-  body.dark-mode .footer,
-  html.dark-mode-pending body .footer {
-    background: #FFFFFF !important;
-    border-top-color: rgba(250,103,0,0.5) !important;
-    box-shadow: none !important;
-  }
-}
 </style>
 </head>
 
@@ -1974,17 +1605,6 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
     document.documentElement.classList.add('mobile-safari');
     if (document.body) { document.body.classList.add('mobile-safari'); }
     else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('mobile-safari'); }); }
-
-    // iOS (iPhone/iPad) print share-sheet applies its OWN page margins, so ours
-    // double up. @page can't be scoped by a body class in CSS, so inject the
-    // page margins here — only on iOS. Top/sides are 0 (the OS adds its own), but
-    // bottom is 0.06in: enough to keep content off the bottom edge without eating
-    // the vertical room that pushes the footer to page 2. Appended after the main
-    // stylesheet, so this @page wins; desktop never gets it.
-    var iosZeroPageMargin = document.createElement('style');
-    iosZeroPageMargin.id = 'ios-zero-page-margin';
-    iosZeroPageMargin.textContent = '@media print { @page {  margin: 0.15in 0.15in 0.06in 0.15in !important;; } }';
-    (document.head || document.documentElement).appendChild(iosZeroPageMargin);
   }
 })();
 </script>
