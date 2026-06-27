@@ -782,12 +782,16 @@ body.dark-mode .page {
   box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15), 0 0 40px rgba(59,130,246,0.08), inset 0 0 60px rgba(0,255,200,0.02);
 }
 
-/* On-screen page frame uses the dark-mode teal in light mode too, and overrides
-   seasonal themes. #page (id) + !important beats the seasonal body.seasonal-X .page
-   rules. Scoped to screen so the PDF border is unaffected. */
+/* On-screen page frame: the teal frame is the DARK theme's signature, so force it
+   only in dark mode. In light mode the border follows the active seasonal theme
+   (body.seasonal-X .page border-color) — or the default amber when no season is
+   set. Scoped to dark-mode + screen so neither light-mode seasons nor the PDF
+   border are affected. body.dark-mode #page keeps ID-level specificity so it still
+   beats the seasonal rules while dark mode is on. */
 @media screen {
-  #page { border-color: #00FFC8 !important; }
-  #page::before, #page::after, .page-corner-bl, .page-corner-br { border-color: #00FFC8 !important; }
+  body.dark-mode #page { border-color: #00FFC8 !important; }
+  body.dark-mode #page::before, body.dark-mode #page::after,
+  body.dark-mode .page-corner-bl, body.dark-mode .page-corner-br { border-color: #00FFC8 !important; }
 }
 
 .page::before, .page::after { content: ''; position: absolute; width: 24px; height: 24px; border-color: var(--cyan); border-style: solid; z-index: 10; }
@@ -1695,6 +1699,72 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   }
 
   body .action-bar, body #save-status { display: none !important; }
+
+  /* ------------------------------------------------------------------------
+     CHECKED-STATE OVERRIDES (dark-mode-scoped)
+     The dark theme styles checked pills / Y-N labels with selectors like
+     body.dark-mode .check-item:has(input:checked) — HIGHER specificity than a
+     blanket "body *" rule, so even with !important the teal/cyan fills survive
+     a native print re-render while the dark class is still on the page (the
+     "some still get through on Scale" bug). These mirror the dark selectors
+     exactly and come later in source order, so they win the cascade and repaint
+     the checked states in the light-mode amber / green / red.
+     ------------------------------------------------------------------------ */
+  body.dark-mode .check-item input[type="checkbox"],
+  body.dark-mode .check-item input[type="radio"],
+  html.dark-mode-pending body .check-item input[type="checkbox"],
+  html.dark-mode-pending body .check-item input[type="radio"] {
+    accent-color: #D35E13 !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+
+  body.dark-mode .check-item:has(input:checked),
+  body.dark-mode .opt:has(input:checked),
+  html.dark-mode-pending body .check-item:has(input:checked),
+  html.dark-mode-pending body .opt:has(input:checked) {
+    background: rgba(250,103,0,0.40) !important;
+    border-color: #D35E13 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+
+  body.dark-mode .check-item:has(input:checked) span,
+  body.dark-mode .opt:has(input:checked) span,
+  html.dark-mode-pending body .check-item:has(input:checked) span,
+  html.dark-mode-pending body .opt:has(input:checked) span {
+    color: #D35E13 !important;
+    -webkit-text-fill-color: #D35E13 !important;
+    text-shadow: none !important;
+    font-weight: bold !important;
+  }
+
+  body.dark-mode .yn-group .yn-y:checked + .yn-label-y,
+  html.dark-mode-pending body .yn-group .yn-y:checked + .yn-label-y {
+    background: #059669 !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  body.dark-mode .yn-group .yn-n:checked + .yn-label-n,
+  html.dark-mode-pending body .yn-group .yn-n:checked + .yn-label-n {
+    background: #DC2626 !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+
+  /* Unselected Y/N labels: plain muted grey, no teal text/border bleed. */
+  body.dark-mode .yn-group .yn-label,
+  html.dark-mode-pending body .yn-group .yn-label {
+    color: #6B7280 !important;
+    -webkit-text-fill-color: #6B7280 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
 }
 </style>
 </head>
