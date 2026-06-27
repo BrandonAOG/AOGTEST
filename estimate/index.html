@@ -1582,6 +1582,120 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
      .dark-mode-pending / seasonal-* classes are still present. The unscoped variants
      below catch that case. Placed LAST so it wins the cascade over every dark rule.
    ============================================================================ */
+
+/* ============================================================================
+   PERMANENT FORCE-LIGHT PRINT OVERRIDE  (unconditional — never JS-stripped)
+   ----------------------------------------------------------------------------
+   The old approach injected #force-print-light from JS only when dark mode was
+   on, and the post-print restore() removed it. On mobile Safari / Chrome /
+   Android the native print sheet's *Scale* control re-renders the preview from
+   the live DOM — so if restore() had already fired (visibility flicker or its
+   timer), dark-mode classes were back and the override gone, flipping the
+   preview/PDF to dark. These rules live in static CSS, scoped to dark-mode and
+   seasonal classes with !important, and are placed LAST so nothing can strip or
+   outrank them. Print is now ALWAYS light, regardless of JS state or when the
+   OS re-samples the layout while dialing in Scale.
+   ============================================================================ */
+@media print {
+  :root, html, body,
+  html.dark-mode-pending, html.dark-mode-pending body,
+  body.dark-mode {
+    color-scheme: light !important;
+    --cyan: #D35E13 !important;
+    --bg: #FFFFFF !important;
+    --panel: #FFFFFF !important;
+    --text: #1F2937 !important;
+    --text-muted: #6B7280 !important;
+    --text-dim: #9CA3AF !important;
+  }
+
+  html, body, html.dark-mode-pending body, body.dark-mode {
+    background: #FFFFFF !important;
+  }
+
+  /* Kill the dark theme's full-viewport gradient pseudo-elements. */
+  body.dark-mode::before, body.dark-mode::after,
+  html.dark-mode-pending body::before, html.dark-mode-pending body::after {
+    display: none !important;
+    content: none !important;
+    background: #FFFFFF !important;
+  }
+
+  /* Blanket light repaint — covers dark-mode and any seasonal theme. */
+  body *, body *::before, body *::after,
+  body.dark-mode *, body.dark-mode *::before, body.dark-mode *::after {
+    background: #FFFFFF !important;
+    color: #1F2937 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Field labels use the lighter muted grey (match true light mode). */
+  body label, body .inline-label, body legend, body .survey-legend,
+  body .gas-appliances-label, body .flood-item > label,
+  body.dark-mode label, body.dark-mode .inline-label, body.dark-mode legend,
+  body.dark-mode .survey-legend, body.dark-mode .gas-appliances-label {
+    color: #6B7280 !important;
+    -webkit-text-fill-color: #6B7280 !important;
+  }
+
+  body .check-item:not(:has(input:checked)) span,
+  body .opt:not(:has(input:checked)) span,
+  body.dark-mode .check-item:not(:has(input:checked)) span,
+  body.dark-mode .opt:not(:has(input:checked)) span {
+    color: #1F2937 !important;
+    -webkit-text-fill-color: #1F2937 !important;
+  }
+
+  /* SVG icons stay transparent so pill backgrounds show through. */
+  body svg, body svg *, body .col-label svg, body .section-header svg,
+  body .icon-themed,
+  body.dark-mode svg, body.dark-mode svg *, body.dark-mode .icon-themed {
+    background: transparent !important;
+  }
+
+  body .section-header, body .section-header *,
+  body.dark-mode .section-header, body.dark-mode .section-header * {
+    color: #D35E13 !important;
+    background: #DCEBF9 !important;
+  }
+  body .section-header::before,
+  body.dark-mode .section-header::before {
+    background: #D35E13 !important;
+  }
+
+  body .col-label, body .col-label *,
+  body.dark-mode .col-label, body.dark-mode .col-label * {
+    color: #D35E13 !important;
+    background: #DCEBF9 !important;
+  }
+  body .col-label::before,
+  body.dark-mode .col-label::before {
+    background: #D35E13 !important;
+  }
+
+  body .page, body.dark-mode .page {
+    border: 1.5pt solid #D35E13 !important;
+    background: #FFFFFF !important;
+  }
+  body .company-name, body.dark-mode .company-name { color: #D35E13 !important; }
+  body .doc-title,    body.dark-mode .doc-title    { color: #D35E13 !important; }
+
+  body input, body textarea, body select,
+  body.dark-mode input, body.dark-mode textarea, body.dark-mode select {
+    background: #FFFFFF !important;
+    color: #1F2937 !important;
+  }
+
+  body .footer-text, body .footer span,
+  body.dark-mode .footer-text, body.dark-mode .footer span {
+    color: #9CA3AF !important;
+  }
+
+  body .action-bar, body #save-status { display: none !important; }
+}
 </style>
 </head>
 
