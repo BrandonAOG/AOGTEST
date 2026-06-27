@@ -1327,18 +1327,13 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 /* ── ACTION BAR ── */
 .action-bar {
   position: fixed !important;
-  top: 0 !important; /* or env(safe-area-inset-top) if you want it fully under */
-  left: 0 !important;
-  right: 0 !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
   z-index: 99999;
   width: 100%;
   background: var(--panel);
-  padding: calc(4px + env(safe-area-inset-top, 0px)) 8px 4px; /* top padding handles island */
-  display: flex;
-  justify-content: center;
-  gap: 4px;
-  flex-wrap: nowrap;
-  align-items: center;
+  padding: 4px 8px;
+  padding-top: calc(4px + env(safe-area-inset-top, 0px));
+  display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border);
   transition: background-color 0.3s ease;
@@ -2109,8 +2104,25 @@ function openPrintPreview() {
     // viewport is narrower than the content, so there's no centering offset).
     var _ipadPath = (isIPad || isIPadNav);
     var _isMacIntelPad = document.documentElement.classList.contains('ipad-macintel');
-    var _printW = _ipadPath ? (_isMacIntelPad ? '900px' : '835px') : '835px';
-    _snap(html, 'fontSize',  (isMobileSafari ? '18.5' : '18') + 'px');
+    var _printW = _ipadPath ? (_isMacIntelPad ? '900px' : '835px') : '820px';
+    // ── iOS text-zoom (Aa slider) compensation ──────────────────────────
+    // The "Aa" page-zoom inflates layout on top of our stamped font-size,
+    // which pushes content onto a 2nd page unless the user manually drops
+    // the slider (~85%). Measure the effective zoom and divide the stamped
+    // font-size by it so the sheet lays out at its intended scale at ANY
+    // slider position. innerWidth/clientWidth ≈ zoom factor on iOS Safari
+    // (clientWidth is in zoomed CSS px, innerWidth is the layout viewport).
+    var _baseFS = isMobileSafari ? 18.5 : 18;
+    var _zoom = 1;
+    if (isPhone) {
+      var _cw = (html.clientWidth || window.innerWidth || 0);
+      if (_cw > 0) _zoom = (window.innerWidth || _cw) / _cw;
+      // Clamp to a sane band so a bad reading can't wreck the layout.
+      if (!isFinite(_zoom) || _zoom <= 0) _zoom = 1;
+      _zoom = Math.max(0.7, Math.min(1.6, _zoom));
+    }
+    var _stampedFS = (_baseFS / _zoom).toFixed(2);
+    _snap(html, 'fontSize',  _stampedFS + 'px');
     _snap(html, 'width',     _printW);
     _snap(html, 'margin',    '0');        // left-align (kills the PWA centering clip)
     _snap(body, 'width',     _printW);
