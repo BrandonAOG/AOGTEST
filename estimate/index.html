@@ -3076,109 +3076,53 @@ function openPrintPreview() {
       });
     }
 
-    // Devices that should hold the light/print layout briefly after the print
-    // sheet is dismissed (prevents dark mode flashing back under a still-open
-    // preview AND prevents any un-stamp reflow / rescale of the locked layout
-    // while the preview is live). iPhone Safari and iPad both qualify, in BOTH
-    // light and dark mode. The layout stays frozen until a print-close event
-    // (then SETTLE_MS later it restores automatically), or an earlier tap, or
-    // the BACKSTOP_MS last-resort timer — so the preview can never reflow
-    // underneath it, and no touch is required to recover.
-    var _deferRestore = (isMobileSafari || isIPad);
+    // ── Restore strategy (ported from the known-good version) ──
+    // Two independent triggers race; whichever fires first restores, then both
+    // are disarmed. No touch is ever required, and nothing tears the preview
+    // down early:
+    //   1. afterprint → restore after a delay (1.5s on mobile so Safari's PDF
+    //      snapshot, which happens after the preview, has time to finalize;
+    //      instant on desktop-class).
+    //   2. visibilitychange → restore ONLY after the page has been continuously
+    //      visible for a full second. While the print sheet is open the page is
+    //      hidden; brief flickers to visible (e.g. poking the Scale control)
+    //      don't count, because if it hides again within that second the pending
+    //      restore is cancelled. This is the key guard that prevents restoring
+    //      underneath a still-open preview.
+    //   3. a 30s safety net so it can never get stuck.
+    var _isMobileRestore = (isMobileSafari || isIPad || isMobileChrome);
 
-    // ── Restore strategy ──
-    // PROBLEM on iPhone/iPad Safari: the print-close events (afterprint and
-    // matchMedia('print') flipping off) are unreliable — they often fire WHILE
-    // the preview is still open. Using them to start a restore timer tears the
-    // preview down early. So on these "defer" devices we do NOT restore from
-    // those events. We restore only on signals that can't happen while the
-    // native print sheet is genuinely up:
-    //   1. the page regains visibility/focus after the sheet is dismissed
-    //      (Safari hides/blurs the page while the sheet is open) → wait SETTLE_MS
-    //      to let things settle, then restore. Automatic, no touch needed.
-    //   2. the user taps the screen → restore instantly.
-    //   3. nothing arrives for BACKSTOP_MS → restore anyway, never gets stuck.
-    // Non-defer devices (e.g. Android Chrome) still use the normal print events.
-    var SETTLE_MS   = 1200;   // delay after the page returns before restoring
-    var BACKSTOP_MS = 60000;  // absolute last-resort restore if no signal arrives
+    var _triggered = false;
+    var _safetyTimer = null;
+    var _visibleTimer = null;
 
-    var _restored   = false;
-    var _settleTO   = null;
-    var _backstopTO = null;
-    var _printMql   = window.matchMedia ? window.matchMedia('print') : null;
-    var _apHandler   = function(){};   // assigned per-branch below
-    var _mqlHandler  = function(){};
-    var _onVisibility = function(){};
-    var _onReturn     = function(){};
-
-    function _cleanupListeners() {
-      window.removeEventListener('afterprint',        _apHandler);
-      window.removeEventListener('pointerdown',       _onInteract, true);
-      window.removeEventListener('touchstart',        _onInteract, true);
-      window.removeEventListener('click',             _onInteract, true);
-      window.removeEventListener('focus',             _onReturn,  true);
-      window.removeEventListener('pageshow',          _onReturn,  true);
-      document.removeEventListener('visibilitychange', _onVisibility);
-      if (_printMql) {
-        if (_printMql.removeEventListener) _printMql.removeEventListener('change', _mqlHandler);
-        else if (_printMql.removeListener) _printMql.removeListener(_mqlHandler);
+    function _onAfterPrint() { triggerRestore(_isMobileRestore ? 1500 : 0); }
+    function _onVisible() {
+      if (document.visibilityState === 'visible') {
+        if (_visibleTimer) return;
+        _visibleTimer = setTimeout(function() {
+          _visibleTimer = null;
+          triggerRestore(_isMobileRestore ? 400 : 300);
+        }, 1000);
+      } else if (_visibleTimer) {
+        clearTimeout(_visibleTimer);
+        _visibleTimer = null;
       }
     }
 
-    function _tryRestore(delay) {
-      if (_restored) return;
-      _restored = true;
-      clearTimeout(_settleTO);
-      clearTimeout(_backstopTO);
-      _cleanupListeners();
+    function triggerRestore(delay) {
+      if (_triggered) return;
+      _triggered = true;
+      clearTimeout(_safetyTimer);
+      if (_visibleTimer) { clearTimeout(_visibleTimer); _visibleTimer = null; }
+      window.removeEventListener('afterprint', _onAfterPrint);
+      document.removeEventListener('visibilitychange', _onVisible);
       setTimeout(restore, delay || 0);
     }
 
-    // Tap = the user is definitely back on the page → restore immediately.
-    function _onInteract() { _tryRestore(0); }
-
-    // A "page returned to the foreground" signal → settle, then restore.
-    // Reset (don't stack) the settle timer if multiple return signals arrive.
-    function _settleRestore() {
-      if (_restored) return;
-      clearTimeout(_settleTO);
-      _settleTO = setTimeout(function() { _tryRestore(0); }, SETTLE_MS);
-    }
-
-    if (_deferRestore) {
-      // Restore when Safari hands control back to the page after the sheet closes.
-      var _wentAway = false;
-      _onVisibility = function() {
-        if (document.hidden) { _wentAway = true; }
-        else if (_wentAway) { _settleRestore(); }
-      };
-      _onReturn = function() { if (_wentAway) _settleRestore(); };
-      document.addEventListener('visibilitychange', _onVisibility);
-      window.addEventListener('focus',    _onReturn, true);
-      window.addEventListener('pageshow',  _onReturn, true);
-    } else {
-      // Non-defer (e.g. Android Chrome): the standard print-close events are
-      // reliable here, so restore directly off them.
-      var _sawPrint = false;
-      _mqlHandler = function(mql) {
-        if (mql.matches) { _sawPrint = true; }
-        else if (_sawPrint) { _tryRestore(300); }
-      };
-      if (_printMql) {
-        if (_printMql.addEventListener) _printMql.addEventListener('change', _mqlHandler);
-        else if (_printMql.addListener) _printMql.addListener(_mqlHandler);
-      }
-      _apHandler = function() { _tryRestore(0); };
-      window.addEventListener('afterprint', _apHandler);
-    }
-
-    // Tap-to-restore is always available while the layout is frozen.
-    window.addEventListener('pointerdown', _onInteract, true);
-    window.addEventListener('touchstart',  _onInteract, true);
-    window.addEventListener('click',       _onInteract, true);
-
-    // Absolute backstop so the form can never get stuck in the print/light state.
-    _backstopTO = setTimeout(function() { _tryRestore(0); }, BACKSTOP_MS);
+    window.addEventListener('afterprint', _onAfterPrint);
+    document.addEventListener('visibilitychange', _onVisible);
+    _safetyTimer = setTimeout(function() { triggerRestore(0); }, 30000);
 
 
   } else {
