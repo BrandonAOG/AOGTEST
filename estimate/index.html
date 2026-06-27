@@ -1970,13 +1970,14 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
     else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('mobile-safari'); }); }
 
     // iOS (iPhone/iPad) print share-sheet applies its OWN page margins, so ours
-    // double up. @page can't be scoped by a body class in CSS, so inject a
-    // zero-margin @page here — only on iOS. It's appended after the main
-    // stylesheet, so this @page wins the cascade; desktop never gets it. Only
+    // double up. @page can't be scoped by a body class in CSS, so inject the
+    // page margins here — only on iOS. Top/sides are 0 (the OS adds its own), but
+    // bottom is 0.15in to keep content off the very bottom edge. Appended after
+    // the main stylesheet, so this @page wins; desktop never gets it. Only
     // affects print, so it's safe to leave in place permanently.
     var iosZeroPageMargin = document.createElement('style');
     iosZeroPageMargin.id = 'ios-zero-page-margin';
-    iosZeroPageMargin.textContent = '@media print { @page { margin: 0 !important; } }';
+    iosZeroPageMargin.textContent = '@media print { @page { margin: 0 0 0.15in 0 !important; } }';
     (document.head || document.documentElement).appendChild(iosZeroPageMargin);
   }
 })();
