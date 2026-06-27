@@ -3112,10 +3112,10 @@ function openPrintPreview() {
         window.addEventListener('pointerdown', _onInteract, true);
         window.addEventListener('touchstart',  _onInteract, true);
         window.addEventListener('click',       _onInteract, true);
-        // Fallback so the form can never get stuck in the print/light state if
-        // no touch ever arrives. Touch still restores instantly if it comes
-        // first; otherwise this 60s timer restores for both iPhone and iPad.
-        _safety = setTimeout(function() { _tryRestore(0); }, 60000);
+        // Auto-restore after 1.5s so no touch is required. Touch still restores
+        // instantly if it comes first; otherwise this timer restores for both
+        // iPhone and iPad.
+        _safety = setTimeout(function() { _tryRestore(0); }, 1500);
       } else {
         _tryRestore(300);
       }
