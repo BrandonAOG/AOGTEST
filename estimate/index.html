@@ -1200,6 +1200,11 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   body { margin: 0 !important; padding: 0 !important; }
   .action-bar, .toolbar, #save-status, #aog-debug, #scale-tuner { display: none !important; }
 
+  /* Desktop print width: 900px. (Mobile/iPad stamp their own 820px inline,
+     which wins over this rule, so this governs the desktop window.print() path.) */
+  body { width: 900px !important; max-width: 900px !important; margin: 0 auto !important; }
+  .page { width: 900px !important; max-width: 900px !important; margin: 0 auto !important; }
+
   /* Vertical spacing — ported from maintenance's desktop print rules so the
      desktop PDF matches. (Mobile/iPad get the same values via inline stamps
      in openPrintPreview; these CSS rules drive the desktop window.print() path.) */
@@ -1224,26 +1229,29 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .yn-group { height: 19px !important; min-height: 19px !important; max-height: 19px !important; }
   .yn-group .yn-label { height: 17px !important; max-height: 17px !important; font-size: calc(0.72rem - 0.7px) !important; padding: 0 7px !important; line-height: 1 !important; }
   .check-item input[type="checkbox"], .check-item input[type="radio"] { width: 12px !important; height: 12px !important; min-width: 12px !important; min-height: 12px !important; }
-  /* Note textareas — sized to help fill the sheet. */
+  /* Note textareas — sized to show exactly 2 lines without clipping. */
   #gen_notes, #pad_notes, #gas_notes, #ready_notes {
-    height: 26px !important; min-height: 26px !important; max-height: 26px !important; overflow: hidden !important; margin-bottom: 0 !important;
+    height: 36px !important; min-height: 36px !important; max-height: 36px !important;
+    line-height: 1.25 !important; padding: 2px 5px !important;
+    box-sizing: border-box !important; overflow: hidden !important; margin-bottom: 0 !important;
+    font-size: calc(0.756rem + 0.3px) !important;
   }
-  /* ── Middle spacing: fills the sheet but keeps the WHOLE form on one page. ── */
-  .section { margin-bottom: 2px !important; }
-  .section-header { padding: 2.5px 7px !important; }
-  .section-body { padding: 2px 6px !important; }
-  .field-row { margin-bottom: 2px !important; min-height: 0 !important; }
-  .inline-row { margin-bottom: 2px !important; min-height: 0 !important; }
-  .check-item { min-height: 0 !important; height: auto !important; padding: 0 8px 0 6px !important; }
-  .check-group { gap: 3px !important; row-gap: 2px !important; }
-  .divider { margin: 2px 0 !important; }
-  .grid-2, .grid-3, .grid-4 { gap: 4px !important; row-gap: 2px !important; }
+  /* ── Spacing tuned to fill the sheet down to the footer (one page). ── */
+  .section { margin-bottom: 3.5px !important; }
+  .section-header { padding: 3.5px 7px !important; }
+  .section-body { padding: 3.5px 6px !important; }
+  .field-row { margin-bottom: 3.5px !important; min-height: 0 !important; }
+  .inline-row { margin-bottom: 3.5px !important; min-height: 0 !important; }
+  .check-item { min-height: 0 !important; height: auto !important; padding: 1px 8px 1px 6px !important; }
+  .check-group { gap: 4px !important; row-gap: 3px !important; }
+  .divider { margin: 3.5px 0 !important; }
+  .grid-2, .grid-3, .grid-4 { gap: 5px !important; row-gap: 3.5px !important; }
   .section:has(#gen_notes) .section-body,
   .section:has(#pad_notes) .section-body,
   .section:has(#gas_notes) .section-body,
-  .section:has(#ready_notes) .section-body { padding-bottom: 2px !important; }
+  .section:has(#ready_notes) .section-body { padding-bottom: 3.5px !important; }
   .content { padding-bottom: 0 !important; }
-  .footer { margin-top: 2px !important; padding: 3px 10px !important; }
+  .footer { margin-top: 3.5px !important; padding: 4px 10px !important; }
 
   /* Keep Customer/Property side-by-side and grids multi-column in the PDF,
      even on phones (the screen-only max-width rule collapses them on-screen). */
@@ -1253,18 +1261,18 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   .grid-3 { grid-template-columns: 1fr 1fr 1fr !important; }
   .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr !important; }
 
-  /* ── Top Customer/Property columns: middle spacing ── */
-  .top-col { padding: 6px 12px !important; }
-  .top-col .field-row { min-height: 0 !important; height: auto !important; margin-bottom: 3px !important; }
-  .col-label { margin-bottom: 4px !important; padding: 1px 8px 1px 6px !important; }
-  .top-col label { line-height: 1.15 !important; }
-  .top-col input { min-height: 16px !important; }
+  /* ── Top Customer/Property columns: matched spacing ── */
+  .top-col { padding: 8px 12px !important; }
+  .top-col .field-row { min-height: 0 !important; height: auto !important; margin-bottom: 9px !important; }
+  .col-label { margin-bottom: 8px !important; padding: 1px 8px 1px 6px !important; }
+  .top-col label { line-height: 1.25 !important; margin-bottom: 1px !important; }
+  .top-col input { min-height: 18px !important; }
   .top-col input[type="text"], .top-col input[type="email"], .top-col input[type="tel"],
   .top-col input[type="date"], .top-col input[type="number"] {
-    height: 17px !important; min-height: 17px !important; max-height: 17px !important;
-    padding: 0 4px !important; line-height: 1.15 !important;
+    height: 19px !important; min-height: 19px !important; max-height: 19px !important;
+    padding: 0 4px !important; line-height: 1.25 !important;
   }
-  .top-col .field-row { margin-bottom: 3px !important; gap: 2px !important; }
+  .top-col .field-row { margin-bottom: 9px !important; gap: 3px !important; }
 
   /* ── Header: shrink the logo/title band, kill dead space ── */
   .header { padding: 2px 12px !important; min-height: 0 !important; }
@@ -2613,8 +2621,8 @@ function openPrintPreview() {
 
     // textareas — match mobile-safari print heights
     var taNotes = {
-      'gen_notes': '34px', 'pad_notes': '34px',
-      'gas_notes': '34px', 'ready_notes': '34px'
+      'gen_notes': '36px', 'pad_notes': '36px',
+      'gas_notes': '36px', 'ready_notes': '36px'
     };
     Object.keys(taNotes).forEach(function(id) {
       var ta = document.getElementById(id);
@@ -2623,6 +2631,9 @@ function openPrintPreview() {
         _snap(ta, 'minHeight', taNotes[id]);
         _snap(ta, 'maxHeight', taNotes[id]);
         _snap(ta, 'overflow',  'hidden');
+        _snap(ta, 'lineHeight','1.25');
+        _snap(ta, 'padding',   '2px 5px');
+        _snap(ta, 'boxSizing', 'border-box');
       }
     });
 
