@@ -2492,11 +2492,11 @@ function openPrintPreview() {
     if (wasDark) {
       document.body.classList.add('dark-mode');
       document.documentElement.setAttribute('data-theme', 'dark');
-      if (isMobileSafari || isIPad) {
-        if (typeof saveDraft === 'function') saveDraft();
-        window.location.reload();
-        return;
-      }
+      // NOTE: the old working version restored non-destructively (just toggled
+      // classes / stripped injected styles). A previous mobile shortcut here
+      // called window.location.reload(), which tore down the still-open print
+      // preview — the "preview auto-closes" bug. The snapshot loop above already
+      // reverses every stamped style/attr, so no reload is needed.
     } else {
       document.body.classList.remove('dark-mode');
       document.documentElement.setAttribute('data-theme', 'light');
