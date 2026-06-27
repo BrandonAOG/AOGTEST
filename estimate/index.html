@@ -1765,6 +1765,67 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
     background: transparent !important;
     box-shadow: none !important;
   }
+
+  /* ------------------------------------------------------------------------
+     GLOW / BORDER OVERRIDES (dark-mode-scoped)
+     These dark selectors carry their own !important + higher specificity than a
+     blanket "body *" rule, so the teal glow behind the title, the header glow,
+     the field underlines, and the notes-box border survive a native print
+     re-render while the dark class is still on (the last "Scale" bleed-through).
+     Mirror each selector at equal/greater specificity, later in source order.
+     ------------------------------------------------------------------------ */
+
+  /* Title: kill the teal glow behind "Installation Estimate". */
+  body.dark-mode .doc-title,
+  html.dark-mode-pending body .doc-title {
+    color: #D35E13 !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+  body.dark-mode .company-name,
+  html.dark-mode-pending body .company-name {
+    color: #D35E13 !important;
+    text-shadow: none !important;
+  }
+
+  /* Header: drop the teal box-shadow glow and the animated scanline strip. */
+  body.dark-mode .header,
+  html.dark-mode-pending body .header {
+    background: #FFFFFF !important;
+    box-shadow: none !important;
+    border-bottom-color: #D35E13 !important;
+  }
+  body.dark-mode .header::after, body.dark-mode .header::before,
+  html.dark-mode-pending body .header::after, html.dark-mode-pending body .header::before {
+    display: none !important;
+    content: none !important;
+    background: none !important;
+    box-shadow: none !important;
+    animation: none !important;
+  }
+
+  /* Field underlines + notes box: light borders, no teal glow. Mirrors the
+     dark attribute-selector specificity so it wins. */
+  body.dark-mode input[type="text"], body.dark-mode input[type="email"],
+  body.dark-mode input[type="tel"], body.dark-mode input[type="date"],
+  body.dark-mode input[type="number"], body.dark-mode textarea, body.dark-mode select,
+  html.dark-mode-pending body input[type="text"], html.dark-mode-pending body input[type="email"],
+  html.dark-mode-pending body input[type="tel"], html.dark-mode-pending body input[type="date"],
+  html.dark-mode-pending body input[type="number"], html.dark-mode-pending body textarea,
+  html.dark-mode-pending body select {
+    background: #FFFFFF !important;
+    color: #1F2937 !important;
+    -webkit-text-fill-color: #1F2937 !important;
+    border-color: #9CA3AF !important;
+    border-bottom-color: #9CA3AF !important;
+    box-shadow: none !important;
+    caret-color: #1F2937 !important;
+  }
+  body.dark-mode textarea, html.dark-mode-pending body textarea {
+    border-color: #9CA3AF !important;
+    background: #FFFFFF !important;
+    box-shadow: none !important;
+  }
 }
 </style>
 </head>
