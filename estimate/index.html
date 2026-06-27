@@ -1211,6 +1211,11 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
      in openPrintPreview; these CSS rules drive the desktop window.print() path.) */
   .section { margin-bottom: 2px !important; padding: 0 !important; border: 0.5px solid #D35E13 !important; background: white !important; box-shadow: none !important; display: block !important; page-break-inside: auto !important; break-inside: auto !important; }
   .section-header { padding: 3px 7px !important; min-height: auto !important; display: flex !important; background: #DCEBF9 !important; color: #D35E13 !important; border-bottom: 0.5px solid #D35E13 !important; text-shadow: none !important; }
+  .section-header, .section-header * { color: #D35E13 !important; }
+  /* "Customer Info" / "Property Info" pills: light-blue background + orange text
+     in print (they had no print rule and were falling back to black/no-bg). */
+  .col-label { background: #DCEBF9 !important; color: #D35E13 !important; border: 0.5px solid #D35E13 !important; border-left: 3px solid #D35E13 !important; text-shadow: none !important; }
+  .col-label, .col-label * { color: #D35E13 !important; }
   .section-body { padding: 2px 6px !important; background: white !important; display: block !important; }
   .field-row { display: flex !important; margin-bottom: 1px !important; gap: 3px !important; flex-wrap: wrap !important; }
   .inline-row { margin-bottom: 1px !important; min-height: auto !important; }
@@ -2608,6 +2613,15 @@ function openPrintPreview() {
       _snap(el, 'padding',      '3.5px 7px');
       _snap(el, 'display',      'flex');
       _snap(el, 'minHeight',    'auto');
+    });
+
+    // .col-label ("Customer Info" / "Property Info") — blue bg + orange text
+    document.querySelectorAll('.col-label').forEach(function(el) {
+      _snap(el, 'background',  '#DCEBF9');
+      _snap(el, 'color',       '#D35E13');
+      _snap(el, 'border',      '0.5px solid #D35E13');
+      _snap(el, 'borderLeft',  '3px solid #D35E13');
+      _snap(el, 'textShadow',  'none');
     });
 
     // .two-column
