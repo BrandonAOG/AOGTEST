@@ -2382,6 +2382,16 @@ function openPrintPreview() {
     _snapshots.push({ el: el, attr: attr, was: el.getAttribute(attr) });
     el.setAttribute(attr, val);
   }
+  // Like _snap, but stamps with !important so the value wins over !important
+  // stylesheet rules in the print paths (e.g. the dark→light `*{background:white!important}`
+  // and seasonal overrides). Restored via the same cssProp branch as the width stamps.
+  function _snapI(el, cssProp, val) {
+    var jsProp = cssProp.replace(/-([a-z])/g, function(m, c){ return c.toUpperCase(); });
+    _snapshots.push({ el: el, prop: jsProp, cssProp: cssProp,
+                      was: el.style.getPropertyValue(cssProp),
+                      wasPriority: el.style.getPropertyPriority(cssProp) });
+    el.style.setProperty(cssProp, val, 'important');
+  }
 
 
   // ── RESTORE function ──
@@ -2482,7 +2492,7 @@ function openPrintPreview() {
     // scaled down harder by iOS, shrinking content so page 1 fits. Wider phones
     // (Plus/Max, >=400px) already print fine, so keep them at 820.
     var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
-    var _baseW = 935; // phones + iPad base print width at 100% zoom
+    var _baseW = 945; // phones + iPad base print width at 100% zoom
     // ── Zoom correction with per-device damping ────────────────────────────
     // Applying the FULL measured zoom over-corrects on iPhone Safari: at 115%
     // the sheet came out too wide and printed small/centered. Safari's own
@@ -2604,10 +2614,12 @@ function openPrintPreview() {
       _snap(el, 'display',    'block');
     });
 
-    // .section-header
+    // .section-header — background + color stamped !important so the title bar
+    // always renders the SAME #DCEBF9 blue as the info pills, even under the
+    // dark→light `*{background:white!important}` and seasonal print overrides.
     document.querySelectorAll('.section-header').forEach(function(el) {
-      _snap(el, 'background',   '#DCEBF9');
-      _snap(el, 'color',        '#D35E13');
+      _snapI(el, 'background',   '#DCEBF9');
+      _snapI(el, 'color',        '#D35E13');
       _snap(el, 'borderBottom', '0.5px solid #D35E13');
       _snap(el, 'textShadow',   'none');
       _snap(el, 'padding',      '3.5px 7px');
@@ -2615,10 +2627,10 @@ function openPrintPreview() {
       _snap(el, 'minHeight',    'auto');
     });
 
-    // .col-label ("Customer Info" / "Property Info") — blue bg + orange text
+    // .col-label ("Customer Info" / "Property Info") — same blue, also !important
     document.querySelectorAll('.col-label').forEach(function(el) {
-      _snap(el, 'background',  '#DCEBF9');
-      _snap(el, 'color',       '#D35E13');
+      _snapI(el, 'background',  '#DCEBF9');
+      _snapI(el, 'color',       '#D35E13');
       _snap(el, 'border',      '0.5px solid #D35E13');
       _snap(el, 'borderLeft',  '3px solid #D35E13');
       _snap(el, 'textShadow',  'none');
@@ -2887,6 +2899,20 @@ function openPrintPreview() {
       _snapAttr(el, 'style', 'color:#9CA3AF!important;text-shadow:none!important;');
     });
 
+    // Desktop print: stamp the section title bars + info pills to the SAME blue
+    // inline with !important. Seasonal themes carry their own high-specificity
+    // .section-header background gradients that otherwise survive into print
+    // (the pills have no such seasonal rule, which is why only the titles broke).
+    // An inline !important stamp beats any stylesheet rule regardless of theme.
+    document.querySelectorAll('.section-header').forEach(function(el) {
+      _snapI(el, 'background', '#DCEBF9');
+      _snapI(el, 'color',      '#D35E13');
+    });
+    document.querySelectorAll('.col-label').forEach(function(el) {
+      _snapI(el, 'background', '#DCEBF9');
+      _snapI(el, 'color',      '#D35E13');
+    });
+
     // iPad: the dark theme's fixed full-viewport gradient (body.dark-mode::before)
     // is painted by a pseudo-element the @media print `*` rules can't reach, so it
     // bleeds a dark background behind the page and the late layout switch shows as
@@ -2911,6 +2937,10 @@ function openPrintPreview() {
       '*, *::before, *::after { animation:none!important; transition:none!important; }',
       '@media print {',
       '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;animation:none!important;transition:none!important; }',
+      // The * rule above paints every element white — including the inline SVG icons in the
+      // info pills, which showed as a white box behind the icon. SVGs (and their children)
+      // must stay transparent so the pill background shows through behind the icon strokes.
+      '  svg, svg *, .col-label svg, .section-header svg, .icon-themed { background:transparent!important; }',
       '  .section-header, .section-header * { color:#D35E13!important; background:#DCEBF9!important; }',
       '  .section-header::before { background:#D35E13!important; }',
       '  html,body { background:white!important; }',
@@ -5061,7 +5091,7 @@ function injectSeasonalStyles() {
     '  body[class*="seasonal-"] .section-header::before, body[class*="seasonal-"] .col-label::before { background:#FA6700 !important; box-shadow:none !important; animation:none !important; animation-play-state:paused !important; }',
     '  body[class*="seasonal-"] { background:#ffffff !important; }',
     '  body[class*="seasonal-"] .page { border-color:#FA6700 !important; box-shadow:none !important; }',
-    '  body[class*="seasonal-"] .section-header { background:#DCEBF9 !important; color:#FA6700 !important; }',
+    '  body[class*="seasonal-"] .section-header, body[class*="seasonal-"]:not(.dark-mode) .section-header { background:#DCEBF9 !important; color:#FA6700 !important; }',
     '  body[class*="seasonal-"] .header { background:#ffffff !important; }',
     '  body[class*="seasonal-"] .doc-title::after, body[class*="seasonal-"] .company-name::after { content:"" !important; }',
     '  body[class*="seasonal-"] input, body[class*="seasonal-"] textarea { background:#ffffff !important; color:#1F2937 !important; }',
@@ -5466,6 +5496,131 @@ setTimeout(adjustTopPadding, 100);
       ? document.addEventListener('DOMContentLoaded', show) : show());
 })();
 
+</script>
+
+<!-- ════════ LIVE ON-SCREEN PRINT-SCALE TUNER ════════
+     Screen-only (hidden in print). Hidden until the "· CONFIDENTIAL" footer
+     text is triple-tapped (or long-pressed on touch). Drags window.__printScale,
+     the uniform transform applied to .page in the mobile/iPad PDF path, so you
+     can dial in the final print size without touching the layout. -->
+<style id="scale-tuner-style">
+@media print { #scale-tuner { display: none !important; } }
+</style>
+<div id="scale-tuner" style="
+  position:fixed; left:8px; bottom:8px; z-index:99999;
+  font:600 12px/1.3 -apple-system,system-ui,sans-serif;
+  background:#1a1a1a; color:#fff; border:1.5px solid #D35E13;
+  border-radius:10px; padding:10px 12px; box-shadow:0 4px 16px rgba(0,0,0,.4);
+  display:none; user-select:none; -webkit-user-select:none; width:172px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+    <span style="color:#D35E13;">PRINT SCALE</span>
+    <span id="st-val" style="font-size:15px;">0</span>
+  </div>
+  <input id="st-range" type="range" min="-50" max="50" step="1" value="0"
+    style="width:100%; accent-color:#D35E13; margin:0;">
+  <div style="display:flex; justify-content:space-between; font-size:9px; color:#888; margin-top:2px;">
+    <span>-50</span><span id="st-px">scale ×1.00</span><span>+50</span>
+  </div>
+  <div style="display:flex; gap:6px; margin-top:8px;">
+    <button id="st-reset" style="flex:1; font:600 11px sans-serif; background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:5px 0;">Reset</button>
+    <button id="st-hide" style="flex:1; font:600 11px sans-serif; background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:5px 0;">Hide</button>
+  </div>
+  <div id="st-dev" style="margin-top:7px; font-size:10px; color:#4Fd0e0; text-align:center; line-height:1.4; border-top:1px solid #444; padding-top:6px; word-break:break-word;">device…</div>
+  <div style="margin-top:6px; font-size:10px; color:#999; text-align:center;">screen-only · drag to test</div>
+</div>
+<script>
+(function(){
+  var tuner = document.getElementById('scale-tuner');
+  var range = document.getElementById('st-range');
+  var valEl = document.getElementById('st-val');
+  var pxEl  = document.getElementById('st-px');
+  if (!tuner || !range) return;
+  tuner.style.display = 'none';
+
+  // ── Reveal: triple-tap (or long-press) the "· CONFIDENTIAL" footer text ──
+  (function(){
+    var hit = document.querySelector('.footer-text');
+    if (!hit) return;
+    hit.style.cursor = 'pointer';
+    function toggle(){
+      tuner.style.display = (tuner.style.display !== 'none') ? 'none' : 'block';
+    }
+    var taps = 0, t;
+    hit.addEventListener('click', function () {
+      taps++; clearTimeout(t);
+      t = setTimeout(function(){ taps = 0; }, 700);
+      if (taps >= 3) { taps = 0; toggle(); }
+    });
+    var lp;
+    hit.addEventListener('touchstart', function () { lp = setTimeout(toggle, 1000); }, {passive:true});
+    hit.addEventListener('touchend',   function () { clearTimeout(lp); });
+    hit.addEventListener('touchmove',  function () { clearTimeout(lp); });
+  })();
+
+  // ── Device readout (handy when screenshotting a test print) ──
+  (function(){
+    var devEl = document.getElementById('st-dev');
+    if (!devEl) return;
+    var b = document.body.className || '';
+    var type = 'desktop';
+    if (b.indexOf('mobile-safari') > -1)      type = 'iPhone (Safari)';
+    else if (b.indexOf('mobile-chrome') > -1) type = 'Android Chrome';
+    else if (b.indexOf('ipad-macintel') > -1) type = 'iPad (Desktop UA)';
+    else if (b.indexOf('ipad') > -1)          type = 'iPad';
+    else if (b.indexOf('macos') > -1)         type = 'Mac';
+    else if (b.indexOf('windows') > -1)       type = 'Windows';
+    var sw = screen.width || 0, sh = screen.height || 0;
+    var ua = navigator.userAgent || '';
+    var browser;
+    var isStandalone = (navigator.standalone === true) ||
+                       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (/CriOS/.test(ua))        browser = 'Chrome';
+    else if (/FxiOS/.test(ua))   browser = 'Firefox';
+    else if (/EdgiOS/.test(ua))  browser = 'Edge';
+    else if (/Chrome/.test(ua) && !/Edg/.test(ua)) browser = 'Chrome';
+    else if (/Edg/.test(ua))     browser = 'Edge';
+    else if (/Safari/.test(ua))  browser = 'Safari';
+    else                         browser = 'other';
+    if (isStandalone) browser += ' / PWA';
+    function _liveReadout(){
+      var _s = Math.min(screen.width||0, screen.height||0);
+      var _vv = (window.visualViewport && window.visualViewport.width) ? Math.round(window.visualViewport.width) : 0;
+      var _z = (_s>0 && _vv>0) ? (_s/_vv) : 1;
+      var _scale = (typeof window.__printScale === 'number' && window.__printScale > 0) ? window.__printScale : 1;
+      devEl.innerHTML =
+        type + ' · ' + browser + '<br>' +
+        'screen ' + sw + '×' + sh + '<br>' +
+        'inner ' + window.innerWidth + ' · vv ' + _vv + ' · cw ' + document.documentElement.clientWidth + '<br>' +
+        'dpr ' + (window.devicePixelRatio||'?') + ' · <b>zoom ' + _z.toFixed(2) + 'x</b><br>' +
+        'print scale → <b>×' + _scale.toFixed(2) + '</b>';
+    }
+    window.__stReadout = _liveReadout;
+    _liveReadout();
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', _liveReadout);
+      window.visualViewport.addEventListener('scroll', _liveReadout);
+    }
+    window.addEventListener('resize', _liveReadout);
+  })();
+
+  // ── Slider drives window.__printScale (the .page transform in the PDF path) ──
+  // 0 = default (×1.00); each step is ±1%, so -50..+50 maps to ×0.50..×1.50.
+  function apply(n){
+    var scale = 1 + (n / 100);
+    window.__printScale = scale;
+    valEl.textContent = (n > 0 ? '+' : '') + n;
+    pxEl.textContent = 'scale ×' + scale.toFixed(2);
+    if (typeof window.__stReadout === 'function') window.__stReadout();
+  }
+  range.addEventListener('input', function(){ apply(+range.value); });
+  document.getElementById('st-reset').addEventListener('click', function(){
+    range.value = 0; apply(0);
+  });
+  document.getElementById('st-hide').addEventListener('click', function(){
+    tuner.style.display = 'none';
+  });
+  apply(0);
+})();
 </script>
 </body>
 </html>
