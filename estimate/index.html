@@ -134,7 +134,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --fs-print-phone-inline-label:   0.95rem;  /* inline labels in PDF                             */
   --fs-print-phone-input:          1.3rem;  /* text inside input fields in PDF                  */
   --fs-print-phone-date:           1.3rem;  /* date fields (Today's Date, Estimate Date, Est. Done On) in PDF */
-  --fs-print-phone-notes:          1rem;  /* text inside note boxes (gen/pad/gas/ready) in PDF */
+  --fs-print-phone-notes:          1.3rem;  /* text inside note boxes (gen/pad/gas/ready) in PDF */
   --fs-print-phone-yn-label:       0.85rem;  /* Y / N toggle buttons in PDF                      */
   --fs-print-phone-check-item:     0.85rem;  /* checkbox & radio options in PDF                  */
   --fs-print-phone-gas-label:      0.75rem;  /* gas appliances label in PDF                      */
@@ -148,7 +148,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --fs-print-ipad-inline-label:    0.95rem;  /* inline labels in iPad PDF                        */
   --fs-print-ipad-input:           1.3rem;   /* text inside input fields in iPad PDF             */
   --fs-print-ipad-date:            1.3rem;  /* date fields (Today's Date, Estimate Date, Est. Done On) in iPad PDF */
-  --fs-print-ipad-notes:           1.1rem;  /* text inside note boxes (gen/pad/gas/ready) in iPad PDF */
+  --fs-print-ipad-notes:           1.3rem;  /* text inside note boxes (gen/pad/gas/ready) in iPad PDF */
   --fs-print-ipad-yn-label:        0.85rem;  /* Y / N toggle buttons in iPad PDF                 */
   --fs-print-ipad-check-item:      0.85rem;  /* checkbox & radio options in iPad PDF             */
   --fs-print-ipad-gas-label:       0.75rem;  /* gas appliances label in iPad PDF                 */
@@ -162,7 +162,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --fs-print-desktop-inline-label:   0.85rem;  /* inline labels in desktop PDF                     */
   --fs-print-desktop-input:          1.1rem;  /* text inside input fields in desktop PDF          */
   --fs-print-desktop-date:           1.2rem;  /* date fields (Today's Date, Estimate Date, Est. Done On) in desktop PDF */
-  --fs-print-desktop-notes:          1rem;  /* text inside note boxes (gen/pad/gas/ready) in desktop PDF */
+  --fs-print-desktop-notes:          1.1rem;  /* text inside note boxes (gen/pad/gas/ready) in desktop PDF */
   --fs-print-desktop-yn-label:       0.85rem;  /* Y / N toggle buttons in desktop PDF              */
   --fs-print-desktop-check-item:     0.85rem;  /* checkbox & radio options in desktop PDF          */
   --fs-print-desktop-gas-label:      0.75rem;  /* gas appliances label in desktop PDF              */
@@ -375,7 +375,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --fs-print-desktop-safari-inline-label  : 0.85rem;
   --fs-print-desktop-safari-input         : 1.1rem;
   --fs-print-desktop-safari-date          : 1.2rem;
-  --fs-print-desktop-safari-notes         : 1rem;
+  --fs-print-desktop-safari-notes         : 1.1rem;
   --fs-print-desktop-safari-yn-label      : 0.85rem;
   --fs-print-desktop-safari-check-item    : 0.85rem;
   --fs-print-desktop-safari-gas-label     : 0.75rem;
@@ -782,12 +782,18 @@ body.dark-mode .page {
   box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15), 0 0 40px rgba(59,130,246,0.08), inset 0 0 60px rgba(0,255,200,0.02);
 }
 
-/* On-screen page frame uses the dark-mode teal in light mode too, and overrides
-   seasonal themes. #page (id) + !important beats the seasonal body.seasonal-X .page
-   rules. Scoped to screen so the PDF border is unaffected. */
+/* On-screen page frame uses the dark-mode teal only when dark mode is active.
+   In light mode the frame + corner brackets follow --cyan (orange / seasonal).
+   #page (id) + !important beats the seasonal body.seasonal-X .page rules.
+   Scoped to screen so the PDF border is unaffected. */
 @media screen {
-  #page { border-color: #00FFC8 !important; }
-  #page::before, #page::after, .page-corner-bl, .page-corner-br { border-color: #00FFC8 !important; }
+  body.dark-mode#page, body.dark-mode #page,
+  html.dark-mode-pending body #page { border-color: #00FFC8 !important; }
+  body.dark-mode #page::before, body.dark-mode #page::after,
+  body.dark-mode #page .page-corner-bl, body.dark-mode #page .page-corner-br,
+  body.dark-mode .page-corner-bl, body.dark-mode .page-corner-br,
+  html.dark-mode-pending body #page::before, html.dark-mode-pending body #page::after,
+  html.dark-mode-pending body .page-corner-bl, html.dark-mode-pending body .page-corner-br { border-color: #00FFC8 !important; }
 }
 
 .page::before, .page::after { content: ''; position: absolute; width: 24px; height: 24px; border-color: var(--cyan); border-style: solid; z-index: 10; }
