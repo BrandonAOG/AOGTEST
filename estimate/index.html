@@ -3076,46 +3076,64 @@ function openPrintPreview() {
       });
     }
 
-    // Devices that should hold the light/print layout until the user dismisses
-    // the print sheet AND touches the screen (prevents dark mode flashing back
-    // under the still-open preview AND prevents any un-stamp reflow / rescale of
-    // the locked layout while the preview is live). iPhone Safari and iPad both
-    // qualify, in BOTH light and dark mode — the layout stays frozen until a real
-    // tap or the 60s fallback, so the preview can never reflow underneath it.
+    // Devices that should hold the light/print layout briefly after the print
+    // sheet is dismissed (prevents dark mode flashing back under a still-open
+    // preview AND prevents any un-stamp reflow / rescale of the locked layout
+    // while the preview is live). iPhone Safari and iPad both qualify, in BOTH
+    // light and dark mode. The layout stays frozen until a print-close event
+    // (then SETTLE_MS later it restores automatically), or an earlier tap, or
+    // the BACKSTOP_MS last-resort timer — so the preview can never reflow
+    // underneath it, and no touch is required to recover.
     var _deferRestore = (isMobileSafari || isIPad);
 
-    // ── Restore strategy ──
-    var _restored = false;
-    var _printMql = window.matchMedia ? window.matchMedia('print') : null;
+    // ── Restore strategy (hybrid) ──
+    // The layout stays frozen in the light/print state until ONE of:
+    //   1. a print-close event fires (matchMedia('print') flips to not-matches,
+    //      or 'afterprint') → wait SETTLE_MS for the preview to actually clear,
+    //      then restore. This is the normal automatic path — no touch needed.
+    //   2. the user taps the screen → restore instantly (covers iOS cases where
+    //      the close events fire late, early, or not at all).
+    //   3. nothing fires for BACKSTOP_MS → restore anyway, so the form can never
+    //      get permanently stuck in the print/light state.
+    var SETTLE_MS   = 1500;   // delay after preview reports closed before restoring
+    var BACKSTOP_MS = 60000;  // absolute last-resort restore if no signal arrives
 
-    function _tryRestore(delay) {
-      if (_restored) return;
-      _restored = true;
-      clearTimeout(_safety);
-      window.removeEventListener('afterprint', _apHandler);
+    var _restored   = false;
+    var _settleTO   = null;   // SETTLE_MS timer (cleared/reset by touch or _tryRestore)
+    var _backstopTO = null;   // BACKSTOP_MS timer (independent, never reset by arming)
+    var _printMql   = window.matchMedia ? window.matchMedia('print') : null;
+
+    function _cleanupListeners() {
+      window.removeEventListener('afterprint',  _apHandler);
+      window.removeEventListener('pointerdown', _onInteract, true);
+      window.removeEventListener('touchstart',  _onInteract, true);
+      window.removeEventListener('click',       _onInteract, true);
       if (_printMql) {
         if (_printMql.removeEventListener) _printMql.removeEventListener('change', _mqlHandler);
         else if (_printMql.removeListener) _printMql.removeListener(_mqlHandler);
       }
+    }
+
+    function _tryRestore(delay) {
+      if (_restored) return;
+      _restored = true;
+      clearTimeout(_settleTO);
+      clearTimeout(_backstopTO);
+      _cleanupListeners();
       setTimeout(restore, delay || 0);
     }
 
+    // A tap means the user is definitely back on the page → restore now.
+    function _onInteract() { _tryRestore(0); }
+
+    // Called when a print-close signal arrives. On defer devices, wait SETTLE_MS
+    // for the preview to visually clear; a tap during that window still wins and
+    // restores instantly. Non-defer devices restore promptly.
     function _armDeferredRestore() {
+      if (_restored) return;
       if (_deferRestore) {
-        clearTimeout(_safety);
-        function _onInteract() {
-          window.removeEventListener('pointerdown', _onInteract, true);
-          window.removeEventListener('touchstart',  _onInteract, true);
-          window.removeEventListener('click',       _onInteract, true);
-          _tryRestore(0);
-        }
-        window.addEventListener('pointerdown', _onInteract, true);
-        window.addEventListener('touchstart',  _onInteract, true);
-        window.addEventListener('click',       _onInteract, true);
-        // Auto-restore after 1.5s so no touch is required. Touch still restores
-        // instantly if it comes first; otherwise this timer restores for both
-        // iPhone and iPad.
-        _safety = setTimeout(function() { _tryRestore(0); }, 1500);
+        clearTimeout(_settleTO);
+        _settleTO = setTimeout(function() { _tryRestore(0); }, SETTLE_MS);
       } else {
         _tryRestore(300);
       }
@@ -3123,22 +3141,26 @@ function openPrintPreview() {
 
     var _sawPrint = false;
     function _mqlHandler(mql) {
-      if (mql.matches) { _sawPrint = true; }
-      else if (_sawPrint) { _armDeferredRestore(); }
+      if (mql.matches) { _sawPrint = true; }       // preview opened
+      else if (_sawPrint) { _armDeferredRestore(); } // preview closed
     }
     if (_printMql) {
       if (_printMql.addEventListener) _printMql.addEventListener('change', _mqlHandler);
       else if (_printMql.addListener) _printMql.addListener(_mqlHandler);
     }
 
-    function _apHandler() { if (!_sawPrint) _tryRestore(0); }
+    // afterprint is treated as an equivalent close signal (whichever fires first).
+    function _apHandler() { _armDeferredRestore(); }
     window.addEventListener('afterprint', _apHandler);
 
-    // Safety net before the print dialog is ever seen. Devices that defer the
-    // restore start with no pre-print timer (the deferred path arms its own).
-    var _safety = _deferRestore
-      ? null
-      : setTimeout(function() { _tryRestore(0); }, 60000);
+    // Touch = instant restore, available the whole time the layout is frozen.
+    window.addEventListener('pointerdown', _onInteract, true);
+    window.addEventListener('touchstart',  _onInteract, true);
+    window.addEventListener('click',       _onInteract, true);
+
+    // Absolute backstop: if no close event and no touch ever arrives, restore
+    // anyway. Independent timer so arming the settle delay never cancels it.
+    _backstopTO = setTimeout(function() { _tryRestore(0); }, BACKSTOP_MS);
 
   } else {
     // Desktop print
