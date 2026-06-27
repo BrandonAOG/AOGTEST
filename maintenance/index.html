@@ -3702,21 +3702,22 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTo
   (function(){
     var hit = document.querySelector('.footer-text');
     if (!hit) return;
-    hit.style.cursor = 'default';
-    hit.style.webkitTapHighlightColor = 'transparent';
-    var taps = 0, timer = null;
-    function trigger(){
-      tuner.style.display = (tuner.style.display === 'none') ? 'block' : 'none';
+    hit.style.cursor = 'pointer';
+    function toggle(){
+      tuner.style.display = (tuner.style.display !== 'none') ? 'none' : 'block';
     }
-    function onTap(e){
-      taps++;
-      if (timer) clearTimeout(timer);
-      if (taps >= 3){ taps = 0; trigger(); e.preventDefault(); return; }
-      timer = setTimeout(function(){ taps = 0; }, 600);
-    }
-    // pointerup covers touch + mouse; fall back to click if unsupported.
-    if (window.PointerEvent) hit.addEventListener('pointerup', onTap);
-    else { hit.addEventListener('touchend', onTap); hit.addEventListener('click', onTap); }
+    // Triple tap / click — same proven pattern as the Ver debug trigger.
+    var taps = 0, t;
+    hit.addEventListener('click', function () {
+      taps++; clearTimeout(t);
+      t = setTimeout(function(){ taps = 0; }, 700);
+      if (taps >= 3) { taps = 0; toggle(); }
+    });
+    // Long-press fallback (~1s) for touch devices
+    var lp;
+    hit.addEventListener('touchstart', function () { lp = setTimeout(toggle, 1000); }, {passive:true});
+    hit.addEventListener('touchend',   function () { clearTimeout(lp); });
+    hit.addEventListener('touchmove',  function () { clearTimeout(lp); });
   })();
 
   // ── Device readout (for screenshotting) ──
