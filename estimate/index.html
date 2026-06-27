@@ -3164,6 +3164,8 @@ function capturePageToCanvas(_fontsReady) {
     var prevMinH     = page.style.minHeight;
     var prevHeight   = page.style.height;
     var prevOverflow = page.style.overflow;
+    var prevBorderColor = page.style.getPropertyValue('border-color');
+    var prevBorderColorPrio = page.style.getPropertyPriority('border-color');
     var prevBodyPad  = document.body.style.padding;
 
     var CAPTURE_W = 1050;
@@ -3174,6 +3176,10 @@ function capturePageToCanvas(_fontsReady) {
     page.style.height    = 'auto';
     page.style.minHeight = PAPER_H + 'px';
     page.style.overflow  = 'visible';
+    // Image capture renders the on-screen styles, where the page frame is teal.
+    // Force it orange for the captured image. Inline !important beats the
+    // @media screen #page teal rule.
+    page.style.setProperty('border-color', '#FA6700', 'important');
     document.body.style.padding = '0';
 
     // ── PATCH: Strip seasonal + dark-mode classes for clean light-mode capture ──
@@ -3254,6 +3260,8 @@ function capturePageToCanvas(_fontsReady) {
       '.header::after { display: none !important; }',
       'body { max-width: ' + CAPTURE_W + 'px !important; }',
       '#page { width: ' + CAPTURE_W + 'px !important; max-width: ' + CAPTURE_W + 'px !important; height: auto !important; min-height: ' + PAPER_H + 'px !important; overflow: visible !important; display: flex !important; flex-direction: column !important; }',
+      /* Corner L-brackets orange in the captured image (they're teal on screen). */
+      '#page::before, #page::after, .page-corner-bl, .page-corner-br { border-color: #FA6700 !important; }',
       '.content { overflow: visible !important; min-height: 0 !important; }',
       '.top-grid { grid-template-columns: 1fr 1fr !important; }',
       '.top-col:first-child { border-right: 1px solid rgba(250,103,0,0.25) !important; border-bottom: none !important; }',
@@ -3472,6 +3480,8 @@ function capturePageToCanvas(_fontsReady) {
       page.style.minHeight = prevMinH;
       page.style.height    = prevHeight;
       page.style.overflow  = prevOverflow;
+      page.style.removeProperty('border-color');
+      if (prevBorderColor) page.style.setProperty('border-color', prevBorderColor, prevBorderColorPrio || '');
       document.body.style.padding = prevBodyPad;
       // Revert capture visual tweaks
       _captureTweaks.forEach(function(t) { if (t[1] === null) { t[0].removeAttribute('style'); } else { t[0].setAttribute('style', t[1]); } });
