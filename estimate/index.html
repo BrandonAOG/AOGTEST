@@ -1938,7 +1938,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   <div class="footer">
     <span class="footer-text">GENERATOR INSTALLATION ESTIMATE · CONFIDENTIAL</span>
     <span id="copyright-span" style="font-family:'Share Tech Mono',monospace;font-size:var(--fs-phone-ver-span);color:var(--text-dim);letter-spacing:1px;">&copy; 2026 Always On Generators</span>
-    <span id="ver-span" style="font-family:'Share Tech Mono',monospace;">Ver. 1.2a</span>
+    <span id="ver-span" style="font-family:'Share Tech Mono',monospace;">Ver. 1.2A</span>
   </div>
   <div class="page-corner-bl"></div>
   <div class="page-corner-br"></div>
@@ -2574,24 +2574,22 @@ function openPrintPreview() {
     var _DAMP_IPAD  = 0.0;   // testing: try same as iPhone — iPad may self-compensate too
     var _damp = _ipadPath ? _DAMP_IPAD : _DAMP_PHONE;
     var _effZoom = 1 + (_zoom - 1) * _damp;
-    // ── Font: fixed at baseline (slider now drives page scale instead). ─────
+    // ── Page scale: slider-driven, applied via root font-size (reflow-based).
+    // Folding the scale into the stamped rem baseline grows/shrinks the whole
+    // sheet AND reflows it (lines re-wrap, pagination stays clean) — no CSS
+    // transform, so nothing overflows the paper edge or mis-paginates.
+    var _pScale = (typeof window.__printScale === 'number' && window.__printScale > 0)
+                  ? window.__printScale : 1;
+
+    // ── Font: baseline × slider scale (slider now drives reflow, not transform).
     var _fsBase = _ipadPath ? 20 : (isMobileSafari ? 20 : 18);
-    var _stampFS = _fsBase;
+    var _stampFS = _fsBase * _pScale;
 
     // ── Width: HARD-LOCKED at the zoom-corrected base. ─────────────────────
     var _corrW = Math.round(_baseW * _effZoom);
     var _printW = _corrW + 'px';
     var _widthGrow = 1; // diagnostic only
 
-    // ── Page scale: slider-driven uniform transform on .page ───────────────
-    // Scales border + brackets + text together (no reflow, no caving).
-    // Anchored top-center so growth is symmetric left/right (not lopsided).
-    var _pScale = (typeof window.__printScale === 'number' && window.__printScale > 0)
-                  ? window.__printScale : 1;
-    if (page && _pScale !== 1) {
-      _snapI(page, 'transform-origin', 'top center');
-      _snapI(page, 'transform', 'scale(' + _pScale + ')');
-    }
     // NOTE: must be !important. A stylesheet `html.mobile-safari{font-size:..!important}`
     // rule (in @media print) otherwise beats a plain inline style and pins the size.
     _snapshots.push({ el: html, prop: 'fontSize', was: html.style.fontSize,
@@ -2997,16 +2995,17 @@ function openPrintPreview() {
       _snapI(el, 'color',      '#D35E13');
     });
 
-    // Desktop print: honor the scale-tuner slider too. __printScale was previously
-    // read only on the mobile branch, so on desktop the slider did nothing. Stamp
-    // the uniform .page transform here as well (with !important so it can't be
-    // overridden), scaled from the top-center like the mobile path.
-    var _dPage = document.getElementById('page');
+    // Desktop print: honor the scale-tuner slider via root font-size (reflow-based),
+    // matching the mobile/iPad path. Folding the scale into the print baseline
+    // (20px, from the @media print html rule) grows/shrinks AND reflows the sheet —
+    // no CSS transform, so nothing overflows the paper edge or mis-paginates.
     var _dScale = (typeof window.__printScale === 'number' && window.__printScale > 0)
                   ? window.__printScale : 1;
-    if (_dPage && _dScale !== 1) {
-      _snapI(_dPage, 'transform-origin', 'top center');
-      _snapI(_dPage, 'transform', 'scale(' + _dScale + ')');
+    if (_dScale !== 1) {
+      var _dHtml = document.documentElement;
+      _snapshots.push({ el: _dHtml, prop: 'fontSize', was: _dHtml.style.fontSize,
+                        wasPriority: _dHtml.style.getPropertyPriority('font-size') });
+      _dHtml.style.setProperty('font-size', (20 * _dScale) + 'px', 'important');
     }
 
     // iPad: the dark theme's fixed full-viewport gradient (body.dark-mode::before)
