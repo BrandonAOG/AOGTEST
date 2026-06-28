@@ -20,8 +20,8 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AOG Forms">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 
 <script>
 (function() {
@@ -1626,9 +1626,8 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   <a class="ab-btn" id="btn-capture" onclick="saveSmart()" style="cursor:pointer;">📸 CAPTURE</a>
   <a class="ab-btn" onclick="saveFillablePdf()" style="cursor:pointer;">📝 EDIT PDF</a>
   <a class="ab-btn" onclick="confirmClear()" style="cursor:pointer;">🗑 CLEAR</a>
-  <a class="ab-btn" onclick="saveAsExcel()" style="cursor:pointer;">📊 EXCEL</a>
   <a class="ab-btn" onclick="document.getElementById('load-draft-input').click()" style="cursor:pointer;">📂 LOAD</a>
-  <input type="file" id="load-draft-input" accept=".json,.xlsx,.pdf" style="display:none;" onchange="loadDraftFile(this)">
+  <input type="file" id="load-draft-input" accept=".json,.pdf,.xlsx" style="display:none;" onchange="loadDraftFile(this)">
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
@@ -2079,13 +2078,13 @@ function saveDraftFile() {
   setTimeout(function() { setStatus(''); }, 4000);
 }
 
-// ── LOAD DRAFT FILE (JSON or XLSX) ──
+// ── LOAD DRAFT FILE (JSON, PDF, or legacy XLSX) ──
 function loadDraftFile(input) {
   var file = input.files && input.files[0];
   if (!file) return;
 
-  var isExcel = file.name.match(/\.xlsx$/i);
   var isPdf   = file.name.match(/\.pdf$/i);
+  var isExcel = file.name.match(/\.xlsx$/i);
 
   if (isPdf) {
     var readerP = new FileReader();
@@ -2098,8 +2097,9 @@ function loadDraftFile(input) {
   }
 
   if (isExcel) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
+    // Read-only: lets older .xlsx exports still load back into the form.
+    var readerX = new FileReader();
+    readerX.onload = function(e) {
       try {
         if (typeof XLSX === 'undefined') { setStatus('Excel library not loaded — try refreshing.'); return; }
         var wb   = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
@@ -2114,7 +2114,6 @@ function loadDraftFile(input) {
             ? (row[2] !== undefined ? String(row[2]) : '')
             : (row[1] !== undefined ? String(row[1]) : '');
           if (!key || key === 'field_id' || key === 'Field') return;
-          // Comma-separated = checkbox group
           if (val.indexOf(',') !== -1) {
             data[key] = val.split(',').map(function(v) { return v.trim(); }).filter(Boolean);
           } else {
@@ -2131,25 +2130,26 @@ function loadDraftFile(input) {
       }
       input.value = '';
     };
-    reader.readAsArrayBuffer(file);
-  } else {
-    // JSON
-    var reader2 = new FileReader();
-    reader2.onload = function(e) {
-      try {
-        var data = JSON.parse(e.target.result);
-        applyFormData(data);
-        saveDraft();
-        setStatus('Draft loaded: ' + file.name);
-        setTimeout(function() { setStatus(''); }, 4000);
-      } catch(err) {
-        setStatus('Error loading draft — file may be invalid.');
-        setTimeout(function() { setStatus(''); }, 5000);
-      }
-      input.value = '';
-    };
-    reader2.readAsText(file);
+    readerX.readAsArrayBuffer(file);
+    return;
   }
+
+  // JSON
+  var reader2 = new FileReader();
+  reader2.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      applyFormData(data);
+      saveDraft();
+      setStatus('Draft loaded: ' + file.name);
+      setTimeout(function() { setStatus(''); }, 4000);
+    } catch(err) {
+      setStatus('Error loading draft — file may be invalid.');
+      setTimeout(function() { setStatus(''); }, 5000);
+    }
+    input.value = '';
+  };
+  reader2.readAsText(file);
 }
 
 // Shared helper: apply a data object to the form
@@ -2425,88 +2425,6 @@ function pdfReadAcroFields(pdfDoc) {
 }
 
 
-// ── SAVE AS EXCEL ──
-// Friendly label map so the spreadsheet reads like a real form, not raw IDs
-var FIELD_LABELS = {
-  name:'Customer Name', address:'Street Address', address2:'City / State / ZIP',
-  hoa:'Community / HOA', phone:'Phone', email:'Email', today:'Today\'s Date',
-  sqft:'Sq Footage', stories:'Stories', panel_amps:'Panel Amps', main_breaker:'Main Breaker',
-  meter_base:'Meter Base', sub_panel:'Sub Panel', meter_to_panel:'Meter to Panel (ft)',
-  gen_size:'Generator Size', gen_brand:'Generator Brand', gen_notes:'Generator Notes',
-  pad_type:'Pad Type', pad_notes:'Pad Notes',
-  gas_meter:'Gas Meter', gas_type:'Gas Type', gas_notes:'Gas Notes',
-  elec_run_ft:'Electrical Run (ft)', circuits_60a:'60A Circuits', circuits_100a:'100A Circuits',
-  transfer_type:'Transfer Type',
-  estimator:'Estimator', est_date:'Estimate Date', est_done_on:'Est. Done On',
-  install_days:'Install Days', ready_notes:'Ready / Notes',
-  difficulty:'Install Difficulty', new_build:'New Build'
-};
-
-function saveAsExcel() {
-  if (typeof XLSX === 'undefined') {
-    setStatus('Excel library not loaded — try refreshing.');
-    setTimeout(function() { setStatus(''); }, 5000);
-    return;
-  }
-
-  saveDraft();
-
-  // Build rows: [Field ID (hidden key), Friendly Label, Value]
-  var rows = [['field_id', 'Field', 'Value']]; // header row
-
-  // Text / number / date inputs
-  document.querySelectorAll('input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"],textarea').forEach(function(el) {
-    var key = el.id || el.name; if (!key || !el.value) return;
-    var label = FIELD_LABELS[key] || key;
-    rows.push([key, label, el.value]);
-  });
-
-  // Radio buttons — one row per group
-  var radioGroups = {};
-  document.querySelectorAll('input[type="radio"]').forEach(function(el) {
-    if (el.checked) radioGroups[el.name] = el.value;
-  });
-  Object.keys(radioGroups).forEach(function(name) {
-    var label = FIELD_LABELS[name] || name;
-    rows.push([name, label, radioGroups[name]]);
-  });
-
-  // Checkboxes — comma-separated checked values
-  var checkGroups = {};
-  document.querySelectorAll('input[type="checkbox"]').forEach(function(el) {
-    if (!el.name) return;
-    if (!checkGroups[el.name]) checkGroups[el.name] = [];
-    if (el.checked) checkGroups[el.name].push(el.value);
-  });
-  Object.keys(checkGroups).forEach(function(name) {
-    if (!checkGroups[name].length) return;
-    var label = FIELD_LABELS[name] || name;
-    rows.push([name, label, checkGroups[name].join(', ')]);
-  });
-
-  // Build worksheet and workbook
-  var ws = XLSX.utils.aoa_to_sheet(rows);
-
-  // Column widths: ID (hidden-ish narrow), Label, Value
-  ws['!cols'] = [{ wch: 20 }, { wch: 28 }, { wch: 48 }];
-
-  var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Estimate');
-
-  // Filename
-  var name    = ((document.getElementById('name')    || {}).value || '').trim();
-  var address = ((document.getElementById('address') || {}).value || '').trim();
-  var parts   = [];
-  if (name)    parts.push(name);
-  if (address) parts.push(address);
-  parts.push('Estimate');
-  var slug = parts.join(' - ').replace(/[\/\\:*?"<>|]/g, '').replace(/\s{2,}/g, ' ').trim();
-  var filename = slug + '.xlsx';
-
-  XLSX.writeFile(wb, filename);
-  setStatus('Excel saved: ' + filename);
-  setTimeout(function() { setStatus(''); }, 4000);
-}
 
 // ── SAVE AS HTML ──
 function saveAsHTML() {
