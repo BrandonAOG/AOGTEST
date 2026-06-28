@@ -12,12 +12,11 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
 <title>Generator Installation Estimate</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="../manifest.json">
-<meta name="theme-color" content="#FBBF24">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#D35E13">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AOG Forms">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
@@ -689,7 +688,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --pb-content-print-desktop:   4px;  /* print desktop                                       */
 
   /* ---- ACTION BAR CLEARANCE ---- */
-  --action-bar-clearance-phone:   calc(60px + env(safe-area-inset-top, 0px));  /* pushes page down so header clears the fixed action bar (phone), incl. notch inset */
+  --action-bar-clearance-phone:   calc(50px + env(safe-area-inset-top, 0px));  /* pushes page down so header clears the fixed action bar (phone), incl. notch inset */
   --action-bar-clearance-ipad:    50px;  /* (iPad)                                                         */
   --action-bar-clearance-desktop: 50px;  /* (desktop)                                                      */
 
@@ -900,7 +899,7 @@ body.offline { padding-top: 0; }
 .toolbar {
   background: var(--panel); border-bottom: 1px solid var(--border);
   padding: 4px 8px; display: flex; gap: 4px; align-items: center;
-  padding-top: max(14px, env(safe-area-inset-top, 14px));
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
   flex-wrap: wrap; flex-shrink: 0; transition: all 0.3s ease;
   position: relative; z-index: 1;
 }
@@ -1396,7 +1395,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   width: 100%;
   background: var(--panel);
   padding: 4px 8px;
-  padding-top: max(14px, env(safe-area-inset-top, 14px));
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; gap: 4px; flex-wrap: nowrap; align-items: center; justify-content: safe center;
   overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
@@ -2042,6 +2041,7 @@ function restoreDraft() {
       } catch(e) {}
     });
   } catch(e) {}
+  if (window._refreshAllDateEmpty) window._refreshAllDateEmpty();
 }
 
 setInterval(saveDraft, 30000);
@@ -4163,12 +4163,13 @@ function confirmClear() {
 }
 
 function doClearForm() {
-  document.querySelectorAll('input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"],textarea').forEach(function(el) { el.value=''; });
+  document.querySelectorAll('input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"],input[data-was-date="1"],textarea').forEach(function(el) { el.value=''; });
   document.querySelectorAll('input[type="checkbox"],input[type="radio"]').forEach(function(el) { el.checked=false; });
   var today = new Date().toISOString().split('T')[0];
   var todayInput = document.getElementById('today'); if (todayInput) todayInput.value = today;
   var estDone   = document.getElementById('est_done_on'); if (estDone) estDone.value = today;
   var gps = document.getElementById('gps-status'); if (gps) { gps.style.display='none'; gps.textContent=''; }
+  if (window._refreshAllDateEmpty) window._refreshAllDateEmpty();
   try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
 }
 
