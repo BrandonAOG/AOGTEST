@@ -837,9 +837,9 @@ body.dark-mode .header::after {
 }
 
 @keyframes scanline {
-  0% { width: 0; opacity: 0; }
+  0% { transform: scaleX(0); transform-origin: left; opacity: 0; }
   10% { opacity: 1; } 90% { opacity: 1; }
-  100% { width: 100%; opacity: 0; }
+  100% { transform: scaleX(1); transform-origin: left; opacity: 0; }
 }
 
 @media (max-width: 480px) { .header { padding: 8px 14px; min-height: 60px; } }
@@ -884,9 +884,9 @@ body.dark-mode .doc-title { color: #00FFC8 !important; text-shadow: 0 0 12px #00
 }
 
 body.dark-mode .theme-toggle-btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.2); color: #00FFC8; }
-.theme-toggle-btn:hover { border-color: var(--cyan); background: rgba(250,103,0,0.1); box-shadow: var(--glow); }
-body.dark-mode .theme-toggle-btn:hover { background: rgba(0,255,200,0.12); border-color: #00FFC8; box-shadow: 0 0 12px rgba(0,255,200,0.3), inset 0 0 8px rgba(0,255,200,0.05); }
-.theme-toggle-btn:active { }
+.theme-toggle-btn:hover { border-color: var(--cyan); background: rgba(250,103,0,0.1); box-shadow: var(--glow); transform: scale(1.08); }
+body.dark-mode .theme-toggle-btn:hover { background: rgba(0,255,200,0.12); border-color: #00FFC8; box-shadow: 0 0 12px rgba(0,255,200,0.3), inset 0 0 8px rgba(0,255,200,0.05); transform: scale(1.1); }
+.theme-toggle-btn:active { transform: scale(0.95); }
 
 .theme-icon { width: 18px; height: 18px; transition: all 0.3s ease; position: absolute; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke: var(--icon-color-primary) !important; color: var(--icon-color-primary) !important; }
 body.dark-mode .theme-icon { stroke: var(--icon-color-primary) !important; color: var(--icon-color-primary) !important; }
@@ -937,7 +937,7 @@ body.dark-mode .toolbar {
 body.dark-mode .btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.25); color: #00FFC8; text-shadow: 0 0 4px rgba(0,255,200,0.3); }
 .btn:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow); }
 body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00FFC8; box-shadow: 0 0 12px rgba(0,255,200,0.25), inset 0 0 12px rgba(0,255,200,0.05); text-shadow: 0 0 8px rgba(0,255,200,0.6); }
-.btn:active { }
+.btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-gold { background: rgba(250,103,0,0.08); border-color: rgba(250,103,0,0.4); color: var(--cyan); }
@@ -963,8 +963,8 @@ body.dark-mode .section-header { background: linear-gradient(90deg, rgba(26,40,7
 .section-header::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--icon-color-section); box-shadow: 0 0 6px var(--icon-color-section); flex-shrink: 0; animation: pulse 2s ease-in-out infinite; transition: all 0.3s ease; }
 body.dark-mode .section-header::before { background: #00FFC8; box-shadow: 0 0 8px #00FFC8, 0 0 16px rgba(0,255,200,0.5); animation: pulse-neon 2s ease-in-out infinite; }
 
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-@keyframes pulse-neon { 0%, 100% { opacity: 1; filter: drop-shadow(0 0 6px #00FFC8) drop-shadow(0 0 12px rgba(0,255,200,0.5)); } 50% { opacity: 0.5; filter: drop-shadow(0 0 3px #00FFC8) drop-shadow(0 0 6px rgba(0,255,200,0.3)); } }
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+@keyframes pulse-neon { 0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 6px #00FFC8) drop-shadow(0 0 12px rgba(0,255,200,0.5)); } 50% { opacity: 0.5; transform: scale(0.85); filter: drop-shadow(0 0 3px #00FFC8) drop-shadow(0 0 6px rgba(0,255,200,0.3)); } }
 
 .section-body { padding: var(--pd-phone-section-body); transition: all 0.3s ease; }
 @media (max-width: 480px) { .section-body { padding: 8px 8px; } }
@@ -2776,38 +2776,7 @@ function openPrintPreview() {
     var body = document.body;
     var page = document.getElementById('page');
 
-    // ── iOS page-zoom (Aa %) compensation ───────────────────────────────
-    // The Aa zoom menu (50%–200%) scales the layout viewport: at zoom Z the
-    // CSS-pixel viewport width = deviceWidth / Z. iOS print samples that
-    // viewport, so a non-100% zoom changes how the stamped sheet fills the
-    // page — making the PDF look different per user. We measure Z and divide
-    // it out so the print sheet always lays out as if at 100%, no matter the
-    // user's zoom. Probe: a fixed 100vw-independent element vs the real device
-    // width. We compare document.documentElement.clientWidth (CSS px, zoomed)
-    // against the device's physical portrait width derived from screen + DPR.
     var _ipadPath = (isIPad || isIPadNav);
-    var _zoom = 1;
-    try {
-      var _devW = Math.min(screen.width || 0, screen.height || 0) || 0;
-      var _vvW = (window.visualViewport && window.visualViewport.width)
-                 ? window.visualViewport.width
-                 : (html.clientWidth || window.innerWidth || 0);
-      if (_ipadPath) {
-        // ── iPad zoom branch ──────────────────────────────────────────────
-        // iPad's layout viewport (~1093px in PWA) and zoom mechanics differ
-        // from the phone. Until we confirm the Safari numbers, iPad uses the
-        // same ratio but is isolated here so its formula can diverge.
-        if (_devW > 0 && _vvW > 0) _zoom = _devW / _vvW;
-      } else {
-        // ── iPhone zoom branch ────────────────────────────────────────────
-        // Confirmed working on Chrome (CriOS): screen.width stays fixed in CSS
-        // px while visualViewport.width shrinks with Aa zoom, so the ratio is
-        // the zoom factor. (Safari numbers pending — may need its own path.)
-        if (_devW > 0 && _vvW > 0) _zoom = _devW / _vvW;
-      }
-      if (!isFinite(_zoom) || _zoom <= 0) _zoom = 1;
-      _zoom = Math.max(0.5, Math.min(2.0, _zoom));
-    } catch(e){ _zoom = 1; }
 
     // html / body sizing — locks the print layout inline
     var _isMacIntelPad = document.documentElement.classList.contains('ipad-macintel');
@@ -2816,18 +2785,7 @@ function openPrintPreview() {
     // scaled down harder by iOS, shrinking content so page 1 fits. Wider phones
     // (Plus/Max, >=400px) already print fine, so keep them at 820.
     var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
-    var _baseW = 1050; // phones + iPad base print width at 100% zoom
-    // ── Zoom correction with per-device damping ────────────────────────────
-    // Applying the FULL measured zoom over-corrects on iPhone Safari: at 115%
-    // the sheet came out too wide and printed small/centered. Safari's own
-    // print pipeline already absorbs most of the zoom, so we only apply a
-    // FRACTION of it. effectiveZoom = 1 + (_zoom - 1) * DAMP.
-    //   DAMP = 0  → ignore zoom entirely (always behave as 100%)
-    //   DAMP = 1  → full correction (old behavior, over-shoots on Safari)
-    var _DAMP_PHONE = 0.0;   // iPhone Safari already compensates → 0 (confirmed good)
-    var _DAMP_IPAD  = 0.0;   // testing: try same as iPhone — iPad may self-compensate too
-    var _damp = _ipadPath ? _DAMP_IPAD : _DAMP_PHONE;
-    var _effZoom = 1 + (_zoom - 1) * _damp;
+    var _baseW = 1050; // phones + iPad base print width
     // ── Page scale: slider-driven, applied via root font-size (reflow-based).
     // Folding the scale into the stamped rem baseline grows/shrinks the whole
     // sheet AND reflows it (lines re-wrap, pagination stays clean) — no CSS
@@ -2839,8 +2797,8 @@ function openPrintPreview() {
     var _fsBase = _ipadPath ? 20 : (isMobileSafari ? 20 : 18);
     var _stampFS = _fsBase * _pScale;
 
-    // ── Width: HARD-LOCKED at the zoom-corrected base. ─────────────────────
-    var _corrW = Math.round(_baseW * _effZoom);
+    // ── Width: HARD-LOCKED at the base. ────────────────────────────────────
+    var _corrW = _baseW;
     var _printW = _corrW + 'px';
     var _widthGrow = 1; // diagnostic only
 
@@ -2855,10 +2813,8 @@ function openPrintPreview() {
       var _diag = document.getElementById('st-px');
       if (_diag) _diag.textContent = 'scale ×' + _pScale.toFixed(2);
       var _eff = getComputedStyle(html).fontSize;
-      var _diag2 = document.getElementById('st-val');
-      if (_diag2) _diag2.textContent = 'zoom ' + _zoom.toFixed(2) + 'x';
       var _devEl = document.getElementById('st-dev');
-      if (_devEl) _devEl.innerHTML += '<br>→ width <b>' + _corrW + 'px</b> | scale <b>×' + _pScale.toFixed(2) + '</b> | meas ' + Math.round(_zoom*100) + '% eff ' + Math.round(_effZoom*100) + '% damp ' + _damp +
+      if (_devEl) _devEl.innerHTML += '<br>→ width <b>' + _corrW + 'px</b> | scale <b>×' + _pScale.toFixed(2) + '</b>' +
         '<br>raw: screen=' + (Math.min(screen.width||0,screen.height||0)) +
         ' vv=' + ((window.visualViewport&&window.visualViewport.width)?Math.round(window.visualViewport.width):'?') +
         ' inner=' + window.innerWidth +
@@ -6027,13 +5983,12 @@ setTimeout(adjustTopPadding, 600);
     function _liveReadout(){
       var _s = Math.min(screen.width||0, screen.height||0);
       var _vv = (window.visualViewport && window.visualViewport.width) ? Math.round(window.visualViewport.width) : 0;
-      var _z = (_s>0 && _vv>0) ? (_s/_vv) : 1;
       var _scale = (typeof window.__printScale === 'number' && window.__printScale > 0) ? window.__printScale : 1;
       devEl.innerHTML =
         type + ' · ' + browser + '<br>' +
         'screen ' + sw + '×' + sh + '<br>' +
         'inner ' + window.innerWidth + ' · vv ' + _vv + ' · cw ' + document.documentElement.clientWidth + '<br>' +
-        'dpr ' + (window.devicePixelRatio||'?') + ' · <b>zoom ' + _z.toFixed(2) + 'x</b><br>' +
+        'dpr ' + (window.devicePixelRatio||'?') + '<br>' +
         'print scale → <b>×' + _scale.toFixed(2) + '</b>';
     }
     window.__stReadout = _liveReadout;
