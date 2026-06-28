@@ -1726,13 +1726,17 @@ body.dark-mode .miscues-textarea {
 }
 
 </style>
+<style id="pdf-btn-toggle">
+/* === TEMP: hide the regular PDF button. To restore, delete this rule AND remove the 'pdf-btn-hidden' class from the PDF button(s). === */
+.pdf-btn-hidden { display: none !important; }
+</style>
 </head>
 <body>
 
 <!-- ========== ACTION BAR ========== -->
 <div class="action-bar" id="action-bar">
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
-  <button class="btn" onclick="(function(){ document.title = buildFileName('pdf', null).replace('.pdf',''); var b=document.body; b.classList.add('preparing-print'); var cleared=false; function clear(){ if(cleared) return; cleared=true; b.classList.remove('preparing-print'); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVis); } function onFocus(){ setTimeout(clear, 400); } function onVis(){ if(document.visibilityState==='visible') setTimeout(clear, 400); } window.addEventListener('focus', onFocus); document.addEventListener('visibilitychange', onVis); setTimeout(clear, 60000); setTimeout(function(){ window.print(); }, 300); })()">📄 PDF</button>
+  <button class="btn pdf-btn-hidden" onclick="(function(){ document.title = buildFileName('pdf', null).replace('.pdf',''); var b=document.body; b.classList.add('preparing-print'); var cleared=false; function clear(){ if(cleared) return; cleared=true; b.classList.remove('preparing-print'); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVis); } function onFocus(){ setTimeout(clear, 400); } function onVis(){ if(document.visibilityState==='visible') setTimeout(clear, 400); } window.addEventListener('focus', onFocus); document.addEventListener('visibilitychange', onVis); setTimeout(clear, 60000); setTimeout(function(){ window.print(); }, 300); })()">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
   <button class="btn" id="btn-editpdf" onclick="saveFillablePdf()">📝 EDIT PDF</button>
   <button class="btn" onclick="document.getElementById('load-draft-input').click()">📂 LOAD</button>
