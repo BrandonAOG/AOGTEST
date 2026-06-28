@@ -17,7 +17,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#FBBF24">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="AOG Forms">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
@@ -1030,7 +1030,15 @@ input[type="date"] { min-height: var(--h-phone-input-date); padding: var(--pd-ph
    When empty we tag it .date-empty and make its own text transparent so the
    slashes don't show; the value reappears the moment a date is picked. */
 input[type="date"].date-empty { color: transparent !important; }
-input[type="date"].date-empty::-webkit-datetime-edit { color: transparent !important; }
+input[type="date"].date-empty::-webkit-datetime-edit,
+input[type="date"].date-empty::-webkit-datetime-edit-fields-wrapper,
+input[type="date"].date-empty::-webkit-datetime-edit-text,
+input[type="date"].date-empty::-webkit-datetime-edit-month-field,
+input[type="date"].date-empty::-webkit-datetime-edit-day-field,
+input[type="date"].date-empty::-webkit-datetime-edit-year-field {
+  color: transparent !important;
+  opacity: 0 !important;
+}
 body.dark-mode input[type="date"] { color-scheme: dark; }
 input::placeholder, textarea::placeholder { color: var(--text-dim) !important; opacity: 1; }
 body.dark-mode input::placeholder, body.dark-mode textarea::placeholder { color: rgba(125,211,252,0.4) !important; }
@@ -5475,23 +5483,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
   restoreDraft();
 
-  // Tag empty date inputs so the native "mm/dd/yyyy" (the /// on old iOS) is
-  // hidden until a date is actually chosen. Re-checked on every change.
+  // Empty date inputs render "mm/dd/yyyy" (the /// on old iOS) and some iOS
+  // versions ignore CSS attempts to hide it. The only reliable fix: while a
+  // date field is empty, present it as a blank text input (shows nothing);
+  // the moment the user focuses it, switch it back to a real date picker.
   (function () {
-    function refreshDateEmpty(el) {
+    function demoteIfEmpty(el) {
       if (!el) return;
-      if (el.value) el.classList.remove('date-empty');
-      else el.classList.add('date-empty');
+      if (!el.value && el.type === 'date') {
+        el.dataset.wasDate = '1';
+        el.type = 'text';
+        el.classList.remove('date-empty');
+      }
     }
-    var dates = document.querySelectorAll('input[type="date"]');
+    function promoteToDate(el) {
+      if (el.dataset.wasDate === '1' && el.type === 'text') {
+        el.type = 'date';
+        // re-open the native picker now that it's a date field
+        try { el.focus(); if (el.showPicker) el.showPicker(); } catch(e) {}
+      }
+    }
+    function syncOne(el) {
+      // called after value changes (typing/picking/loading)
+      if (el.value) {
+        if (el.dataset.wasDate === '1' && el.type === 'text') el.type = 'date';
+        el.classList.remove('date-empty');
+      } else {
+        demoteIfEmpty(el);
+      }
+    }
+    var dates = Array.prototype.slice.call(document.querySelectorAll('input[type="date"]'));
+    // also catch ones already demoted to text earlier
+    document.querySelectorAll('input[data-was-date="1"]').forEach(function(e){ if(dates.indexOf(e)<0) dates.push(e); });
     dates.forEach(function (el) {
-      refreshDateEmpty(el);
-      el.addEventListener('input',  function () { refreshDateEmpty(el); });
-      el.addEventListener('change', function () { refreshDateEmpty(el); });
+      demoteIfEmpty(el);
+      el.addEventListener('focus', function () { promoteToDate(el); });
+      el.addEventListener('input',  function () { syncOne(el); });
+      el.addEventListener('change', function () { syncOne(el); });
+      el.addEventListener('blur',   function () { demoteIfEmpty(el); });
     });
-    // Expose so other code (e.g. after applyFormData) can re-sync.
     window._refreshAllDateEmpty = function () {
-      document.querySelectorAll('input[type="date"]').forEach(refreshDateEmpty);
+      document.querySelectorAll('input[type="date"],input[data-was-date="1"]').forEach(syncOne);
     };
   })();
 
