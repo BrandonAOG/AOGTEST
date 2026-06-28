@@ -122,6 +122,14 @@ body.dark-mode {
   border-bottom: 1px solid var(--border-bright);
   transition: background-color 0.3s ease; box-sizing: border-box;
 }
+/* Installed PWA on iOS: env(safe-area-inset-top) is unreliable in standalone
+   (reports 0 on iOS 14 under the notch). Anchor the bar at top:0 and use a
+   hardcoded top padding instead, so its offsetHeight includes the status-bar
+   clearance and adjustTopPadding() offsets the page-wrapper to match. */
+body.pwa-standalone .action-bar {
+  top: 0 !important;
+  padding-top: max(47px, env(safe-area-inset-top, 47px)) !important;
+}
 body.dark-mode .action-bar {
   background: linear-gradient(90deg,rgba(15,21,53,0.9),rgba(26,40,71,0.8),rgba(15,21,53,0.9));
   border-bottom-color: rgba(0,255,200,0.25);
@@ -1959,6 +1967,20 @@ body.dark-mode .miscues-textarea {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script>
+/* Installed-PWA (home-screen) tag. iOS 14 standalone reports
+   env(safe-area-inset-top)=0 under the notch, so the fixed bar slips under the
+   status bar; CSS keyed on .pwa-standalone applies a hardcoded clearance. */
+(function () {
+  try {
+    var _sa = (navigator.standalone === true) ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (_sa) {
+      document.documentElement.classList.add('pwa-standalone');
+      if (document.body) { document.body.classList.add('pwa-standalone'); }
+      else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('pwa-standalone'); }); }
+    }
+  } catch (e) {}
+})();
 /* ================================================================
    THEME
 ================================================================ */
@@ -3294,7 +3316,11 @@ function adjustTopPadding() {
 }
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load', adjustTopPadding);
+window.addEventListener('orientationchange', function(){ setTimeout(adjustTopPadding, 150); });
+document.addEventListener('DOMContentLoaded', adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
+setTimeout(adjustTopPadding, 600);
+if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTopPadding); }
 </script>
 
 
