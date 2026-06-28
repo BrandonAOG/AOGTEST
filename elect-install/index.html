@@ -125,12 +125,6 @@ body.dark-mode {
   border-bottom: 1px solid var(--border-bright);
   transition: background-color 0.3s ease; box-sizing: border-box;
 }
-/* Installed PWA on iOS: env(safe-area-inset-top) is unreliable in standalone
-   (reports 0 on iOS 14). Hardcode the status-bar clearance immediately via CSS;
-   adjustTopPadding() then measures the bar and offsets the page-wrapper to match. */
-body.pwa-standalone .action-bar {
-  padding-top: max(47px, env(safe-area-inset-top, 47px)) !important;
-}
 
 .action-bar .btn {
   padding: 6px 8px;
@@ -707,6 +701,7 @@ body.dark-mode .notice { color: #7DD3FC; }
   }
 
   .action-bar, .theme-toggle-btn, .notice { display: none !important; }
+  .app-footer { display: none !important; }
 
   /* Neutralise any dark-mode element backgrounds that don't use CSS vars */
   body.dark-mode .action-bar,
@@ -1682,6 +1677,9 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
   <button class="btn" id="btn-pdf" onclick="openPrintPreview()">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
+  <button class="btn" id="btn-editpdf" onclick="saveFillablePdf()">📝 EDIT PDF</button>
+  <button class="btn" onclick="document.getElementById('load-draft-input').click()">📂 LOAD</button>
+  <input type="file" id="load-draft-input" accept=".json,.pdf" style="display:none;" onchange="loadDraftFile(this)">
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="btn" id="btn-voice" onclick="toggleVoiceEntry()">🎤 VOICE</button>
 
@@ -1921,24 +1919,16 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   </div>
 </div>
 
+<div class="app-footer" style="text-align:center;font-family:Arial,sans-serif;font-size:11px;color:var(--text-muted);margin:18px 16px 40px;line-height:1.6;">
+  <span class="footer-text" title="">© 2026 Always On Generators · CONFIDENTIAL</span><br>
+  <span id="ver-span" title="">v1.0</span>
+</div>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 
 <script>
-// Installed-PWA tag: iOS 14 standalone reports env(safe-area-inset-top)=0 under
-// the notch, so the fixed bar hides behind the status bar. CSS keyed on
-// .pwa-standalone applies an immediate hardcoded clearance (no JS-timing wait).
-(function () {
-  try {
-    var _sa = (navigator.standalone === true) ||
-      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-    if (_sa) {
-      document.documentElement.classList.add('pwa-standalone');
-      if (document.body) { document.body.classList.add('pwa-standalone'); }
-      else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('pwa-standalone'); }); }
-    }
-  } catch (e) {}
-})();
 // ===== FORCE ACTION BAR TO SCROLL WITH PAGE =====
 
 // ===== THEME =====
@@ -1985,7 +1975,7 @@ function adjustTopPadding() {
     document.body.removeChild(probe);
     if (isStandalone && inset < 20) {
       // env() did not provide a usable inset; use a sensible default that clears the status bar.
-      bar.style.paddingTop = '47px';
+      bar.style.paddingTop = '44px';
     }
   }
   if (bar && wrapper) wrapper.style.paddingTop = bar.offsetHeight + 'px';
@@ -1993,11 +1983,7 @@ function adjustTopPadding() {
 }
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load', adjustTopPadding);
-window.addEventListener('orientationchange', function(){ setTimeout(adjustTopPadding, 150); });
-document.addEventListener('DOMContentLoaded', adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
-setTimeout(adjustTopPadding, 600);
-if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTopPadding); }
 
 // ===== BUILD TABLES =====
 const fittings = [
@@ -2239,7 +2225,20 @@ function openPrintPreview() {
     document.body.classList.remove('dark-mode');
     void document.body.offsetHeight;
   }
+  // Honor the triple-tap PRINT SCALE tuner (reflow-based, via root font-size).
+  var _pScale = (typeof window.__printScale === 'number' && window.__printScale > 0) ? window.__printScale : 1;
+  var _htmlEl = document.documentElement;
+  var _prevFS = _htmlEl.style.fontSize;
+  if (_pScale !== 1) {
+    var _baseFS = parseFloat(getComputedStyle(_htmlEl).fontSize) || 16;
+    _htmlEl.style.setProperty('font-size', (_baseFS * _pScale) + 'px', 'important');
+    void document.body.offsetHeight;
+  }
   window.print();
+  if (_pScale !== 1) {
+    if (_prevFS) _htmlEl.style.setProperty('font-size', _prevFS);
+    else _htmlEl.style.removeProperty('font-size');
+  }
   document.title = origTitle;
 }
 
@@ -2774,59 +2773,60 @@ function setStatus(msg) {
 // ===== AUTOSAVE TO localStorage =====
 const SAVE_KEY = 'aog_elec_form_v1';
 
+function collectFormData() {
+  const data = {};
+  data._ts = document.querySelectorAll('.ts-block').length;
+  document.querySelectorAll('input[type="text"]:not(.mob-card-input), input[type="email"], input[type="tel"], input[type="date"], input[type="number"]:not(.mob-card-input), textarea').forEach((el, i) => {
+    data['f_' + i] = el.value;
+  });
+  document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
+    data['c_' + i] = el.checked ? '1' : '0';
+  });
+  return data;
+}
+
 function saveFormData() {
   try {
-    const data = {};
-    data._ts = document.querySelectorAll('.ts-block').length;
-    // Text inputs and textareas — keyed by index among all saveable fields
-    // NOTE: exclude dynamically-built mobile accordion inputs (.mob-card-input).
-    // They are created/destroyed by screen width + build timing, so including them
-    // makes the position-based f_<i> keys unstable — saved values then restore into
-    // the WRONG inputs (or into accordion inputs), leaving the real page-2 table
-    // cells empty. The accordion syncs into the real inputs on its own, so saving
-    // only the real inputs is correct and keeps indices stable.
-    document.querySelectorAll('input[type="text"]:not(.mob-card-input), input[type="email"], input[type="tel"], input[type="date"], input[type="number"]:not(.mob-card-input), textarea').forEach((el, i) => {
-      data['f_' + i] = el.value;
-    });
-    // Checkboxes
-    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
-      data['c_' + i] = el.checked ? '1' : '0';
-    });
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    localStorage.setItem(SAVE_KEY, JSON.stringify(collectFormData()));
   } catch(e) {}
+}
+
+function applyFormData(data) {
+  if (!data) return;
+  // Rebuild extra Transfer Switch blocks FIRST — saved values are keyed by
+  // input position, so the block count must match before restoring.
+  let wantTS = parseInt(data._ts || '1', 10);
+  if (!Number.isFinite(wantTS) || wantTS < 1) wantTS = 1;
+  if (wantTS > 4) wantTS = 4;
+  let haveTS = document.querySelectorAll('.ts-block').length;
+  const tsContainer = document.getElementById('ts-container');
+  let _tsGuard = 0;
+  while (tsContainer && haveTS < wantTS && _tsGuard < 4) {
+    tsContainer.appendChild(buildTSBlock(haveTS + 1));
+    haveTS++;
+    _tsGuard++;
+  }
+  if (typeof renumberTS === 'function') renumberTS();
+  document.querySelectorAll('input[type="text"]:not(.mob-card-input), input[type="email"], input[type="tel"], input[type="date"], input[type="number"]:not(.mob-card-input), textarea').forEach((el, i) => {
+    if (data['f_' + i] !== undefined) el.value = data['f_' + i];
+  });
+  document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
+    if (data['c_' + i] !== undefined) {
+      el.checked = data['c_' + i] === '1';
+      const w = el.parentElement;
+      if (w && w.classList.contains('yn-checkbox-wrap')) {
+        w.classList.toggle('checked', el.checked);
+      }
+    }
+  });
+  if (typeof applyYNColors === 'function') applyYNColors();
 }
 
 function restoreFormData() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
-    const data = JSON.parse(raw);
-    // Rebuild extra Transfer Switch blocks FIRST — saved values are keyed by
-    // input position, so the block count must match before restoring.
-    let wantTS = parseInt(data._ts || '1', 10);
-    if (!Number.isFinite(wantTS) || wantTS < 1) wantTS = 1;
-    if (wantTS > 4) wantTS = 4;
-    let haveTS = document.querySelectorAll('.ts-block').length;
-    const tsContainer = document.getElementById('ts-container');
-    let _tsGuard = 0;
-    while (tsContainer && haveTS < wantTS && _tsGuard < 4) {
-      tsContainer.appendChild(buildTSBlock(haveTS + 1));
-      haveTS++;
-      _tsGuard++;
-    }
-    if (typeof renumberTS === 'function') renumberTS();
-    document.querySelectorAll('input[type="text"]:not(.mob-card-input), input[type="email"], input[type="tel"], input[type="date"], input[type="number"]:not(.mob-card-input), textarea').forEach((el, i) => {
-      if (data['f_' + i] !== undefined) el.value = data['f_' + i];
-    });
-    document.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
-      if (data['c_' + i] !== undefined) {
-        el.checked = data['c_' + i] === '1';
-        const w = el.parentElement;
-        if (w && w.classList.contains('yn-checkbox-wrap')) {
-          w.classList.toggle('checked', el.checked);
-        }
-      }
-    });
+    applyFormData(JSON.parse(raw));
   } catch(e) {}
 }
 
@@ -2841,6 +2841,201 @@ function attachAutosave() {
     el.dataset.autosave = '1';
     el.addEventListener('change', saveFormData);
   });
+}
+
+/* ════════ EDIT PDF — resumable PDF (image capture + embedded JSON) ════════
+   Captures each .form-page as a full-page PNG (your exact styled look) and
+   writes them into a US-Letter PDF. The complete form state is embedded TWICE
+   for a lossless reload round-trip:
+     • as a file attachment  (electrical-form-data.json)
+     • in the PDF Keywords    (AOGDATA:<base64 json>)
+   The 📂 LOAD button reads either channel back and refills the form. */
+
+function _downloadBlob(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+function _editPdfFilename() {
+  try {
+    if (typeof buildFilename === 'function') {
+      return buildFilename('pdf', 1, 1).replace(/\.pdf$/i, '') + ' - RESUMABLE.pdf';
+    }
+  } catch (e) {}
+  return 'AOG Electrical Checklist - RESUMABLE.pdf';
+}
+
+async function saveFillablePdf() {
+  if (typeof PDFLib === 'undefined') {
+    setStatus('PDF library not loaded — try refreshing.');
+    setTimeout(function(){ setStatus(''); }, 5000);
+    return;
+  }
+  if (typeof html2canvas === 'undefined') {
+    setStatus('Capture library not loaded — try refreshing.');
+    setTimeout(function(){ setStatus(''); }, 5000);
+    return;
+  }
+  setStatus('Building resumable PDF…');
+
+  // Mirror the CAPTURE pipeline so the rendered look matches the print sheet.
+  var pages = document.querySelectorAll('.form-page');
+  var wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+  if (typeof showRealTablesForCapture === 'function') showRealTablesForCapture();
+  var restoreLayout = (typeof forceDesktopLayout === 'function') ? forceDesktopLayout() : function(){};
+
+  function cleanup() {
+    if (typeof hideRealTablesAfterCapture === 'function') hideRealTablesAfterCapture();
+    restoreLayout();
+    if (wasDark) document.body.classList.add('dark-mode');
+  }
+
+  try {
+    saveFormData();
+    var data = collectFormData();
+
+    await whenReadyToCapture();
+
+    var PDFDocument = PDFLib.PDFDocument;
+    var pdfDoc = await PDFDocument.create();
+    var PAGE_W = 612; // US Letter width (pt)
+
+    for (var idx = 0; idx < pages.length; idx++) {
+      var page = pages[idx];
+      var restoreFill = (typeof fitPageToSheet === 'function') ? fitPageToSheet(page) : function(){};
+      var capH = (typeof measureFullHeight === 'function') ? measureFullHeight(page) : page.scrollHeight;
+      var canvas;
+      try {
+        canvas = await html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0 });
+      } finally {
+        restoreFill();
+      }
+      if (typeof fitToLetter === 'function') canvas = fitToLetter(canvas);
+
+      var imgData = canvas.toDataURL('image/png');
+      var pngBytes = Uint8Array.from(atob(imgData.split(',')[1]), function(c){ return c.charCodeAt(0); });
+      var png = await pdfDoc.embedPng(pngBytes);
+      var scale = PAGE_W / png.width;
+      var PAGE_H = png.height * scale;
+      var p = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      p.drawImage(png, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+    }
+
+    // Embed full JSON for a lossless reload round-trip.
+    var jsonStr = JSON.stringify(data);
+    try { await pdfDoc.attach(new TextEncoder().encode(jsonStr), 'electrical-form-data.json', {
+      mimeType: 'application/json', description: 'Always On Generators — form data (do not delete)' }); } catch(e) {}
+    try { pdfDoc.setKeywords([ 'AOGDATA:' + btoa(unescape(encodeURIComponent(jsonStr))) ]); } catch(e) {}
+    try { pdfDoc.setTitle('Always On Generators — Electrical Installation Checklist'); } catch(e) {}
+
+    var bytes = await pdfDoc.save();
+    cleanup();
+
+    var fname = _editPdfFilename();
+    var blob = new Blob([bytes], { type: 'application/pdf' });
+
+    // On phones/tablets that support file sharing, use the native share sheet.
+    var didShare = false;
+    var _isMobileOS = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (_isMobileOS && typeof canShareFiles === 'function' && canShareFiles()) {
+      try {
+        var pdfFile = new File([blob], fname, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+          didShare = true;
+          setStatus('Opening share sheet…');
+          try {
+            await navigator.share({ files: [pdfFile] });
+            setStatus('');
+          } catch (shErr) {
+            if (shErr && shErr.name === 'AbortError') { setStatus(''); }
+            else { _downloadBlob(blob, fname); setStatus('Resumable PDF saved: ' + fname); setTimeout(function(){ setStatus(''); }, 4000); }
+          }
+        }
+      } catch (e) { didShare = false; }
+    }
+
+    if (!didShare) {
+      _downloadBlob(blob, fname);
+      setStatus('Resumable PDF saved: ' + fname);
+      setTimeout(function(){ setStatus(''); }, 4000);
+    }
+  } catch (err) {
+    cleanup();
+    setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
+    setTimeout(function(){ setStatus(''); }, 6000);
+  }
+}
+
+/* ── LOAD: accepts a .json draft OR a resumable .pdf and refills the form ── */
+function loadDraftFile(input) {
+  var file = input && input.files && input.files[0];
+  if (!file) return;
+  var name = file.name || '';
+  var reset = function(){ try { input.value = ''; } catch(e){} };
+
+  if (/\.pdf$/i.test(name)) {
+    var rp = new FileReader();
+    rp.onload = function(){ loadFromFillablePdf(new Uint8Array(rp.result), name).then(reset, reset); };
+    rp.onerror = function(){ setStatus('Could not read that PDF.'); setTimeout(function(){ setStatus(''); }, 5000); reset(); };
+    rp.readAsArrayBuffer(file);
+    return;
+  }
+
+  // JSON draft
+  var rj = new FileReader();
+  rj.onload = function(){
+    try {
+      applyFormData(JSON.parse(rj.result));
+      saveFormData();
+      setStatus('Loaded draft: ' + name);
+      setTimeout(function(){ setStatus(''); }, 4000);
+    } catch (e) {
+      setStatus('That file is not a valid draft.');
+      setTimeout(function(){ setStatus(''); }, 5000);
+    }
+    reset();
+  };
+  rj.onerror = function(){ setStatus('Could not read that file.'); setTimeout(function(){ setStatus(''); }, 5000); reset(); };
+  rj.readAsText(file);
+}
+
+async function loadFromFillablePdf(bytes, fname) {
+  if (typeof PDFLib === 'undefined') {
+    setStatus('PDF library not loaded — try refreshing.');
+    setTimeout(function(){ setStatus(''); }, 5000);
+    return;
+  }
+  setStatus('Reading PDF…');
+  try {
+    var pdfDoc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true });
+    var data = null;
+
+    // Primary: AOGDATA keyword channel (base64 JSON snapshot).
+    try {
+      var kw = pdfDoc.getKeywords();
+      var kwStr = Array.isArray(kw) ? kw.join(' ') : (kw || '');
+      var m = kwStr.match(/AOGDATA:([A-Za-z0-9+/=]+)/);
+      if (m) data = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+    } catch(e) {}
+
+    if (!data) {
+      setStatus('No saved form data found in that PDF.');
+      setTimeout(function(){ setStatus(''); }, 5000);
+      return;
+    }
+
+    applyFormData(data);
+    saveFormData();
+    setStatus('Loaded from PDF: ' + fname);
+    setTimeout(function(){ setStatus(''); }, 4000);
+  } catch (err) {
+    setStatus('Error reading PDF — file may be invalid.');
+    setTimeout(function(){ setStatus(''); }, 6000);
+  }
 }
 
 function initApp() {
@@ -4714,6 +4909,273 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.warn('SW registration failed:', err));
   });
 }
+</script>
+
+
+<!-- ════════ Ver TRIPLE-TAP DEBUG DUMP ════════
+     Open it: triple-tap (or triple-click) the footer version text "v1.0", OR
+     long-press it ~1s, OR load the page with #debug in the URL, OR run
+     __showDebug() in a console. Dumps device + detection signals. Screen-only;
+     never renders in the PDF. Diagnostic only — changes no behavior. -->
+<script>
+(function () {
+  function yn(b){ return b ? '\u2713 YES' : '\u2717 no'; }
+  function buildReport() {
+    var ua  = navigator.userAgent;
+    var plat = navigator.platform;
+    var mtp = navigator.maxTouchPoints || 0;
+    var touch = ('ontouchstart' in window);
+    var standaloneMM  = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || false;
+    var standaloneNav = (navigator.standalone === true);
+    var ver = (document.getElementById('ver-span') && document.getElementById('ver-span').textContent || '?').trim();
+
+    var isCriOS  = /CriOS/.test(ua);
+    var isIOS    = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
+    var isMacOS  = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+    var isWindows = /Windows/.test(ua);
+    var isAndroid = /Android/.test(ua);
+    var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
+    var isIPad = /iPad/.test(ua)
+      || (plat === 'MacIntel' && (mtp > 1 || touch))
+      || (/Macintosh/.test(ua) && (mtp > 1 || touch));
+
+    var htmlCls = document.documentElement.className || '(none)';
+    var bodyCls = document.body.className || '(none)';
+
+    var isLandscape = (window.matchMedia && window.matchMedia('(orientation: landscape)').matches)
+                      || (window.innerWidth > window.innerHeight);
+
+    var ori = '(?)';
+    try { ori = (window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape')
+                 + (screen.orientation ? '  [' + screen.orientation.type + ']' : ''); } catch(e){}
+
+    var theme = '(?)', draft = '(none)';
+    try { theme = localStorage.getItem('aog_forms_theme_preference') || '(unset)'; } catch(e){}
+    try { var d = localStorage.getItem('aog_elec_form_v1'); draft = d ? (d.length + ' chars saved') : '(none)'; } catch(e){}
+    var h2c = (typeof html2canvas !== 'undefined') ? 'loaded' : 'NOT loaded';
+    var pl  = (typeof PDFLib !== 'undefined') ? 'loaded' : 'NOT loaded';
+    var _scale = (typeof window.__printScale === 'number' && window.__printScale > 0) ? window.__printScale : 1;
+
+    return [
+      '\u2550\u2550\u2550 AOG DEBUG DUMP \u2550\u2550\u2550',
+      'App version           : ' + ver,
+      'Timestamp             : ' + new Date().toISOString(),
+      '',
+      '\u2500\u2500 USER AGENT \u2500\u2500',
+      ua,
+      '',
+      '\u2500\u2500 NAVIGATOR \u2500\u2500',
+      'platform              : ' + plat,
+      'maxTouchPoints        : ' + mtp,
+      'ontouchstart          : ' + yn(touch),
+      'standalone (mediaq)   : ' + yn(standaloneMM),
+      'navigator.standalone  : ' + yn(standaloneNav),
+      'cookieEnabled         : ' + yn(navigator.cookieEnabled),
+      'language              : ' + (navigator.language || '?'),
+      '',
+      '\u2500\u2500 SCREEN / VIEWPORT \u2500\u2500',
+      'window.inner          : ' + window.innerWidth + ' \u00d7 ' + window.innerHeight + ' px',
+      'visualViewport        : ' + (window.visualViewport ? (Math.round(window.visualViewport.width)+' \u00d7 '+Math.round(window.visualViewport.height)) : 'n/a'),
+      'screen                : ' + screen.width + ' \u00d7 ' + screen.height + ' px',
+      'devicePixelRatio      : ' + window.devicePixelRatio,
+      'orientation           : ' + ori,
+      'viewport meta         : ' + ((document.querySelector('meta[name="viewport"]')||{}).getAttribute ? document.querySelector('meta[name="viewport"]').getAttribute('content') : '?'),
+      '',
+      '\u2500\u2500 DETECTION SIGNALS \u2500\u2500',
+      'isCriOS               : ' + yn(isCriOS),
+      'isIOS                 : ' + yn(isIOS),
+      'isMacOS               : ' + yn(isMacOS),
+      'isWindows             : ' + yn(isWindows),
+      'isAndroid             : ' + yn(isAndroid),
+      'isAndroidChrome       : ' + yn(isAndroidChrome),
+      'isIPad (detect)       : ' + yn(isIPad),
+      'isLandscape           : ' + yn(isLandscape),
+      '',
+      '\u2500\u2500 APPLIED CLASSES \u2500\u2500',
+      'html                  : ' + htmlCls,
+      'body                  : ' + bodyCls,
+      '',
+      '\u2500\u2500 PRINT SCALE \u2500\u2500',
+      'window.__printScale   : \u00d7' + _scale.toFixed(2),
+      '',
+      '\u2500\u2500 STORAGE \u2500\u2500',
+      'theme                 : ' + theme,
+      'draft                 : ' + draft,
+      '',
+      '\u2500\u2500 ASSETS \u2500\u2500',
+      'html2canvas           : ' + h2c,
+      'pdf-lib               : ' + pl
+    ].join('\n');
+  }
+
+  function show() {
+    var old = document.getElementById('dbg-overlay'); if (old) old.remove();
+    var txt = buildReport();
+    var ov = document.createElement('div');
+    ov.id = 'dbg-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,0.94);color:#0f0;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:16px;overflow:auto;-webkit-overflow-scrolling:touch;';
+    var pre = document.createElement('pre');
+    pre.textContent = txt;
+    pre.style.cssText = 'white-space:pre-wrap;word-break:break-word;margin:0 0 14px;';
+    var bar = document.createElement('div');
+    bar.style.cssText = 'position:sticky;bottom:0;display:flex;gap:10px;padding-top:8px;';
+    var copy = document.createElement('button');
+    copy.textContent = 'Copy';
+    copy.style.cssText = 'flex:1;background:#0a0;color:#fff;border:none;border-radius:6px;padding:12px;font-size:15px;';
+    copy.onclick = function () {
+      function done(){ copy.textContent = 'Copied \u2713'; }
+      function fallback(){
+        var r = document.createRange(); r.selectNodeContents(pre);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        try { document.execCommand('copy'); done(); } catch(e){ copy.textContent='Select & copy manually'; }
+      }
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback);
+        else fallback();
+      } catch (e) { fallback(); }
+    };
+    var close = document.createElement('button');
+    close.textContent = 'Close';
+    close.style.cssText = 'flex:1;background:#c33;color:#fff;border:none;border-radius:6px;padding:12px;font-size:15px;';
+    close.onclick = function () { ov.remove(); };
+    bar.appendChild(copy); bar.appendChild(close);
+    ov.appendChild(pre); ov.appendChild(bar);
+    document.body.appendChild(ov);
+  }
+  window.__showDebug = show;
+
+  function wireTrigger() {
+    var tag = document.getElementById('ver-span');
+    if (!tag) return;
+    tag.style.cursor = 'pointer';
+    var taps = 0, t;
+    tag.addEventListener('click', function () {
+      taps++; clearTimeout(t);
+      t = setTimeout(function(){ taps = 0; }, 700);
+      if (taps >= 3) { taps = 0; show(); }
+    });
+    var lp;
+    tag.addEventListener('touchstart', function () { lp = setTimeout(show, 1000); }, {passive:true});
+    tag.addEventListener('touchend',   function () { clearTimeout(lp); });
+    tag.addEventListener('touchmove',  function () { clearTimeout(lp); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireTrigger);
+  else wireTrigger();
+  if (location.hash === '#debug') (document.readyState === 'loading'
+      ? document.addEventListener('DOMContentLoaded', show) : show());
+})();
+</script>
+
+<!-- ════════ LIVE ON-SCREEN PRINT-SCALE TUNER ════════
+     Screen-only (hidden in print). Hidden until the "· CONFIDENTIAL" footer
+     text is triple-tapped (or long-pressed on touch). Drags window.__printScale,
+     applied as the root font-size multiplier in the print/capture path, so you
+     can dial in the final print size without touching the layout. -->
+<style id="scale-tuner-style">
+@media print { #scale-tuner { display: none !important; } }
+</style>
+<div id="scale-tuner" style="
+  position:fixed; left:8px; bottom:8px; z-index:99999;
+  font:600 12px/1.3 -apple-system,system-ui,sans-serif;
+  background:#1a1a1a; color:#fff; border:1.5px solid #D35E13;
+  border-radius:10px; padding:10px 12px; box-shadow:0 4px 16px rgba(0,0,0,.4);
+  display:none; user-select:none; -webkit-user-select:none; width:172px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+    <span style="color:#D35E13;">PRINT SCALE</span>
+    <span id="st-val" style="font-size:15px;">0</span>
+  </div>
+  <input id="st-range" type="range" min="-50" max="50" step="1" value="0"
+    style="width:100%; accent-color:#D35E13; margin:0;">
+  <div style="display:flex; justify-content:space-between; font-size:9px; color:#888; margin-top:2px;">
+    <span>-50</span><span id="st-px">scale ×1.00</span><span>+50</span>
+  </div>
+  <div style="display:flex; gap:6px; margin-top:8px;">
+    <button id="st-reset" style="flex:1; font:600 11px sans-serif; background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:5px 0;">Reset</button>
+    <button id="st-hide" style="flex:1; font:600 11px sans-serif; background:#333; color:#fff; border:1px solid #555; border-radius:6px; padding:5px 0;">Hide</button>
+  </div>
+  <div id="st-dev" style="margin-top:7px; font-size:10px; color:#4Fd0e0; text-align:center; line-height:1.4; border-top:1px solid #444; padding-top:6px; word-break:break-word;">device…</div>
+  <div style="margin-top:6px; font-size:10px; color:#999; text-align:center;">screen-only · drag to test</div>
+</div>
+<script>
+(function(){
+  var tuner = document.getElementById('scale-tuner');
+  var range = document.getElementById('st-range');
+  var valEl = document.getElementById('st-val');
+  var pxEl  = document.getElementById('st-px');
+  if (!tuner || !range) return;
+  tuner.style.display = 'none';
+
+  // Reveal: triple-tap (or long-press) the "· CONFIDENTIAL" footer text.
+  (function(){
+    var hit = document.querySelector('.footer-text');
+    if (!hit) return;
+    hit.style.cursor = 'pointer';
+    function toggle(){
+      tuner.style.display = (tuner.style.display !== 'none') ? 'none' : 'block';
+    }
+    var taps = 0, t;
+    hit.addEventListener('click', function () {
+      taps++; clearTimeout(t);
+      t = setTimeout(function(){ taps = 0; }, 700);
+      if (taps >= 3) { taps = 0; toggle(); }
+    });
+    var lp;
+    hit.addEventListener('touchstart', function () { lp = setTimeout(toggle, 1000); }, {passive:true});
+    hit.addEventListener('touchend',   function () { clearTimeout(lp); });
+    hit.addEventListener('touchmove',  function () { clearTimeout(lp); });
+  })();
+
+  // Device readout.
+  (function(){
+    var devEl = document.getElementById('st-dev');
+    if (!devEl) return;
+    var sw = screen.width || 0, sh = screen.height || 0;
+    var ua = navigator.userAgent || '';
+    var browser;
+    var isStandalone = (navigator.standalone === true) ||
+                       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (/CriOS/.test(ua))        browser = 'Chrome';
+    else if (/FxiOS/.test(ua))   browser = 'Firefox';
+    else if (/EdgiOS/.test(ua))  browser = 'Edge';
+    else if (/Chrome/.test(ua) && !/Edg/.test(ua)) browser = 'Chrome';
+    else if (/Edg/.test(ua))     browser = 'Edge';
+    else if (/Safari/.test(ua))  browser = 'Safari';
+    else                         browser = 'other';
+    if (isStandalone) browser += ' / PWA';
+    function _liveReadout(){
+      var _s = Math.min(screen.width||0, screen.height||0);
+      var _vv = (window.visualViewport && window.visualViewport.width) ? Math.round(window.visualViewport.width) : 0;
+      var _z = (_s>0 && _vv>0) ? (_s/_vv) : 1;
+      var _scale = (typeof window.__printScale === 'number' && window.__printScale > 0) ? window.__printScale : 1;
+      devEl.innerHTML =
+        browser + '<br>' +
+        'screen ' + sw + '×' + sh + '<br>' +
+        'inner ' + window.innerWidth + ' · vv ' + _vv + ' · cw ' + document.documentElement.clientWidth + '<br>' +
+        'dpr ' + (window.devicePixelRatio||'?') + ' · <b>zoom ' + _z.toFixed(2) + 'x</b><br>' +
+        'print scale → <b>×' + _scale.toFixed(2) + '</b>';
+    }
+    window.__stReadout = _liveReadout;
+    _liveReadout();
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', _liveReadout);
+      window.visualViewport.addEventListener('scroll', _liveReadout);
+    }
+    window.addEventListener('resize', _liveReadout);
+  })();
+
+  // Slider drives window.__printScale. 0 = ×1.00; each step ±1% → -50..+50 = ×0.50..×1.50.
+  function apply(n){
+    var scale = 1 + (n / 100);
+    window.__printScale = scale;
+    valEl.textContent = (n > 0 ? '+' : '') + n;
+    pxEl.textContent = 'scale ×' + scale.toFixed(2);
+    if (typeof window.__stReadout === 'function') window.__stReadout();
+  }
+  range.addEventListener('input', function(){ apply(+range.value); });
+  document.getElementById('st-reset').addEventListener('click', function(){ range.value = 0; apply(0); });
+  document.getElementById('st-hide').addEventListener('click', function(){ tuner.style.display = 'none'; });
+  apply(0);
+})();
 </script>
 
 </body>
