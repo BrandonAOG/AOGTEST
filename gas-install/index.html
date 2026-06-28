@@ -1944,9 +1944,17 @@ body.dark-mode .miscues-textarea {
 ================================================================ */
 const THEME_KEY = 'aog_gas_theme';
 function getInitialTheme() {
-  const s = localStorage.getItem(THEME_KEY);
-  if (s) return s;
-  return window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+  try {
+    const s = localStorage.getItem(THEME_KEY);
+    if (s) return s;
+  } catch (e) {}
+  try {
+    if (window.matchMedia) {
+      const m = window.matchMedia('(prefers-color-scheme:dark)');
+      if (m && m.matches) return 'dark';
+    }
+  } catch (e) {}
+  return 'light';
 }
 function applyTheme(t) {
   document.body.classList.toggle('dark-mode', t === 'dark');
@@ -2698,6 +2706,31 @@ function captureAllPages() {
   // Inject print-like styles + desktop layout, strip placeholders
   injectCaptureStyles();
   const restoreLayout = forceDesktopLayout();
+
+  // On phones the ancestors (<html>, <body>, .page-wrapper) stay at the narrow
+  // device width, which clamps the 1050px page and makes the capture render
+  // small/cramped. Force the whole chain to RENDER_W for the duration of the
+  // capture, then restore.
+  const widened = [];
+  function widen(el) {
+    if (!el) return;
+    widened.push({
+      el,
+      width: el.style.width, minWidth: el.style.minWidth, maxWidth: el.style.maxWidth
+    });
+    el.style.setProperty('width', RENDER_W + 'px', 'important');
+    el.style.setProperty('min-width', RENDER_W + 'px', 'important');
+    el.style.setProperty('max-width', RENDER_W + 'px', 'important');
+  }
+  widen(document.documentElement);
+  widen(document.body);
+  document.querySelectorAll('.page-wrapper').forEach(widen);
+  const restoreWidth = () => widened.forEach(({ el, width, minWidth, maxWidth }) => {
+    if (width) el.style.setProperty('width', width); else el.style.removeProperty('width');
+    if (minWidth) el.style.setProperty('min-width', minWidth); else el.style.removeProperty('min-width');
+    if (maxWidth) el.style.setProperty('max-width', maxWidth); else el.style.removeProperty('max-width');
+  });
+
   const placeholderEls = document.querySelectorAll('[placeholder]');
   const savedPlaceholders = Array.from(placeholderEls).map(el => {
     const val = el.getAttribute('placeholder');
@@ -2706,6 +2739,7 @@ function captureAllPages() {
   });
   const cleanup = () => {
     savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val));
+    restoreWidth();
     restoreLayout();
     removeCaptureStyles();
   };
@@ -3349,6 +3383,43 @@ function adjustTopPadding() {
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load', adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
+
+/* ── SAFETY NET: clear any leftover capture state on refresh / bfcache restore.
+   On older iOS, if a capture is interrupted (e.g. the share sheet opens or the
+   app is backgrounded mid-render), inline width overrides on <html>/<body> or
+   the injected capture stylesheet can persist. On the next pageshow that left
+   the page rendered 1050px wide on a phone (looks tiny/broken) or threw on
+   refresh. This strips those artifacts so every load starts clean. ── */
+(function(){
+  function clearCaptureArtifacts(){
+    try {
+      var cps = document.getElementById('capture-print-styles');
+      if (cps && cps.parentNode) cps.parentNode.removeChild(cps);
+    } catch(e){}
+    try {
+      [document.documentElement, document.body].forEach(function(el){
+        if (!el) return;
+        // Only clear the width locks the capture path sets — leave other styles alone.
+        if (el.style && el.style.width && /1050px/.test(el.style.width)) {
+          el.style.removeProperty('width');
+          el.style.removeProperty('min-width');
+          el.style.removeProperty('max-width');
+        }
+      });
+    } catch(e){}
+    try {
+      document.querySelectorAll('.page-wrapper').forEach(function(el){
+        if (el.style && el.style.width && /1050px/.test(el.style.width)) {
+          el.style.removeProperty('width');
+          el.style.removeProperty('min-width');
+          el.style.removeProperty('max-width');
+        }
+      });
+    } catch(e){}
+  }
+  window.addEventListener('pageshow', clearCaptureArtifacts);
+  document.addEventListener('DOMContentLoaded', clearCaptureArtifacts);
+})();
 </script>
 
 
