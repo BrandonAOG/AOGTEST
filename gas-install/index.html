@@ -2640,11 +2640,11 @@ function forceDesktopLayout() {
      Letter height = 11in   → 1359px
      0.15in side margin     → ~18.5px
 ================================================================ */
-const LETTER_W = 1050;              // 8.5in at our render scale
+const LETTER_W = 1050;              // 8.5in at our render scale (123.53 px/in)
 const LETTER_H = 1359;              // 11in  (1050 / 8.5 * 11)
-const LETTER_MARGIN_X = 18.5;       // 0.15in side margins
-const LETTER_MARGIN_TOP = 24.7;     // 0.2in top margin
-const LETTER_MARGIN_BOTTOM = 2;     // thin bottom so content fills vertically
+const LETTER_MARGIN_X = 18.53;      // 0.15in side margins
+const LETTER_MARGIN_TOP = 18.53;    // 0.15in top margin
+const LETTER_MARGIN_BOTTOM = 18.53; // 0.15in bottom margin
 
 /* Composite a rendered page canvas onto a fixed Letter-sized canvas,
    inset by the side/top margins. Content is scaled to fit the printable
@@ -2720,7 +2720,9 @@ function captureAllPages() {
       page.style.minWidth = RENDER_W + 'px';
       setTimeout(() => {
         page.style.height = 'auto';
-        const captureH = Math.max(page.scrollHeight, page.offsetHeight) + 120;
+        // Tight height: avoid baking large trailing whitespace into the source
+        // canvas (that extra blank space makes page 1 scale down and look small).
+        const captureH = Math.max(page.scrollHeight, page.offsetHeight) + 8;
         html2canvas(page, {
           scale: 2, useCORS: true, backgroundColor: '#fff',
           logging: false, width: RENDER_W,
@@ -2844,7 +2846,7 @@ function saveForIPhone() {
     page.style.minWidth = RENDER_W + 'px';
     setTimeout(() => {
       page.style.height = 'auto';
-      const captureH = Math.max(page.scrollHeight, page.offsetHeight) + 120;
+      const captureH = Math.max(page.scrollHeight, page.offsetHeight) + 8;
       html2canvas(page, {
         scale: 2, useCORS: true, backgroundColor: '#fff',
         logging: false, width: RENDER_W,
@@ -2920,7 +2922,7 @@ function saveForAndroid() {
       // Use scrollHeight with a generous buffer to prevent bottom clipping
       // Force reflow then measure — width change makes page taller
       page.style.height = "auto";
-      const captureH = Math.max(page.scrollHeight, page.offsetHeight) + 120;
+      const captureH = Math.max(page.scrollHeight, page.offsetHeight) + 8;
       html2canvas(page, {
         scale: 2, useCORS: true, backgroundColor: '#fff',
         logging: false, width: RENDER_W,
