@@ -120,39 +120,44 @@ body.dark-mode {
      Larger fallback so the bar still clears the status bar if the inset fails to resolve. */
   padding-top: constant(safe-area-inset-top, 4px);
   padding-top: max(4px, env(safe-area-inset-top, 4px));
-  display: flex; justify-content: center; gap: 4px; flex-wrap: nowrap; align-items: center;
+  display: flex; justify-content: flex-start; gap: 6px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
   box-shadow: 0 4px 18px rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border-bright);
   transition: background-color 0.3s ease; box-sizing: border-box;
 }
 
+/* slim scrollbar for the toolbar (WebKit) */
+.action-bar::-webkit-scrollbar { height: 4px; }
+.action-bar::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
+
 .action-bar .btn {
-  padding: 6px 8px;
-  font-size: 10px;
-  flex: 1;
-  min-width: 0;
+  padding: 8px 14px;
+  font-size: 12px;
+  flex: 0 0 auto;
+  min-width: max-content;
   text-align: center;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .action-bar .theme-toggle-btn {
   flex-shrink: 0;
 }
 
-/* Shrink button text on small phones */
+/* Keep buttons readable on phones — they scroll instead of shrinking */
 @media (max-width: 480px) {
-  .action-bar { padding: 4px 4px; gap: 3px; }
-  .action-bar .btn { padding: 6px 4px; font-size: 9px; }
+  .action-bar { padding: 4px 6px; gap: 6px; }
+  .action-bar .btn { padding: 8px 12px; font-size: 12px; }
 }
 
-/* Very small screens — hide emoji, keep text */
 @media (max-width: 360px) {
-  .action-bar .btn { font-size: 8px; padding: 6px 3px; letter-spacing: 0; }
+  .action-bar .btn { font-size: 11px; padding: 8px 10px; letter-spacing: 0; }
 }
 
-@media (max-width: 768px) { .action-bar { padding: 4px 6px; gap: 4px; } }
+@media (max-width: 768px) { .action-bar { padding: 4px 6px; gap: 6px; } }
 
 /* Under 480px: put "Team Member" + input on one line, and "Double Checked By" + input on the next line */
 @media screen and (max-width: 480px) {
