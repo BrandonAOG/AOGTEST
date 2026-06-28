@@ -2289,6 +2289,15 @@ function pdfSafeText(v) {
 }
 
 // ── GENERATE FILLABLE PDF ───────────────────────────────────────────────
+// Reusable: trigger a direct file download from a Blob.
+function _downloadBlob(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
 async function saveFillablePdf() {
   if (typeof PDFLib === 'undefined') {
     setStatus('PDF library not loaded — try refreshing.');
@@ -2337,14 +2346,39 @@ async function saveFillablePdf() {
     var fname = getEstimateFilename ? getEstimateFilename('pdf') : 'Estimate.pdf';
     fname = fname.replace(/\.pdf$/i, '') + ' - RESUMABLE.pdf';
     var blob = new Blob([bytes], { type: 'application/pdf' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = fname;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 
-    setStatus('Resumable PDF saved: ' + fname);
-    setTimeout(function(){ setStatus(''); }, 4000);
+    // On phones/tablets that support file sharing, pull up the native share
+    // sheet (Save to Files, Messages, Mail…) — same behavior as CAPTURE.
+    // Everywhere else, fall back to a direct download.
+    var didShare = false;
+    if (typeof canShareFiles === 'function' && canShareFiles()) {
+      try {
+        var pdfFile = new File([blob], fname, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+          didShare = true;
+          setStatus('Opening share sheet…');
+          try {
+            await navigator.share({ files: [pdfFile] });
+            setStatus('');
+          } catch (shErr) {
+            if (shErr && shErr.name === 'AbortError') {
+              setStatus(''); // user cancelled the share sheet
+            } else {
+              // Sharing failed for another reason → download instead.
+              _downloadBlob(blob, fname);
+              setStatus('Resumable PDF saved: ' + fname);
+              setTimeout(function(){ setStatus(''); }, 4000);
+            }
+          }
+        }
+      } catch (e) { didShare = false; }
+    }
+
+    if (!didShare) {
+      _downloadBlob(blob, fname);
+      setStatus('Resumable PDF saved: ' + fname);
+      setTimeout(function(){ setStatus(''); }, 4000);
+    }
   } catch (err) {
     setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
     setTimeout(function(){ setStatus(''); }, 6000);
