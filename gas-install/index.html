@@ -2696,6 +2696,50 @@ function toLetterCanvas(srcCanvas, scale, fillHeight) {
 }
 
 /* ================================================================
+   SHARED WIDE-CAPTURE SETUP
+   Forces a wide (landscape) layout viewport + widens the ancestor chain so
+   html2canvas renders the full 8.5×11 desktop layout regardless of the device
+   orientation or screen width. Returns a teardown fn that restores everything.
+   Used by ALL capture paths (EDIT PDF / share, and the old-iOS & Android
+   fallbacks) so they all look identical.
+================================================================ */
+function _beginWideCapture(RENDER_W) {
+  RENDER_W = RENDER_W || 1050;
+
+  // 1) Viewport meta → fixed wide width, so @media (max-width:…) rules evaluate
+  //    as if on a wide screen even in portrait on old iOS.
+  const metaVP = document.querySelector('meta[name="viewport"]');
+  const origVP = metaVP ? metaVP.getAttribute('content') : null;
+  if (metaVP) metaVP.setAttribute('content', 'width=' + RENDER_W + ', initial-scale=1.0');
+
+  // 2) Widen <html>, <body>, .page-wrapper so the 1050px page isn't clamped.
+  const widened = [];
+  function widen(el) {
+    if (!el) return;
+    widened.push({ el, width: el.style.width, minWidth: el.style.minWidth, maxWidth: el.style.maxWidth });
+    el.style.setProperty('width', RENDER_W + 'px', 'important');
+    el.style.setProperty('min-width', RENDER_W + 'px', 'important');
+    el.style.setProperty('max-width', RENDER_W + 'px', 'important');
+  }
+  widen(document.documentElement);
+  widen(document.body);
+  document.querySelectorAll('.page-wrapper').forEach(widen);
+
+  // teardown
+  return function endWideCapture() {
+    widened.forEach(({ el, width, minWidth, maxWidth }) => {
+      if (width) el.style.setProperty('width', width); else el.style.removeProperty('width');
+      if (minWidth) el.style.setProperty('min-width', minWidth); else el.style.removeProperty('min-width');
+      if (maxWidth) el.style.setProperty('max-width', maxWidth); else el.style.removeProperty('max-width');
+    });
+    if (metaVP) {
+      if (origVP) metaVP.setAttribute('content', origVP);
+      else metaVP.removeAttribute('content');
+    }
+  };
+}
+
+/* ================================================================
    CAPTURE ALL PAGES → array of Letter-sized canvases
    Shared by the smart-share path and the fallbacks.
 ================================================================ */
@@ -2707,46 +2751,8 @@ function captureAllPages() {
   injectCaptureStyles();
   const restoreLayout = forceDesktopLayout();
 
-  // ── Force a wide (landscape) layout viewport during capture. ──
-  // The page's media queries (e.g. @media max-width:480px) evaluate against the
-  // VIEWPORT width, not element width. In portrait the viewport is ~390px, so
-  // the narrow/mobile CSS fires and the capture comes out distorted — even
-  // though we force element widths to 1050px. In landscape the viewport is wide
-  // enough that the desktop rules apply and it looks right. Overriding the
-  // viewport meta to a fixed 1050px makes portrait behave exactly like landscape.
-  const metaVP = document.querySelector('meta[name="viewport"]');
-  const origVP = metaVP ? metaVP.getAttribute('content') : null;
-  if (metaVP) metaVP.setAttribute('content', 'width=' + RENDER_W + ', initial-scale=1.0');
-  const restoreViewport = () => {
-    if (metaVP) {
-      if (origVP) metaVP.setAttribute('content', origVP);
-      else metaVP.removeAttribute('content');
-    }
-  };
-
-  // On phones the ancestors (<html>, <body>, .page-wrapper) stay at the narrow
-  // device width, which clamps the 1050px page and makes the capture render
-  // small/cramped. Force the whole chain to RENDER_W for the duration of the
-  // capture, then restore.
-  const widened = [];
-  function widen(el) {
-    if (!el) return;
-    widened.push({
-      el,
-      width: el.style.width, minWidth: el.style.minWidth, maxWidth: el.style.maxWidth
-    });
-    el.style.setProperty('width', RENDER_W + 'px', 'important');
-    el.style.setProperty('min-width', RENDER_W + 'px', 'important');
-    el.style.setProperty('max-width', RENDER_W + 'px', 'important');
-  }
-  widen(document.documentElement);
-  widen(document.body);
-  document.querySelectorAll('.page-wrapper').forEach(widen);
-  const restoreWidth = () => widened.forEach(({ el, width, minWidth, maxWidth }) => {
-    if (width) el.style.setProperty('width', width); else el.style.removeProperty('width');
-    if (minWidth) el.style.setProperty('min-width', minWidth); else el.style.removeProperty('min-width');
-    if (maxWidth) el.style.setProperty('max-width', maxWidth); else el.style.removeProperty('max-width');
-  });
+  // Force wide (landscape) layout viewport + widen ancestors for the duration.
+  const endWide = _beginWideCapture(RENDER_W);
 
   const placeholderEls = document.querySelectorAll('[placeholder]');
   const savedPlaceholders = Array.from(placeholderEls).map(el => {
@@ -2756,8 +2762,7 @@ function captureAllPages() {
   });
   const cleanup = () => {
     savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val));
-    restoreWidth();
-    restoreViewport();
+    endWide();
     restoreLayout();
     removeCaptureStyles();
   };
@@ -2884,6 +2889,7 @@ function saveForIPhone() {
   // Inject print-like styles so html2canvas matches print output
   injectCaptureStyles();
   const restoreLayout = forceDesktopLayout();
+  const endWide = _beginWideCapture(RENDER_W);
 
   // Remove placeholder attributes entirely
   const placeholderEls = document.querySelectorAll('[placeholder]');
@@ -2892,7 +2898,7 @@ function saveForIPhone() {
     el.removeAttribute('placeholder');
     return { el, val };
   });
-  const restorePlaceholders = () => { savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val)); restoreLayout(); };
+  const restorePlaceholders = () => { savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val)); endWide(); restoreLayout(); };
 
   pages.forEach((page, idx) => {
     const oW = page.style.width, oM = page.style.maxWidth, om = page.style.minWidth;
@@ -2928,7 +2934,7 @@ function saveForIPhone() {
           if (wasDark) document.body.classList.add('dark-mode');
         }
       });
-    }, idx * 150);
+    }, 250 + idx * 150);
   });
   closeBtn.onclick = () => {
     restorePlaceholders();
@@ -2954,6 +2960,8 @@ function saveForAndroid() {
 
   // Inject print-like styles so html2canvas matches print output
   injectCaptureStyles();
+  const restoreLayout = forceDesktopLayout();
+  const endWide = _beginWideCapture(RENDER_W);
 
   // Remove placeholder attributes entirely
   const placeholderEls = document.querySelectorAll('[placeholder]');
@@ -2964,6 +2972,8 @@ function saveForAndroid() {
   });
   const restorePlaceholders = () => {
     savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val));
+    endWide();
+    restoreLayout();
     removeCaptureStyles();
     restoreDark();
   };
@@ -3003,7 +3013,7 @@ function saveForAndroid() {
         restorePlaceholders();
         setStatus('Error rendering page ' + (idx + 1));
       });
-    }, idx * 150);
+    }, 250 + idx * 150);
   });
 }
 
