@@ -16,6 +16,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <title>Always On Generators - Maintenance Report</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
 <link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#FBBF24">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1341,13 +1342,6 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   transition: background-color 0.3s ease;
   box-sizing: border-box;
 }
-/* Installed PWA (home-screen) on iOS: env(safe-area-inset-top) is unreliable in
-   standalone mode (reports 0 on iOS 14 under the notch), so use a hardcoded
-   status-bar clearance, taking the larger of the inset or 47px on newer devices.
-   The page's top padding is then measured to match the bar by adjustTopPadding(). */
-body.pwa-standalone .action-bar {
-  padding-top: max(47px, env(safe-area-inset-top, 47px)) !important;
-}
 body.dark-mode .action-bar {
   background: linear-gradient(90deg,rgba(15,21,53,0.9) 0%,rgba(26,40,71,0.8) 50%,rgba(15,21,53,0.9) 100%);
   border-bottom-color: rgba(0,255,200,0.25);
@@ -1365,6 +1359,9 @@ body.dark-mode .action-bar {
   <a class="btn" href="../" style="text-decoration:none;">🏠 HOME</a>
   <button class="btn" onclick="openPrintPreview()">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
+  <button class="btn" id="btn-editpdf" onclick="saveFillablePdf()">📝 EDIT PDF</button>
+  <button class="btn" onclick="document.getElementById('load-draft-input').click()">📂 LOAD</button>
+  <input type="file" id="load-draft-input" accept=".json,.pdf" style="display:none;" onchange="loadDraftFile(this)">
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1383,18 +1380,6 @@ body.dark-mode .action-bar {
 
 <script>
 (function () {
-  // Installed-PWA (home-screen) mode. On iOS 14 standalone, env(safe-area-inset-top)
-  // wrongly reports 0 under the notch/status bar, so a fixed top bar slips beneath
-  // it. Tag the document so CSS can apply a hardcoded status-bar clearance.
-  try {
-    var _standalone = (navigator.standalone === true) ||
-      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-    if (_standalone) {
-      document.documentElement.classList.add('pwa-standalone');
-      if (document.body) { document.body.classList.add('pwa-standalone'); }
-      else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('pwa-standalone'); }); }
-    }
-  } catch (e) {}
   var ua = navigator.userAgent;
   var html = document.documentElement;
   var isCriOS    = /CriOS/.test(ua);                                          // Chrome on iPhone/iPad (WebKit under the hood)
@@ -1472,6 +1457,9 @@ body.dark-mode .action-bar {
   <div class="toolbar">
     <button class="btn" onclick="openPrintPreview()">📄 PDF</button>
     <button class="btn" onclick="saveSmart()">📸 CAPTURE</button>
+    <button class="btn" onclick="saveFillablePdf()">📝 EDIT PDF</button>
+    <button class="btn" onclick="document.getElementById('load-draft-input-2').click()">📂 LOAD</button>
+    <input type="file" id="load-draft-input-2" accept=".json,.pdf" style="display:none;" onchange="loadDraftFile(this)">
     <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   </div>
 
@@ -1975,6 +1963,204 @@ function restoreDraft() {
       }
     });
   } catch (e) {}
+}
+
+/* ================================================================
+   EDIT PDF — resumable PDF (image capture + embedded JSON)
+   Renders the form via capturePageToCanvas() into a US-Letter PDF,
+   then embeds the full draft state TWICE for a lossless reload:
+     • as a file attachment  (maintenance-data.json)
+     • in the PDF Keywords    (AOGDATA:<base64 json>)
+   The 📂 LOAD button reads either channel back and refills the form.
+================================================================ */
+function collectDraftData() {
+  const data = {};
+  document.querySelectorAll('input, textarea').forEach(el => {
+    const key = el.id || el.name;
+    if (!key) return;
+    if (el.type === 'checkbox') {
+      if (!data[key]) data[key] = [];
+      if (el.checked) data[key].push(el.value);
+    } else if (el.type === 'radio') {
+      if (el.checked) data[key] = el.value;
+    } else {
+      if (data[key] === undefined) data[key] = el.value;
+    }
+  });
+  return data;
+}
+
+function applyDraftData(data) {
+  if (!data) return;
+  document.querySelectorAll('input, textarea').forEach(el => {
+    const key = el.id || el.name;
+    if (!key || data[key] === undefined) return;
+    if (el.type === 'checkbox') {
+      if (Array.isArray(data[key])) el.checked = data[key].includes(el.value);
+    } else if (el.type === 'radio') {
+      if (el.value === data[key]) el.checked = true;
+    } else {
+      el.value = data[key];
+    }
+    const w = el.parentElement;
+    if (w && w.classList.contains('yn-checkbox-wrap')) w.classList.toggle('checked', el.checked);
+  });
+}
+
+function _downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function _editPdfFilename() {
+  try {
+    return buildReportFilename().replace(/\.(jpe?g|png|pdf)$/i, '') + '_RESUMABLE.pdf';
+  } catch (e) { return 'Maintenance_Report_RESUMABLE.pdf'; }
+}
+
+async function saveFillablePdf() {
+  if (typeof PDFLib === 'undefined') {
+    setStatus('PDF library not loaded - try refreshing.');
+    setTimeout(() => setStatus(''), 5000);
+    return;
+  }
+  if (typeof html2canvas === 'undefined') {
+    setStatus('Capture library not loaded - try refreshing.');
+    setTimeout(() => setStatus(''), 5000);
+    return;
+  }
+  setStatus('Building resumable PDF...');
+
+  const wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+
+  try {
+    saveDraft();
+    const data = collectDraftData();
+
+    const canvas = await capturePageToCanvas();
+
+    const { PDFDocument } = PDFLib;
+    const pdfDoc = await PDFDocument.create();
+    const PAGE_W = 612; // US Letter width (pt)
+
+    const imgData = canvas.toDataURL('image/png');
+    const pngBytes = Uint8Array.from(atob(imgData.split(',')[1]), c => c.charCodeAt(0));
+    const png = await pdfDoc.embedPng(pngBytes);
+    const scale = PAGE_W / png.width;
+    const PAGE_H = png.height * scale;
+    const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    page.drawImage(png, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+
+    const jsonStr = JSON.stringify(data);
+    try { await pdfDoc.attach(new TextEncoder().encode(jsonStr), 'maintenance-data.json', {
+      mimeType: 'application/json', description: 'Always On Generators - form data (do not delete)' }); } catch(e) {}
+    try { pdfDoc.setKeywords([ 'AOGDATA:' + btoa(unescape(encodeURIComponent(jsonStr))) ]); } catch(e) {}
+    try { pdfDoc.setTitle('Always On Generators - Generator Maintenance Report'); } catch(e) {}
+
+    const bytes = await pdfDoc.save();
+    if (wasDark) document.body.classList.add('dark-mode');
+
+    const fname = _editPdfFilename();
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+
+    let didShare = false;
+    const isMobileOS = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isMobileOS && typeof canShareFiles === 'function' && canShareFiles()) {
+      try {
+        const pdfFile = new File([blob], fname, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+          didShare = true;
+          setStatus('Opening share sheet...');
+          try {
+            await navigator.share({ files: [pdfFile] });
+            setStatus('');
+          } catch (shErr) {
+            if (shErr && shErr.name === 'AbortError') { setStatus(''); }
+            else { _downloadBlob(blob, fname); setStatus('Resumable PDF saved: ' + fname); setTimeout(() => setStatus(''), 4000); }
+          }
+        }
+      } catch (e) { didShare = false; }
+    }
+
+    if (!didShare) {
+      _downloadBlob(blob, fname);
+      setStatus('Resumable PDF saved: ' + fname);
+      setTimeout(() => setStatus(''), 4000);
+    }
+  } catch (err) {
+    if (wasDark) document.body.classList.add('dark-mode');
+    setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
+    setTimeout(() => setStatus(''), 6000);
+  }
+}
+
+/* LOAD: accepts a .json draft OR a resumable .pdf and refills the form */
+function loadDraftFile(input) {
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const name = file.name || '';
+  const reset = () => { try { input.value = ''; } catch(e){} };
+
+  if (/\.pdf$/i.test(name)) {
+    const rp = new FileReader();
+    rp.onload = () => loadFromFillablePdf(new Uint8Array(rp.result), name).then(reset, reset);
+    rp.onerror = () => { setStatus('Could not read that PDF.'); setTimeout(() => setStatus(''), 5000); reset(); };
+    rp.readAsArrayBuffer(file);
+    return;
+  }
+
+  const rj = new FileReader();
+  rj.onload = () => {
+    try {
+      applyDraftData(JSON.parse(rj.result));
+      saveDraft();
+      setStatus('Loaded draft: ' + name);
+      setTimeout(() => setStatus(''), 4000);
+    } catch (e) {
+      setStatus('That file is not a valid draft.');
+      setTimeout(() => setStatus(''), 5000);
+    }
+    reset();
+  };
+  rj.onerror = () => { setStatus('Could not read that file.'); setTimeout(() => setStatus(''), 5000); reset(); };
+  rj.readAsText(file);
+}
+
+async function loadFromFillablePdf(bytes, fname) {
+  if (typeof PDFLib === 'undefined') {
+    setStatus('PDF library not loaded - try refreshing.');
+    setTimeout(() => setStatus(''), 5000);
+    return;
+  }
+  setStatus('Reading PDF...');
+  try {
+    const pdfDoc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true });
+    let data = null;
+    try {
+      const kw = pdfDoc.getKeywords();
+      const kwStr = Array.isArray(kw) ? kw.join(' ') : (kw || '');
+      const m = kwStr.match(/AOGDATA:([A-Za-z0-9+/=]+)/);
+      if (m) data = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+    } catch(e) {}
+
+    if (!data) {
+      setStatus('No saved form data found in that PDF.');
+      setTimeout(() => setStatus(''), 5000);
+      return;
+    }
+
+    applyDraftData(data);
+    saveDraft();
+    setStatus('Loaded from PDF: ' + fname);
+    setTimeout(() => setStatus(''), 4000);
+  } catch (err) {
+    setStatus('Error reading PDF - file may be invalid.');
+    setTimeout(() => setStatus(''), 6000);
+  }
 }
 
 function clearForm() {
