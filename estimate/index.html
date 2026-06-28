@@ -1217,7 +1217,7 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
 body.mobile-safari { -webkit-print-color-adjust: exact; }
 
 @media print {
-  @page { size: 8.7in 11in; margin: 0.15in 0.15in 0.06in 0.15in !important; }
+  @page { size: 8.5in 11in; margin: 0.15in 0.15in 0.06in 0.15in !important; }
   html {
     height: auto !important; margin: 0 !important; padding: 0 !important;
     overflow: visible !important;
@@ -2776,7 +2776,38 @@ function openPrintPreview() {
     var body = document.body;
     var page = document.getElementById('page');
 
+    // ── iOS page-zoom (Aa %) compensation ───────────────────────────────
+    // The Aa zoom menu (50%–200%) scales the layout viewport: at zoom Z the
+    // CSS-pixel viewport width = deviceWidth / Z. iOS print samples that
+    // viewport, so a non-100% zoom changes how the stamped sheet fills the
+    // page — making the PDF look different per user. We measure Z and divide
+    // it out so the print sheet always lays out as if at 100%, no matter the
+    // user's zoom. Probe: a fixed 100vw-independent element vs the real device
+    // width. We compare document.documentElement.clientWidth (CSS px, zoomed)
+    // against the device's physical portrait width derived from screen + DPR.
     var _ipadPath = (isIPad || isIPadNav);
+    var _zoom = 1;
+    try {
+      var _devW = Math.min(screen.width || 0, screen.height || 0) || 0;
+      var _vvW = (window.visualViewport && window.visualViewport.width)
+                 ? window.visualViewport.width
+                 : (html.clientWidth || window.innerWidth || 0);
+      if (_ipadPath) {
+        // ── iPad zoom branch ──────────────────────────────────────────────
+        // iPad's layout viewport (~1093px in PWA) and zoom mechanics differ
+        // from the phone. Until we confirm the Safari numbers, iPad uses the
+        // same ratio but is isolated here so its formula can diverge.
+        if (_devW > 0 && _vvW > 0) _zoom = _devW / _vvW;
+      } else {
+        // ── iPhone zoom branch ────────────────────────────────────────────
+        // Confirmed working on Chrome (CriOS): screen.width stays fixed in CSS
+        // px while visualViewport.width shrinks with Aa zoom, so the ratio is
+        // the zoom factor. (Safari numbers pending — may need its own path.)
+        if (_devW > 0 && _vvW > 0) _zoom = _devW / _vvW;
+      }
+      if (!isFinite(_zoom) || _zoom <= 0) _zoom = 1;
+      _zoom = Math.max(0.5, Math.min(2.0, _zoom));
+    } catch(e){ _zoom = 1; }
 
     // html / body sizing — locks the print layout inline
     var _isMacIntelPad = document.documentElement.classList.contains('ipad-macintel');
@@ -2785,7 +2816,18 @@ function openPrintPreview() {
     // scaled down harder by iOS, shrinking content so page 1 fits. Wider phones
     // (Plus/Max, >=400px) already print fine, so keep them at 820.
     var _phoneScreenW = Math.min(screen.width || 999, screen.height || 999);
-    var _baseW = 1050; // phones + iPad base print width
+    var _baseW = 1050; // phones + iPad base print width at 100% zoom
+    // ── Zoom correction with per-device damping ────────────────────────────
+    // Applying the FULL measured zoom over-corrects on iPhone Safari: at 115%
+    // the sheet came out too wide and printed small/centered. Safari's own
+    // print pipeline already absorbs most of the zoom, so we only apply a
+    // FRACTION of it. effectiveZoom = 1 + (_zoom - 1) * DAMP.
+    //   DAMP = 0  → ignore zoom entirely (always behave as 100%)
+    //   DAMP = 1  → full correction (old behavior, over-shoots on Safari)
+    var _DAMP_PHONE = 0.0;   // iPhone Safari already compensates → 0 (confirmed good)
+    var _DAMP_IPAD  = 0.0;   // testing: try same as iPhone — iPad may self-compensate too
+    var _damp = _ipadPath ? _DAMP_IPAD : _DAMP_PHONE;
+    var _effZoom = 1 + (_zoom - 1) * _damp;
     // ── Page scale: slider-driven, applied via root font-size (reflow-based).
     // Folding the scale into the stamped rem baseline grows/shrinks the whole
     // sheet AND reflows it (lines re-wrap, pagination stays clean) — no CSS
@@ -2797,8 +2839,8 @@ function openPrintPreview() {
     var _fsBase = _ipadPath ? 20 : (isMobileSafari ? 20 : 18);
     var _stampFS = _fsBase * _pScale;
 
-    // ── Width: HARD-LOCKED at the base. ────────────────────────────────────
-    var _corrW = _baseW;
+    // ── Width: HARD-LOCKED at the zoom-corrected base. ─────────────────────
+    var _corrW = Math.round(_baseW * _effZoom);
     var _printW = _corrW + 'px';
     var _widthGrow = 1; // diagnostic only
 
@@ -2813,8 +2855,10 @@ function openPrintPreview() {
       var _diag = document.getElementById('st-px');
       if (_diag) _diag.textContent = 'scale ×' + _pScale.toFixed(2);
       var _eff = getComputedStyle(html).fontSize;
+      var _diag2 = document.getElementById('st-val');
+      if (_diag2) _diag2.textContent = 'zoom ' + _zoom.toFixed(2) + 'x';
       var _devEl = document.getElementById('st-dev');
-      if (_devEl) _devEl.innerHTML += '<br>→ width <b>' + _corrW + 'px</b> | scale <b>×' + _pScale.toFixed(2) + '</b>' +
+      if (_devEl) _devEl.innerHTML += '<br>→ width <b>' + _corrW + 'px</b> | scale <b>×' + _pScale.toFixed(2) + '</b> | meas ' + Math.round(_zoom*100) + '% eff ' + Math.round(_effZoom*100) + '% damp ' + _damp +
         '<br>raw: screen=' + (Math.min(screen.width||0,screen.height||0)) +
         ' vv=' + ((window.visualViewport&&window.visualViewport.width)?Math.round(window.visualViewport.width):'?') +
         ' inner=' + window.innerWidth +
@@ -5983,12 +6027,13 @@ setTimeout(adjustTopPadding, 600);
     function _liveReadout(){
       var _s = Math.min(screen.width||0, screen.height||0);
       var _vv = (window.visualViewport && window.visualViewport.width) ? Math.round(window.visualViewport.width) : 0;
+      var _z = (_s>0 && _vv>0) ? (_s/_vv) : 1;
       var _scale = (typeof window.__printScale === 'number' && window.__printScale > 0) ? window.__printScale : 1;
       devEl.innerHTML =
         type + ' · ' + browser + '<br>' +
         'screen ' + sw + '×' + sh + '<br>' +
         'inner ' + window.innerWidth + ' · vv ' + _vv + ' · cw ' + document.documentElement.clientWidth + '<br>' +
-        'dpr ' + (window.devicePixelRatio||'?') + '<br>' +
+        'dpr ' + (window.devicePixelRatio||'?') + ' · <b>zoom ' + _z.toFixed(2) + 'x</b><br>' +
         'print scale → <b>×' + _scale.toFixed(2) + '</b>';
     }
     window.__stReadout = _liveReadout;
