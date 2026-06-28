@@ -1026,6 +1026,11 @@ body.dark-mode input[type="date"], body.dark-mode input[type="number"], body.dar
 }
 
 input[type="date"] { min-height: var(--h-phone-input-date); padding: var(--pd-phone-input-date); cursor: pointer; color-scheme: light; }
+/* Old iOS renders "mm/dd/yyyy" (shows as ///) inside an empty date input.
+   When empty we tag it .date-empty and make its own text transparent so the
+   slashes don't show; the value reappears the moment a date is picked. */
+input[type="date"].date-empty { color: transparent !important; }
+input[type="date"].date-empty::-webkit-datetime-edit { color: transparent !important; }
 body.dark-mode input[type="date"] { color-scheme: dark; }
 input::placeholder, textarea::placeholder { color: var(--text-dim) !important; opacity: 1; }
 body.dark-mode input::placeholder, body.dark-mode textarea::placeholder { color: rgba(125,211,252,0.4) !important; }
@@ -2168,6 +2173,7 @@ function applyFormData(data) {
       }
     } catch(e) {}
   });
+  if (window._refreshAllDateEmpty) window._refreshAllDateEmpty();
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -3809,6 +3815,12 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
             _phStyle.textContent = 'input::placeholder,textarea::placeholder{color:transparent!important;opacity:0!important;}' +
               'input::-webkit-input-placeholder,textarea::-webkit-input-placeholder{color:transparent!important;opacity:0!important;}';
             clonedDoc.head.appendChild(_phStyle);
+            // Empty date inputs render "mm/dd/yyyy" (/// on old iOS). In the
+            // clone, demote empty ones to plain text inputs so nothing shows;
+            // filled ones keep their value.
+            clonedDoc.querySelectorAll('input[type="date"]').forEach(function(d){
+              if (!d.value) { try { d.setAttribute('type', 'text'); d.value = ''; } catch(e){} }
+            });
             // Strip dark-mode and seasonal classes + their style tags from clone
             var cb = clonedDoc.body;
             cb.classList.remove('dark-mode');
@@ -5463,10 +5475,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
   restoreDraft();
 
+  // Tag empty date inputs so the native "mm/dd/yyyy" (the /// on old iOS) is
+  // hidden until a date is actually chosen. Re-checked on every change.
+  (function () {
+    function refreshDateEmpty(el) {
+      if (!el) return;
+      if (el.value) el.classList.remove('date-empty');
+      else el.classList.add('date-empty');
+    }
+    var dates = document.querySelectorAll('input[type="date"]');
+    dates.forEach(function (el) {
+      refreshDateEmpty(el);
+      el.addEventListener('input',  function () { refreshDateEmpty(el); });
+      el.addEventListener('change', function () { refreshDateEmpty(el); });
+    });
+    // Expose so other code (e.g. after applyFormData) can re-sync.
+    window._refreshAllDateEmpty = function () {
+      document.querySelectorAll('input[type="date"]').forEach(refreshDateEmpty);
+    };
+  })();
+
   var todayInput  = document.getElementById('today');
   var estDoneOn   = document.getElementById('est_done_on');
   if (todayInput  && !todayInput.value)  todayInput.value  = todayStr;
   if (estDoneOn   && !estDoneOn.value)   estDoneOn.value   = todayStr;
+  if (window._refreshAllDateEmpty) window._refreshAllDateEmpty();
 
   if (!navigator.onLine) { document.body.classList.add('offline'); }
   injectSeasonalStyles();
