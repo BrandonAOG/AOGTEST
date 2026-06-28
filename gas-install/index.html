@@ -2707,6 +2707,23 @@ function captureAllPages() {
   injectCaptureStyles();
   const restoreLayout = forceDesktopLayout();
 
+  // ── Force a wide (landscape) layout viewport during capture. ──
+  // The page's media queries (e.g. @media max-width:480px) evaluate against the
+  // VIEWPORT width, not element width. In portrait the viewport is ~390px, so
+  // the narrow/mobile CSS fires and the capture comes out distorted — even
+  // though we force element widths to 1050px. In landscape the viewport is wide
+  // enough that the desktop rules apply and it looks right. Overriding the
+  // viewport meta to a fixed 1050px makes portrait behave exactly like landscape.
+  const metaVP = document.querySelector('meta[name="viewport"]');
+  const origVP = metaVP ? metaVP.getAttribute('content') : null;
+  if (metaVP) metaVP.setAttribute('content', 'width=' + RENDER_W + ', initial-scale=1.0');
+  const restoreViewport = () => {
+    if (metaVP) {
+      if (origVP) metaVP.setAttribute('content', origVP);
+      else metaVP.removeAttribute('content');
+    }
+  };
+
   // On phones the ancestors (<html>, <body>, .page-wrapper) stay at the narrow
   // device width, which clamps the 1050px page and makes the capture render
   // small/cramped. Force the whole chain to RENDER_W for the duration of the
@@ -2740,6 +2757,7 @@ function captureAllPages() {
   const cleanup = () => {
     savedPlaceholders.forEach(({ el, val }) => el.setAttribute('placeholder', val));
     restoreWidth();
+    restoreViewport();
     restoreLayout();
     removeCaptureStyles();
   };
@@ -2752,6 +2770,9 @@ function captureAllPages() {
       page.style.width = RENDER_W + 'px';
       page.style.maxWidth = RENDER_W + 'px';
       page.style.minWidth = RENDER_W + 'px';
+      // First page needs extra settle time so the viewport-meta swap (portrait→
+      // wide) fully reflows before html2canvas measures. Later pages are quick.
+      const settle = (idx === 0) ? 250 : 60;
       setTimeout(() => {
         page.style.height = 'auto';
         // Tight height: avoid baking large trailing whitespace into the source
@@ -2769,7 +2790,7 @@ function captureAllPages() {
           page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
           reject(err);
         });
-      }, 60);
+      }, settle);
     }));
   });
   return chain.then(canvases => { cleanup(); return canvases; })
@@ -3415,6 +3436,14 @@ setTimeout(adjustTopPadding, 100);
           el.style.removeProperty('max-width');
         }
       });
+    } catch(e){}
+    // If a capture was interrupted, the viewport meta may be stuck at width=1050,
+    // which renders the live page zoomed/cramped. Reset it to the responsive default.
+    try {
+      var vp = document.querySelector('meta[name="viewport"]');
+      if (vp && /width\s*=\s*1050/.test(vp.getAttribute('content') || '')) {
+        vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover');
+      }
     } catch(e){}
   }
   window.addEventListener('pageshow', clearCaptureArtifacts);
