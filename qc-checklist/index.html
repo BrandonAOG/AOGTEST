@@ -26,6 +26,18 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 
 <script>
 (function() {
+  // Installed-PWA (home-screen) mode. On iOS 14 standalone, env(safe-area-inset-top)
+  // reports 0 under the notch/status bar, so the fixed action bar slips beneath it.
+  // Tag the document so CSS can apply a hardcoded status-bar clearance.
+  try {
+    var _standalone = (navigator.standalone === true) ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (_standalone) {
+      document.documentElement.classList.add('pwa-standalone');
+      if (document.body) { document.body.classList.add('pwa-standalone'); }
+      else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('pwa-standalone'); }); }
+    }
+  } catch (e) {}
   var saved = '';
   try { saved = localStorage.getItem('aog_theme_preference') || ''; } catch(e) {}
   var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -496,6 +508,19 @@ body {
   padding: 6px 10px; padding-top: max(6px, env(safe-area-inset-top, 6px));
   display: flex; gap: 6px; align-items: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+/* Installed PWA (home-screen) on iOS: env(safe-area-inset-top) is unreliable in
+   standalone mode (reports 0 on iOS 14 under the notch). Use a hardcoded status-bar
+   clearance for the fixed bar, and push the content wrapper down by the same amount
+   so nothing hides behind the now-taller bar. */
+body.pwa-standalone .action-bar {
+  padding-top: max(47px, env(safe-area-inset-top, 47px)) !important;
+}
+body.pwa-standalone .wrapper {
+  padding-top: calc(54px + max(47px, env(safe-area-inset-top, 47px)) - 6px) !important;
+}
+body.pwa-standalone #save-status {
+  top: calc(46px + max(47px, env(safe-area-inset-top, 47px)) - 6px) !important;
 }
 /* Narrow phones: let the action bar scroll left/right instead of cramming */
 @media screen and (max-width: 500px) {
