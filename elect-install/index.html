@@ -125,6 +125,12 @@ body.dark-mode {
   border-bottom: 1px solid var(--border-bright);
   transition: background-color 0.3s ease; box-sizing: border-box;
 }
+/* Installed PWA on iOS: env(safe-area-inset-top) is unreliable in standalone
+   (reports 0 on iOS 14). Hardcode the status-bar clearance immediately via CSS;
+   adjustTopPadding() then measures the bar and offsets the page-wrapper to match. */
+body.pwa-standalone .action-bar {
+  padding-top: max(47px, env(safe-area-inset-top, 47px)) !important;
+}
 
 .action-bar .btn {
   padding: 6px 8px;
@@ -1919,6 +1925,20 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
+// Installed-PWA tag: iOS 14 standalone reports env(safe-area-inset-top)=0 under
+// the notch, so the fixed bar hides behind the status bar. CSS keyed on
+// .pwa-standalone applies an immediate hardcoded clearance (no JS-timing wait).
+(function () {
+  try {
+    var _sa = (navigator.standalone === true) ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (_sa) {
+      document.documentElement.classList.add('pwa-standalone');
+      if (document.body) { document.body.classList.add('pwa-standalone'); }
+      else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('pwa-standalone'); }); }
+    }
+  } catch (e) {}
+})();
 // ===== FORCE ACTION BAR TO SCROLL WITH PAGE =====
 
 // ===== THEME =====
@@ -1965,7 +1985,7 @@ function adjustTopPadding() {
     document.body.removeChild(probe);
     if (isStandalone && inset < 20) {
       // env() did not provide a usable inset; use a sensible default that clears the status bar.
-      bar.style.paddingTop = '44px';
+      bar.style.paddingTop = '47px';
     }
   }
   if (bar && wrapper) wrapper.style.paddingTop = bar.offsetHeight + 'px';
@@ -1973,7 +1993,11 @@ function adjustTopPadding() {
 }
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load', adjustTopPadding);
+window.addEventListener('orientationchange', function(){ setTimeout(adjustTopPadding, 150); });
+document.addEventListener('DOMContentLoaded', adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
+setTimeout(adjustTopPadding, 600);
+if (document.fonts && document.fonts.ready) { document.fonts.ready.then(adjustTopPadding); }
 
 // ===== BUILD TABLES =====
 const fittings = [
