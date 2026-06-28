@@ -1402,6 +1402,13 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
   border-bottom: 1px solid var(--border-bright);
   transition: background-color 0.3s ease; box-sizing: border-box;
 }
+/* Installed PWA (home-screen) on iOS: env(safe-area-inset-top) is unreliable in
+   standalone mode (reports 0 on iOS 14 under the notch), so use a hardcoded
+   status-bar clearance, taking the larger of the inset or 47px on newer devices.
+   The page's top padding is then measured to match the bar by adjustTopPadding(). */
+body.pwa-standalone .action-bar {
+  padding-top: max(47px, env(safe-area-inset-top, 47px)) !important;
+}
 body.dark-mode .action-bar {
   background: linear-gradient(90deg, rgba(15,21,53,0.9) 0%, rgba(26,40,71,0.8) 50%, rgba(15,21,53,0.9) 100%);
   border-bottom-color: rgba(0,255,200,0.25);
@@ -1625,6 +1632,17 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
     document.documentElement.classList.add('mobile-safari');
     if (document.body) { document.body.classList.add('mobile-safari'); }
     else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('mobile-safari'); }); }
+  }
+
+  // Installed-PWA (home-screen) mode. On iOS 14 standalone, env(safe-area-inset-top)
+  // wrongly reports 0 under the notch/status bar, so the toolbar slips underneath.
+  // Tag the document so CSS can apply a hardcoded status-bar clearance.
+  var _standalone = (navigator.standalone === true) ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  if (_standalone) {
+    document.documentElement.classList.add('pwa-standalone');
+    if (document.body) { document.body.classList.add('pwa-standalone'); }
+    else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('pwa-standalone'); }); }
   }
 })();
 </script>
@@ -5577,7 +5595,9 @@ function adjustTopPadding() {
 }
 window.addEventListener('resize', adjustTopPadding);
 window.addEventListener('load', adjustTopPadding);
+window.addEventListener('orientationchange', function(){ setTimeout(adjustTopPadding, 150); });
 setTimeout(adjustTopPadding, 100);
+setTimeout(adjustTopPadding, 600);
 
 
 /* ════════════════════════════════════════════════════════════════════════
