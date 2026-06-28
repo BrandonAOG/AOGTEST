@@ -1680,6 +1680,21 @@ body.dark-mode .miscues-textarea {
     font-size: 16px !important;
   }
 
+  /* When preparing the PDF, strip the card chrome so nothing card-like shows
+     during the brief moment before window.print() swaps to print CSS. */
+  body.preparing-print #page1 .two-col {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0 16px !important;
+  }
+  body.preparing-print #page1 .section,
+  body.preparing-print #page1 .top-fields,
+  body.preparing-print #page2 .reg-row {
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
 }
 
 </style>
@@ -1689,7 +1704,7 @@ body.dark-mode .miscues-textarea {
 <!-- ========== ACTION BAR ========== -->
 <div class="action-bar" id="action-bar">
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
-  <button class="btn" onclick="(function(){ document.title = buildFileName('pdf', null).replace('.pdf',''); setTimeout(function(){ window.print(); }, 100); })()">📄 PDF</button>
+  <button class="btn" onclick="(function(){ document.title = buildFileName('pdf', null).replace('.pdf',''); document.body.classList.add('preparing-print'); var clear=function(){ document.body.classList.remove('preparing-print'); }; window.addEventListener('afterprint', function h(){ clear(); window.removeEventListener('afterprint', h); }); setTimeout(clear, 8000); setTimeout(function(){ window.print(); }, 300); })()">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
