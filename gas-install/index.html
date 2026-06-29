@@ -2297,9 +2297,10 @@ function _presentPdfOverlayIOS(blob, filename) {
   closeBtn.onclick = cleanup;
 
   // Share/Save: try the in-page Web Share sheet first (no navigation). If this
-  // iOS build can't share a PDF file that way, fall back to opening the PDF in
-  // a SEPARATE tab — the form's own tab keeps its valid URL, so refreshing the
-  // form never lands on a dead blob: address.
+  // iOS build can't share a PDF file that way, fall back to a self-contained
+  // data: URL. Unlike a blob: URL, a data: URL has no external resource to lose,
+  // so it opens in Safari's PDF viewer (with its own Share button) and does NOT
+  // throw "WebKitBlobResource error 1", and it survives a refresh.
   shareBtn.onclick = async function () {
     const file = new File([blob], filename, { type: 'application/pdf' });
     try {
@@ -2309,14 +2310,21 @@ function _presentPdfOverlayIOS(blob, filename) {
       }
     } catch (e) {
       if (e && e.name === 'AbortError') return; // user cancelled the sheet
-      // otherwise fall through to the new-tab fallback
+      // otherwise fall through to the data: URL fallback
     }
-    // Fallback: open in a new tab so the form tab is never clobbered.
-    const w = window.open(url, '_blank');
-    if (!w) {
-      // Pop-up blocked — last resort, anchor download (may navigate on very old iOS).
-      _downloadBlob(blob, filename);
-    }
+
+    // Fallback: convert to a data: URL and open Safari's PDF viewer.
+    shareBtn.textContent = 'Preparing…';
+    const reader = new FileReader();
+    reader.onload = function () {
+      cleanup();
+      window.location.href = reader.result; // self-contained → refresh-safe
+    };
+    reader.onerror = function () {
+      shareBtn.textContent = '⬆️ Share / Save';
+      _downloadBlob(blob, filename); // last resort
+    };
+    reader.readAsDataURL(blob);
   };
 }
 
