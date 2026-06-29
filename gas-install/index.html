@@ -2267,12 +2267,16 @@ function _presentPdfOverlayIOS(blob, filename) {
   bar.style.cssText = 'width:100%;max-width:640px;display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-shrink:0;';
 
   const note = document.createElement('div');
-  note.style.cssText = 'flex:1;color:#fff;font:600 13px Arial,sans-serif;line-height:1.3;';
-  note.textContent = 'Tap the share / download icon in the viewer below → Save to Files.';
+  note.style.cssText = 'flex:1;color:#fff;font:600 12px Arial,sans-serif;line-height:1.3;';
+  note.textContent = 'Tap Share / Save to send this PDF to Files, Mail, etc.';
+
+  const shareBtn = document.createElement('button');
+  shareBtn.textContent = '⬆️ Share / Save';
+  shareBtn.style.cssText = 'flex:0 0 auto;background:#D35E13;color:#fff;border:none;border-radius:6px;padding:10px 16px;font:bold 14px Arial,sans-serif;cursor:pointer;';
 
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕ Close';
-  closeBtn.style.cssText = 'flex:0 0 auto;background:#DC2626;color:#fff;border:none;border-radius:6px;padding:10px 18px;font:bold 14px Arial,sans-serif;cursor:pointer;';
+  closeBtn.style.cssText = 'flex:0 0 auto;background:#DC2626;color:#fff;border:none;border-radius:6px;padding:10px 16px;font:bold 14px Arial,sans-serif;cursor:pointer;';
 
   const frame = document.createElement('iframe');
   frame.src = url;
@@ -2280,18 +2284,43 @@ function _presentPdfOverlayIOS(blob, filename) {
   frame.style.cssText = 'width:100%;max-width:640px;flex:1 1 auto;border:2px solid #444;border-radius:4px;background:#fff;';
 
   bar.appendChild(note);
+  bar.appendChild(shareBtn);
   bar.appendChild(closeBtn);
   overlay.appendChild(bar);
   overlay.appendChild(frame);
   document.body.appendChild(overlay);
 
-  closeBtn.onclick = function () {
+  function cleanup() {
     overlay.remove();
     setTimeout(() => URL.revokeObjectURL(url), 500);
+  }
+  closeBtn.onclick = cleanup;
+
+  // Share/Save: try the in-page Web Share sheet first (no navigation). If this
+  // iOS build can't share a PDF file that way, fall back to opening the PDF in
+  // a SEPARATE tab — the form's own tab keeps its valid URL, so refreshing the
+  // form never lands on a dead blob: address.
+  shareBtn.onclick = async function () {
+    const file = new File([blob], filename, { type: 'application/pdf' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        await navigator.share({ files: [file] });
+        return; // shared in-page, nothing navigated
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // user cancelled the sheet
+      // otherwise fall through to the new-tab fallback
+    }
+    // Fallback: open in a new tab so the form tab is never clobbered.
+    const w = window.open(url, '_blank');
+    if (!w) {
+      // Pop-up blocked — last resort, anchor download (may navigate on very old iOS).
+      _downloadBlob(blob, filename);
+    }
   };
 }
 
-/* Save the resumable PDF without ever navigating the page on iOS. */
+/* Save the resumable PDF without ever navigating the form page on iOS. */
 function _savePdfBlob(blob, filename) {
   if (isIOSDevice()) _presentPdfOverlayIOS(blob, filename);
   else _downloadBlob(blob, filename);
