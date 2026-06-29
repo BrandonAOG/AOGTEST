@@ -2296,29 +2296,37 @@ function _presentPdfOverlayIOS(blob, filename) {
   }
   closeBtn.onclick = cleanup;
 
-  // Share/Save: try the in-page Web Share sheet first (no navigation). If this
-  // iOS build can't share a PDF file that way, fall back to a self-contained
-  // data: URL. Unlike a blob: URL, a data: URL has no external resource to lose,
-  // so it opens in Safari's PDF viewer (with its own Share button) and does NOT
-  // throw "WebKitBlobResource error 1", and it survives a refresh.
+  // Share/Save. Works across Safari AND home-screen PWA on old iOS:
+  //   1. Try the native Share sheet directly (best path; available in PWAs).
+  //   2. Else build a self-contained data: URL (no "WebKitBlobResource" error).
+  //      • Plain Safari  → navigate the tab to it (shows the PDF + Share button).
+  //      • Standalone PWA → window.open() it, which hands it off to Safari,
+  //        because navigating the app shell itself to a data: URL just blanks.
   shareBtn.onclick = async function () {
     const file = new File([blob], filename, { type: 'application/pdf' });
     try {
-      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+      if (navigator.share) {
         await navigator.share({ files: [file] });
-        return; // shared in-page, nothing navigated
+        return; // shared via the OS sheet — nothing navigated
       }
     } catch (e) {
-      if (e && e.name === 'AbortError') return; // user cancelled the sheet
-      // otherwise fall through to the data: URL fallback
+      if (e && e.name === 'AbortError') return; // user dismissed the sheet
+      // any other error → fall through to the data: URL path
     }
 
-    // Fallback: convert to a data: URL and open Safari's PDF viewer.
     shareBtn.textContent = 'Preparing…';
     const reader = new FileReader();
     reader.onload = function () {
+      const dataUrl = reader.result;
+      const standalone = (navigator.standalone === true) ||
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
       cleanup();
-      window.location.href = reader.result; // self-contained → refresh-safe
+      if (standalone) {
+        const w = window.open(dataUrl, '_blank'); // hands off to Safari from a PWA
+        if (!w) window.location.href = dataUrl;    // pop-up blocked → in-shell
+      } else {
+        window.location.href = dataUrl;            // plain Safari: refresh-safe
+      }
     };
     reader.onerror = function () {
       shareBtn.textContent = '⬆️ Share / Save';
