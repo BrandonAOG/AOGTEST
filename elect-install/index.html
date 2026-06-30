@@ -130,6 +130,14 @@ body.dark-mode {
   transition: background-color 0.3s ease; box-sizing: border-box;
 }
 
+/* On wide screens the buttons fit without scrolling, so center them
+   over the centered page content instead of hugging the left edge of
+   the viewport. Below this width the bar scrolls horizontally, where
+   flex-start must stay so no buttons get pushed out of reach. */
+@media (min-width: 768px) {
+  .action-bar { justify-content: center; }
+}
+
 /* slim scrollbar for the toolbar (WebKit) */
 .action-bar::-webkit-scrollbar { height: 4px; }
 .action-bar::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
@@ -1686,7 +1694,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
   <button class="btn pdf-btn-hidden" id="btn-pdf" onclick="openPrintPreview()">📄 PDF</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
-  <button class="btn" id="btn-editpdf" onclick="saveFillablePdf()">📝 EDIT PDF</button>
+  <button class="btn" id="btn-editpdf" onclick="saveFillablePdf()">📝 PDF✎</button>
   <button class="btn" onclick="document.getElementById('load-draft-input').click()">📂 LOAD</button>
   <input type="file" id="load-draft-input" accept=".json,.pdf" style="display:none;" onchange="loadDraftFile(this)">
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
@@ -2194,9 +2202,10 @@ function clearForm() {
 function buildFilename(ext, pageNum, totalPages) {
   // Pull Customer Name and Address from the top-fields inputs
   const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
-  // Order: Customer Name (0), Date (1), Address (2)
+  // NOTE: the Date field is type="date", so it is NOT matched by input[type="text"].
+  // Text-input order: Customer Name (0), Address (1), Install Truck (2), Job (3), Team Member (4)
   const customerName = (topInputs[0] ? topInputs[0].value.trim() : '') || 'Customer';
-  const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
+  const address      = (topInputs[1] ? topInputs[1].value.trim() : '') || 'Address';
   // Sanitize: replace any character that's not alphanumeric, space, hyphen, or dot
   function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
   const namePart    = sanitize(customerName);
@@ -2210,7 +2219,7 @@ let wasDarkAtPrint = false;
 function openPrintPreview() {
   const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
   const customerName = (topInputs[0] ? topInputs[0].value.trim() : '') || 'Customer';
-  const address      = (topInputs[2] ? topInputs[2].value.trim() : '') || 'Address';
+  const address      = (topInputs[1] ? topInputs[1].value.trim() : '') || 'Address';
   function sanitize(s) { return s.replace(/[^a-zA-Z0-9 \-\.]/g, '').replace(/\s+/g, '_').trim() || 'Unknown'; }
   const origTitle = document.title;
   document.title = `${sanitize(customerName)}_${sanitize(address)}_Elec_Install`;
@@ -5184,6 +5193,67 @@ if ('serviceWorker' in navigator) {
   document.getElementById('st-reset').addEventListener('click', function(){ range.value = 0; apply(0); });
   document.getElementById('st-hide').addEventListener('click', function(){ tuner.style.display = 'none'; });
   apply(0);
+})();
+</script>
+
+<style>
+  /* Clear button injected into each table header */
+  .tbl-clear-btn {
+    margin-left: 6px;
+    font-size: 8px;
+    line-height: 1;
+    padding: 2px 5px;
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 4px;
+    background: rgba(0,0,0,0.18);
+    color: #FFFFFF;
+    cursor: pointer;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .tbl-clear-btn:active { background: rgba(0,0,0,0.35); }
+  body.dark-mode .tbl-clear-btn { border-color: rgba(0,255,200,0.5); color: #00FFC8; }
+  @media print { .tbl-clear-btn { display: none !important; } }
+</style>
+<script>
+(function () {
+  function clearTable(table) {
+    var inputs = table.querySelectorAll('input');
+    inputs.forEach(function (inp) {
+      if (inp.type === 'checkbox' || inp.type === 'radio') inp.checked = false;
+      else inp.value = '';
+      inp.dispatchEvent(new Event('input',  { bubbles: true }));
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
+  function addClearButtons() {
+    var tables = document.querySelectorAll('table.mat-table');
+    tables.forEach(function (table) {
+      var firstTh = table.querySelector('thead th');
+      if (!firstTh || firstTh.querySelector('.tbl-clear-btn')) return;
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tbl-clear-btn no-print';
+      btn.textContent = 'Clear';
+
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var label = (firstTh.textContent || 'this table').trim().replace('Clear', '').trim();
+        var ok = window.confirm('\u26A0\uFE0F Clear ALL entries in "' + label + '"?\n\nThis cannot be undone.');
+        if (ok) clearTable(table);
+      });
+
+      firstTh.appendChild(btn);
+    });
+  }
+
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', addClearButtons);
+  else
+    addClearButtons();
 })();
 </script>
 
