@@ -1968,17 +1968,32 @@ function capturePageToCanvas(pageEl) {
           if (el.type === 'checkbox' || el.type === 'radio') return;
           var px = parseFloat(getComputedStyle(el).fontSize) || 0;
           if (!px) return;
-          // Save the existing inline value + priority so we can restore exactly.
-          _fsSaved.push([el, el.style.getPropertyValue('font-size'), el.style.getPropertyPriority('font-size')]);
-          // !important is required — .info-input (name/date/address) sets
-          // font-size with !important per device, which beats a plain inline value.
-          el.style.setProperty('font-size', (px + 2) + 'px', 'important');
+          var st = el.style;
+          // Save existing inline value + priority for each prop we touch.
+          _fsSaved.push([el,
+            st.getPropertyValue('font-size'),     st.getPropertyPriority('font-size'),
+            st.getPropertyValue('padding-top'),   st.getPropertyPriority('padding-top'),
+            st.getPropertyValue('padding-bottom'),st.getPropertyPriority('padding-bottom'),
+            st.getPropertyValue('line-height'),   st.getPropertyPriority('line-height')]);
+          // Inline + !important so these beat the high-specificity per-device
+          // .info-input rules (which otherwise override the capture stylesheet
+          // and leave the text sitting high above the underline on mobile).
+          st.setProperty('font-size', (px + 2) + 'px', 'important');
+          // Seat the text roughly halfway between the top and the underline
+          // (symmetric padding), with room so descenders don't clip.
+          st.setProperty('line-height', '1.25', 'important');
+          st.setProperty('padding-top', '3px', 'important');
+          st.setProperty('padding-bottom', '3px', 'important');
         });
       }
       function restoreInputFonts() {
         _fsSaved.forEach(function(p){
-          if (p[1]) p[0].style.setProperty('font-size', p[1], p[2] || '');
-          else p[0].style.removeProperty('font-size');
+          var el = p[0], st = el.style;
+          function put(prop, val, pri){ if (val) st.setProperty(prop, val, pri || ''); else st.removeProperty(prop); }
+          put('font-size',      p[1], p[2]);
+          put('padding-top',    p[3], p[4]);
+          put('padding-bottom', p[5], p[6]);
+          put('line-height',    p[7], p[8]);
         });
         _fsSaved = [];
       }
