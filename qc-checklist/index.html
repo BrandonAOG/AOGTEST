@@ -18,6 +18,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <link rel="manifest" href="../manifest.json">
 <script src="../update-banner.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
 <meta name="theme-color" content="#FBBF24">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -26,18 +27,6 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 
 <script>
 (function() {
-  // Installed-PWA (home-screen) mode. On iOS 14 standalone, env(safe-area-inset-top)
-  // reports 0 under the notch/status bar, so the fixed action bar slips beneath it.
-  // Tag the document so CSS can apply a hardcoded status-bar clearance.
-  try {
-    var _standalone = (navigator.standalone === true) ||
-      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-    if (_standalone) {
-      document.documentElement.classList.add('pwa-standalone');
-      if (document.body) { document.body.classList.add('pwa-standalone'); }
-      else { document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('pwa-standalone'); }); }
-    }
-  } catch (e) {}
   var saved = '';
   try { saved = localStorage.getItem('aog_theme_preference') || ''; } catch(e) {}
   var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -509,19 +498,6 @@ body {
   display: flex; gap: 6px; align-items: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
-/* Installed PWA (home-screen) on iOS: env(safe-area-inset-top) is unreliable in
-   standalone mode (reports 0 on iOS 14 under the notch). Use a hardcoded status-bar
-   clearance for the fixed bar, and push the content wrapper down by the same amount
-   so nothing hides behind the now-taller bar. */
-body.pwa-standalone .action-bar {
-  padding-top: max(47px, env(safe-area-inset-top, 47px)) !important;
-}
-body.pwa-standalone .wrapper {
-  padding-top: calc(54px + max(47px, env(safe-area-inset-top, 47px)) - 6px) !important;
-}
-body.pwa-standalone #save-status {
-  top: calc(46px + max(47px, env(safe-area-inset-top, 47px)) - 6px) !important;
-}
 /* Narrow phones: let the action bar scroll left/right instead of cramming */
 @media screen and (max-width: 500px) {
   .action-bar {
@@ -593,7 +569,10 @@ body.offline { padding-top: 0; }
   flex: 1; border: none; border-bottom: 1.5px solid rgba(217,119,6,0.4);
   font-family: var(--font-mono); font-size: var(--fs-phone-info-input);
   color: var(--text); background: transparent; outline: none;
-  min-height: var(--h-phone-info-input); padding: var(--pd-phone-info-input);
+  min-height: 0; box-sizing: border-box; line-height: 1.2;
+  /* Seat the text on the underline: rebuild the old field height as top
+     padding (height − one line) so the single line sits at the bottom. */
+  padding: calc(var(--h-phone-info-input) - 1.25em) 2px 1px;
 }
 .info-row.full { grid-column: 1 / -1; }
 /* Date inputs center their text by default in WebKit — force left align
@@ -685,6 +664,26 @@ input[type="date"].info-input::-webkit-datetime-edit { text-align: left !importa
 .opt input[value="no"],
 .opt input[value="removed"],
 .opt input[value="not_done"]  { accent-color: #DC2626; }
+
+/* ── Selected-label text color: green for good/yes/installed/complete,
+      red for bad/no/removed/not_done. Uses ~ span so it still applies in
+      capture, where a box proxy is inserted between the input and span. ── */
+.opt input[value="good"]:checked ~ span,
+.opt input[value="yes"]:checked ~ span,
+.opt input[value="installed"]:checked ~ span,
+.opt input[value="complete"]:checked ~ span { color: #059669 !important; font-weight: 700; }
+.opt input[value="bad"]:checked ~ span,
+.opt input[value="no"]:checked ~ span,
+.opt input[value="removed"]:checked ~ span,
+.opt input[value="not_done"]:checked ~ span { color: #DC2626 !important; font-weight: 700; }
+body.dark-mode .opt input[value="good"]:checked ~ span,
+body.dark-mode .opt input[value="yes"]:checked ~ span,
+body.dark-mode .opt input[value="installed"]:checked ~ span,
+body.dark-mode .opt input[value="complete"]:checked ~ span { color: #10B981 !important; }
+body.dark-mode .opt input[value="bad"]:checked ~ span,
+body.dark-mode .opt input[value="no"]:checked ~ span,
+body.dark-mode .opt input[value="removed"]:checked ~ span,
+body.dark-mode .opt input[value="not_done"]:checked ~ span { color: #F43F5E !important; }
 
 /* ── X for Bad / No / Not Done (Removed keeps checkmark) ── */
 .opt input[value="bad"],
@@ -788,11 +787,11 @@ body.dark-mode .status-pass:has(input:checked)     { border-color: #10B981; colo
 body.dark-mode .status-fail:has(input:checked)     { border-color: #F43F5E; color: #F43F5E; background: rgba(244,63,94,0.2); }
 body.dark-mode .status-followup:has(input:checked) { border-color: #F59E0B; color: #F59E0B; background: rgba(245,158,11,0.2); }
 .summary-textarea {
-  width: 100%; height: 52px; max-height: 52px; resize: none;
+  width: 100%; min-height: 52px; max-height: none; resize: none;
   border: none; border-bottom: 1.5px solid rgba(217,119,6,0.3);
   background: transparent; font-family: var(--font-body);
   font-size: var(--fs-phone-summary); color: var(--text);
-  padding: 6px 4px; outline: none; box-sizing: border-box; overflow: hidden;
+  padding: 6px 4px; outline: none; box-sizing: border-box; overflow-y: hidden;
 }
 .summary-textarea::placeholder { color: var(--text-dim); }
 body.dark-mode .summary-textarea { color: #E0F7FF !important; border-bottom-color: rgba(0,255,200,0.25) !important; background: transparent !important; }
@@ -849,7 +848,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   body.mobile-safari.ipad-safari .company-name   { font-size: var(--fs-ipad-company) !important; }
   body.mobile-safari.ipad-safari .doc-title      { font-size: var(--fs-ipad-title) !important; }
   body.mobile-safari.ipad-safari .info-label     { font-size: var(--fs-ipad-info-label) !important; }
-  body.mobile-safari.ipad-safari .info-input     { font-size: var(--fs-ipad-info-input) !important; min-height: var(--h-ipad-info-input) !important; padding: var(--pd-ipad-info-input) !important; }
+  body.mobile-safari.ipad-safari .info-input     { font-size: var(--fs-ipad-info-input) !important; min-height: 0 !important; padding: calc(var(--h-ipad-info-input) - 1.25em) 2px 1px !important; }
   body.mobile-safari.ipad-safari .section-header { font-size: var(--fs-ipad-section) !important; padding: var(--pd-ipad-section) !important; }
   body.mobile-safari.ipad-safari .item-label     { font-size: var(--fs-ipad-item) !important; }
   body.mobile-safari.ipad-safari .opt            { font-size: var(--fs-ipad-option) !important; padding: var(--pd-ipad-option) !important; }
@@ -872,7 +871,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   body.mobile-safari:not(.ipad-safari) .company-name   { font-size: var(--fs-iphone-company) !important; }
   body.mobile-safari:not(.ipad-safari) .doc-title      { font-size: var(--fs-iphone-title) !important; }
   body.mobile-safari:not(.ipad-safari) .info-label     { font-size: var(--fs-iphone-info-label) !important; }
-  body.mobile-safari:not(.ipad-safari) .info-input     { font-size: var(--fs-iphone-info-input) !important; min-height: var(--h-iphone-info-input) !important; padding: var(--pd-iphone-info-input) !important; }
+  body.mobile-safari:not(.ipad-safari) .info-input     { font-size: var(--fs-iphone-info-input) !important; min-height: 0 !important; padding: calc(var(--h-iphone-info-input) - 1.25em) 2px 1px !important; }
   body.mobile-safari:not(.ipad-safari) .section-header { font-size: var(--fs-iphone-section) !important; padding: var(--pd-iphone-section) !important; }
   body.mobile-safari:not(.ipad-safari) .item-label     { font-size: var(--fs-iphone-item) !important; }
   body.mobile-safari:not(.ipad-safari) .opt            { font-size: var(--fs-iphone-option) !important; padding: var(--pd-iphone-option) !important; }
@@ -896,7 +895,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   .company-name   { font-size: var(--fs-ipad-company) !important; }
   .doc-title      { font-size: var(--fs-ipad-title) !important; }
   .info-label     { font-size: var(--fs-ipad-info-label) !important; }
-  .info-input     { font-size: var(--fs-ipad-info-input) !important; min-height: var(--h-ipad-info-input) !important; }
+  .info-input     { font-size: var(--fs-ipad-info-input) !important; min-height: 0 !important; padding: calc(var(--h-ipad-info-input) - 1.25em) 2px 1px !important; }
   .section-header { font-size: var(--fs-ipad-section) !important; padding: var(--pd-ipad-section) !important; }
   .item-label     { font-size: var(--fs-ipad-item) !important; }
   .opt            { font-size: var(--fs-ipad-option) !important; }
@@ -907,7 +906,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   .section        { margin-bottom: var(--gap-ipad-sections) !important; }
   .page           { padding: var(--pd-ipad-page) !important; }
   .page-header    { padding: var(--pd-ipad-header) !important; }
-  .info-input     { padding: var(--pd-ipad-info-input) !important; }
+  .info-input     { padding: calc(var(--h-ipad-info-input) - 1.25em) 2px 1px !important; }
   .opt            { padding: var(--pd-ipad-option) !important; }
   .page-footer    { padding: var(--pd-ipad-footer) !important; }
   .summary-body   { padding: var(--pd-ipad-summary) !important; }
@@ -923,7 +922,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   .company-name   { font-size: var(--fs-desktop-company) !important; }
   .doc-title      { font-size: var(--fs-desktop-title) !important; }
   .info-label     { font-size: var(--fs-desktop-info-label) !important; }
-  .info-input     { font-size: var(--fs-desktop-info-input) !important; min-height: var(--h-desktop-info-input) !important; }
+  .info-input     { font-size: var(--fs-desktop-info-input) !important; min-height: 0 !important; padding: calc(var(--h-desktop-info-input) - 1.25em) 2px 2px !important; }
   .section-header { font-size: var(--fs-desktop-section) !important; padding: var(--pd-desktop-section) !important; }
   .item-label     { font-size: var(--fs-desktop-item) !important; }
   .opt            { font-size: var(--fs-desktop-option) !important; }
@@ -1081,118 +1080,82 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 <style>
 /* ============================================================
    MOBILE — STYLISH CARDS (screen only; off during capture & print)
-   Each section and the header info block become rounded panel cards.
+   Header banner stays plain; the customer-info block and every section
+   become rounded panel cards. Placed last so ties resolve here; the
+   `.section >` selectors out-specify the per-device section rules.
    ============================================================ */
 @media screen and (max-width: 600px) {
-  /* Let the page act as a transparent frame so the cards stand on their own. */
+  /* Page becomes a transparent frame so cards stand on their own. */
   body:not(.capturing) .page {
-    border: none !important;
-    box-shadow: none !important;
-    background: transparent !important;
-    padding: 4px 10px !important;
+    border: none !important; box-shadow: none !important;
+    background: transparent !important; padding: 4px 10px !important;
   }
   body.dark-mode:not(.capturing) .page {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+    background: transparent !important; border: none !important; box-shadow: none !important;
   }
 
-  /* Header banner (logo + company name + title) stays OUTSIDE the card. */
+  /* Header banner (logo + company + title) stays outside the card. */
   body:not(.capturing) .page-header {
-    border: none !important;
-    border-bottom: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    padding: 6px 4px !important;
-    margin-bottom: 6px;
+    border: none !important; border-bottom: none !important;
+    background: transparent !important; box-shadow: none !important;
+    border-radius: 0 !important; padding: 6px 4px !important; margin-bottom: 6px;
   }
 
-  /* Only the customer-info fields form the card. Pull it back to full width
-     (under the logo) and box it. */
+  /* Customer-info block = card. (The existing rule already pulls it full
+     width with margin-left:-64px; we only box and pad it here.) */
   body:not(.capturing) .info-grid {
-    margin-left: -64px !important;
     margin-top: 8px !important;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--panel);
-    padding: 12px 14px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    position: relative;
-    z-index: 1;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--panel); padding: 12px 14px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06); position: relative; z-index: 1;
   }
   body.dark-mode:not(.capturing) .info-grid { border-color: var(--border-bright); }
 
-  /* Inside the card, stack each field: label on its own line, input boxed
-     beneath it. Fixes the label/underline overlap in the narrow card. */
+  /* Stack each field: label on its own line, boxed input beneath. */
   body:not(.capturing) .info-grid .info-row {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    flex-wrap: nowrap !important;
-    gap: 4px !important;
-    margin-bottom: 0 !important;
+    flex-direction: column !important; align-items: stretch !important;
+    flex-wrap: nowrap !important; gap: 4px !important; margin-bottom: 0 !important;
   }
   body:not(.capturing) .info-grid .info-label {
-    flex: none !important;
-    width: auto !important;
-    margin-left: 0 !important;
-    white-space: normal !important;
+    flex: none !important; width: auto !important; margin-left: 0 !important; white-space: normal !important;
   }
-  /* Space above each label that follows an input (separates stacked pairs). */
   body:not(.capturing) .info-grid .info-input + .info-label { margin-top: 12px !important; }
   body:not(.capturing) .info-grid .info-input {
-    flex: none !important;
-    width: 100% !important;
-    max-width: none !important;
+    flex: none !important; width: 100% !important; max-width: none !important;
     box-sizing: border-box !important;
-    border: 1px solid var(--border-bright) !important;
-    border-radius: 6px !important;
-    background: var(--bg) !important;
-    height: 38px !important;
-    min-height: 38px !important;
-    padding: 2px 10px !important;
-    font-size: 16px !important;
+    border: 1px solid var(--border-bright) !important; border-radius: 6px !important;
+    background: var(--bg) !important; height: 38px !important; min-height: 38px !important;
+    padding: 2px 10px !important; font-size: 16px !important;
   }
   body:not(.capturing) .info-grid input[type="date"].info-input { max-width: none !important; }
 
   /* Each section = card. */
   body:not(.capturing) .section {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--panel);
-    margin-bottom: 14px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid var(--border); border-radius: 10px; background: var(--panel);
+    margin-bottom: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   }
   body.dark-mode:not(.capturing) .section { border-color: var(--border-bright); }
 
   /* Section title becomes the card's header band. */
-  body:not(.capturing) .section-header {
-    border-left: none !important;
-    border-bottom: 1px solid var(--border) !important;
-    border-radius: 10px 10px 0 0;
-    margin-bottom: 0 !important;
-    padding: 10px 14px !important;
-    font-size: 0.9rem !important;
+  body:not(.capturing) .section > .section-header {
+    border-left: none !important; border-bottom: 1px solid var(--border) !important;
+    border-radius: 10px 10px 0 0; margin-bottom: 0 !important;
+    padding: 10px 14px !important; font-size: 0.9rem !important;
   }
 
-  /* Roomier checklist rows inside the card; divider lines between them. */
-  body:not(.capturing) .check-item {
-    padding: 10px 14px !important;
-    border-bottom: 1px solid var(--border) !important;
+  /* Roomier checklist rows with dividers between them. */
+  body:not(.capturing) .section > .check-item {
+    padding: 10px 14px !important; border-bottom: 1px solid var(--border) !important;
   }
-  body:not(.capturing) .check-item:last-child { border-bottom: none !important; }
+  body:not(.capturing) .section > .check-item:last-child { border-bottom: none !important; }
 
-  /* Notes field: align to the card padding (drop the old indent). */
-  body:not(.capturing) .notes-line {
-    margin-left: 0 !important;
-    background: var(--bg) !important;
-    border: 1px solid var(--border-bright) !important;
-    border-radius: 6px !important;
+  /* Notes + summary boxes sit boxed inside their cards. */
+  body:not(.capturing) .notes-line,
+  body:not(.capturing) .summary-textarea {
+    margin-left: 0 !important; background: var(--bg) !important;
+    border: 1px solid var(--border-bright) !important; border-radius: 6px !important;
     padding: 6px 8px !important;
   }
-
-  /* Summary section body sits flush inside its card. */
   body:not(.capturing) .summary-body { padding: 12px 14px !important; }
 }
 </style>
@@ -1200,10 +1163,17 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
 
 <body>
 
+<style id="pdf-btn-toggle">
+/* === TEMP: hide the regular PDF button. To restore, delete this rule AND remove the 'pdf-btn-hidden' class from the PDF button. === */
+.pdf-btn-hidden { display: none !important; }
+</style>
 <div class="action-bar" id="action-bar">
   <a class="ab-btn" href="../">🏠 HOME</a>
-  <a class="ab-btn" onclick="printForm()" style="cursor:pointer;">📄 PDF</a>
+  <a class="ab-btn pdf-btn-hidden" onclick="printForm()" style="cursor:pointer;">📄 PDF</a>
+  <a class="ab-btn" id="btn-editpdf" onclick="saveFillablePdf()" style="cursor:pointer;">📝 PDF✎</a>
   <a class="ab-btn" id="btn-capture" onclick="saveSmart()" style="cursor:pointer;">📸 CAPTURE</a>
+  <a class="ab-btn" id="btn-load" onclick="document.getElementById('load-draft-input').click()" style="cursor:pointer;">📂 LOAD</a>
+  <input type="file" id="load-draft-input" accept=".json,.pdf" style="display:none;" onchange="loadDraftFile(this)">
   <a class="ab-btn" onclick="clearForm()" style="cursor:pointer;">🗑 CLEAR</a>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode" onclick="toggleTheme()">
     <svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1822,6 +1792,20 @@ function autoGrowNote(el) {
 }
 function autoGrowAllNotes() {
   document.querySelectorAll('.notes-line').forEach(autoGrowNote);
+  document.querySelectorAll('.summary-textarea').forEach(autoGrowSummary);
+}
+
+// ── AUTO-GROW summary boxes (Follow-Up / Additional Comments) on screen ──
+// Multi-line content allowed; grows with text, caps then scrolls.
+var SUMMARY_MAX_ROWS = 12;
+function autoGrowSummary(el) {
+  el.style.height = 'auto';
+  var line  = parseFloat(getComputedStyle(el).lineHeight) || 18;
+  var floor = line * 2 + 12;                 // ~original 52px two-line minimum
+  var max   = line * SUMMARY_MAX_ROWS + 12;
+  var want  = Math.max(el.scrollHeight, floor);
+  if (want > max) { el.style.height = max + 'px'; el.style.overflowY = 'auto'; }
+  else            { el.style.height = want + 'px'; el.style.overflowY = 'hidden'; }
 }
 // Notes are single-line content: block Enter and strip any pasted newlines.
 document.addEventListener('keydown', function(e) {
@@ -1839,6 +1823,9 @@ document.addEventListener('input', function(e) {
 });
 document.addEventListener('input', function(e) {
   if (e.target && e.target.classList && e.target.classList.contains('notes-line')) autoGrowNote(e.target);
+});
+document.addEventListener('input', function(e) {
+  if (e.target && e.target.classList && e.target.classList.contains('summary-textarea')) autoGrowSummary(e.target);
 });
 window.addEventListener('resize', autoGrowAllNotes);
 // Re-fit when orientation changes too
@@ -1879,6 +1866,8 @@ function capturePageToCanvas(pageEl) {
       page.style.maxWidth  = CAPTURE_WIDTH + 'px';
       page.style.marginTop = '0';
       document.body.style.padding = '0';
+      // Disable the mobile card styling for the capture/PDF render.
+      document.body.classList.add('capturing');
 
       const forceStyle = document.createElement('style');
       forceStyle.id = 'capture-force-style';
@@ -1904,36 +1893,50 @@ function capturePageToCanvas(pageEl) {
         '  overflow-wrap: anywhere !important;',
         '  flex: 1 1 0 !important; width: 0 !important; min-width: 0 !important;',
         '}',
-        // html2canvas renders input text high in the box. Push the header
-        // info fields' text DOWN onto their underline.
+        // Base CSS now seats the field text on the underline. In capture we
+        // only need to guarantee descender room and no clipping (html2canvas
+        // can clip a tight line box), so use a roomier line-height + a little
+        // bottom padding rather than forcing the text hard against the border.
         '.info-input {',
-        '  line-height: 1 !important; vertical-align: bottom !important;',
-        '  padding-top: 6px !important; padding-bottom: 0 !important;',
+        '  line-height: 1.3 !important; overflow: visible !important;',
+        '  padding-bottom: 3px !important;',
         '}'
       ].join('\n');
       document.head.appendChild(forceStyle);
-      document.body.classList.add('capturing');
       // Allow wrapping (a prior print may have left wrap="off").
       page.querySelectorAll('.notes-line').forEach(function(el){ el.setAttribute('wrap','soft'); });
 
       // html2canvas does NOT reliably wrap <textarea> text — it often paints
       // the value on one straight line. So for capture we overlay a <div> with
       // the same text (divs wrap correctly), hide the textarea, then restore.
+      // Covers both the inline .notes-line boxes AND the full-width
+      // .summary-textarea boxes (Items Requiring Follow-Up / Additional Comments).
       var _noteProxies = [];
       var _phSaved = [];
       function buildNoteProxies() {
-        page.querySelectorAll('.notes-line').forEach(function(el){
+        page.querySelectorAll('.notes-line, .summary-textarea').forEach(function(el){
           var cs = getComputedStyle(el);
+          var isSummary = el.classList.contains('summary-textarea');
           var div = document.createElement('div');
           div.className = 'notes-proxy';
           div.textContent = el.value || '';
-          div.style.cssText =
-            'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';' +
+          var common =
+            'font-family:' + cs.fontFamily + ';font-size:' + (parseFloat(cs.fontSize) + 1) + 'px;' +
             'color:' + cs.color + ';line-height:1.4;' +
             'white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;' +
             'border-bottom:' + cs.borderBottomWidth + ' solid ' + cs.borderBottomColor + ';' +
-            'flex:1 1 0;min-width:0;padding:0;margin:0;box-sizing:border-box;' +
-            'min-height:' + cs.fontSize.replace('px','') * 1.4 + 'px;';
+            'box-sizing:border-box;margin:0;';
+          if (isSummary) {
+            // Full-width block: match the textarea's width and padding, grow to
+            // fit all text (the on-screen box clips with overflow:hidden).
+            div.style.cssText = common +
+              'display:block;width:100%;padding:' + cs.padding + ';' +
+              'min-height:' + (parseFloat(cs.fontSize) * 1.4) + 'px;';
+          } else {
+            div.style.cssText = common +
+              'flex:1 1 0;min-width:0;padding:0;' +
+              'min-height:' + (parseFloat(cs.fontSize) * 1.4) + 'px;';
+          }
           el.style.display = 'none';
           el.parentNode.insertBefore(div, el.nextSibling);
           _noteProxies.push({ ta: el, div: div });
@@ -1945,6 +1948,30 @@ function capturePageToCanvas(pageEl) {
           p.ta.style.display = '';
         });
         _noteProxies = [];
+      }
+
+      // Capture-only: nudge typed-in field text 1px larger so it reads a touch
+      // bigger in the image. Each field's own computed size is read and +1px'd,
+      // then restored after capture (see restoreCapture).
+      var _fsSaved = [];
+      function bumpInputFonts() {
+        page.querySelectorAll('input').forEach(function(el){
+          if (el.type === 'checkbox' || el.type === 'radio') return;
+          var px = parseFloat(getComputedStyle(el).fontSize) || 0;
+          if (!px) return;
+          // Save the existing inline value + priority so we can restore exactly.
+          _fsSaved.push([el, el.style.getPropertyValue('font-size'), el.style.getPropertyPriority('font-size')]);
+          // !important is required — .info-input (name/date/address) sets
+          // font-size with !important per device, which beats a plain inline value.
+          el.style.setProperty('font-size', (px + 1) + 'px', 'important');
+        });
+      }
+      function restoreInputFonts() {
+        _fsSaved.forEach(function(p){
+          if (p[1]) p[0].style.setProperty('font-size', p[1], p[2] || '');
+          else p[0].style.removeProperty('font-size');
+        });
+        _fsSaved = [];
       }
 
       // html2canvas won't render checkbox accent-color / checked state, so we
@@ -1992,11 +2019,12 @@ function capturePageToCanvas(pageEl) {
         page.style.maxWidth  = prevMaxWidth;
         page.style.marginTop = prevMarginTop;
         document.body.style.padding = prevBodyPad;
+        document.body.classList.remove('capturing');
         const fs = document.getElementById('capture-force-style');
         if (fs) fs.remove();
-        document.body.classList.remove('capturing');
         removeNoteProxies();
         removeBoxProxies();
+        restoreInputFonts();
         _phSaved.forEach(function(p){ if (p[1] != null) p[0].setAttribute('placeholder', p[1]); });
         _phSaved = [];
         if (logoImg && logoOrigSrc) { logoImg.src = logoOrigSrc; logoImg.style.visibility = ''; }
@@ -2007,6 +2035,7 @@ function capturePageToCanvas(pageEl) {
           // Swap textareas for wrapping divs (built after force-style applies).
           buildNoteProxies();
           buildBoxProxies();
+          bumpInputFonts();
           // Remove placeholder text during capture (html2canvas can paint it
           // even with ::placeholder transparent). Saved and restored after.
           _phSaved = [];
@@ -2236,6 +2265,223 @@ function saveForAndroid() {
   }, 250);
 }
 
+
+/* ================================================================
+   EDIT PDF — resumable PDF (image capture + embedded JSON)
+   Renders each page via captureAllPages() into a US-Letter PDF, then
+   embeds the full form state TWICE for a lossless reload round-trip:
+     • as a file attachment  (qc-checklist-data.json)
+     • in the PDF Keywords    (AOGDATA:<base64 json>)
+   The 📂 LOAD button reads either channel back and refills the form.
+   State shape matches saveDraft()/restoreDraft() exactly.
+================================================================ */
+
+// Build the same flat state object saveDraft() persists, but return it.
+function collectState() {
+  var data = {};
+  document.querySelectorAll('input').forEach(function(el) {
+    var key = el.id || el.name;
+    if (!key) return;
+    if (el.type === 'checkbox') {
+      if (!Array.isArray(data[key])) data[key] = [];
+      if (el.checked) data[key].push(el.value);
+    } else if (el.type === 'radio') {
+      if (el.checked) data[key] = el.value;
+    } else {
+      if (data[key] === undefined) data[key] = el.value;
+    }
+  });
+  document.querySelectorAll('textarea').forEach(function(el) {
+    var key = el.id || el.name;
+    if (key) data[key] = el.value;
+  });
+  data['__meter_tab'] = _meterTab;
+  return data;
+}
+
+// Apply a flat state object to the form (same logic as restoreDraft()).
+function restoreState(data) {
+  if (!data || typeof data !== 'object') return;
+  document.querySelectorAll('input').forEach(function(el) {
+    var key = el.id || el.name;
+    if (!key || data[key] === undefined) return;
+    if (el.type === 'checkbox') {
+      el.checked = Array.isArray(data[key]) && data[key].indexOf(el.value) !== -1;
+    } else if (el.type === 'radio') {
+      el.checked = data[key] === el.value;
+    } else {
+      el.value = data[key];
+    }
+  });
+  document.querySelectorAll('textarea').forEach(function(el) {
+    var key = el.id || el.name;
+    if (key && data[key] !== undefined) el.value = data[key];
+  });
+  if (data['__meter_tab']) { _meterTab = data['__meter_tab']; applyMeterTab(); }
+  syncPage2();
+  if (typeof autoGrowAllNotes === 'function') autoGrowAllNotes();
+}
+
+function _downloadBlob(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+function _editPdfFilename() {
+  try { return buildQCBaseName() + '_RESUMABLE.pdf'; }
+  catch (e) { return 'AOG_QC_Checklist_RESUMABLE.pdf'; }
+}
+
+async function saveFillablePdf() {
+  if (typeof PDFLib === 'undefined') {
+    setStatus('PDF library not loaded — try refreshing.');
+    setTimeout(function(){ setStatus(''); }, 5000);
+    return;
+  }
+  if (typeof html2canvas === 'undefined') {
+    setStatus('Capture library not loaded — try refreshing.');
+    setTimeout(function(){ setStatus(''); }, 5000);
+    return;
+  }
+  setStatus('Building resumable PDF…');
+
+  var wasDark = document.body.classList.contains('dark-mode');
+  if (wasDark) document.body.classList.remove('dark-mode');
+
+  try {
+    saveDraft();
+    var data = collectState();
+
+    // captureAllPages() returns finished Letter-sized canvases (same look as CAPTURE).
+    var canvases = await captureAllPages();
+
+    var PDFDocument = PDFLib.PDFDocument;
+    var pdfDoc = await PDFDocument.create();
+    var PAGE_W = 612; // US Letter width (pt)
+
+    for (var i = 0; i < canvases.length; i++) {
+      var canvas = canvases[i];
+      var imgData = canvas.toDataURL('image/png');
+      var pngBytes = Uint8Array.from(atob(imgData.split(',')[1]), function(c){ return c.charCodeAt(0); });
+      var png = await pdfDoc.embedPng(pngBytes);
+      var scale = PAGE_W / png.width;
+      var PAGE_H = png.height * scale;
+      var p = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      p.drawImage(png, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+    }
+
+    // Embed full JSON for a lossless reload round-trip.
+    var jsonStr = JSON.stringify(data);
+    try { await pdfDoc.attach(new TextEncoder().encode(jsonStr), 'qc-checklist-data.json', {
+      mimeType: 'application/json', description: 'Always On Generators — form data (do not delete)' }); } catch(e) {}
+    try { pdfDoc.setKeywords([ 'AOGDATA:' + btoa(unescape(encodeURIComponent(jsonStr))) ]); } catch(e) {}
+    try { pdfDoc.setTitle('Always On Generators — Quality Control Checklist'); } catch(e) {}
+
+    var bytes = await pdfDoc.save();
+    if (wasDark) document.body.classList.add('dark-mode');
+
+    var fname = _editPdfFilename();
+    var blob = new Blob([bytes], { type: 'application/pdf' });
+
+    // Native share sheet on mobile; download elsewhere.
+    var didShare = false;
+    var isMobileOS = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isMobileOS && typeof canShareFiles === 'function' && canShareFiles()) {
+      try {
+        var pdfFile = new File([blob], fname, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+          didShare = true;
+          setStatus('Opening share sheet…');
+          try {
+            await navigator.share({ files: [pdfFile] });
+            setStatus('');
+          } catch (shErr) {
+            if (shErr && shErr.name === 'AbortError') { setStatus(''); }
+            else { _downloadBlob(blob, fname); setStatus('Resumable PDF saved: ' + fname); setTimeout(function(){ setStatus(''); }, 4000); }
+          }
+        }
+      } catch (e) { didShare = false; }
+    }
+
+    if (!didShare) {
+      _downloadBlob(blob, fname);
+      setStatus('Resumable PDF saved: ' + fname);
+      setTimeout(function(){ setStatus(''); }, 4000);
+    }
+  } catch (err) {
+    if (wasDark) document.body.classList.add('dark-mode');
+    setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
+    setTimeout(function(){ setStatus(''); }, 6000);
+  }
+}
+
+/* ── LOAD: accepts a .json draft OR a resumable .pdf and refills the form ── */
+function loadDraftFile(input) {
+  var file = input && input.files && input.files[0];
+  if (!file) return;
+  var name = file.name || '';
+  var reset = function(){ try { input.value = ''; } catch(e){} };
+
+  if (/\.pdf$/i.test(name)) {
+    var rp = new FileReader();
+    rp.onload = function(){ loadFromFillablePdf(new Uint8Array(rp.result), name).then(reset, reset); };
+    rp.onerror = function(){ setStatus('Could not read that PDF.'); setTimeout(function(){ setStatus(''); }, 5000); reset(); };
+    rp.readAsArrayBuffer(file);
+    return;
+  }
+
+  var rj = new FileReader();
+  rj.onload = function(){
+    try {
+      restoreState(JSON.parse(rj.result));
+      saveDraft();
+      setStatus('Loaded draft: ' + name);
+      setTimeout(function(){ setStatus(''); }, 4000);
+    } catch (e) {
+      setStatus('That file is not a valid draft.');
+      setTimeout(function(){ setStatus(''); }, 5000);
+    }
+    reset();
+  };
+  rj.onerror = function(){ setStatus('Could not read that file.'); setTimeout(function(){ setStatus(''); }, 5000); reset(); };
+  rj.readAsText(file);
+}
+
+async function loadFromFillablePdf(bytes, fname) {
+  if (typeof PDFLib === 'undefined') {
+    setStatus('PDF library not loaded — try refreshing.');
+    setTimeout(function(){ setStatus(''); }, 5000);
+    return;
+  }
+  setStatus('Reading PDF…');
+  try {
+    var pdfDoc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true });
+    var data = null;
+    try {
+      var kw = pdfDoc.getKeywords();
+      var kwStr = Array.isArray(kw) ? kw.join(' ') : (kw || '');
+      var m = kwStr.match(/AOGDATA:([A-Za-z0-9+/=]+)/);
+      if (m) data = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+    } catch(e) {}
+
+    if (!data) {
+      setStatus('No saved form data found in that PDF.');
+      setTimeout(function(){ setStatus(''); }, 5000);
+      return;
+    }
+
+    restoreState(data);
+    saveDraft();
+    setStatus('Loaded from PDF: ' + fname);
+    setTimeout(function(){ setStatus(''); }, 4000);
+  } catch (err) {
+    setStatus('Error reading PDF — file may be invalid.');
+    setTimeout(function(){ setStatus(''); }, 6000);
+  }
+}
 
 // ── BEFORE/AFTER PRINT (Chrome needs these) ──
 window.addEventListener('beforeprint', function() {
@@ -2627,5 +2873,161 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 </script>
+<!-- ════════ PAGE-NUMBER TRIPLE-TAP DEBUG DUMP ════════
+     Open it: triple-tap (or triple-click) either "Page X of 2" footer number,
+     OR long-press it ~1s, OR load the page with #debug in the URL, OR run
+     __showDebug() in a console. Dumps device + detection signals. Screen-only;
+     never renders in the PDF. Diagnostic only — changes no behavior. -->
+<style>@media print { #dbg-overlay { display: none !important; } }</style>
+<script>
+(function () {
+  function yn(b){ return b ? '\u2713 YES' : '\u2717 no'; }
+  function buildReport() {
+    var ua  = navigator.userAgent;
+    var plat = navigator.platform;
+    var mtp = navigator.maxTouchPoints || 0;
+    var touch = ('ontouchstart' in window);
+    var standaloneMM  = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || false;
+    var standaloneNav = (navigator.standalone === true);
+
+    var isCriOS  = /CriOS/.test(ua);
+    var isIOS    = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
+    var isMacOS  = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+    var isWindows = /Windows/.test(ua);
+    var isAndroid = /Android/.test(ua);
+    var isAndroidChrome = isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua);
+    var isIPad = /iPad/.test(ua)
+      || (plat === 'MacIntel' && (mtp > 1 || touch))
+      || (/Macintosh/.test(ua) && (mtp > 1 || touch));
+
+    var htmlCls = document.documentElement.className || '(none)';
+    var bodyCls = document.body.className || '(none)';
+
+    var isLandscape = (window.matchMedia && window.matchMedia('(orientation: landscape)').matches)
+                      || (window.innerWidth > window.innerHeight);
+
+    var ori = '(?)';
+    try { ori = (window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape')
+                 + (screen.orientation ? '  [' + screen.orientation.type + ']' : ''); } catch(e){}
+
+    var theme = '(?)', draft = '(none)';
+    try { theme = localStorage.getItem('aog_theme_preference') || '(unset)'; } catch(e){}
+    try { var d = localStorage.getItem('aog_checklist_qc_draft'); draft = d ? (d.length + ' chars saved') : '(none)'; } catch(e){}
+    var h2c = (typeof html2canvas !== 'undefined') ? 'loaded' : 'NOT loaded';
+    var pl  = (typeof PDFLib !== 'undefined') ? 'loaded' : 'NOT loaded';
+    var mtab = (typeof _meterTab !== 'undefined') ? _meterTab : '(?)';
+
+    return [
+      '\u2550\u2550\u2550 AOG DEBUG DUMP \u2550\u2550\u2550',
+      'Form                  : Quality Control Checklist',
+      'Timestamp             : ' + new Date().toISOString(),
+      '',
+      '\u2500\u2500 USER AGENT \u2500\u2500',
+      ua,
+      '',
+      '\u2500\u2500 NAVIGATOR \u2500\u2500',
+      'platform              : ' + plat,
+      'maxTouchPoints        : ' + mtp,
+      'ontouchstart          : ' + yn(touch),
+      'standalone (mediaq)   : ' + yn(standaloneMM),
+      'navigator.standalone  : ' + yn(standaloneNav),
+      'cookieEnabled         : ' + yn(navigator.cookieEnabled),
+      'language              : ' + (navigator.language || '?'),
+      '',
+      '\u2500\u2500 SCREEN / VIEWPORT \u2500\u2500',
+      'window.inner          : ' + window.innerWidth + ' \u00d7 ' + window.innerHeight + ' px',
+      'visualViewport        : ' + (window.visualViewport ? (Math.round(window.visualViewport.width)+' \u00d7 '+Math.round(window.visualViewport.height)) : 'n/a'),
+      'screen                : ' + screen.width + ' \u00d7 ' + screen.height + ' px',
+      'devicePixelRatio      : ' + window.devicePixelRatio,
+      'orientation           : ' + ori,
+      'viewport meta         : ' + ((document.querySelector('meta[name="viewport"]')||{}).getAttribute ? document.querySelector('meta[name="viewport"]').getAttribute('content') : '?'),
+      '',
+      '\u2500\u2500 DETECTION SIGNALS \u2500\u2500',
+      'isCriOS               : ' + yn(isCriOS),
+      'isIOS                 : ' + yn(isIOS),
+      'isMacOS               : ' + yn(isMacOS),
+      'isWindows             : ' + yn(isWindows),
+      'isAndroid             : ' + yn(isAndroid),
+      'isAndroidChrome       : ' + yn(isAndroidChrome),
+      'isIPad (detect)       : ' + yn(isIPad),
+      'isLandscape           : ' + yn(isLandscape),
+      '',
+      '\u2500\u2500 APPLIED CLASSES \u2500\u2500',
+      'html                  : ' + htmlCls,
+      'body                  : ' + bodyCls,
+      '',
+      '\u2500\u2500 FORM STATE \u2500\u2500',
+      'meter tab             : ' + mtab,
+      '',
+      '\u2500\u2500 STORAGE \u2500\u2500',
+      'theme                 : ' + theme,
+      'draft                 : ' + draft,
+      '',
+      '\u2500\u2500 ASSETS \u2500\u2500',
+      'html2canvas           : ' + h2c,
+      'pdf-lib               : ' + pl
+    ].join('\n');
+  }
+
+  function show() {
+    var old = document.getElementById('dbg-overlay'); if (old) old.remove();
+    var txt = buildReport();
+    var ov = document.createElement('div');
+    ov.id = 'dbg-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,0.94);color:#0f0;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:16px;overflow:auto;-webkit-overflow-scrolling:touch;';
+    var pre = document.createElement('pre');
+    pre.textContent = txt;
+    pre.style.cssText = 'white-space:pre-wrap;word-break:break-word;margin:0 0 14px;';
+    var bar = document.createElement('div');
+    bar.style.cssText = 'position:sticky;bottom:0;display:flex;gap:10px;padding-top:8px;';
+    var copy = document.createElement('button');
+    copy.textContent = 'Copy';
+    copy.style.cssText = 'flex:1;background:#0a0;color:#fff;border:none;border-radius:6px;padding:12px;font-size:15px;';
+    copy.onclick = function () {
+      function done(){ copy.textContent = 'Copied \u2713'; }
+      function fallback(){
+        var r = document.createRange(); r.selectNodeContents(pre);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        try { document.execCommand('copy'); done(); } catch(e){ copy.textContent='Select & copy manually'; }
+      }
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback);
+        else fallback();
+      } catch (e) { fallback(); }
+    };
+    var close = document.createElement('button');
+    close.textContent = 'Close';
+    close.style.cssText = 'flex:1;background:#c33;color:#fff;border:none;border-radius:6px;padding:12px;font-size:15px;';
+    close.onclick = function () { ov.remove(); };
+    bar.appendChild(copy); bar.appendChild(close);
+    ov.appendChild(pre); ov.appendChild(bar);
+    document.body.appendChild(ov);
+  }
+  window.__showDebug = show;
+
+  function wireTrigger() {
+    var tags = document.querySelectorAll('.page-num');
+    if (!tags.length) return;
+    tags.forEach(function (tag) {
+      tag.style.cursor = 'pointer';
+      var taps = 0, t;
+      tag.addEventListener('click', function () {
+        taps++; clearTimeout(t);
+        t = setTimeout(function(){ taps = 0; }, 700);
+        if (taps >= 3) { taps = 0; show(); }
+      });
+      var lp;
+      tag.addEventListener('touchstart', function () { lp = setTimeout(show, 1000); }, {passive:true});
+      tag.addEventListener('touchend',   function () { clearTimeout(lp); });
+      tag.addEventListener('touchmove',  function () { clearTimeout(lp); });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireTrigger);
+  else wireTrigger();
+  if (location.hash === '#debug') (document.readyState === 'loading'
+      ? document.addEventListener('DOMContentLoaded', show) : show());
+})();
+</script>
+
 </body>
 </html>
