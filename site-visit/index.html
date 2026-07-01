@@ -2884,7 +2884,7 @@ function generatePDF() {
         ostat(`Rendering page ${i + 1} of ${pages.length}…`);
         // Yield so the overlay paints before the heavy render.
         await new Promise(r => setTimeout(r, 30));
-        const canvas = await html2canvas(pages[i], {
+        let canvas = await html2canvas(pages[i], {
           scale: 2, useCORS: true, backgroundColor: '#fff',
           logging: false, width: 1050, windowWidth: 1050,
           ignoreElements: (el) => el.id === 'pdf-overlay' || el.classList.contains('action-bar'),
@@ -2911,6 +2911,9 @@ function generatePDF() {
             if (cGen) cGen.style.setProperty('font-size', '20px', 'important');
           }
         });
+        // Fit the raw page render into a full 8.5x11 sheet with 0.15in margins
+        // (same treatment for every page, including Permitting Info / page 1).
+        canvas = fillSheet(canvas);
         canvases.push(canvas);
         // Show each page image in the overlay as it finishes.
         const lbl = document.createElement('div');
@@ -3248,7 +3251,7 @@ function saveSmart() {
     return html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 })
       .then(function (rawCanvas) {
         // Same tuned output as the other capture paths.
-        var canvas = (idx === 1) ? fillSheet(rawCanvas) : addSheetMargins(rawCanvas);
+        var canvas = fillSheet(rawCanvas)  /* every page = full 8.5x11 letter sheet w/ 0.15in margins */;
         var fname = pages.length === 1
           ? 'AlwaysOn_Generators_Form.jpg'
           : 'AlwaysOn_Generators_Form_Page' + (idx + 1) + '.jpg';
@@ -3334,7 +3337,7 @@ function saveForIPhone() {
     lbl.textContent = `Page ${idx+1} of ${pages.length}`;
     const img = document.createElement('img');
     html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(rawCanvas => {
-      const canvas = (idx === 1) ? fillSheet(rawCanvas) : addSheetMargins(rawCanvas);
+      const canvas = fillSheet(rawCanvas)  /* every page = full 8.5x11 letter sheet w/ 0.15in margins */;
       img.src = canvas.toDataURL('image/jpeg', 0.85);
       img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
       img.alt = `Form page ${idx+1}`;
@@ -3364,7 +3367,7 @@ function saveForAndroid() {
   let completed = 0;
   pages.forEach((page, idx) => {
     html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(rawCanvas => {
-      const canvas = (idx === 1) ? fillSheet(rawCanvas) : addSheetMargins(rawCanvas);
+      const canvas = fillSheet(rawCanvas)  /* every page = full 8.5x11 letter sheet w/ 0.15in margins */;
       const link = document.createElement('a');
       link.download = pages.length === 1
         ? 'AlwaysOn_Generators_Form.jpg'
@@ -5171,6 +5174,14 @@ function injectSeasonalStyles() {
     '@keyframes christmas-pulse { 0%,100%{background:#DC2626;box-shadow:0 0 8px #DC2626;} 50%{background:#16A34A;box-shadow:0 0 8px #16A34A;} }',
     'body.seasonal-christmas .checklist-title::after { content:" 🎄"; }',
     'body.seasonal-christmas .logo-text::after { content:" ❄"; font-size:0.8em; opacity:0.6; }',
+    '@media screen and (max-width:768px) {',
+    '  body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing):not(.dark-mode) #page2 #cu-wire-table tbody td:not(.row-label), body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing):not(.dark-mode) #page2 #al-wire-table tbody td:not(.row-label), body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing):not(.dark-mode) #page2 #thhn-table tbody td:not(.row-label) { background:transparent !important; }',
+    '  body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing):not(.dark-mode) #page2 #cu-wire-table tbody td:not(.row-label):nth-child(odd), body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing):not(.dark-mode) #page2 #al-wire-table tbody td:not(.row-label):nth-child(odd), body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing):not(.dark-mode) #page2 #thhn-table tbody td:not(.row-label):nth-child(odd) { background:rgba(255,255,255,0.40) !important; }',
+    '  body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing).dark-mode #page2 #cu-wire-table tbody td:not(.row-label), body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing).dark-mode #page2 #al-wire-table tbody td:not(.row-label), body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing).dark-mode #page2 #thhn-table tbody td:not(.row-label) { background:transparent !important; }',
+    '  body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing).dark-mode #page2 #cu-wire-table tbody td:not(.row-label):nth-child(odd), body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing).dark-mode #page2 #al-wire-table tbody td:not(.row-label):nth-child(odd), body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing).dark-mode #page2 #thhn-table tbody td:not(.row-label):nth-child(odd) { background:rgba(255,255,255,0.06) !important; }',
+    '  body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing):not(.dark-mode) #page2 .footer-fields { background:rgba(255,255,255,0.42) !important; }',
+    '  body[class*=\"seasonal-\"]:not(.printing):not(.mobile-printing).dark-mode #page2 .footer-fields { background:rgba(36,52,88,0.42) !important; }',
+    '}',
     '@media print {',
     '  #seasonal-canvas { display:none !important; }',
     '  body[class*="seasonal-"] .section-header::before, body[class*="seasonal-"] .col-label::before { background:#FA6700 !important; box-shadow:none !important; animation:none !important; animation-play-state:paused !important; }',
