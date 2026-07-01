@@ -2887,7 +2887,7 @@ function generatePDF() {
         let canvas = await html2canvas(pages[i], {
           scale: 2, useCORS: true, backgroundColor: '#fff',
           logging: false, width: 1050, windowWidth: 1050,
-          ignoreElements: (el) => el.id === 'pdf-overlay' || el.classList.contains('action-bar'),
+          ignoreElements: (el) => el.id === 'pdf-overlay' || el.classList.contains('action-bar') || el.classList.contains('tbl-clear-btn'),
           onclone: (clonedDoc) => {
             // html2canvas does not reliably carry body classes into its clone,
             // so the body.printing print-layout rules never match. Force them here.
@@ -3248,7 +3248,7 @@ function saveSmart() {
   }
 
   const jobs = Array.prototype.map.call(pages, function (page, idx) {
-    return html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 })
+    return html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } })
       .then(function (rawCanvas) {
         // Same tuned output as the other capture paths.
         var canvas = fillSheet(rawCanvas)  /* every page = full 8.5x11 letter sheet w/ 0.15in margins */;
@@ -3336,7 +3336,7 @@ function saveForIPhone() {
     lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:8px;';
     lbl.textContent = `Page ${idx+1} of ${pages.length}`;
     const img = document.createElement('img');
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(rawCanvas => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }).then(rawCanvas => {
       const canvas = fillSheet(rawCanvas)  /* every page = full 8.5x11 letter sheet w/ 0.15in margins */;
       img.src = canvas.toDataURL('image/jpeg', 0.85);
       img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
@@ -3366,7 +3366,7 @@ function saveForAndroid() {
   const restoreLayout = forceDesktopLayout();
   let completed = 0;
   pages.forEach((page, idx) => {
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050 }).then(rawCanvas => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }).then(rawCanvas => {
       const canvas = fillSheet(rawCanvas)  /* every page = full 8.5x11 letter sheet w/ 0.15in margins */;
       const link = document.createElement('a');
       link.download = pages.length === 1
@@ -3456,7 +3456,7 @@ async function pdfRenderPageCanvases() {
       var canvas = await html2canvas(pages[i], {
         scale: 2, useCORS: true, backgroundColor: '#fff',
         logging: false, width: 1050, windowWidth: 1050,
-        ignoreElements: function (el) { return el.id === 'pdf-overlay' || el.classList.contains('action-bar'); },
+        ignoreElements: function (el) { return el.id === 'pdf-overlay' || el.classList.contains('action-bar') || el.classList.contains('tbl-clear-btn'); },
         onclone: function (clonedDoc) {
           clonedDoc.body.classList.add('printing');
           clonedDoc.body.classList.remove('mobile-printing');
