@@ -2723,7 +2723,7 @@ function captureAndShare() {
         var fname = buildFilename('jpg', idx + 1, pages.length);
         var restoreFill = fitPageToSheet(page);
         var capH = measureFullHeight(page);
-        return html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0 })
+        return html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } })
           .then(function (canvas) {
             restoreFill();
             canvas = fitToLetter(canvas);
@@ -2818,7 +2818,7 @@ function saveForAndroid() {
   pages.forEach((page, idx) => {
     const restoreFill = fitPageToSheet(page);
     const capH = measureFullHeight(page);
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0 }).then(canvas => {
+    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }).then(canvas => {
       restoreFill();
       canvas = fitToLetter(canvas);
       const link = document.createElement('a');
@@ -2987,7 +2987,7 @@ async function saveFillablePdf() {
       var capH = (typeof measureFullHeight === 'function') ? measureFullHeight(page) : page.scrollHeight;
       var canvas;
       try {
-        canvas = await html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0 });
+        canvas = await html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } });
       } finally {
         restoreFill();
       }
