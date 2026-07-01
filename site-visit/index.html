@@ -3010,7 +3010,14 @@ function showRealTablesForCapture() {
     // --- Crash-proofing for html2canvas: it chokes on filters/animations and
     //     can hang on cross-origin images. Flatten all of it during capture. ---
     '.form-page *, .form-page { filter: none !important; -webkit-filter: none !important; animation: none !important; transition: none !important; box-shadow: none !important; clip-path: none !important; -webkit-clip-path: none !important; text-shadow: none !important; }',
-    '.form-page { background: #ffffff !important; }'
+    '.form-page { background: #ffffff !important; }',
+    // ---- Neutralize SEASONAL translucency for capture ----
+    'body[class*="seasonal-"] .form-page, body[class*="seasonal-"] .permit-section, body[class*="seasonal-"] #page1 .top-fields { background: #ffffff !important; }',
+    'body[class*="seasonal-"] #page2 table.mat-table td { background: #ffffff !important; }',
+    'body[class*="seasonal-"] #page2 table.mat-table td.row-label { background: rgba(211,94,19,0.15) !important; }',
+    'body[class*="seasonal-"] input, body[class*="seasonal-"] textarea, body[class*="seasonal-"] select { background: #ffffff !important; color: #1F2937 !important; }',
+    'body[class*="seasonal-"] input[type="checkbox"], body[class*="seasonal-"] input[type="radio"] { background: initial !important; }',
+    '#seasonal-canvas { display: none !important; }'
   ].join('\n');
   document.head.appendChild(style);
 }
@@ -5004,6 +5011,16 @@ function injectSeasonalStyles() {
     'body.printing[class*=\"seasonal-\"] table.mat-table td, body.mobile-printing[class*=\"seasonal-\"] table.mat-table td { background:#ffffff !important; }',
     'body.printing[class*=\"seasonal-\"] .ts-body, body.mobile-printing[class*=\"seasonal-\"] .ts-body { background:#ffffff !important; }',
     'body.printing[class*=\"seasonal-\"] table.mat-table th, body.mobile-printing[class*=\"seasonal-\"] table.mat-table th { opacity:1 !important; }',
+    'body[class*=\"seasonal-\"]:not(.dark-mode) .permit-section { background:rgba(255,255,255,0.6) !important; }',
+    'body[class*=\"seasonal-\"].dark-mode .permit-section { background:rgba(15,21,53,0.55) !important; }',
+    '@media screen and (max-width:768px) { body[class*=\"seasonal-\"]:not(.dark-mode) #page1 .permit-section { background:rgba(255,255,255,0.6) !important; } }',
+    '@media screen and (max-width:768px) { body[class*=\"seasonal-\"].dark-mode #page1 .permit-section { background:rgba(15,21,53,0.55) !important; } }',
+    'body[class*=\"seasonal-\"]:not(.dark-mode) #page2 table.mat-table td { background:rgba(255,255,255,0.55) !important; }',
+    'body[class*=\"seasonal-\"].dark-mode #page2 table.mat-table td { background:rgba(15,21,53,0.5) !important; }',
+    'body[class*=\"seasonal-\"]:not(.dark-mode) #page2 .footer-field input[type=\"text\"] { background:rgba(255,255,255,0.55) !important; }',
+    'body[class*=\"seasonal-\"].dark-mode #page2 .footer-field input[type=\"text\"] { background:rgba(15,21,53,0.5) !important; }',
+    'body.printing[class*=\"seasonal-\"] .permit-section, body.mobile-printing[class*=\"seasonal-\"] .permit-section { background:#ffffff !important; }',
+    'body.printing[class*=\"seasonal-\"] #page2 .footer-field input[type=\"text\"], body.mobile-printing[class*=\"seasonal-\"] #page2 .footer-field input[type=\"text\"] { background:#ffffff !important; }',
     'body.printing #seasonal-canvas, body.mobile-printing #seasonal-canvas { display:none !important; }',
     '@media screen { body.seasonal-newyear { --cyan:#FFD700; --cyan-dim:#FFC200; --amber:#FF69B4; --border:rgba(255,215,0,0.25); --border-bright:rgba(255,215,0,0.5); } }',
     'body.seasonal-newyear:not(.dark-mode) { --panel:#fffef5; --bg:#fffef5; --bg3:#fff8e1; }',
