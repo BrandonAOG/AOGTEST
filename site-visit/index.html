@@ -3525,7 +3525,10 @@ async function saveFillablePdf() {
     var pdfDoc = await PDFDocument.create();
 
     for (var i = 0; i < canvases.length; i++) {
-      var canvas = canvases[i];
+      // Match the 📸 CAPTURE output: place each page in a full 8.5x11 letter
+      // sheet with a 0.15in white margin and the orange frame, instead of
+      // drawing the raw render edge-to-edge.
+      var canvas = fillSheet(canvases[i]);
       var pngDataUrl = canvas.toDataURL('image/png');
       var pngBytes = Uint8Array.from(atob(pngDataUrl.split(',')[1]), function (c) { return c.charCodeAt(0); });
       var png = await pdfDoc.embedPng(pngBytes);
@@ -4335,12 +4338,16 @@ function createSeasonalCanvas(theme) {
       var PALETTE=['#FF2D2D','#FFFFFF','#2D6DFF','#FF7A00','#FFD400','#22C55E','#FF3EA5','#00E5FF'];
       function rnd(a,b){ return a+Math.random()*(b-a); }
       function pick(a){ return a[(Math.random()*a.length)|0]; }
+      var G=0.12; // gravity used for both launch calc and ascent
       function newRise(){
+        var startY=H+rnd(0,30);
+        var targetY=rnd(H*0.12,H*0.72);          // spread bursts: some high, some low
+        var vy=-Math.sqrt(2*G*(startY-targetY))*rnd(1.0,1.05); // launch speed scaled to page height
         return {
           phase:'rise',
-          x:rnd(W*0.12,W*0.88), y:H+rnd(0,40),
-          vx:rnd(-0.4,0.4), vy:-rnd(6.5,9.5),
-          targetY:rnd(H*0.10,H*0.48),
+          x:rnd(W*0.12,W*0.88), y:startY,
+          vx:rnd(-0.4,0.4), vy:vy,
+          targetY:targetY,
           color:pick(PALETTE),
           trail:[], sparks:[], flash:0, delay:0
         };
@@ -4410,8 +4417,8 @@ function createSeasonalCanvas(theme) {
           }
           if (p.phase==='rise'){
             p.trail.push({x:p.x,y:p.y}); if (p.trail.length>8) p.trail.shift();
-            p.x+=p.vx; p.y+=p.vy; p.vy+=0.12;
-            if (p.y<=p.targetY || p.vy>=-0.5) explode(p);
+            p.x+=p.vx; p.y+=p.vy; p.vy+=G;
+            if (p.y<=p.targetY || p.vy>=-0.3) explode(p);
             return;
           }
           if (p.flash>0) p.flash-=0.06;
