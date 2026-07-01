@@ -2384,7 +2384,14 @@ function showRealTablesForCapture() {
     // copied from the working form: 6.5px cells, 6.5px row-labels, 8px section gap.
     '#page2 .grid-section { margin-bottom: 8px !important; }',
     '#page2 table.mat-table th, #page2 table.mat-table td { padding: 6.5px 2px !important; line-height: 1.2 !important; }',
-    '#page2 table.mat-table td.row-label { padding: 6.5px 3px !important; line-height: 1.2 !important; }'
+    '#page2 table.mat-table td.row-label { padding: 6.5px 3px !important; line-height: 1.2 !important; }',
+    // ---- Neutralize SEASONAL translucency for capture: force solid backgrounds ----
+    'body[class*="seasonal-"] .form-page, body[class*="seasonal-"] #page1 .section, body[class*="seasonal-"] #page1 .top-fields, body[class*="seasonal-"] #page1 .ts-block, body[class*="seasonal-"] .ts-body { background: #ffffff !important; }',
+    'body[class*="seasonal-"] #page2 table.mat-table td { background: #ffffff !important; }',
+    'body[class*="seasonal-"] #page2 table.mat-table td.row-label { background: rgba(211,94,19,0.15) !important; }',
+    'body[class*="seasonal-"] input, body[class*="seasonal-"] textarea, body[class*="seasonal-"] select { background: #ffffff !important; color: #1F2937 !important; }',
+    'body[class*="seasonal-"] input[type="checkbox"], body[class*="seasonal-"] input[type="radio"] { background: initial !important; }',
+    '#seasonal-canvas { display: none !important; }'
   ].join('\n');
   document.head.appendChild(style);
 }
@@ -6355,6 +6362,17 @@ function injectSeasonalStyles() {
     '@media screen and (max-width:768px) { body[class*=\"seasonal-\"].dark-mode #page1 .section, body[class*=\"seasonal-\"].dark-mode #page1 .top-fields { background:rgba(15,21,53,0.55) !important; } }',
     '@media screen and (max-width:768px) { body[class*=\"seasonal-\"]:not(.dark-mode) #page1 .ts-block { background:rgba(255,255,255,0.55) !important; } }',
     'body.printing[class*=\"seasonal-\"] #page1 .section, body.mobile-printing[class*=\"seasonal-\"] #page1 .section, body.printing[class*=\"seasonal-\"] #page1 .top-fields, body.mobile-printing[class*=\"seasonal-\"] #page1 .top-fields { background:#ffffff !important; }',
+    'body[class*=\"seasonal-\"]:not(.dark-mode) #page2 table.mat-table td { background:rgba(255,255,255,0.55) !important; }',
+    'body[class*=\"seasonal-\"]:not(.dark-mode) #page2 table.mat-table td.row-label { background:rgba(211,94,19,0.12) !important; }',
+    'body[class*=\"seasonal-\"].dark-mode #page2 table.mat-table td { background:rgba(15,21,53,0.5) !important; }',
+    'body[class*=\"seasonal-\"].dark-mode #page2 table.mat-table td.row-label { background:rgba(36,52,88,0.5) !important; }',
+    'body[class*=\"seasonal-\"]:not(.dark-mode) #page2 .footer-field input[type=\"text\"] { background:rgba(255,255,255,0.55) !important; }',
+    'body[class*=\"seasonal-\"].dark-mode #page2 .footer-field input[type=\"text\"] { background:rgba(15,21,53,0.5) !important; }',
+    'body.printing[class*=\"seasonal-\"] #page2 table.mat-table td, body.mobile-printing[class*=\"seasonal-\"] #page2 table.mat-table td { background:#ffffff !important; }',
+    'body.printing[class*=\"seasonal-\"] #page2 table.mat-table td.row-label, body.mobile-printing[class*=\"seasonal-\"] #page2 table.mat-table td.row-label { background:rgba(211,94,19,0.15) !important; }',
+    'body.printing[class*=\"seasonal-\"] #page2 .footer-field input[type=\"text\"], body.mobile-printing[class*=\"seasonal-\"] #page2 .footer-field input[type=\"text\"] { background:#ffffff !important; }',
+    'body.printing[class*=\"seasonal-\"] input, body.printing[class*=\"seasonal-\"] textarea, body.printing[class*=\"seasonal-\"] select, body.mobile-printing[class*=\"seasonal-\"] input, body.mobile-printing[class*=\"seasonal-\"] textarea, body.mobile-printing[class*=\"seasonal-\"] select { background:#ffffff !important; color:#1F2937 !important; }',
+    'body.printing[class*=\"seasonal-\"] input[type=\"checkbox\"], body.printing[class*=\"seasonal-\"] input[type=\"radio\"], body.mobile-printing[class*=\"seasonal-\"] input[type=\"checkbox\"], body.mobile-printing[class*=\"seasonal-\"] input[type=\"radio\"] { background:initial !important; }',
     'body.printing #seasonal-canvas, body.mobile-printing #seasonal-canvas { display:none !important; }',
     '@media screen { body.seasonal-newyear { --cyan:#FFD700; --cyan-dim:#FFC200; --amber:#FF69B4; --border:rgba(255,215,0,0.25); --border-bright:rgba(255,215,0,0.5); } }',
     'body.seasonal-newyear:not(.dark-mode) { --panel:#fffef5; --bg:#fffef5; --bg3:#fff8e1; }',
