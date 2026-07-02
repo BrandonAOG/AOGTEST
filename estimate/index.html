@@ -936,6 +936,19 @@ body.dark-mode .toolbar {
 
 body.dark-mode .btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.25); color: #00FFC8; text-shadow: 0 0 4px rgba(0,255,200,0.3); }
 .btn:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow); }
+
+/* Quiet, always-there "Draft saved HH:MM" badge — separate from #save-status
+   (transient action messages like Capture/PDF progress) so the two never
+   fight over the same line. Lets the user notice at a glance that a draft
+   exists/was restored, instead of autosave silently happening. */
+#autosave-indicator {
+  position: fixed; bottom: 8px; right: 10px; z-index: 500;
+  font-size: 10px; color: var(--text-muted); background: var(--panel);
+  padding: 3px 9px; border-radius: 10px; border: 1px solid var(--border);
+  display: none; pointer-events: none; opacity: 0.9;
+  font-family: var(--font-mono);
+}
+body.dark-mode #autosave-indicator { border-color: var(--border-bright); }
 body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00FFC8; box-shadow: 0 0 12px rgba(0,255,200,0.25), inset 0 0 12px rgba(0,255,200,0.05); text-shadow: 0 0 8px rgba(0,255,200,0.6); }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -1226,7 +1239,7 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     print-color-adjust: exact !important;
   }
   body { margin: 0 !important; padding: 0 !important; }
-  .action-bar, .toolbar, #save-status, #aog-debug, #scale-tuner { display: none !important; }
+  .action-bar, .toolbar, #save-status, #autosave-indicator, #aog-debug, #scale-tuner { display: none !important; }
 
   /* Hide placeholder hint text on print/PDF (keeps on-screen editing unaffected). */
   input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; }
@@ -1670,6 +1683,7 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   </button>
 </div>
 <div id="save-status" style="position:fixed;top:44px;left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;" aria-live="polite"></div>
+<div id="autosave-indicator" aria-hidden="true"></div>
 <div class="page" id="page">
 
   <div class="header">
@@ -2019,6 +2033,21 @@ window.addEventListener('offline', function() { document.body.classList.add('off
 // ── DRAFT ──
 var DRAFT_KEY = 'aog_estimate_draft';
 
+function _draftTimeLabel(ts) {
+  if (!ts) return '';
+  try { return new Date(ts).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+  catch(e) { return ''; }
+}
+// Small always-there badge (not the transient #save-status banner) so
+// autosaving is visible instead of silently happening in the background.
+function _updateAutosaveIndicator(ts) {
+  var el = document.getElementById('autosave-indicator');
+  if (!el) return;
+  if (!ts) { el.style.display = 'none'; return; }
+  el.textContent = 'Draft saved ' + _draftTimeLabel(ts);
+  el.style.display = 'block';
+}
+
 function saveDraft() {
   var data = {};
   document.querySelectorAll('input, textarea').forEach(function(el) {
@@ -2035,7 +2064,11 @@ function saveDraft() {
       }
     } catch(e) {}
   });
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch(e) {}
+  data.__saved_at = Date.now();
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+    _updateAutosaveIndicator(data.__saved_at);
+  } catch(e) {}
 }
 
 function restoreDraft() {
@@ -2057,6 +2090,15 @@ function restoreDraft() {
         }
       } catch(e) {}
     });
+    if (data.__saved_at) {
+      _updateAutosaveIndicator(data.__saved_at);
+      // One-time heads-up so a stale/unrelated draft doesn't silently carry
+      // into a new job unnoticed.
+      var restoredName = (document.getElementById('name') && document.getElementById('name').value || '').trim();
+      var msg = 'Restored draft from ' + _draftTimeLabel(data.__saved_at) + (restoredName ? ' — ' + restoredName : '');
+      setStatus(msg);
+      setTimeout(function(){ setStatus(''); }, 6000);
+    }
   } catch(e) {}
   if (window._refreshAllDateEmpty) window._refreshAllDateEmpty();
 }
@@ -2341,12 +2383,14 @@ async function saveFillablePdf() {
     return;
   }
   setStatus('Building resumable PDF…');
+  _showRenderOverlay('Building your PDF…');
   try {
     saveDraft();
     var data = pdfCollectFormData();
 
     // ── 1) Render the styled page to a canvas (your exact print look). ──
     var canvas = await capturePageToCanvas(false);
+    _hideRenderOverlay();
 
     var PDFDocument = PDFLib.PDFDocument;
     var pdfDoc = await PDFDocument.create();
@@ -2412,6 +2456,7 @@ async function saveFillablePdf() {
       setTimeout(function(){ setStatus(''); }, 4000);
     }
   } catch (err) {
+    _hideRenderOverlay();
     setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
     setTimeout(function(){ setStatus(''); }, 6000);
   }
@@ -2608,6 +2653,40 @@ function getFormData() {
 
 // ── STATUS ──
 function setStatus(msg) { var el = document.getElementById('save-status'); if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; } }
+
+// ── RENDER OVERLAY ──
+// capturePageToCanvas() temporarily mutates the LIVE, visible page (forces
+// desktop width, bumps font-size, strips seasonal/dark-mode, swaps inputs
+// for proxy elements) so html2canvas can render it accurately. Without
+// something covering the screen, the user sees all of that thrash directly.
+// This overlay masks it with a simple spinner while any capture-based flow
+// (CAPTURE, PDF Edit, share) is running.
+function _showRenderOverlay(msg) {
+  var existing = document.getElementById('render-overlay');
+  if (existing) existing.remove();
+  if (!document.getElementById('render-spin-style')) {
+    var s = document.createElement('style');
+    s.id = 'render-spin-style';
+    s.textContent = '@keyframes render-spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(s);
+  }
+  var overlay = document.createElement('div');
+  overlay.id = 'render-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;text-align:center;padding:20px;box-sizing:border-box;';
+  var spinner = document.createElement('div');
+  spinner.style.cssText = 'width:36px;height:36px;border:4px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:render-spin 0.8s linear infinite;margin-bottom:14px;';
+  var lbl = document.createElement('div');
+  lbl.style.cssText = 'font-size:13px;color:#ccc;';
+  lbl.textContent = msg || 'Rendering your form…';
+  overlay.appendChild(spinner);
+  overlay.appendChild(lbl);
+  document.body.appendChild(overlay);
+  return overlay;
+}
+function _hideRenderOverlay() {
+  var el = document.getElementById('render-overlay');
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+}
 
 // ── FILENAME HELPER ──
 function getEstimateFilename(ext) {
@@ -3301,7 +3380,7 @@ function openPrintPreview() {
       '  .doc-title { color:#D35E13!important; }',
       '  input, textarea, select { background:white!important;color:#1F2937!important; }',
       '  .footer-text, .footer span { color:#9CA3AF!important; }',
-      '  .action-bar, #save-status { display:none!important; }',
+      '  .action-bar, #save-status, #autosave-indicator { display:none!important; }',
       '}'
     ].join('\n');
     document.head.appendChild(printStyle);
@@ -4092,9 +4171,11 @@ function saveSmart() {
   // Older Android / desktop without file sharing → direct download path.
   if (!canShareFiles() && !isIOSDevice()) { saveForAndroid(); return; }
   setStatus('Rendering… please wait');
+  _showRenderOverlay('Rendering your form…');
   var filename = getEstimateFilename('jpg');
   setTimeout(function () {
     capturePageToCanvas().then(function (canvas) {
+      _hideRenderOverlay();
       var dataURL = canvas.toDataURL('image/jpeg', 0.92);
       if (canShareFiles()) {
         var file = dataURLtoFile(dataURL, filename);
@@ -4112,6 +4193,7 @@ function saveSmart() {
       if (isIOSDevice()) { showSmartOverlay(dataURL, filename); }
       else { smartDirectDownload(dataURL, filename); }
     }).catch(function (err) {
+      _hideRenderOverlay();
       setStatus(typeof html2canvas === 'undefined'
         ? 'Image library failed to load. Try the PDF button instead.'
         : 'Render failed: ' + (err && err.message ? err.message : err));
@@ -4160,11 +4242,13 @@ function saveForIPhone() {
 // ── ANDROID SAVE ──
 function saveForAndroid() {
   setStatus('Rendering… please wait');
+  _showRenderOverlay('Rendering your form…');
 
   var filename = getEstimateFilename('jpg');
 
   setTimeout(function() {
     capturePageToCanvas().then(function(canvas) {
+      _hideRenderOverlay();
       var link = document.createElement('a');
       link.download = filename;
       link.href = canvas.toDataURL('image/jpeg', 0.92);
@@ -4172,6 +4256,7 @@ function saveForAndroid() {
       setStatus('Saved: ' + filename);
       setTimeout(function() { setStatus(''); }, 4000);
     }).catch(function(err) {
+      _hideRenderOverlay();
       setStatus(typeof html2canvas === 'undefined' ? 'Image library failed to load. Try PDF instead.' : 'Render failed: ' + (err && err.message ? err.message : err));
     });
   }, 250);
@@ -4220,6 +4305,7 @@ function doClearForm() {
   var gps = document.getElementById('gps-status'); if (gps) { gps.style.display='none'; gps.textContent=''; }
   if (window._refreshAllDateEmpty) window._refreshAllDateEmpty();
   try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+  _updateAutosaveIndicator(null);
 }
 
 // ── ADDRESS AUTOCOMPLETE ──
