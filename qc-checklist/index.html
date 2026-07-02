@@ -521,6 +521,20 @@ body {
 }
 .ab-btn:hover { border-color: var(--cyan); }
 
+/* Quiet, always-there "Draft saved HH:MM" badge — separate from #save-status
+   (which is for transient action messages like Capture/PDF progress) so the
+   two never fight over the same line. Purely informational: lets a
+   technician notice at a glance that a draft exists/was restored, instead
+   of autosave silently overwriting things in the background. */
+#autosave-indicator {
+  position: fixed; bottom: 8px; right: 10px; z-index: 500;
+  font-size: 10px; color: var(--text-muted); background: var(--panel);
+  padding: 3px 9px; border-radius: 10px; border: 1px solid var(--border);
+  display: none; pointer-events: none; opacity: 0.9;
+  font-family: var(--font-mono);
+}
+body.dark-mode #autosave-indicator { border-color: var(--border-bright); }
+
 body.offline { padding-top: 0; }
 
 /* ── WRAPPER ── */
@@ -643,16 +657,10 @@ input[type="date"].info-input::-webkit-calendar-picker-indicator {
 
 /* On small phones — stack name/date and tech/crew each on their own rows */
 @media screen and (max-width: 600px) {
-  /* Info fields sit inside .header-right (beside the 52px logo + 12px gap),
-     so pull them back to the screen's left edge and span full width. */
   .info-grid {
     grid-template-columns: 1fr; gap: 2px 0;
-    margin-left: -64px;   /* offset logo (52px) + header gap (12px) */
     margin-top: 6px;
   }
-  /* Page 1's customer info is no longer nested beside the logo (it's its
-     own block below the header), so it doesn't need the offset above. */
-  .customer-info .info-grid { margin-left: 0; }
   /* Each label+input pair takes a full line: label fixed width, input fills
      the rest, so the next pair wraps to its own line below. */
   .info-row { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 4px; column-gap: 6px; }
@@ -1012,7 +1020,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   @page { size: 8.5in 11in; margin: 0.18in 0.18in 0.12in 0.18in; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; transition: none !important; }
   body { background: #fff !important; }
-  .action-bar, #save-status, #offline-banner, .tap-hint { display: none !important; }
+  .action-bar, #save-status, #autosave-indicator, #offline-banner, .tap-hint { display: none !important; }
   .gps-btn, #gps-status, #gps-live, #address-suggestions { display: none !important; }
   .meter-toggle-header span:last-child { display: none !important; }
   .wrapper { padding-top: 0 !important; gap: 0 !important; background: #fff !important; display: block !important; }
@@ -1273,6 +1281,7 @@ body.capturing {
 </div>
 
 <div id="save-status" style="position:fixed;top:46px;left:0;right:0;z-index:9998;text-align:center;font-size:10px;color:var(--text-muted);background:#fff;padding:2px 8px;display:none;" aria-live="polite"></div>
+<div id="autosave-indicator" aria-hidden="true"></div>
 
 <div class="wrapper">
 
@@ -1543,13 +1552,17 @@ body.capturing {
       <div class="header-right">
         <div class="company-name">Always On Generators</div>
         <div class="doc-title" id="doc-title-continued">Quality Control Checklist — continued</div>
-        <div class="info-grid">
-          <div class="info-row full">
-            <span class="info-label">Customer Name:</span>
-            <input class="info-input" type="text" id="cust_name2" autocomplete="off">
-            <span class="info-label" style="margin-left:10px;">Date:</span>
-            <input class="info-input" type="date" id="cust_date2" style="max-width:120px;">
-          </div>
+      </div>
+    </div>
+
+    <!-- CUSTOMER INFO -->
+    <div class="customer-info">
+      <div class="info-grid">
+        <div class="info-row full">
+          <span class="info-label">Customer Name:</span>
+          <input class="info-input" type="text" id="cust_name2" autocomplete="off">
+          <span class="info-label" style="margin-left:10px;">Date:</span>
+          <input class="info-input" type="date" id="cust_date2" style="max-width:120px;">
         </div>
       </div>
     </div>
@@ -1819,6 +1832,20 @@ document.getElementById('cust_date').addEventListener('input', syncPage2);
 
 // ── AUTO-SAVE DRAFT ──
 var DRAFT_KEY = 'aog_checklist_qc_draft';
+function _draftTimeLabel(ts) {
+  if (!ts) return '';
+  try { return new Date(ts).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+  catch(e) { return ''; }
+}
+// Small always-there badge (not the transient #save-status banner) so
+// autosaving is visible instead of silently happening in the background.
+function _updateAutosaveIndicator(ts) {
+  var el = document.getElementById('autosave-indicator');
+  if (!el) return;
+  if (!ts) { el.style.display = 'none'; return; }
+  el.textContent = 'Draft saved ' + _draftTimeLabel(ts);
+  el.style.display = 'block';
+}
 function saveDraft() {
   var data = {};
   document.querySelectorAll('input').forEach(function(el) {
@@ -1839,7 +1866,11 @@ function saveDraft() {
     if (key) data[key] = el.value;
   });
   data['__meter_tab'] = _meterTab;
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch(e) {}
+  data['__saved_at'] = Date.now();
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+    _updateAutosaveIndicator(data['__saved_at']);
+  } catch(e) {}
 }
 function restoreDraft() {
   var saved = '';
@@ -1865,6 +1896,16 @@ function restoreDraft() {
     });
     if (data['__meter_tab']) { _meterTab = data['__meter_tab']; applyMeterTab(); }
     syncPage2();
+    if (data['__saved_at']) {
+      _updateAutosaveIndicator(data['__saved_at']);
+      // One-time heads-up so a stale/unrelated draft doesn't silently carry
+      // into a new job unnoticed — makes it obvious there's old data and
+      // when it's from, so CLEAR can be used if it's not wanted.
+      var restoredName = (document.getElementById('cust_name') && document.getElementById('cust_name').value || '').trim();
+      var msg = 'Restored draft from ' + _draftTimeLabel(data['__saved_at']) + (restoredName ? ' — ' + restoredName : '');
+      setStatus(msg);
+      setTimeout(function(){ setStatus(''); }, 6000);
+    }
   } catch(e) {}
 }
 setInterval(saveDraft, 30000);
@@ -1931,6 +1972,23 @@ window.addEventListener('resize', autoGrowAllNotes);
 // Re-fit when orientation changes too
 window.addEventListener('orientationchange', function(){ setTimeout(autoGrowAllNotes, 100); });
 
+// ── CHECKLIST OPTIONS ARE MUTUALLY EXCLUSIVE ──
+// Each checklist item's answer (Good/Bad, Yes/No, Installed/Removed…) is
+// built from two independent checkboxes sharing a `name`, styled to look
+// like a single toggle. Nothing about <input type="checkbox"> enforces
+// "only one of these" the way <input type="radio"> does, so without this,
+// a technician could tap both options and silently save a contradictory
+// answer. Checking one here un-checks its sibling in the same .options group.
+document.addEventListener('change', function(e) {
+  var el = e.target;
+  if (!el || el.type !== 'checkbox' || !el.checked || !el.name) return;
+  var group = el.closest('.options');
+  if (!group) return;
+  group.querySelectorAll('input[type="checkbox"][name="' + el.name + '"]').forEach(function(other) {
+    if (other !== el) other.checked = false;
+  });
+});
+
 // ── CLEAR ──
 function clearForm() {
   if (!confirm('Clear all fields?')) return;
@@ -1941,6 +1999,7 @@ function clearForm() {
   document.getElementById('cust_date').value = today;
   document.getElementById('cust_date2').value = today;
   try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+  _updateAutosaveIndicator(null);
   autoGrowAllNotes();
 }
 
@@ -1975,7 +2034,7 @@ function capturePageToCanvas(pageEl) {
         // Capture renders the phone layout; bump the root font so all rem-based
         // text is larger and easy to read in the image.
         'html { font-size: 20px !important; }',
-        '.action-bar, #action-bar, #save-status, #offline-banner {',
+        '.action-bar, #action-bar, #save-status, #autosave-indicator, #offline-banner {',
         '  display: none !important; position: static !important;',
         '  height: 0 !important; padding: 0 !important; overflow: hidden !important;',
         '}',
@@ -2815,7 +2874,7 @@ function printForm() {
     '  .item-label,.item-num,.opt { color:#1F2937!important; }',
     '  .info-input,.notes-line { background:white!important;color:#1F2937!important; }',
     '  .footer-text,.page-num { color:#9CA3AF!important; }',
-    '  .action-bar,.theme-toggle-btn,#save-status,#offline-banner,#print-debug { display:none!important; }',
+    '  .action-bar,.theme-toggle-btn,#save-status,#autosave-indicator,#offline-banner,#print-debug { display:none!important; }',
     '  .gps-btn,#gps-status,#gps-live,#address-suggestions { display:none!important; }',
     '  .summary-label { font-size:var(--fs-print-desktop-summary)!important; color:#6B7280!important; }',
     '  .status-btn { min-height:var(--h-print-desktop-item)!important; padding:var(--pd-print-desktop-item)!important; font-size:var(--fs-print-desktop-summary)!important; border-radius:12px!important; color:#6B7280!important; border-color:rgba(217,119,6,0.4)!important; background:white!important; }',
