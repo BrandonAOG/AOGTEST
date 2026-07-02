@@ -236,6 +236,19 @@ body.dark-mode .action-bar {
 @media (max-width: 640px) { .btn { padding: 8px 14px; font-size: 9px; } }
 body.dark-mode .btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.25); color: #00FFC8; text-shadow: 0 0 4px rgba(0,255,200,0.3); }
 .btn:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow); transform: translateY(-1px); }
+
+/* Quiet, always-there "Draft saved HH:MM" badge — separate from #save-status
+   (transient action messages like Capture/PDF progress) so the two never
+   fight over the same line. Lets the user notice at a glance that a draft
+   exists/was restored, instead of autosave silently happening. */
+#autosave-indicator {
+  position: fixed; bottom: 8px; right: 10px; z-index: 500;
+  font-size: 10px; color: var(--text-muted); background: var(--panel);
+  padding: 3px 9px; border-radius: 10px; border: 1px solid var(--border);
+  display: none; pointer-events: none; opacity: 0.9;
+  font-family: var(--font-mono);
+}
+body.dark-mode #autosave-indicator { border-color: var(--border-bright); }
 body.dark-mode .btn:hover { background: rgba(0,255,200,0.12); border-color: #00FFC8; box-shadow: 0 0 12px rgba(0,255,200,0.25); text-shadow: 0 0 8px rgba(0,255,200,0.6); }
 .btn:active { transform: translateY(0); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
@@ -713,7 +726,7 @@ body.dark-mode .notice { color: #7DD3FC; }
     background-attachment: initial !important;
   }
 
-  .action-bar, .theme-toggle-btn, .notice { display: none !important; }
+  .action-bar, .theme-toggle-btn, .notice, #save-status, #autosave-indicator { display: none !important; }
   .app-footer { display: none !important; }
 
   /* Neutralise any dark-mode element backgrounds that don't use CSS vars */
@@ -1726,6 +1739,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   </button>
 </div>
 <div id="save-status" style="position:fixed;top:44px;left:0;right:0;z-index:99998;text-align:center;font-size:10px;color:var(--text-muted);background:var(--panel);padding:2px 8px;display:none;font-family:Arial,sans-serif;"></div>
+<div id="autosave-indicator" aria-hidden="true"></div>
 
 <div class="page-wrapper">
 
@@ -2236,6 +2250,7 @@ function clearForm() {
   themedConfirm('This cannot be undone.', { title: 'Clear ALL entries?', confirmText: 'Clear all' }).then(function (ok) {
     if (!ok) return;
     try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+    _updateAutosaveIndicator(null);
     // Remove all extra transfer switches, keep only the first
     document.querySelectorAll('.ts-block:not(:first-child)').forEach(el => el.remove());
     renumberTS();
@@ -2391,7 +2406,14 @@ function showRealTablesForCapture() {
     'body[class*="seasonal-"] #page2 table.mat-table td.row-label { background: rgba(211,94,19,0.15) !important; }',
     'body[class*="seasonal-"] input, body[class*="seasonal-"] textarea, body[class*="seasonal-"] select { background: #ffffff !important; color: #1F2937 !important; }',
     'body[class*="seasonal-"] input[type="checkbox"], body[class*="seasonal-"] input[type="radio"] { background: initial !important; }',
-    '#seasonal-canvas { display: none !important; }'
+    // ---- Force the plain LIGHT theme on capture: override every dark-mode /
+    //      seasonal CSS variable so text, accents and borders match the base
+    //      look (fixes seasonal text color / accents bleeding into the image). ----
+    'body, body.dark-mode, body[class*="seasonal-"] { --cyan:#D35E13 !important; --cyan-dim:#D35E13 !important; --cyan-dark:#D35E13 !important; --amber:#D35E13 !important; --amber-dim:#D35E13 !important; --bg:#FFFFFF !important; --panel:#FFFFFF !important; --panel2:#FAFAFA !important; --border:rgba(211,94,19,0.25) !important; --border-bright:rgba(211,94,19,0.5) !important; --text:#1F2937 !important; --text-muted:#6B7280 !important; --text-dim:#9CA3AF !important; }',
+    'body[class*="seasonal-"] .form-page, body.dark-mode .form-page { border-color:rgba(211,94,19,0.5) !important; box-shadow:none !important; }',
+    'body[class*="seasonal-"] .checklist-title::after, body[class*="seasonal-"] .logo-text::after, body[class*="seasonal-"] .doc-title::after { content:"" !important; }',
+    '#seasonal-canvas { display: none !important; }',
+    '.action-bar, #save-status, #autosave-indicator { display: none !important; }'
   ].join('\n');
   document.head.appendChild(style);
 }
@@ -2695,6 +2717,7 @@ function saveSmart() {
 
 function captureAndShare() {
   setStatus('Rendering pages, please wait…');
+  _showRenderOverlay('Rendering your form…');
   const pages = document.querySelectorAll('.form-page');
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
@@ -2702,6 +2725,7 @@ function captureAndShare() {
   const restoreLayout = forceDesktopLayout();
 
   function cleanup() {
+    _hideRenderOverlay();
     hideRealTablesAfterCapture();
     restoreLayout();
     if (wasDark) document.body.classList.add('dark-mode');
@@ -2808,6 +2832,7 @@ function showImageOverlay(results, wasDark) {
 // ===== ANDROID =====
 function saveForAndroid() {
   setStatus('Rendering pages, please wait…');
+  _showRenderOverlay('Rendering your form…');
   const pages = document.querySelectorAll('.form-page');
   const wasDark = document.body.classList.contains('dark-mode');
   if (wasDark) document.body.classList.remove('dark-mode');
@@ -2825,11 +2850,11 @@ function saveForAndroid() {
       link.download = buildFilename('jpg', idx + 1, pages.length);
       link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
       completed++;
-      if (completed === pages.length) { hideRealTablesAfterCapture(); restoreLayout(); setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
+      if (completed === pages.length) { _hideRenderOverlay(); hideRealTablesAfterCapture(); restoreLayout(); setStatus(`${pages.length} image(s) sent to your Downloads folder.`); setTimeout(() => setStatus(''), 4000); if (wasDark) document.body.classList.add('dark-mode'); }
     }).catch(err => {
       restoreFill();
       completed++;
-      hideRealTablesAfterCapture(); restoreLayout();
+      _hideRenderOverlay(); hideRealTablesAfterCapture(); restoreLayout();
       setStatus('⚠ Could not render page ' + (idx + 1) + ' — try again.');
       setTimeout(() => setStatus(''), 5000);
       if (wasDark) document.body.classList.add('dark-mode');
@@ -2843,6 +2868,40 @@ function setStatus(msg) {
   if (!el) return;
   el.textContent = msg;
   el.style.display = msg ? 'block' : 'none';
+}
+
+// ── RENDER OVERLAY ──
+// The capture pipeline temporarily mutates the LIVE, visible page (forces
+// desktop width/layout, swaps inputs for wrapping-div mirrors, strips
+// seasonal/dark-mode) so html2canvas can render it accurately. Without
+// something covering the screen, the user sees all of that thrash directly.
+// This overlay masks it with a simple spinner while any capture-based flow
+// (CAPTURE, PDF Edit, share) is running.
+function _showRenderOverlay(msg) {
+  var existing = document.getElementById('render-overlay');
+  if (existing) existing.remove();
+  if (!document.getElementById('render-spin-style')) {
+    var s = document.createElement('style');
+    s.id = 'render-spin-style';
+    s.textContent = '@keyframes render-spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(s);
+  }
+  var overlay = document.createElement('div');
+  overlay.id = 'render-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;text-align:center;padding:20px;box-sizing:border-box;';
+  var spinner = document.createElement('div');
+  spinner.style.cssText = 'width:36px;height:36px;border:4px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:render-spin 0.8s linear infinite;margin-bottom:14px;';
+  var lbl = document.createElement('div');
+  lbl.style.cssText = 'font-size:13px;color:#ccc;';
+  lbl.textContent = msg || 'Rendering your form…';
+  overlay.appendChild(spinner);
+  overlay.appendChild(lbl);
+  document.body.appendChild(overlay);
+  return overlay;
+}
+function _hideRenderOverlay() {
+  var el = document.getElementById('render-overlay');
+  if (el && el.parentNode) el.parentNode.removeChild(el);
 }
 
 // ===== INIT =====
@@ -2862,9 +2921,27 @@ function collectFormData() {
   return data;
 }
 
+function _draftTimeLabel(ts) {
+  if (!ts) return '';
+  try { return new Date(ts).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+  catch(e) { return ''; }
+}
+// Small always-there badge (not the transient #save-status banner) so
+// autosaving is visible instead of silently happening in the background.
+function _updateAutosaveIndicator(ts) {
+  const el = document.getElementById('autosave-indicator');
+  if (!el) return;
+  if (!ts) { el.style.display = 'none'; return; }
+  el.textContent = 'Draft saved ' + _draftTimeLabel(ts);
+  el.style.display = 'block';
+}
+
 function saveFormData() {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(collectFormData()));
+    var data = collectFormData();
+    data.__saved_at = Date.now();
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    _updateAutosaveIndicator(data.__saved_at);
   } catch(e) {}
 }
 
@@ -2903,7 +2980,18 @@ function restoreFormData() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
-    applyFormData(JSON.parse(raw));
+    const data = JSON.parse(raw);
+    applyFormData(data);
+    if (data.__saved_at) {
+      _updateAutosaveIndicator(data.__saved_at);
+      // One-time heads-up so a stale/unrelated draft doesn't silently carry
+      // into a new job unnoticed.
+      const topInputs = document.querySelectorAll('.top-fields .field-row input[type="text"]');
+      const restoredName = (topInputs[0] ? topInputs[0].value.trim() : '');
+      const msg = 'Restored draft from ' + _draftTimeLabel(data.__saved_at) + (restoredName ? ' — ' + restoredName : '');
+      setStatus(msg);
+      setTimeout(function(){ setStatus(''); }, 6000);
+    }
   } catch(e) {}
 }
 
@@ -2957,6 +3045,7 @@ async function saveFillablePdf() {
     return;
   }
   setStatus('Building resumable PDF…');
+  _showRenderOverlay('Building your PDF…');
 
   // Mirror the CAPTURE pipeline so the rendered look matches the print sheet.
   var pages = document.querySelectorAll('.form-page');
@@ -2966,6 +3055,7 @@ async function saveFillablePdf() {
   var restoreLayout = (typeof forceDesktopLayout === 'function') ? forceDesktopLayout() : function(){};
 
   function cleanup() {
+    _hideRenderOverlay();
     if (typeof hideRealTablesAfterCapture === 'function') hideRealTablesAfterCapture();
     restoreLayout();
     if (wasDark) document.body.classList.add('dark-mode');
@@ -2981,25 +3071,36 @@ async function saveFillablePdf() {
     var pdfDoc = await PDFDocument.create();
     var PAGE_W = 612; // US Letter width (pt)
 
-    for (var idx = 0; idx < pages.length; idx++) {
-      var page = pages[idx];
+    // Render every page's canvas in parallel — html2canvas + fitToLetter is the
+    // slow part, and there's no reason to wait for page 1 to fully finish before
+    // starting page 2 (captureAndShare() already does this; PDF used to do it
+    // one page at a time, roughly doubling wall-clock time for a 2-page form).
+    var jobs = Array.prototype.map.call(pages, function (page) {
       var restoreFill = (typeof fitPageToSheet === 'function') ? fitPageToSheet(page) : function(){};
       var capH = (typeof measureFullHeight === 'function') ? measureFullHeight(page) : page.scrollHeight;
-      var canvas;
-      try {
-        canvas = await html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } });
-      } finally {
-        restoreFill();
-      }
-      if (typeof fitToLetter === 'function') canvas = fitToLetter(canvas);
+      return html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } })
+        .then(function (canvas) {
+          restoreFill();
+          return (typeof fitToLetter === 'function') ? fitToLetter(canvas) : canvas;
+        })
+        .catch(function (err) { restoreFill(); throw err; });
+    });
+    var canvases = await Promise.all(jobs);
 
-      var imgData = canvas.toDataURL('image/png');
-      var pngBytes = Uint8Array.from(atob(imgData.split(',')[1]), function(c){ return c.charCodeAt(0); });
-      var png = await pdfDoc.embedPng(pngBytes);
-      var scale = PAGE_W / png.width;
-      var PAGE_H = png.height * scale;
+    for (var idx = 0; idx < canvases.length; idx++) {
+      var canvas = canvases[idx];
+      // JPEG instead of PNG: PNG's lossless compression is the single slowest
+      // step in this whole pipeline for a large scale-2 canvas (multiple seconds
+      // per page on an older phone). CAPTURE already ships JPEG at 0.85 for the
+      // exact same rendered content, so this isn't a new quality trade-off —
+      // 0.92 here keeps it a bit crisper since this is the "official" PDF copy.
+      var imgData = canvas.toDataURL('image/jpeg', 0.92);
+      var jpgBytes = Uint8Array.from(atob(imgData.split(',')[1]), function(c){ return c.charCodeAt(0); });
+      var jpg = await pdfDoc.embedJpg(jpgBytes);
+      var scale = PAGE_W / jpg.width;
+      var PAGE_H = jpg.height * scale;
       var p = pdfDoc.addPage([PAGE_W, PAGE_H]);
-      p.drawImage(png, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+      p.drawImage(jpg, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
     }
 
     // Embed full JSON for a lossless reload round-trip.
@@ -5679,12 +5780,16 @@ function createSeasonalCanvas(theme) {
       var PALETTE=['#FF2D2D','#FFFFFF','#2D6DFF','#FF7A00','#FFD400','#22C55E','#FF3EA5','#00E5FF'];
       function rnd(a,b){ return a+Math.random()*(b-a); }
       function pick(a){ return a[(Math.random()*a.length)|0]; }
+      var G=0.12; // gravity used for both launch calc and ascent
       function newRise(){
+        var startY=H+rnd(0,30);
+        var targetY=rnd(H*0.12,H*0.72);          // spread bursts: some high, some low
+        var vy=-Math.sqrt(2*G*(startY-targetY))*rnd(1.0,1.05); // launch speed scaled to page height
         return {
           phase:'rise',
-          x:rnd(W*0.12,W*0.88), y:H+rnd(0,40),
-          vx:rnd(-0.4,0.4), vy:-rnd(6.5,9.5),
-          targetY:rnd(H*0.10,H*0.48),
+          x:rnd(W*0.12,W*0.88), y:startY,
+          vx:rnd(-0.4,0.4), vy:vy,
+          targetY:targetY,
           color:pick(PALETTE),
           trail:[], sparks:[], flash:0, delay:0
         };
@@ -5754,8 +5859,8 @@ function createSeasonalCanvas(theme) {
           }
           if (p.phase==='rise'){
             p.trail.push({x:p.x,y:p.y}); if (p.trail.length>8) p.trail.shift();
-            p.x+=p.vx; p.y+=p.vy; p.vy+=0.12;
-            if (p.y<=p.targetY || p.vy>=-0.5) explode(p);
+            p.x+=p.vx; p.y+=p.vy; p.vy+=G;
+            if (p.y<=p.targetY || p.vy>=-0.3) explode(p);
             return;
           }
           if (p.flash>0) p.flash-=0.06;
