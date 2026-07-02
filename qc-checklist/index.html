@@ -2177,7 +2177,10 @@ function capturePageToCanvas(pageEl) {
         restoreInputFonts();
         _phSaved.forEach(function(p){ if (p[1] != null) p[0].setAttribute('placeholder', p[1]); });
         _phSaved = [];
-        if (logoImg && logoOrigSrc) { logoImg.src = logoOrigSrc; logoImg.style.visibility = ''; }
+        if (logoImg && logoOrigSrc) {
+          logoImg.src = logoOrigSrc; logoImg.style.visibility = '';
+          logoImg.style.width = ''; logoImg.style.height = '';
+        }
       }
 
       requestAnimationFrame(() => {
@@ -2243,8 +2246,26 @@ function capturePageToCanvas(pageEl) {
         const fr = new FileReader();
         fr.onload = () => res(fr.result); fr.onerror = rej;
         fr.readAsDataURL(blob);
-      })).then(dataUrl => { logoImg.src = dataUrl; setTimeout(doCapture, 150); })
-      .catch(() => { logoImg.style.visibility = 'hidden'; doCapture(); });
+      })).then(dataUrl => {
+        logoImg.src = dataUrl;
+        // html2canvas doesn't honor object-fit: contain — it stretches the
+        // <img> to fill its box (52x52), squashing/stretching non-square
+        // logos. Work around it by measuring the real image and pinning an
+        // explicit width/height that preserves its aspect ratio inside the
+        // 52px box, restored after capture in restoreCapture().
+        const BOX = 52;
+        const applyLogoSize = () => {
+          const nw = logoImg.naturalWidth, nh = logoImg.naturalHeight;
+          if (nw && nh) {
+            const ratio = nw / nh;
+            if (ratio >= 1) { logoImg.style.width = BOX + 'px'; logoImg.style.height = Math.round(BOX / ratio) + 'px'; }
+            else { logoImg.style.height = BOX + 'px'; logoImg.style.width = Math.round(BOX * ratio) + 'px'; }
+          }
+          setTimeout(doCapture, 150);
+        };
+        if (logoImg.complete && logoImg.naturalWidth) applyLogoSize();
+        else logoImg.onload = applyLogoSize;
+      }).catch(() => { logoImg.style.visibility = 'hidden'; doCapture(); });
     } else { doCapture(); }
   });
 }
