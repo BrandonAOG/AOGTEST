@@ -588,6 +588,40 @@ body.offline { padding-top: 0; }
   padding: calc(var(--h-phone-info-input) - 1.25em) 2px 1px;
 }
 .info-row.full { grid-column: 1 / -1; }
+
+/* ── ADDRESS AUTOCOMPLETE + GPS ── */
+.addr-wrap { flex: 1; position: relative; min-width: 0; }
+.addr-wrap .info-input { width: 100%; padding-right: 26px; box-sizing: border-box; }
+.gps-btn {
+  position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+  background: rgba(217,119,6,0.12); border: 1px solid rgba(217,119,6,0.3); border-radius: 4px;
+  width: 22px; height: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  padding: 0; z-index: 2; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  flex-shrink: 0; transition: all 0.15s;
+}
+body.dark-mode .gps-btn { background: rgba(0,255,200,0.1); border-color: rgba(0,255,200,0.3); }
+.gps-btn:hover { background: rgba(217,119,6,0.2); }
+.gps-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.gps-btn svg { stroke: var(--cyan) !important; color: var(--cyan) !important; }
+#address-suggestions {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 99999;
+  background: var(--panel); border: 1px solid var(--border-bright); border-top: none;
+  margin: 0; padding: 0; list-style: none; max-height: 220px; overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(217,119,6,0.12); display: none;
+}
+body.dark-mode #address-suggestions { background: rgba(10,14,39,0.95); border-color: rgba(0,255,200,0.2); box-shadow: 0 8px 24px rgba(0,255,200,0.15); }
+#address-suggestions.open { display: block; }
+#address-suggestions li {
+  padding: 8px 10px; cursor: pointer; font-size: 0.72rem; color: var(--text);
+  border-bottom: 1px solid rgba(217,119,6,0.08); font-family: var(--font-mono);
+  min-height: 34px; display: flex; align-items: center; -webkit-tap-highlight-color: transparent; transition: background 0.1s;
+}
+body.dark-mode #address-suggestions li { color: #E0F7FF; border-bottom-color: rgba(0,255,200,0.08); }
+#address-suggestions li:hover, #address-suggestions li.active { background: rgba(217,119,6,0.08); color: var(--cyan); }
+body.dark-mode #address-suggestions li:hover, body.dark-mode #address-suggestions li.active { background: rgba(0,255,200,0.08); color: #00FFC8; }
+#gps-status { font-size: 0.62rem; font-family: var(--font-mono); color: var(--text-muted); margin: 2px 0 4px; display: none; }
+body.dark-mode #gps-status { color: #7DD3FC; }
+
 /* Date inputs center their text by default in WebKit — force left align
    on screen and print. */
 input[type="date"].info-input { text-align: left !important; }
@@ -963,6 +997,7 @@ body.dark-mode .summary-sig-line { border-bottom-color: rgba(0,255,200,0.3) !imp
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; transition: none !important; }
   body { background: #fff !important; }
   .action-bar, #save-status, #offline-banner, .tap-hint { display: none !important; }
+  .gps-btn, #gps-status, #gps-live, #address-suggestions { display: none !important; }
   .meter-toggle-header span:last-child { display: none !important; }
   .wrapper { padding-top: 0 !important; gap: 0 !important; background: #fff !important; display: block !important; }
   .page {
@@ -1194,6 +1229,8 @@ body.capturing {
 
 <body>
 
+<div id="gps-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
+
 <style id="pdf-btn-toggle">
 /* === TEMP: hide the regular PDF button. To restore, delete this rule AND remove the 'pdf-btn-hidden' class from the PDF button. === */
 .pdf-btn-hidden { display: none !important; }
@@ -1240,9 +1277,21 @@ body.capturing {
           </div>
           <div class="info-row full" id="addr-elec-row">
             <span class="info-label">Address:</span>
-            <input class="info-input" type="text" id="cust_addr" autocomplete="off">
+            <div class="addr-wrap">
+              <input class="info-input" type="text" id="cust_addr" autocomplete="off"
+                     autocorrect="off" autocapitalize="words" spellcheck="false"
+                     placeholder="Start typing address…"
+                     aria-autocomplete="list" aria-controls="address-suggestions" aria-expanded="false">
+              <button class="gps-btn" title="Use my current location" id="gps-btn" type="button" aria-label="Get GPS location">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 4"/></svg>
+              </button>
+              <ul id="address-suggestions" role="listbox" aria-label="Address suggestions"></ul>
+            </div>
             <span class="info-label" style="margin-left:8px;flex-shrink:0;">Elec. Crew:</span>
             <input class="info-input" type="text" id="elec_crew" autocomplete="off">
+          </div>
+          <div class="info-row full" id="gps-status-row" style="margin-bottom:0;">
+            <div id="gps-status" aria-hidden="true"></div>
           </div>
           <div class="info-row full" id="tech-crew-row">
             <span class="info-label">Technician:</span>
@@ -1911,6 +1960,7 @@ function capturePageToCanvas(pageEl) {
         '  height: 0 !important; padding: 0 !important; overflow: hidden !important;',
         '}',
         '.theme-toggle-btn { display: none !important; }',
+        '.gps-btn, #gps-status, #gps-live, #address-suggestions { display: none !important; }',
         '.tap-hint { display: none !important; }',
         // Hide placeholder hint text in the captured image.
         'input::placeholder, textarea::placeholder { color: transparent !important; opacity: 0 !important; }',
@@ -2145,6 +2195,9 @@ function capturePageToCanvas(pageEl) {
               el.id === 'action-bar' || el.id === 'save-status' ||
               el.id === 'offline-banner' ||
               el.classList.contains('seasonal-canvas') ||
+              el.classList.contains('gps-btn') ||
+              el.id === 'gps-status' || el.id === 'gps-live' ||
+              el.id === 'address-suggestions' ||
               el.classList.contains('theme-toggle-btn')
           }).then(srcCanvas => {
             restoreCapture();
@@ -2677,6 +2730,7 @@ function printForm() {
     '  .info-input,.notes-line { background:white!important;color:#1F2937!important; }',
     '  .footer-text,.page-num { color:#9CA3AF!important; }',
     '  .action-bar,.theme-toggle-btn,#save-status,#offline-banner,#print-debug { display:none!important; }',
+    '  .gps-btn,#gps-status,#gps-live,#address-suggestions { display:none!important; }',
     '  .summary-label { font-size:var(--fs-print-desktop-summary)!important; color:#6B7280!important; }',
     '  .status-btn { min-height:var(--h-print-desktop-item)!important; padding:var(--pd-print-desktop-item)!important; font-size:var(--fs-print-desktop-summary)!important; border-radius:12px!important; color:#6B7280!important; border-color:rgba(217,119,6,0.4)!important; background:white!important; }',
     '  .status-btn span { font-size:var(--fs-print-desktop-summary)!important; color:#6B7280!important; line-height:1!important; display:inline-flex!important; align-items:center!important; gap:3px!important; }',
@@ -2961,6 +3015,167 @@ function getInitialTheme() {
   var saved = ''; try { saved = localStorage.getItem(THEME_KEY) || ''; } catch(e) {}
   if (saved) return saved;
   return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ADDRESS AUTOCOMPLETE + GPS — ported from the estimate form. Tries Mapbox
+// first (token below — same public client-side token already shipped in
+// the estimate form; Mapbox publishable tokens are meant to be used from
+// the browser, but consider scoping/rotating it in the Mapbox dashboard if
+// you want tighter control), falls back to free OpenStreetMap Nominatim.
+// This form has a single address field (no separate city/state/zip field),
+// so a selected suggestion fills the full "street, city, state zip" line.
+// ═══════════════════════════════════════════════════════════════════════
+var MAPBOX_TOKEN = 'pk.eyJ1IjoicHJvamVjdHdyYXBwZXIiLCJhIjoiY201d2k1eHU3MDAwajJrbzU2a2c5dW40NSJ9.WJlNJ4o5CqBhWpHKMKOzIQ';
+var SW_FLORIDA_BBOX   = '-82.2,26.0,-81.2,27.0';
+var SW_FLORIDA_CENTER = '-81.76,26.14';
+
+function isFloridaAddress(pn, addr) {
+  if (addr && addr.state) { var s=addr.state.toLowerCase(); if(s==='florida'||s==='fl') return true; }
+  if (!pn) return false;
+  var p = pn.toLowerCase();
+  return p.includes('florida') || /,\s*fl\b/.test(p) || /\bfl\s+\d{5}/.test(p);
+}
+
+function setupAddressAutocomplete() {
+  var input = document.getElementById('cust_addr');
+  var list  = document.getElementById('address-suggestions');
+  if (!input || !list) return;
+  var debounce;
+
+  function updateAriaExpanded(open) {
+    input.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function renderResults(results, source) {
+    list.innerHTML = '';
+    if (results.length === 0) { list.classList.remove('open'); updateAriaExpanded(false); return; }
+    results.forEach(function(item) {
+      var li = document.createElement('li');
+      li.setAttribute('role','option');
+      var isFlorida, handler;
+      if (source === 'mapbox') {
+        li.textContent = item.place_name;
+        isFlorida = isFloridaAddress(item.place_name, null);
+        handler = function(e) {
+          e.preventDefault();
+          input.value = item.place_name;
+          list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML = '';
+          saveDraft();
+        };
+      } else {
+        li.textContent = item.display_name;
+        isFlorida = isFloridaAddress(item.display_name, item.address);
+        handler = function(e) {
+          e.preventDefault();
+          var a = item.address || {};
+          var street = ((a.house_number||'') + ' ' + (a.road||'')).trim() || item.display_name.split(',')[0];
+          var city   = a.city || a.town || a.village || a.county || '';
+          var state  = a.state || '';
+          var zip    = a.postcode || '';
+          input.value = [street, [city,state,zip].filter(Boolean).join(', ')].filter(Boolean).join(', ');
+          list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML = '';
+          saveDraft();
+        };
+      }
+      if (isFlorida) { li.style.fontWeight='bold'; li.style.color='var(--cyan)'; }
+      li.addEventListener('mousedown', handler);
+      li.addEventListener('mouseenter', function() { this.classList.add('active'); });
+      li.addEventListener('mouseleave', function() { this.classList.remove('active'); });
+      list.appendChild(li);
+    });
+    list.classList.add('open'); updateAriaExpanded(true);
+  }
+
+  function tryNominatim(q) {
+    fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=20&countrycodes=us&viewbox=-82.2,27.0,-81.2,26.0&bounded=1&q=' + encodeURIComponent(q), { headers: { 'Accept-Language':'en', 'User-Agent':'AOG-QC-Checklist' } })
+      .then(function(r) { return r.json(); })
+      .then(function(results) {
+        if (!results || results.length === 0) { list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML=''; return; }
+        var fl = results.filter(function(r) { return isFloridaAddress(r.display_name,r.address); });
+        var ot = results.filter(function(r) { return !isFloridaAddress(r.display_name,r.address); });
+        renderResults(fl.concat(ot).slice(0,8), 'nominatim');
+      })
+      .catch(function() { list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML=''; });
+  }
+
+  input.addEventListener('input', function() {
+    clearTimeout(debounce);
+    var q = input.value.trim();
+    if (q.length < 1) { list.classList.remove('open'); updateAriaExpanded(false); return; }
+    debounce = setTimeout(function() {
+      fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + encodeURIComponent(q) + '.json?access_token=' + MAPBOX_TOKEN + '&country=US&types=address&autocomplete=true&limit=20&proximity=' + SW_FLORIDA_CENTER + '&bbox=' + SW_FLORIDA_BBOX)
+        .then(function(r) { if(!r.ok) throw new Error('err'); return r.json(); })
+        .then(function(data) {
+          if (!data.features || data.features.length===0) { tryNominatim(q); return; }
+          var fl=[], ot=[];
+          data.features.forEach(function(f) { (isFloridaAddress(f.place_name,null) ? fl : ot).push(f); });
+          renderResults(fl.concat(ot).slice(0,8), 'mapbox');
+        })
+        .catch(function() { tryNominatim(q); });
+    }, 150);
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!input.contains(e.target) && !list.contains(e.target)) {
+      list.classList.remove('open'); updateAriaExpanded(false);
+    }
+  });
+
+  input.addEventListener('keydown', function(e) {
+    var items  = list.querySelectorAll('li');
+    var active = list.querySelector('li.active');
+    var idx    = Array.prototype.indexOf.call(items, active);
+    if (e.key==='ArrowDown') { e.preventDefault(); if(active) active.classList.remove('active'); var next=items[idx+1]||items[0]; if(next) next.classList.add('active'); }
+    else if (e.key==='ArrowUp')  { e.preventDefault(); if(active) active.classList.remove('active'); var prev=items[idx-1]||items[items.length-1]; if(prev) prev.classList.add('active'); }
+    else if (e.key==='Enter' && active) { e.preventDefault(); active.dispatchEvent(new MouseEvent('mousedown')); }
+    else if (e.key==='Escape') { list.classList.remove('open'); updateAriaExpanded(false); }
+  });
+}
+
+// ── GPS ──
+function setupGpsButton() {
+  var btn    = document.getElementById('gps-btn');
+  var status = document.getElementById('gps-status');
+  var live   = document.getElementById('gps-live');
+  if (!btn) return;
+
+  function announce(msg) {
+    if (status) { status.textContent = msg; status.style.display = 'block'; }
+    if (live)   { live.textContent = ''; live.textContent = msg; }
+  }
+
+  btn.addEventListener('click', function() {
+    if (!navigator.geolocation) { announce('Geolocation not supported by this browser'); return; }
+    btn.disabled = true;
+    announce('Getting your location…');
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude + '&addressdetails=1', { headers:{'Accept-Language':'en','User-Agent':'AOG-QC-Checklist'} })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            btn.disabled = false;
+            if (data && data.address) {
+              var a = data.address;
+              var street = (a.house_number && a.road) ? a.house_number+' '+a.road : (a.road || data.display_name.split(',')[0]);
+              var city   = (a.city||a.town||a.village||a.county||'') + (a.state?', '+a.state:'') + (a.postcode?' '+a.postcode:'');
+              var ai = document.getElementById('cust_addr');
+              if (ai) ai.value = [street, city].filter(Boolean).join(', ');
+              announce('✓ Location found');
+              saveDraft();
+              setTimeout(function() { if (status) status.style.display='none'; }, 3000);
+            }
+          })
+          .catch(function() { btn.disabled=false; announce('Location lookup failed — please enter address manually'); });
+      },
+      function(err) {
+        btn.disabled = false;
+        var msg = err.code===1 ? 'Location permission denied' : err.code===2 ? 'Location unavailable' : err.code===3 ? 'Location request timed out' : 'Location error';
+        announce(msg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -4208,6 +4423,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   restoreDraft();
   autoGrowAllNotes();
+  setupAddressAutocomplete();
+  setupGpsButton();
 
   injectSeasonalStyles();
   // Optional manual override for previewing themes, e.g. ?season=hotsummer (?season=off disables)
