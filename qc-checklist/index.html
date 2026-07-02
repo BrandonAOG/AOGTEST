@@ -569,6 +569,10 @@ body.offline { padding-top: 0; }
   font-family: var(--font-display); font-size: var(--fs-phone-title);
   color: var(--text); letter-spacing: 1px; font-weight: 500; margin-top: 2px;
 }
+/* Customer-info block sits below the header (logo/company/title) as its
+   own section, separated by the header's bottom border. */
+.customer-info { margin-top: 10px; }
+.customer-info .info-grid { margin-top: 0; }
 .info-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 8px;
 }
@@ -637,6 +641,9 @@ input[type="date"].info-input::-webkit-datetime-edit { text-align: left !importa
     margin-left: -64px;   /* offset logo (52px) + header gap (12px) */
     margin-top: 6px;
   }
+  /* Page 1's customer info is no longer nested beside the logo (it's its
+     own block below the header), so it doesn't need the offset above. */
+  .customer-info .info-grid { margin-left: 0; }
   /* Each label+input pair takes a full line: label fixed width, input fills
      the rest, so the next pair wraps to its own line below. */
   .info-row { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 4px; column-gap: 6px; }
@@ -1268,37 +1275,41 @@ body.capturing {
       <div class="header-right">
         <div class="company-name">Always On Generators</div>
         <div class="doc-title">Quality Control Checklist</div>
-        <div class="info-grid">
-          <div class="info-row full" id="name-date-row">
-            <span class="info-label">Customer Name:</span>
-            <input class="info-input" type="text" id="cust_name" autocomplete="off">
-            <span class="info-label" style="margin-left:8px;flex-shrink:0;">Date:</span>
-            <input class="info-input" type="date" id="cust_date" style="max-width:160px;flex-shrink:0;">
+      </div>
+    </div>
+
+    <!-- CUSTOMER INFO -->
+    <div class="customer-info">
+      <div class="info-grid">
+        <div class="info-row full" id="name-date-row">
+          <span class="info-label">Customer Name:</span>
+          <input class="info-input" type="text" id="cust_name" autocomplete="off">
+          <span class="info-label" style="margin-left:8px;flex-shrink:0;">Date:</span>
+          <input class="info-input" type="date" id="cust_date" style="max-width:160px;flex-shrink:0;">
+        </div>
+        <div class="info-row full" id="addr-elec-row">
+          <span class="info-label">Address:</span>
+          <div class="addr-wrap">
+            <input class="info-input" type="text" id="cust_addr" autocomplete="off"
+                   autocorrect="off" autocapitalize="words" spellcheck="false"
+                   placeholder="Start typing address…"
+                   aria-autocomplete="list" aria-controls="address-suggestions" aria-expanded="false">
+            <button class="gps-btn" title="Use my current location" id="gps-btn" type="button" aria-label="Get GPS location">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 4"/></svg>
+            </button>
+            <ul id="address-suggestions" role="listbox" aria-label="Address suggestions"></ul>
           </div>
-          <div class="info-row full" id="addr-elec-row">
-            <span class="info-label">Address:</span>
-            <div class="addr-wrap">
-              <input class="info-input" type="text" id="cust_addr" autocomplete="off"
-                     autocorrect="off" autocapitalize="words" spellcheck="false"
-                     placeholder="Start typing address…"
-                     aria-autocomplete="list" aria-controls="address-suggestions" aria-expanded="false">
-              <button class="gps-btn" title="Use my current location" id="gps-btn" type="button" aria-label="Get GPS location">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 4"/></svg>
-              </button>
-              <ul id="address-suggestions" role="listbox" aria-label="Address suggestions"></ul>
-            </div>
-            <span class="info-label" style="margin-left:8px;flex-shrink:0;">Elec. Crew:</span>
-            <input class="info-input" type="text" id="elec_crew" autocomplete="off">
-          </div>
-          <div class="info-row full" id="gps-status-row" style="margin-bottom:0;">
-            <div id="gps-status" aria-hidden="true"></div>
-          </div>
-          <div class="info-row full" id="tech-crew-row">
-            <span class="info-label">Technician:</span>
-            <input class="info-input" type="text" id="tech_name" autocomplete="off">
-            <span class="info-label" style="margin-left:8px;flex-shrink:0;">Gas Crew:</span>
-            <input class="info-input" type="text" id="crew_name" autocomplete="off">
-          </div>
+          <span class="info-label" style="margin-left:8px;flex-shrink:0;">Elec. Crew:</span>
+          <input class="info-input" type="text" id="elec_crew" autocomplete="off">
+        </div>
+        <div class="info-row full" id="gps-status-row" style="margin-bottom:0;">
+          <div id="gps-status" aria-hidden="true"></div>
+        </div>
+        <div class="info-row full" id="tech-crew-row">
+          <span class="info-label">Technician:</span>
+          <input class="info-input" type="text" id="tech_name" autocomplete="off">
+          <span class="info-label" style="margin-left:8px;flex-shrink:0;">Gas Crew:</span>
+          <input class="info-input" type="text" id="crew_name" autocomplete="off">
         </div>
       </div>
     </div>
