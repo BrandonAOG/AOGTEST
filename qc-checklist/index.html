@@ -631,6 +631,15 @@ body.dark-mode #gps-status { color: #7DD3FC; }
 input[type="date"].info-input { text-align: left !important; }
 input[type="date"].info-input::-webkit-date-and-time-value { text-align: left !important; }
 input[type="date"].info-input::-webkit-datetime-edit { text-align: left !important; }
+/* Chrome/Android render the calendar-picker icon with its own reserved
+   padding, which inflates the field's rendered size beyond the other
+   .info-input boxes even though height/padding match. Pin the icon to a
+   small fixed size with no extra padding so the box stays the same size
+   as a plain text field. */
+input[type="date"].info-input::-webkit-calendar-picker-indicator {
+  padding: 0; margin: 0; width: 16px; height: 16px;
+  background-size: 16px 16px;
+}
 
 /* On small phones — stack name/date and tech/crew each on their own rows */
 @media screen and (max-width: 600px) {
