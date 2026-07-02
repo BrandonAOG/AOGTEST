@@ -3114,6 +3114,21 @@ function isFloridaAddress(pn, addr) {
   return p.includes('florida') || /,\s*fl\b/.test(p) || /\bfl\s+\d{5}/.test(p);
 }
 
+// Mapbox features only expose a single pre-formatted `place_name` string
+// (".../street, city, ST 12345, United States"). To keep state/zip out of
+// the field (screen + captures), pull street + city from the structured
+// `context` array instead of using place_name directly.
+function mapboxStreetCity(item) {
+  var street = ((item.address ? item.address + ' ' : '') + (item.text || '')).trim();
+  var city = '';
+  var ctx = item.context || [];
+  for (var i = 0; i < ctx.length; i++) {
+    if (/^place\./.test(ctx[i].id)) { city = ctx[i].text; break; }
+  }
+  if (!street) street = (item.place_name || '').split(',')[0];
+  return [street, city].filter(Boolean).join(', ');
+}
+
 function setupAddressAutocomplete() {
   var input = document.getElementById('cust_addr');
   var list  = document.getElementById('address-suggestions');
@@ -3136,7 +3151,7 @@ function setupAddressAutocomplete() {
         isFlorida = isFloridaAddress(item.place_name, null);
         handler = function(e) {
           e.preventDefault();
-          input.value = item.place_name;
+          input.value = mapboxStreetCity(item);
           list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML = '';
           saveDraft();
         };
@@ -3148,9 +3163,8 @@ function setupAddressAutocomplete() {
           var a = item.address || {};
           var street = ((a.house_number||'') + ' ' + (a.road||'')).trim() || item.display_name.split(',')[0];
           var city   = a.city || a.town || a.village || a.county || '';
-          var state  = a.state || '';
-          var zip    = a.postcode || '';
-          input.value = [street, [city,state,zip].filter(Boolean).join(', ')].filter(Boolean).join(', ');
+          // State/zip intentionally left out of the field (screen + captures).
+          input.value = [street, city].filter(Boolean).join(', ');
           list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML = '';
           saveDraft();
         };
@@ -3235,7 +3249,8 @@ function setupGpsButton() {
             if (data && data.address) {
               var a = data.address;
               var street = (a.house_number && a.road) ? a.house_number+' '+a.road : (a.road || data.display_name.split(',')[0]);
-              var city   = (a.city||a.town||a.village||a.county||'') + (a.state?', '+a.state:'') + (a.postcode?' '+a.postcode:'');
+              var city   = a.city||a.town||a.village||a.county||'';
+              // State/zip intentionally left out of the field (screen + captures).
               var ai = document.getElementById('cust_addr');
               if (ai) ai.value = [street, city].filter(Boolean).join(', ');
               announce('✓ Location found');
