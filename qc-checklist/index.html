@@ -2178,6 +2178,7 @@ function capturePageToCanvas(pageEl) {
         _phSaved.forEach(function(p){ if (p[1] != null) p[0].setAttribute('placeholder', p[1]); });
         _phSaved = [];
         if (logoImg && logoOrigSrc) {
+          logoImg.onload = null;
           logoImg.src = logoOrigSrc; logoImg.style.visibility = '';
           logoImg.style.width = ''; logoImg.style.height = '';
         }
@@ -2255,6 +2256,7 @@ function capturePageToCanvas(pageEl) {
         // 52px box, restored after capture in restoreCapture().
         const BOX = 52;
         const applyLogoSize = () => {
+          logoImg.onload = null;   // one-shot: don't retrigger when src is restored later
           const nw = logoImg.naturalWidth, nh = logoImg.naturalHeight;
           if (nw && nh) {
             const ratio = nw / nh;
