@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v2.1.2
+//  Service Worker  |  sw.js  |  Version: aog-forms-v2.0.0
 //  Scope: root (../)
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
@@ -8,14 +8,11 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.1.3TEST';
-var DEV_MODE   = false; // ← SET TRUE during development/testing
+var CACHE_NAME = 'aog-forms-TEST2.2.4';
+var DEV_MODE   = false;
 
-// Stores last known cache progress so late-loading pages can request it.
-// NOTE: this is a best-effort value only. A service worker can be killed
-// and restarted at any time, which resets this to 0. For an accurate value
-// when polled, we recompute from the cache (see GET_CACHE_PROGRESS handler).
-var cacheProgress = { percent: 0, label: '', done: false };
+// Stores last known cache progress so late-loading pages can request it
+var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE during development/testing
 
 // ============================================================
 //  CHANGELOG — Update this every time you bump CACHE_NAME.
@@ -23,7 +20,11 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🔧 Rework on Maintenance form, added service work and recommendation notes',
+  '⚡ Property Lookup county data now loads from cache — much faster, way less data used.',
+  '🛠 Fixed a surprise page reload that could happen on first install.',
+  '📋 Added Pre-Install Checklist.',
+  '🎆 Added seasonal themes to the Electrical and Site Visits forms.',
+  '🧹 Added a Clear badge to every table so each table can be cleared separately. (Requested by Jonathan)',
 ];
 // ============================================================
 
@@ -33,8 +34,7 @@ var PRECACHE_URLS = [
   './offline.html',
   './manifest.json',
   './logo.png',
-  // NOTE: './sw.js' intentionally NOT precached — the browser manages the
-  // SW script lifecycle itself, and caching it can mask update detection.
+  './sw.js',
   './estimate/',
   './maintenance/',
   './site-visit/',
@@ -42,6 +42,7 @@ var PRECACHE_URLS = [
   './elect-install/',
   './qc-checklist/',
   './service-work/',
+  './pre-checklist/',
   './site-annotator/',
   './load-calcs/',
   './breaker-conductor/',
@@ -82,32 +83,11 @@ var CACHE_CDN = [
   'https://cdnjs.cloudflare.com'
 ];
 
-// Total number of items we attempt to precache — used for progress polling.
-var PRECACHE_TOTAL = PRECACHE_URLS.length + PRECACHE_CDN.length + PRECACHE_FONTS.length;
-
-// ============================================================
-//  Helper: cache a single URL, validating the response.
-//  cache.add() can store opaque (status 0) cross-origin responses that
-//  may be broken. We fetch manually and only put real, usable responses.
-// ============================================================
-function cachePut(cache, absUrl) {
-  var isCrossOrigin = absUrl.indexOf(self.location.origin) !== 0 && absUrl.indexOf('http') === 0;
-  // Use cors for cross-origin so we get a real (non-opaque) response when allowed.
-  var req = new Request(absUrl, isCrossOrigin ? { mode: 'cors' } : {});
-  return fetch(req).then(function(res) {
-    // Accept a normal OK response, or an opaque one ONLY if cors is unavailable.
-    if (res && (res.ok || res.type === 'opaque')) {
-      return cache.put(absUrl, res.clone()).then(function() { return res; });
-    }
-    throw new Error('Bad response ' + (res ? res.status : 'null') + ' for ' + absUrl);
-  });
-}
-
 // ============================================================
 //  INSTALL — Pre-cache all core files
-//  ⚠ NO skipWaiting here (unless DEV_MODE) — we wait for the user to tap
-//  "Update Now" before taking over. This gives them time to read the
-//  changelog before the page reloads.
+//  ⚠ NO skipWaiting here — we wait for the user to tap
+//  "Update Now" before taking over. This gives them time
+//  to read the changelog before the page reloads.
 // ============================================================
 self.addEventListener('install', function(event) {
   console.log('[SW] Installing — Cache:', CACHE_NAME);
@@ -122,18 +102,21 @@ self.addEventListener('install', function(event) {
     caches.open(CACHE_NAME)
       .then(function(cache) {
         console.log('[SW] Pre-caching core files');
+        var total = PRECACHE_URLS.length;
         var completed = 0;
         var scope = self.registration.scope; // e.g. https://brandonaog.github.io/AOGTEST/
 
+        // Combine all URLs to cache: app pages + CDN assets + fonts
         var allUrls = PRECACHE_URLS.concat(PRECACHE_CDN).concat(PRECACHE_FONTS);
-        var total = allUrls.length;
+        total = allUrls.length;
 
         // Sequential caching so progress is accurate and stored for polling
         return allUrls.reduce(function(chain, url) {
           return chain.then(function() {
-            var absUrl = url.indexOf('http') === 0 ? url : new URL(url, scope).href;
-            var label = absUrl.replace(scope, '').replace(/\/$/, '') || absUrl.split('/').pop() || 'cdn';
-            return cachePut(cache, absUrl)
+            // CDN and font URLs are already absolute; convert relative ones using scope
+            var absUrl = url.startsWith('http') ? url : new URL(url, scope).href;
+            var label = absUrl.replace(scope,'').replace(/\/$/,'') || absUrl.split('/').pop() || 'cdn';
+            return cache.add(absUrl)
               .then(function() {
                 completed++;
                 cacheProgress = {
@@ -227,21 +210,9 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Mapbox: network-only with a type-appropriate fallback on failure.
   if (url.hostname.includes('mapbox.com') || url.hostname.includes('mapbox.cn')) {
     event.respondWith(
       fetch(request).catch(function() {
-        // Return a transparent 1x1 PNG for tile/image requests, empty JSON otherwise.
-        var dest = request.destination || '';
-        var isImg = dest === 'image' || /\.(png|jpg|jpeg|webp)$/i.test(url.pathname) || /tiles?/i.test(url.pathname);
-        if (isImg) {
-          // 1x1 transparent PNG
-          var b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
-          var bin = atob(b64);
-          var bytes = new Uint8Array(bin.length);
-          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-          return new Response(bytes, { headers: { 'Content-Type': 'image/png' } });
-        }
         return new Response('{}', { headers: { 'Content-Type': 'application/json' } });
       })
     );
@@ -250,10 +221,8 @@ self.addEventListener('fetch', function(event) {
 
   var accept = request.headers.get('Accept') || '';
 
-  // HTML navigations: network-first so online users always get fresh pages,
-  // falling back to cache / offline page when the network is unavailable.
-  if (accept.includes('text/html') || request.mode === 'navigate') {
-    event.respondWith(networkFirst(request));
+  if (accept.includes('text/html')) {
+    event.respondWith(staleWhileRevalidate(request));
     return;
   }
 
@@ -276,18 +245,18 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
+  // Versioned data files (county compact .json.gz, territory geojson, manifest).
+  // These are versioned in the filename (e.g. _v3), so cache-first is safe: a new
+  // build gets a new filename and simply misses the cache once. Without this rule
+  // they fell through to networkFirst and re-downloaded 5–11 MB per file on every
+  // online visit even though a cached copy was sitting right there.
+  if (url.pathname.match(/\.(json|json\.gz|geojson)$/i)) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
   event.respondWith(networkFirst(request));
 });
-
-// ============================================================
-//  Helper: persist a response write so the SW isn't killed mid-write.
-//  Returns the promise so callers can chain it into waitUntil.
-// ============================================================
-function putInCache(request, response) {
-  return caches.open(CACHE_NAME).then(function(cache) {
-    return cache.put(request, response);
-  });
-}
 
 // ============================================================
 //  STRATEGY: Network First
@@ -296,11 +265,10 @@ function networkFirst(request) {
   return fetch(request)
     .then(function(networkResponse) {
       if (networkResponse && networkResponse.ok) {
-        // Clone BEFORE the body is consumed, and await the write.
         var responseClone = networkResponse.clone();
-        return putInCache(request, responseClone)
-          .catch(function(){ /* ignore cache write errors */ })
-          .then(function() { return networkResponse; });
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(request, responseClone);
+        });
       }
       return networkResponse;
     })
@@ -309,12 +277,14 @@ function networkFirst(request) {
         .then(function(cachedResponse) {
           if (cachedResponse) return cachedResponse;
           var accept = request.headers.get('Accept') || '';
-          if (accept.includes('text/html') || request.mode === 'navigate') {
+          if (accept.includes('text/html')) {
+            // Build offline URL relative to SW scope — matches how it was cached
             var offlineUrl = self.registration.scope + 'offline.html';
             console.log('[SW] Looking for offline page at:', offlineUrl);
             return caches.match(offlineUrl)
               .then(function(r) {
                 if (r) return r;
+                // Fallback: search all caches for offline.html
                 return caches.keys().then(function(cacheNames) {
                   return Promise.all(
                     cacheNames.map(function(name) {
@@ -326,6 +296,7 @@ function networkFirst(request) {
                     for (var i = 0; i < results.length; i++) {
                       if (results[i]) return results[i];
                     }
+                    // Last resort inline fallback
                     return new Response(
                       '<!DOCTYPE html><html><head><meta charset=UTF-8><meta name=viewport content=width=device-width,initial-scale=1><title>Offline</title></head><body style=background:#060913;color:#FBBF24;font-family:monospace;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center><div><div style=font-size:3rem>⚡</div><h2 style=margin:16px 0>You are offline</h2><p style=color:#7A8BA8>Connect to the internet and try again</p><br><button onclick=location.reload() style=background:#FBBF24;color:#060913;border:none;padding:12px 28px;border-radius:8px;font-weight:bold;font-size:1rem;cursor:pointer>Try Again</button></div></body></html>',
                       { headers: { 'Content-Type': 'text/html' } }
@@ -346,22 +317,21 @@ function staleWhileRevalidate(request) {
   return caches.open(CACHE_NAME).then(function(cache) {
     return cache.match(request).then(function(cachedResponse) {
       var networkFetch = fetch(request).then(function(networkResponse) {
-        if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
-          // Await the write so it can't be cut short by SW termination.
-          return cache.put(request, networkResponse.clone())
-            .catch(function(){ /* ignore */ })
-            .then(function() { return networkResponse; });
+        if (networkResponse && networkResponse.ok) {
+          cache.put(request, networkResponse.clone());
         }
         return networkResponse;
       }).catch(function(err) {
         console.log('[SW] Revalidate failed:', err);
         var accept = request.headers.get('Accept') || '';
-        if (accept.includes('text/html') || request.mode === 'navigate') {
+        // For navigations with no cache + no network, serve the offline page
+        if (accept.includes('text/html')) {
           var offlineUrl = self.registration.scope + 'offline.html';
           return caches.match(offlineUrl).then(function(r) {
             return r || new Response('Service Unavailable', { status: 503 });
           });
         }
+        // Return a valid empty response so respondWith never gets undefined
         return new Response('', { status: 503 });
       });
       return cachedResponse || networkFetch;
@@ -376,36 +346,16 @@ function cacheFirst(request) {
   return caches.match(request).then(function(cachedResponse) {
     if (cachedResponse) return cachedResponse;
     return fetch(request).then(function(networkResponse) {
-      if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
+      if (networkResponse && networkResponse.ok) {
         var responseClone = networkResponse.clone();
-        return putInCache(request, responseClone)
-          .catch(function(){ /* ignore */ })
-          .then(function() { return networkResponse; });
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(request, responseClone);
+        });
       }
       return networkResponse;
     }).catch(function() {
       return new Response('', { status: 503 });
     });
-  });
-}
-
-// ============================================================
-//  Helper: recompute real cache progress from cache contents.
-//  Survives SW restarts (unlike the in-memory cacheProgress var).
-// ============================================================
-function computeProgress() {
-  return caches.open(CACHE_NAME).then(function(cache) {
-    return cache.keys().then(function(keys) {
-      var count = keys.length;
-      var pct = PRECACHE_TOTAL ? Math.min(100, Math.round((count / PRECACHE_TOTAL) * 100)) : 0;
-      return {
-        percent: pct,
-        label: cacheProgress.label || (count + ' files cached'),
-        done: count >= PRECACHE_TOTAL
-      };
-    });
-  }).catch(function() {
-    return cacheProgress;
   });
 }
 
@@ -421,40 +371,29 @@ self.addEventListener('message', function(event) {
   }
 
   if (event.data && event.data.action === 'CLEAR_CACHE') {
-    event.waitUntil(
-      caches.keys().then(function(keys) {
-        return Promise.all(keys.map(function(key) { return caches.delete(key); }));
-      }).then(function() {
-        if (event.ports[0]) event.ports[0].postMessage({ result: 'Cache cleared' });
-      })
-    );
+    caches.keys().then(function(keys) {
+      keys.forEach(function(key) { caches.delete(key); });
+    });
+    event.ports[0].postMessage({ result: 'Cache cleared' });
   }
 
   // Page asks new waiting SW what changed — reply with fresh changelog
   if (event.data && event.data.action === 'GET_CHANGELOG') {
-    if (event.ports[0]) {
-      event.ports[0].postMessage({
-        version:   CACHE_NAME,
-        changelog: CHANGELOG
-      });
-    }
+    event.ports[0].postMessage({
+      version:   CACHE_NAME,
+      changelog: CHANGELOG
+    });
   }
 
-  // Page requests current cache progress — recompute from the cache so the
-  // answer is correct even if the SW was restarted and lost its in-memory state.
+  // Page requests current cache progress (for late-loading pages that missed broadcasts)
   if (event.data && event.data.action === 'GET_CACHE_PROGRESS') {
     if (event.ports[0]) {
-      var port = event.ports[0];
-      event.waitUntil(
-        computeProgress().then(function(p) {
-          port.postMessage({
-            action:  'CACHE_PROGRESS',
-            percent: p.percent,
-            label:   p.label,
-            done:    p.done
-          });
-        })
-      );
+      event.ports[0].postMessage({
+        action:  'CACHE_PROGRESS',
+        percent: cacheProgress.percent,
+        label:   cacheProgress.label,
+        done:    cacheProgress.done
+      });
     }
   }
 
