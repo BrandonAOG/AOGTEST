@@ -467,8 +467,11 @@ body.dark-mode .inline-input { color:#E0F7FF; border-bottom-color:rgba(0,255,200
 .section { margin-bottom:8px; }
 .section-title {
   font-weight:bold; font-size:12px; text-transform:uppercase;
-  border-bottom:1px solid var(--border-bright);
-  padding-bottom:2px; margin-bottom:4px; color:#D35E13;
+  background:#DCEBF9; padding:8px 10px; margin-bottom:4px; color:#D35E13; border-radius:2px;
+}
+body.dark-mode .section-title {
+  background:transparent; border-bottom:1px solid var(--border-bright);
+  padding:0 0 2px; color:#D35E13;
 }
 .section-row {
   font-size:12px; margin-bottom:2px;
@@ -546,8 +549,10 @@ table.mat-table td.row-label {
   background:var(--row-label-bg); color:var(--text);
   font-size:10px; word-break:break-word; white-space:normal;
 }
-table.mat-table td.row-label.section-header {
-  background:var(--header-bg); color:var(--header-fg);
+table.mat-table td.row-label.section-header,
+table.mat-table tbody tr:nth-child(odd) td.row-label.section-header,
+table.mat-table tbody tr:nth-child(even) td.row-label.section-header {
+  background:var(--header-bg) !important; color:var(--header-fg) !important;
   text-align:center; font-size:10px; font-weight:bold;
 }
 /* Alternating cells at 40% opacity of the brand color */
@@ -556,9 +561,6 @@ table.mat-table tbody tr:nth-child(even) td {
 }
 table.mat-table tbody tr:nth-child(even) td.row-label {
   background:rgba(211,94,19,0.4);
-}
-table.mat-table tbody tr:nth-child(even) td.row-label.section-header {
-  background:var(--header-bg);
 }
 table.mat-table td input[type="number"] {
   width:100%; border:none; text-align:center;
@@ -736,6 +738,12 @@ body.dark-mode .miscues-textarea {
   }
   body.dark-mode table.mat-table tbody tr:nth-child(even) td.row-label {
     background: rgba(211,94,19,0.4) !important;
+  }
+  body.dark-mode table.mat-table td.row-label.section-header,
+  body.dark-mode table.mat-table tbody tr:nth-child(odd) td.row-label.section-header,
+  body.dark-mode table.mat-table tbody tr:nth-child(even) td.row-label.section-header {
+    background: #D35E13 !important;
+    color: #FFFFFF !important;
   }
   body.dark-mode .inline-input,
   body.dark-mode .full-line-input,
@@ -1177,6 +1185,12 @@ body.dark-mode .miscues-textarea {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+  table.mat-table td.row-label.section-header,
+  table.mat-table tbody tr:nth-child(odd) td.row-label.section-header,
+  table.mat-table tbody tr:nth-child(even) td.row-label.section-header {
+    background: #D35E13 !important;
+    color: #ffffff !important;
+  }
   table.mat-table td input[type="number"] {
     font-size: 9.5pt !important;
     color: #1F2937 !important;
@@ -1484,6 +1498,11 @@ body.dark-mode .miscues-textarea {
   }
   table.mat-table tbody tr:nth-child(even) td.row-label {
     background: rgba(211,94,19,0.4) !important; -webkit-print-color-adjust: exact !important;
+  }
+  table.mat-table td.row-label.section-header,
+  table.mat-table tbody tr:nth-child(odd) td.row-label.section-header,
+  table.mat-table tbody tr:nth-child(even) td.row-label.section-header {
+    background: #D35E13 !important; color: #fff !important;
   }
   table.mat-table td input[type="number"] {
     font-size: 7.5pt !important; color: #1F2937 !important;
@@ -2492,6 +2511,7 @@ function buildFileName(ext, page) {
    before capture so images look like the printed output.
 ================================================================ */
 function injectCaptureStyles() {
+  if (window._seasonalPauseAnimation) window._seasonalPauseAnimation();
   const existingCapture = document.getElementById('capture-print-styles');
   if (existingCapture) existingCapture.remove();
   const el = document.createElement('style');
@@ -2506,7 +2526,7 @@ function injectCaptureStyles() {
     .section-row { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding-top:0.5pt!important; display:flex!important; flex-wrap:nowrap!important; align-items:flex-start!important; overflow:visible!important; white-space:nowrap!important; }
     #page1 .section-row b { white-space:nowrap!important; flex-shrink:0!important; }
     #page1 .section-row { margin-bottom:2pt!important; }
-    .section-title { font-size:9pt!important; color:#D35E13!important; font-weight:bold!important; text-transform:uppercase!important; border-bottom:0.5pt solid rgba(211,94,19,0.5)!important; margin-bottom:0.5pt!important; }
+    .section-title { font-size:9pt!important; color:#D35E13!important; font-weight:bold!important; text-transform:uppercase!important; background:#DCEBF9!important; padding:4pt 6pt!important; border-bottom:none!important; margin-bottom:0.5pt!important; }
     .section { margin-bottom:0.5pt!important; }
     .inline-input, .full-line-input { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding:1pt 2pt 0 2pt!important; overflow:visible!important; background:transparent!important; border-top:none!important; border-left:none!important; border-right:none!important; border-bottom:0.5pt solid #999!important; }
     input[type="text"], input[type="date"] { font-size:9pt!important; line-height:1.35!important; min-height:12pt!important; padding:1pt 2pt 0 2pt!important; overflow:visible!important; background:transparent!important; color:#1F2937!important; }
@@ -2530,7 +2550,17 @@ function injectCaptureStyles() {
     table.mat-table td { overflow:visible!important; vertical-align:middle!important; height:auto!important; padding:3px!important; }
     table.mat-table td input[type="number"] { height:auto!important; line-height:1.2!important; overflow:visible!important; display:block!important; box-sizing:border-box!important; padding:0!important; font-size:9pt!important; }
     table.mat-table td.row-label { background:#fafafa!important; font-weight:bold!important; text-align:left!important; }
-    table.mat-table td.row-label.section-header { background:#D35E13!important; color:#fff!important; }
+    table.mat-table td.row-label.section-header,
+    table.mat-table tbody tr:nth-child(odd) td.row-label.section-header,
+    table.mat-table tbody tr:nth-child(even) td.row-label.section-header,
+    #page1 table.mat-table td.row-label.section-header,
+    #page2 table.mat-table td.row-label.section-header,
+    #page1 table.mat-table tbody tr:nth-child(odd) td.row-label.section-header,
+    #page1 table.mat-table tbody tr:nth-child(even) td.row-label.section-header,
+    #page2 table.mat-table tbody tr:nth-child(odd) td.row-label.section-header,
+    #page2 table.mat-table tbody tr:nth-child(even) td.row-label.section-header {
+      background:#D35E13!important; color:#fff!important;
+    }
     .top-fields-row { display:grid!important; grid-template-columns:1fr 1fr 1fr!important; gap:0 8pt!important; }
     .top-fields-row .field-row { font-size:9pt!important; line-height:1.35!important; min-height:14pt!important; overflow:visible!important; align-items:center!important; }
     .top-fields-row .field-row label { font-size:9pt!important; white-space:nowrap!important; }
@@ -2590,6 +2620,8 @@ function injectCaptureStyles() {
     body[class*="seasonal-"] .form-page { border-color:rgba(211,94,19,0.5)!important; box-shadow:none!important; background:#fff!important; }
     body[class*="seasonal-"] .checklist-title::after, body[class*="seasonal-"] .logo-text::after { content:""!important; }
     body[class*="seasonal-"] input, body[class*="seasonal-"] textarea, body[class*="seasonal-"] select { background:#ffffff!important; color:#1F2937!important; border-color:#1F2937!important; }
+    body[class*="seasonal-"] .section-title { background:#DCEBF9!important; color:#D35E13!important; }
+    .logo-area img { animation:none!important; filter:drop-shadow(0 0 8px rgba(211,94,19,0.6)) drop-shadow(0 0 18px rgba(211,94,19,0.35)) brightness(1.1)!important; }
   `;
   document.head.appendChild(el);
   populateCaptureProxies();
@@ -2649,6 +2681,7 @@ function removeCaptureStyles() {
   clearCaptureProxies();
   const el = document.getElementById('capture-print-styles');
   if (el) el.remove();
+  if (window._seasonalResumeAnimation) window._seasonalResumeAnimation();
 }
 
 
@@ -4971,12 +5004,29 @@ function createSeasonalCanvas(theme) {
   for (var i=0;i<cfg.count;i++) particles.push(cfg.make(i));
 
   function loop() {
-    if (isDead()) { cancelAnimationFrame(animId); document.removeEventListener('visibilitychange', onVis); return; }
+    if (isDead()) { cancelAnimationFrame(animId); document.removeEventListener('visibilitychange', onVis); window._seasonalPauseAnimation = window._seasonalResumeAnimation = null; return; }
+    // Fully stop the rAF chain during capture instead of just hiding the
+    // canvas — display:none doesn't stop requestAnimationFrame from firing,
+    // so the particle loop was competing with html2canvas for the main
+    // thread the entire time a capture/PDF was rendering.
+    if (canvas._seasonalPaused) return;
     ctx.clearRect(0,0,W,H);
     particles.forEach(function(p) { cfg.tick(p); cfg.draw(p); });
     animId = requestAnimationFrame(loop);
   }
   loop();
+  canvas._seasonalPaused = false;
+  window._seasonalPauseAnimation = function() {
+    canvas._seasonalPaused = true;
+    if (animId) cancelAnimationFrame(animId);
+  };
+  window._seasonalResumeAnimation = function() {
+    if (canvas._seasonalPaused) {
+      canvas._seasonalPaused = false;
+      resize(); // re-measure the real viewport — capture temporarily widens <html>/<body> to 1050px
+      loop();
+    }
+  };
 
   function onVis() {
     if (isDead()) { cancelAnimationFrame(animId); document.removeEventListener('visibilitychange', onVis); return; }
