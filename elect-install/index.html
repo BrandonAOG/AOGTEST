@@ -504,6 +504,7 @@ body.dark-mode .footer-other-input { border-bottom-color: rgba(0,255,200,0.3) !i
   min-width: 28px !important;
   max-width: 28px !important;
   text-align: center;
+  margin: 0 auto !important;
 }
 @media screen {
 body.dark-mode #fittings-table td.row-label,
@@ -2437,7 +2438,15 @@ function forceDesktopLayout() {
   }
   // table text inputs — match PDF print apparent size for capture (~13px at 1050px width)
   document.querySelectorAll('table.mat-table td input[type="text"]').forEach(el => {
+    if (el.closest('#fittings-table, #wireway-table, #polaris-table')) return; // sized separately below
     setInline(el, { fontSize: '13px', height: 'auto', lineHeight: '1.3', padding: '1px 0', overflow: 'visible', display: 'block', boxSizing: 'border-box' });
+  });
+  // Fittings/Wireway/Polaris Taps only: slightly larger (+1.5px), centered.
+  // Set inline (not just via stylesheet) since the generic rule above also
+  // sets font-size inline, and inline !important always wins over a
+  // stylesheet !important regardless of selector specificity.
+  document.querySelectorAll('#fittings-table td input[type="text"], #wireway-table td input[type="text"], #polaris-table td input[type="text"]').forEach(el => {
+    setInline(el, { fontSize: '14.5px', height: 'auto', lineHeight: '1.3', padding: '1px 0', overflow: 'visible', display: 'block', boxSizing: 'border-box', textAlign: 'center', marginLeft: 'auto', marginRight: 'auto' });
   });
   document.querySelectorAll('table.mat-table td').forEach(el => {
     setInline(el, { overflow: 'visible', height: 'auto' });
@@ -2749,7 +2758,7 @@ function captureAndShare() {
         var fname = buildFilename('jpg', idx + 1, pages.length);
         var restoreFill = fitPageToSheet(page);
         var capH = measureFullHeight(page);
-        return html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } })
+        return html2canvas(page, { scale: 1.75, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } })
           .then(function (canvas) {
             restoreFill();
             canvas = fitToLetter(canvas);
@@ -2845,7 +2854,7 @@ function saveForAndroid() {
   pages.forEach((page, idx) => {
     const restoreFill = fitPageToSheet(page);
     const capH = measureFullHeight(page);
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }).then(canvas => {
+    html2canvas(page, { scale: 1.75, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }).then(canvas => {
       restoreFill();
       canvas = fitToLetter(canvas);
       const link = document.createElement('a');
@@ -3080,7 +3089,7 @@ async function saveFillablePdf() {
     var jobs = Array.prototype.map.call(pages, function (page) {
       var restoreFill = (typeof fitPageToSheet === 'function') ? fitPageToSheet(page) : function(){};
       var capH = (typeof measureFullHeight === 'function') ? measureFullHeight(page) : page.scrollHeight;
-      return html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } })
+      return html2canvas(page, { scale: 1.75, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } })
         .then(function (canvas) {
           restoreFill();
           return (typeof fitToLetter === 'function') ? fitToLetter(canvas) : canvas;
