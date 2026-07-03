@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -244,6 +252,7 @@
   <div class="forms-label">// Available Offline</div>
 
   <div class="forms-list">
+    <a href="./pre-checklist/"><span class="link-icon">🧰</span>Pre-Install Checklist</a>
     <a href="./estimate/"><span class="link-icon">📋</span>Estimate Form</a>
     <a href="./maintenance/"><span class="link-icon">🔁</span>Maintenance Report</a>
     <a href="./site-visit/"><span class="link-icon">📍</span>Site Visit</a>
@@ -3294,6 +3303,43 @@
 </script>
 
 <script>
+  /* FIX: These tool links are written relative ("./estimate/"), but this page is
+     served as a FALLBACK at whatever URL failed. If you went offline trying to
+     reach /gas-install/, the browser thinks it's AT /gas-install/, so
+     "./pre-checklist/" resolves to /gas-install/pre-checklist/ — a dead URL that
+     just re-serves this offline page. Rewrite every link against the app root
+     (the service worker's scope) so they land on the real cached pages. */
+  (function(){
+    function rewriteLinks(root){
+      if (!root) return;
+      document.querySelectorAll('.forms-list a[href^="./"]').forEach(function(a){
+        a.setAttribute('href', root + a.getAttribute('href').slice(2));
+      });
+    }
+    function fallbackRoot(){
+      // No SW registration available: derive the root by stripping a known tool
+      // folder (and anything after it) from the current path.
+      var tools = ['pre-checklist','estimate','maintenance','site-visit','elect-install',
+                   'gas-install','qc-checklist','gas-calc','load-calcs','breaker-conductor',
+                   'conduit-fill','property-lookup','spec-viewer','service-work','site-annotator'];
+      var parts = location.pathname.split('/');
+      for (var i = 0; i < parts.length; i++){
+        if (tools.indexOf(parts[i]) !== -1){
+          return location.origin + parts.slice(0, i).join('/') + '/';
+        }
+      }
+      // Not inside a tool folder: current directory is the root.
+      return location.origin + location.pathname.replace(/[^\/]*$/, '');
+    }
+    if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistration){
+      navigator.serviceWorker.getRegistration()
+        .then(function(reg){ rewriteLinks(reg && reg.scope ? reg.scope : fallbackRoot()); })
+        .catch(function(){ rewriteLinks(fallbackRoot()); });
+    } else {
+      rewriteLinks(fallbackRoot());
+    }
+  })();
+
   /* Auto-reconnect: when the device regains connectivity, reload to leave the offline page
      and return to the real app — no need to tap "Try Again". Also nudge a reload when the tab
      becomes visible again (iOS often fires this instead of a clean 'online' event). */
