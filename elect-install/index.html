@@ -157,7 +157,7 @@ body.dark-mode {
 
 /* Keep buttons readable on phones — they scroll instead of shrinking */
 @media (max-width: 480px) {
-  .action-bar { padding: 4px 6px; gap: 6px; }
+  .action-bar { padding: 4px 6px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 6px; }
   .action-bar .btn { padding: 8px 12px; font-size: 12px; }
 }
 
@@ -165,7 +165,7 @@ body.dark-mode {
   .action-bar .btn { font-size: 11px; padding: 8px 10px; letter-spacing: 0; }
 }
 
-@media (max-width: 768px) { .action-bar { padding: 4px 6px; gap: 6px; } }
+@media (max-width: 768px) { .action-bar { padding: 4px 6px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 6px; } }
 
 /* Under 480px: put "Team Member" + input on one line, and "Double Checked By" + input on the next line */
 @media screen and (max-width: 480px) {
@@ -2338,6 +2338,13 @@ function showRealTablesForCapture() {
     '#page2 .grid-section { display: block !important; overflow: visible !important; margin-bottom: 3px !important; }',
     '#page2 .footer-fields { display: block !important; }',
     '#mobile-p2-accordions { display: none !important; }',
+    // ---- Kill the mobile card "size label" pseudo-element for capture/PDF-edit ----
+    // On real mobile browsing, .mat-table td:not(.row-label)::before shows the
+    // wire size (e.g. "500 CU") as a card label. During capture the tables render
+    // as full grids (headers already show the size), so this pseudo-element becomes
+    // a redundant duplicate underneath the orange header — remove it unconditionally
+    // so it can never render regardless of which mobile/desktop CSS wins the cascade.
+    '#page2 #cu-wire-table tbody td:not(.row-label)::before, #page2 #al-wire-table tbody td:not(.row-label)::before, #page2 #thhn-table tbody td:not(.row-label)::before { content: none !important; }',
     // ---- Match PDF print: full-width fixed-layout tables on page 2 ----
     '#page2 table.mat-table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; }',
     // Neutralize the mobile (max-width:767px) wire-table sizing that otherwise
