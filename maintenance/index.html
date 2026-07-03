@@ -1404,8 +1404,8 @@ body.dark-mode .action-bar {
 <div class="action-bar" id="action-bar">
   <a class="btn" href="../" style="text-decoration:none;">🏠 HOME</a>
   <button class="btn pdf-btn-hidden" onclick="openPrintPreview()">📄 PDF</button>
-  <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
   <button class="btn" id="btn-editpdf" onclick="saveFillablePdf()">📝 PDF✎</button>
+  <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
   <button class="btn" onclick="document.getElementById('load-draft-input').click()">📂 LOAD</button>
   <input type="file" id="load-draft-input" accept=".json,.pdf" style="display:none;" onchange="loadDraftFile(this)">
   <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
@@ -1503,8 +1503,8 @@ body.dark-mode .action-bar {
 
   <div class="toolbar">
     <button class="btn pdf-btn-hidden" onclick="openPrintPreview()">📄 PDF</button>
-    <button class="btn" onclick="saveSmart()">📸 CAPTURE</button>
     <button class="btn" onclick="saveFillablePdf()">📝 EDIT PDF</button>
+    <button class="btn" onclick="saveSmart()">📸 CAPTURE</button>
     <button class="btn" onclick="document.getElementById('load-draft-input-2').click()">📂 LOAD</button>
     <input type="file" id="load-draft-input-2" accept=".json,.pdf" style="display:none;" onchange="loadDraftFile(this)">
     <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
@@ -5076,8 +5076,12 @@ if ('serviceWorker' in navigator) {
   // Auto-reload once when a newly activated service worker takes control, so a
   // freshly deployed version replaces a stale cached one without manual cache
   // clearing. Guarded so it can only fire a single reload (no loops).
+  var _swHadController = !!navigator.serviceWorker.controller;
   var _swRefreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', function () {
+    // First-ever install: clients.claim() fires controllerchange too — don't
+    // reload the page out from under the user (they may be mid-form).
+    if (!_swHadController) { _swHadController = true; return; }
     if (_swRefreshing) return;
     _swRefreshing = true;
     window.location.reload();
