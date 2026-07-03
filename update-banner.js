@@ -105,8 +105,14 @@
 
   // ── Reload once the new SW takes control ───────────────────
   // Guard against reload loops: controllerchange can fire in multiple tabs / more than once.
+  // Also guard against the FIRST-EVER install: on a brand-new visit there is no
+  // controller yet, so when the fresh SW finishes precaching and calls clients.claim(),
+  // controllerchange fires — reloading the page out from under the user (possibly
+  // mid-form). Only reload when we're swapping an OLD controller for a new one.
+  var aogHadController = !!navigator.serviceWorker.controller;
   var aogRefreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (!aogHadController) { aogHadController = true; return; } // first install — no reload
     if (aogRefreshing) return;
     aogRefreshing = true;
     window.location.reload();
