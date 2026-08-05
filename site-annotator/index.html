@@ -2012,18 +2012,10 @@ function _getPageContentString(pdf, page){
   });
 }
 // ── TRUE REDACTION of edited page text ───────────────────────────────────────
-// When a PDF-native text label is edited, the new text goes out as a FreeText
-// annotation and a white box covers the original words. That cover is only a
-// visual mask — the original text still lives in the page's content stream, so a
-// determined edit in Acrobat could move the box and expose it. These helpers
-// remove the original text-drawing operators from the content stream entirely, so
-// the words are truly gone (the white cover stays as a belt-and-suspenders mask).
-// _redactRects holds page-space AABBs (unrotated page coords) collected during the
-// annotation emit. On a /Rotate 90/180/270 page the mapped label box stays axis-
-// aligned, so an AABB test is exact — no collateral removal of neighbouring text.
+// The white cover only masks the original words; they still live in the page
+// content stream. These helpers remove the original text-drawing operators inside
+// the edited label's box so the words are truly gone (cover stays as a fallback).
 var _redactRects=[];
-// Tokenize a content stream into {type,start,end[,val]} tokens. Char-walk (not a
-// regex) so literal/hex strings, arrays and names are delimited correctly.
 function _ctTokens(cs){
   var toks=[], i=0, n=cs.length;
   function ws(c){ return c===' '||c==='\n'||c==='\r'||c==='\t'||c==='\f'||c==='\x00'; }
@@ -2046,7 +2038,6 @@ function _ctTokens(cs){
   }
   return toks;
 }
-// Remove text-show operators whose glyph origin falls inside any of `rects`.
 function _ctRedactText(cs, rects){
   if(!rects || !rects.length) return cs;
   var toks=_ctTokens(cs);
@@ -2082,8 +2073,6 @@ function _ctRedactText(cs, rects){
   out+=cs.slice(pos);
   return out;
 }
-// Apply redaction to the kept page in-place (async: content decode). Resolves
-// regardless of success — a failure just leaves the white cover doing its job.
 function _redactOriginalTextIfAny(pdf, page){
   try{
     if(window.AOG_NOREDACT) return Promise.resolve(false);
@@ -2092,7 +2081,7 @@ function _redactOriginalTextIfAny(pdf, page){
       if(!cs) return false;
       var out=_ctRedactText(cs, _redactRects);
       if(out===cs){ dbg('redact','no original text operators matched the edited region(s)'); return false; }
-      var s=pdf.context.stream(out);                 // uncompressed replacement stream
+      var s=pdf.context.stream(out);
       var ref=pdf.context.register(s);
       page.node.set(window.PDFLib.PDFName.of('Contents'), ref);
       try{ page.node.normalize && page.node.normalize(); }catch(_n){}
@@ -17003,29 +16992,27 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
   }); }catch(e){ console.warn('[AcroAnnot] notes',e); }
 
   // ── Text objects → /FreeText (editable in Acrobat) ─────────────────────────
-  // Register the four standard Helvetica variants in the document's AcroForm /DR
-  // under fixed names. When Acrobat regenerates a FreeText appearance on open, it
-  // resolves the DA font from /DR — so a bold DA (/HelvB) stays bold instead of
-  // flashing bold then reverting to plain Helvetica.
-  var _fdictDR=null;
+  // User-added text AND edited page text. For EDITED page text the original words
+  // are still baked in the reused page, so the appearance paints an OPAQUE WHITE
+  // box (sized to the wider of the new and original text) that hides them — this
+  // is what lets the sheet stay VECTOR instead of flattening to a raster and
+  // losing images/markups. New user text draws with a transparent background.
+  // Register the four standard Helvetica variants in the AcroForm /DR so that when
+  // Acrobat regenerates a FreeText appearance on open, a bold/italic DA resolves to
+  // the styled font instead of flashing styled then reverting to plain Helvetica.
   try{
     var _acro=pdf.catalog.lookup(PDFLib.PDFName.of('AcroForm'));
     if(!_acro){ _acro=ctx.obj({}); pdf.catalog.set(PDFLib.PDFName.of('AcroForm'), ctx.register(_acro)); }
     if(!_acro.get(PDFLib.PDFName.of('Fields'))) _acro.set(PDFLib.PDFName.of('Fields'), ctx.obj([]));
     var _drD=_acro.lookup(PDFLib.PDFName.of('DR'));
     if(!_drD){ _drD=ctx.obj({}); _acro.set(PDFLib.PDFName.of('DR'), _drD); }
-    _fdictDR=_drD.lookup(PDFLib.PDFName.of('Font'));
+    var _fdictDR=_drD.lookup(PDFLib.PDFName.of('Font'));
     if(!_fdictDR){ _fdictDR=ctx.obj({}); _drD.set(PDFLib.PDFName.of('Font'), _fdictDR); }
     [['Helv',fonts.regular],['HelvB',fonts.bold],['HelvO',fonts.italic],['HelvBO',fonts.boldItalic]].forEach(function(p){
       try{ if(p[1]&&p[1].ref && !_fdictDR.get(PDFLib.PDFName.of(p[0]))) _fdictDR.set(PDFLib.PDFName.of(p[0]), p[1].ref); }catch(_){}
     });
   }catch(_af){ console.warn('[AcroAnnot] AcroForm DR setup',_af); }
   function _daFontName(o){ return o.bold?(o.italic?'HelvBO':'HelvB'):(o.italic?'HelvO':'Helv'); }
-  // User-added text AND edited page text. For EDITED page text the original words
-  // are still baked in the reused page, so the appearance paints an OPAQUE WHITE
-  // box (sized to the wider of the new and original text) that hides them — this
-  // is what lets the sheet stay VECTOR instead of flattening to a raster and
-  // losing images/markups. New user text draws with a transparent background.
   try{ if(typeof textObjs!=='undefined') textObjs.forEach(function(obj){
     if(!obj || !obj._acroFlag) return;
     var op=(obj.opacity==null?1:obj.opacity);
@@ -17068,20 +17055,32 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
         var _oX=(obj._oX!=null?obj._oX:obj.x), _oY=(obj._oY!=null?obj._oY:obj.y);
         var _cvL=_oX - padX*sc, _cvT=_oY - asc*sc - padY*sc;
         var _cvW2=maxW + padX*2*sc, _cvH2=(nLines-1)*lineH + (asc+desc)*sc + padY*2*sc;
-        var _p0=P(_cvL,_cvT), _p1=P(_cvL+_cvW2,_cvT), _p2=P(_cvL+_cvW2,_cvT+_cvH2), _p3=P(_cvL,_cvT+_cvH2);
+        var _rp0=P(_cvL,_cvT), _rp1=P(_cvL+_cvW2,_cvT), _rp2=P(_cvL+_cvW2,_cvT+_cvH2), _rp3=P(_cvL,_cvT+_cvH2);
         var _cvBL=P(_cvL, _oY + (nLines-1)*lineH + (desc+padY)*sc);
         if(!window.AOG_NOCOVER) page.drawRectangle({ x:_cvBL.x, y:_cvBL.y,
           width: W(maxW) + padX*2,
           height: (nLines-1)*W(lineH) + (asc+desc) + padY*2,
           rotate: PDFLib.degrees(rotDeg), color: PDFLib.rgb(1,1,1), opacity:1, borderWidth:0 });
-        // Record the same region for TRUE content-stream redaction before save.
-        var _rxs=[_p0.x,_p1.x,_p2.x,_p3.x], _rys=[_p0.y,_p1.y,_p2.y,_p3.y];
+        // Same region → TRUE content-stream redaction before save.
+        var _rxs=[_rp0.x,_rp1.x,_rp2.x,_rp3.x], _rys=[_rp0.y,_rp1.y,_rp2.y,_rp3.y];
         _redactRects.push({ x0:Math.min.apply(null,_rxs), y0:Math.min.apply(null,_rys),
                             x1:Math.max.apply(null,_rxs), y1:Math.max.apply(null,_rys) });
       }catch(_cv){ console.warn('[AcroAnnot] text cover',_cv); }
     }
     var ops='';
     var align=obj.textAlign||'left';
+    // Text HIGHLIGHT background (obj.bgColor at obj.bgOpacity) — drawn INSIDE the
+    // appearance so it travels with the text, at the correct translucent alpha via
+    // the /GSF graphics state (fill alpha = opacity*bgOpacity). Sized to the text
+    // block. Only when the object actually has a highlight.
+    var _bgOp=(obj.bgOpacity==null?0:obj.bgOpacity);
+    var _hasHi=_bgOp>0;
+    var _fillA=_hasHi ? Math.max(0,Math.min(1, op*_bgOp)) : null;
+    if(_hasHi){
+      var _bgc=rgb01(obj.bgColor||'#ffff00');
+      ops+='q /GSF gs '+colStr(_bgc)+' rg '
+          +f2(q0.x)+' '+f2(q0.y)+' m '+f2(q1.x)+' '+f2(q1.y)+' l '+f2(q2.x)+' '+f2(q2.y)+' l '+f2(q3.x)+' '+f2(q3.y)+' l h f Q ';
+    }
     ops+='q /GS0 gs BT /F0 '+f2(fsize)+' Tf '+colStr(txCol)+' rg ';
     lines.forEach(function(ln,i){
       if(ln==='') return;
@@ -17093,25 +17092,20 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     ops+='ET Q ';
     var d={ Subtype:'FreeText',
             Contents:_pdfStrOf(obj.text),
-            // DA points at /F0 — the SAME styled (bold/italic) font used in the
-            // appearance — and the annotation carries its own /DR mapping /F0 to
-            // that font. When Acrobat regenerates the FreeText appearance on open,
-            // it reads DA + DR and keeps the bold/italic instead of falling back to
-            // plain Helvetica (which made bold text flash bold then go normal).
+            // DA points at the styled Helvetica variant (registered in AcroForm /DR
+            // above) so Acrobat keeps bold/italic when it regenerates on open.
             DA:PDFLib.PDFString.of('/'+_daFontName(obj)+' '+f2(fsize)+' Tf '+colStr(txCol)+' rg'),
             Q:(align==='center'?1:align==='right'?2:0),
             CA:op,
             BS:bsDict(0,null) };
-    // Also give the annotation its OWN /DR mapping the same name → styled font, so
-    // viewers that resolve the DA font from the annotation (not the AcroForm) also
-    // keep bold/italic on regenerate.
-    if(fontRef){ try{ var _nm=_daFontName(obj); var _fr={}; _fr[_nm]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_fr) }); }catch(_dr){} }
-    // No /C (transparent background): the original is hidden by the page-level
-    // white box above, so the annotation itself must NOT carry a background —
-    // otherwise dragging it would leave a white ghost box at the new location and
-    // (worse) the moving box wouldn't reveal that the original is already covered.
+    // Annotation-level /DR too, mapping the same name → styled font, for viewers
+    // that resolve the DA font from the annotation rather than the AcroForm.
+    if(fontRef){ try{ var _nm=_daFontName(obj); var _frm={}; _frm[_nm]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_frm) }); }catch(_dr){} }
+    // No /C (transparent background): any highlight is drawn in the appearance
+    // above (at its real opacity); the original page text is hidden by the page
+    // white box, so the annotation itself carries no opaque background box.
     if(rotDeg) d.Rotate=rotDeg;
-    addAnnot(d, ops, rect, op, null, fontRef);
+    addAnnot(d, ops, rect, op, _fillA, fontRef);
   }); }catch(e){ console.warn('[AcroAnnot] text',e); }
 
   if(emitted) dbg('export','Acrobat annotations emitted: '+emitted);
