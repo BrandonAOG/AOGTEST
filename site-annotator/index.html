@@ -1184,6 +1184,15 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <input type="text" data-color readonly tabindex="0" inputmode="none" id="clr-input" value="#ef4444" title="Stroke color">
     </div>
   </div>
+  <!-- LINE ENDINGS: a SIBLING of the stroke group. Nested inside it, the parent's
+       flex-direction:column stacked these two under the colour swatch. -->
+  <div id="tb-le-grp" style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+    <span style="font-size:8px;color:var(--txt2);letter-spacing:.5px">ENDS</span>
+    <div style="display:flex;align-items:center;gap:3px">
+      <select id="le-start-sel" title="Line START ending" style="background:var(--surf2);border:1.5px solid var(--b2);color:var(--txt);border-radius:6px;padding:1px 2px;font-size:10px;outline:none;cursor:pointer;height:30px;width:80px;-webkit-appearance:none;text-align:center"></select>
+      <select id="le-end-sel" title="Line END ending" style="background:var(--surf2);border:1.5px solid var(--b2);color:var(--txt);border-radius:6px;padding:1px 2px;font-size:10px;outline:none;cursor:pointer;height:30px;width:80px;-webkit-appearance:none;text-align:center"></select>
+    </div>
+  </div>
   <!-- FILL COLOR + OPACITY -->
   <div id="tb-fill-grp" style="display:contents">
   <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
@@ -2521,7 +2530,7 @@ function _winAnsiSafe(s){
     .replace(/•/g,'-')                          // bullet -> -
     .replace(/™/g,'(TM)').replace(/®/g,'(R)').replace(/©/g,'(C)')
     .replace(/[ -   　]/g,' ') // exotic spaces -> normal space
-    .replace(/[​-‏‪-‮﻿]/g,''); // zero-width / bidi marks -> drop
+    .replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g,''); // zero-width / bidi marks -> drop
   // Final guard: replace anything still outside Latin-1 (and stray C1 controls) with '?'
   return s.replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,'?');
 }
@@ -3424,6 +3433,17 @@ var fillOpVal=document.getElementById('fill-op-val');
 // ── Sync toolbar pickers to reflect selected item's current style ──
 function syncPickersToSelected(){
   var s=selectedShape, m=selectedMeasure;
+  // Line endings follow the same rule as the other pickers: show whatever the
+  // selected object actually has, so drawing an arrow reads "Open" at the End
+  // instead of leaving the dropdowns on their stale defaults.
+  try{
+    if(window._syncLeSelects){
+      var _leTgt = selectedMeasure ||
+                   (typeof selectedPolyline!=='undefined' ? selectedPolyline : null) ||
+                   (typeof selectedLeader!=='undefined' ? selectedLeader : null);
+      _syncLeSelects(_leTgt);
+    }
+  }catch(_sl){}
   if(s){
     color=s.color; clrSwatch.style.background=color; clrInput.value=color;
     opacity=s.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
@@ -3697,7 +3717,13 @@ function resizeLayers(w,h){
   });
 }
 
+// Set whenever the visible canvases are redrawn. The eyedropper snapshots every
+// canvas into one offscreen copy when it opens; zooming or panning redraws the
+// real canvases but left that snapshot stale, so it sampled the OLD rendering at
+// the OLD scale and reported the colour from the wrong spot.
+var _eyeCompStale = true;
 function composite(){
+  _eyeCompStale = true;
   dCtx.clearRect(0,0,drawCv.width,drawCv.height);
   // A 0x0 canvas is an illegal drawImage source (InvalidStateError), and an
   // unallocated layer has nothing to show anyway — skip it.
@@ -4349,29 +4375,56 @@ btnZi.addEventListener('click',function(){ zoomAt(1.25,viewport.clientWidth/2,vi
 btnZo.addEventListener('click',function(){ zoomAt(0.8,viewport.clientWidth/2,viewport.clientHeight/2); });
 btnFit.addEventListener('click',fitToVP);
 
-viewport.addEventListener('wheel',function(e){
-  e.preventDefault();
+// Bound on WINDOW, not on #viewport. Full-screen overlays -- the colour picker's
+// backdrop (#ccp-backdrop, position:fixed inset:0) and the eyedropper's own
+// (#ccp-drop) -- sit above the viewport, so with either open the pointer was
+// never over #viewport: this handler did not run, nothing called preventDefault,
+// and the BROWSER applied its default instead (Ctrl+scroll zoomed the whole
+// page, toolbars and all). Listening on window means the sheet pans and zooms
+// the same way whatever is layered on top, with no forwarding shims.
+// Wheel events arrive faster than the screen refreshes -- a mouse spin or a
+// trackpad flick can fire several per frame, and running clampPan/applyTransform
+// (and a zoom re-render) on each one is what made scrolling feel laggy. Deltas
+// are accumulated here and applied ONCE per animation frame instead.
+var _whDX=0,_whDY=0,_whZoom=1,_whX=0,_whY=0,_whPending=false;
+function _whFlush(){
+  _whPending=false;
   var r=viewport.getBoundingClientRect();
+  if(_whZoom!==1){
+    zoomAt(_whZoom, _whX-r.left, _whY-r.top);
+    _whZoom=1;
+  }
+  if(_whDX||_whDY){
+    panX-=_whDX; panY-=_whDY;
+    _whDX=_whDY=0;
+    clampPan(); applyTransform();
+  }
+}
+window.addEventListener('wheel',function(e){
+  // Leave genuinely scrollable UI alone: the toolbar scrolls horizontally, and
+  // the picker popup and any select/textarea handle their own wheel.
+  try{
+    var _t=e.target;
+    if(_t && _t.closest && _t.closest('#tb, #ccp, select, textarea, input[type=range]')) return;
+  }catch(_ig){}
+  e.preventDefault();
   var dy=e.deltaY;
   // Normalise for deltaMode: 0=pixels (trackpad), 1=lines (mouse), 2=pages
   if(e.deltaMode===1) dy*=20;   // typical line height
   if(e.deltaMode===2) dy*=300;
   if(e.ctrlKey){
-    // Ctrl + scroll wheel → zoom centred on cursor
+    // Ctrl + scroll wheel -> zoom centred on cursor. Factors MULTIPLY, so
+    // coalescing several events into one frame gives the same total zoom.
     var factor=Math.pow(0.9985, dy);
-    // Clamp to ±15% per event so a fast spin can't jump too far
-    factor=Math.max(0.85, Math.min(1.15, factor));
-    zoomAt(factor, e.clientX-r.left, e.clientY-r.top);
+    factor=Math.max(0.85, Math.min(1.15, factor));   // cap per event
+    _whZoom*=factor; _whX=e.clientX; _whY=e.clientY;
   } else if(e.shiftKey){
-    // Shift + scroll wheel → pan left/right
-    panX -= dy;
-    clampPan(); applyTransform();
+    _whDX+=dy;                                        // pan left/right
   } else {
-    // Plain scroll wheel → pan vertically (also support horizontal via deltaX)
-    panX -= e.deltaX * (e.deltaMode===0 ? 1 : 20);
-    panY -= dy;
-    clampPan(); applyTransform();
+    _whDX+=e.deltaX*(e.deltaMode===0?1:20);
+    _whDY+=dy;                                        // pan up/down
   }
+  if(!_whPending){ _whPending=true; requestAnimationFrame(_whFlush); }
 },{passive:false});
 
 function startPan(x,y){ isPanning=true; lastPanX=x; lastPanY=y; }
@@ -5856,6 +5909,63 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
   } // end if(EXPLODE_TEXT)
 
   // ── FREETEXT ANNOTATION PASS ─────────────────────────────────────────────
+  // REAL APPEARANCE FONT --------------------------------------------------
+  // An annotation's /DA can disagree with what its appearance stream actually
+  // paints, and the appearance is what you see. Acrobat's Typewriter tool is a
+  // repeat offender: the "SPD is optional" note declares /Cour 9 in its /DA but
+  // draws /Calibri 9, so trusting /DA imported it as Courier. Scan each
+  // beginAnnotation block for its first setFont and resolve pdf.js's internal
+  // font id to the real base name through commonObjs -- the same resolution the
+  // page-text pass uses. Matched back to the annotation by /Rect.
+  // The same scan also grabs the first STROKE colour set inside each block. A
+  // FreeText's border colour has no home in the annotation dictionary (/C is the
+  // background), so it exists only here. Reading it from the operators works no
+  // matter how the path is painted -- Acrobat draws this border with `B`, a
+  // single path that both fills AND strokes, which the duplicate-frame recovery
+  // misses because that one looks for a stroke-only rect.
+  var _apFontByRect=[], _apStrokeByRect=[];
+  function _hex3(r,g,b){
+    var h=function(v){ v=Math.max(0,Math.min(255,Math.round(v))); return ('0'+v.toString(16)).slice(-2); };
+    return '#'+h(r)+h(g)+h(b);
+  }
+  try{
+    var _fa2=opListAnnot.fnArray, _aa2=opListAnnot.argsArray, _curR=null, _got=false, _gotS=false;
+    for(var _i2=0;_i2<_fa2.length;_i2++){
+      if(_fa2[_i2]===OPS.beginAnnotation){ _curR=(_aa2[_i2]&&_aa2[_i2][1])||null; _got=false; _gotS=false; }
+      else if(_fa2[_i2]===OPS.endAnnotation){ _curR=null; _got=false; _gotS=false; }
+      else if(!_gotS && _curR && (_fa2[_i2]===OPS.setStrokeRGBColor || _fa2[_i2]===OPS.setStrokeGray)){
+        var _sa=_aa2[_i2]||[], _sc2=null;
+        try{
+          if(_fa2[_i2]===OPS.setStrokeGray){
+            var _gv=+_sa[0]; if(isFinite(_gv)){ if(_gv<=1.0001) _gv*=255; _sc2=_hex3(_gv,_gv,_gv); }
+          } else {
+            var _r3=+_sa[0], _g3=+_sa[1], _b3=+_sa[2];
+            if(isFinite(_r3)&&isFinite(_g3)&&isFinite(_b3)){
+              if(_r3<=1.0001&&_g3<=1.0001&&_b3<=1.0001){ _r3*=255; _g3*=255; _b3*=255; }
+              _sc2=_hex3(_r3,_g3,_b3);
+            }
+          }
+        }catch(_se){}
+        if(_sc2){ _apStrokeByRect.push({rect:_curR, col:_sc2}); _gotS=true; }
+      }
+      else if(!_got && _curR && _fa2[_i2]===OPS.setFont){
+        var _fid=_aa2[_i2] && _aa2[_i2][0], _nm2=null;
+        try{ var _fo2=page.commonObjs.get(_fid); _nm2=(_fo2&&(_fo2.name||_fo2.loadedName))||null; }catch(_x2){}
+        if(_nm2){ _apFontByRect.push({rect:_curR, name:String(_nm2).replace(/^[A-Z]{6}\+/,'')}); _got=true; }
+      }
+    }
+  }catch(_apf){}
+  function _apMatch(list, r, key){
+    if(!r) return null;
+    for(var _k2=0;_k2<list.length;_k2++){
+      var q=list[_k2].rect;
+      if(q && Math.abs(q[0]-r[0])<0.5 && Math.abs(q[1]-r[1])<0.5 &&
+             Math.abs(q[2]-r[2])<0.5 && Math.abs(q[3]-r[3])<0.5) return list[_k2][key];
+    }
+    return null;
+  }
+  function _apFontFor(r){ return _apMatch(_apFontByRect, r, 'name'); }
+  function _apStrokeFor(r){ return _apMatch(_apStrokeByRect, r, 'col'); }
   // Acrobat "text boxes typed on the page" are FreeText annotations — a separate
   // layer from the page's own text. Import each as an editable text object at the
   // right spot/rotation, carrying its text, color and font size where available.
@@ -5882,7 +5992,10 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       var c2=U2.applyTransform([r[2], r[3]], vp.transform);
       var x0=Math.min(c1[0],c2[0]), y0=Math.min(c1[1],c2[1]);
       var x1=Math.max(c1[0],c2[0]), y1=Math.max(c1[1],c2[1]);
-      _ftRects.push({x0:x0,y0:y0,x1:x1,y1:y1});
+      // Keep a handle on this entry: the duplicate-frame sweep further down is
+      // the only place the note's TRUE border colour is available (see there).
+      var _ftRec={x0:x0,y0:y0,x1:x1,y1:y1,note:null,_bdGuessed:false};
+      _ftRects.push(_ftRec);
       // ── Capture the note's REAL colors from the import ──────────────────────
       // The colored box is baked into the backdrop; read its fill before we white
       // it out so the imported note keeps its actual color (e.g. a green callout)
@@ -5926,6 +6039,28 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
         }
       }catch(e){}
       try{ if(an.borderStyle && an.borderStyle.width>0) importBw=Math.max(1,Math.round(an.borderStyle.width*sc)); }catch(e){}
+      // ROUND-TRIP MARKER (see the emitters). /T tells us whether this FreeText
+      // was one of OUR text objects or one of our notes, and carries the values
+      // that have no home in the annotation dictionary: the note's border colour
+      // and the background alpha. Files exported before this marker existed fall
+      // back to the border-width heuristic below.
+      var _ftTitle='', _mT=null, _mN=null, _hiOp=0, _bgOpIn=null;
+      try{ _ftTitle=String((an.title!=null?an.title:(an.titleObj&&an.titleObj.str))||''); }catch(_tt){}
+      _mT=/^AOG-TEXT(?::([0-9.]+))?/.exec(_ftTitle);
+      _mN=/^AOG-NOTE(?::([0-9a-fA-F]{6}))?(?::([0-9.]+))?/.exec(_ftTitle);
+      if(_mT && _mT[1]!=null) _hiOp=parseFloat(_mT[1])||0;
+      if(_mN){
+        if(_mN[1]) importBd='#'+_mN[1];                  // the REAL border colour
+        if(_mN[2]!=null) _bgOpIn=parseFloat(_mN[2]);
+      }
+      // No marker (a foreign PDF): take the border from what the appearance
+      // actually STROKES. /C is the BACKGROUND, so trusting it sent every
+      // white-backed callout into the darkenHex(bg) guess -- grey, instead of
+      // its real frame colour (black, in this case).
+      if(!(_mN && _mN[1])){
+        var _apBd=_apStrokeFor(an.rect);
+        if(_apBd){ importBd=_apBd; dbg('freetext','border from APPEARANCE stroke',{col:_apBd}); }
+      }
       // No backdrop whiteout: the backdrop is rendered with annotations DISABLED
       // (see _renderBackdropNoText), so the original note was never painted into
       // it. Nothing to cover — and nothing destroyed, so moving the note now
@@ -5952,6 +6087,26 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
           col='#'+[cc[0],cc[1],cc[2]].map(function(v){return ('0'+cv2(v).toString(16)).slice(-2);}).join('');
         }
       }catch(e){}
+      // FONT FAMILY from /DA. Both branches below used to hardcode Arial, so a
+      // Calibri note came back in Arial -- whose advance widths run wider, which
+      // re-wrapped the text and shifted every line break. pdf.js surfaces the /DA
+      // font as defaultAppearanceData.fontName; _normalizeFamily maps it (and the
+      // standard Helv/Cour/TiRo abbreviations) onto a family the app offers.
+      var _ftFam='Arial', _ftBold=false, _ftItal=false;
+      try{
+        // Appearance stream first (what is actually drawn), /DA only as fallback.
+        var _dan=_apFontFor(an.rect) || '';
+        if(_dan){ dbg('freetext','font from APPEARANCE stream',{name:_dan}); }
+        else { _dan=(an.defaultAppearanceData && an.defaultAppearanceData.fontName) || ''; }
+        _dan=String(_dan);
+        if(_dan){
+          _ftFam=(typeof _normalizeFamily==='function') ? _normalizeFamily(_dan) : 'Arial';
+          // Weight/slope live in the name: HelvB, HelvBO, Calibri-BoldItalic, ...
+          _ftBold=/bold|(^|[^a-z])b(o)?$/i.test(_dan) || /B(O)?$/.test(_dan);
+          _ftItal=/italic|oblique/i.test(_dan) || /O$/.test(_dan);
+        }
+      }catch(_ff){}
+      if(_ftFam) dbg('freetext','font resolved',{family:_ftFam, bold:_ftBold, italic:_ftItal});
       // Create the app's COMMENT/NOTE object (sticky-note type) from this
       // FreeText annotation — center on the box, carry text + the note's color.
       // If anything fails, fall back to a plain editable TEXT object so the
@@ -5965,22 +6120,46 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       var noteBd = (importBd && importBd.toLowerCase()!==noteBg.toLowerCase())
                      ? importBd : darkenHex(noteBg, 0.35);
       var noteBw = importBw || 2;
+      // TEXT vs NOTE -------------------------------------------------------
+      // The export writes plain TEXT objects as FreeText with NO /C and a
+      // ZERO-width /BS (see the text emitter: "No /C (transparent background)"),
+      // while NOTES always carry a background /C and a real border width.
+      // Without this test the import turned EVERY FreeText into a note, so each
+      // round trip promoted plain labels ("22KW", "Metermain/ATS", "20' Poly")
+      // into boxed, bordered note objects -- which then re-exported through the
+      // notes emitter, picking up the white /C that the border logic misreads.
+      // No /C and no border width means it was text: rebuild it as text.
+      // Marker wins when present; otherwise fall back to the shape of the dict.
+      // BOTH terms are required. A background /C means there is a box, so it is a
+      // note even when the border width is zero -- Acrobat writes no /BS at all on
+      // some FreeTexts and pdf.js then reports width 0, so border width alone
+      // misreads a white-filled callout as bare text and strips its fill and frame.
+      // No /C AND no border = genuinely bare text (e.g. Acrobat's Typewriter tool,
+      // /IT /FreeTextTypewriter, which pdf.js does not expose to us directly).
+      var _asPlainText = !!_mT || (!_mN && !importBd && !importBw);
+      if(_asPlainText){ dbg('freetext','importing FreeText as TEXT',{text:txt.slice(0,30), marker:_ftTitle||'(none)', hiOp:_hiOp}); }
       var noteOK=false;
-      try{
+      if(!_asPlainText) try{
         var nc={
           id: Date.now()+Math.floor(Math.random()*100000)+commentObjs.length,
           cx:(x0+x1)/2, cy:(y0+y1)/2,
           w:cw, h:ch,
           text: txt, textColor: col,
-          bgColor:noteBg, bgOpacity:1,
+          bgColor:noteBg, bgOpacity:(_bgOpIn!=null?_bgOpIn:1),
           borderColor:noteBd, borderStrokeW:noteBw,
           fontSize: Math.max(8, Math.round(fpx/sc)),
-          fontFamily:'Arial', bold:false, italic:false, underline:false, strike:false,
+          fontFamily:_ftFam, bold:_ftBold, italic:_ftItal, underline:false, strike:false,
           opacity:1, layerIdx:activeLayerIdx,
           _fromFreeText:true   // imported from a FreeText annotation
         };
         commentObjs.push(nc);
         noteOK=true;
+        // Record whether the border colour above was a real value or the
+        // darkenHex(bg) guess, so the frame sweep knows if it may override it.
+        try{
+          _ftRec.note=nc;
+          _ftRec._bdGuessed=!(importBd && importBd.toLowerCase()!==noteBg.toLowerCase());
+        }catch(_fr){}
         dbg('freetext','imported NOTE',{text:txt.slice(0,30), cx:Math.round(nc.cx), cy:Math.round(nc.cy), w:Math.round(cw), h:Math.round(ch), fs:nc.fontSize, col:col});
       }catch(noteErr){ console.warn('[Explode] note create failed, falling back to text:',noteErr); }
       if(!noteOK){
@@ -5991,8 +6170,11 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
             x: x0, y: y0 + fpx*0.85,
             text: txt, color: col, fontSize: fpx/sc,
             opacity:1, layerIdx:activeLayerIdx,
-            bold:false, italic:false, underline:false, strike:false,
-            fontFamily:'Arial', textAlign:'left', angle:0, bgOpacity:0,
+            bold:_ftBold, italic:_ftItal, underline:false, strike:false,
+            fontFamily:_ftFam, textAlign:'left', angle:0,
+            // Highlight recovered from the marker (/T alpha) + /C colour. Without
+            // these two the text came back with its background stripped.
+            bgColor:(importBd||'#ffff00'), bgOpacity:_hiOp,
             _fromFreeText:true
           });
           dbg('freetext','FALLBACK to text',{text:txt.slice(0,30), x:Math.round(x0), y:Math.round(y0)});
@@ -6038,6 +6220,23 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
           // Kill it if the two boxes largely coincide (IoU) OR the extracted rect is
           // mostly swallowed by the note's box (its own inner/outer border).
           if(o.iou>=0.5 || o.containA>=0.8){
+            // RECOVER THE NOTE'S TRUE BORDER COLOUR --------------------------
+            // This shape IS the note's own frame, pulled off the appearance
+            // stream by the vector extractor, so s.color holds the real stroke
+            // colour. The FreeText pass above could not know it: pdf.js exposes
+            // only /C, which for a FreeText annotation is the BACKGROUND, not
+            // the border. /C therefore came back white, matched the white bg,
+            // and the border fell through to darkenHex(bg) -- which is why every
+            // re-imported note came back with a grey frame instead of its blue
+            // or red one. Lift the colour off the duplicate before binning it.
+            try{
+              if(ft.note && ft._bdGuessed && !s.fill && s.color){
+                ft.note.borderColor=s.color;
+                if(s.strokeW>0) ft.note.borderStrokeW=s.strokeW;
+                ft._bdGuessed=false;
+                dbg('freetext','recovered border colour from frame',{col:s.color,w:s.strokeW});
+              }
+            }catch(_bc){}
             dbg('freetext','suppressed duplicate border rect',{cx:Math.round(s.cx),cy:Math.round(s.cy),w:Math.round(s.w),h:Math.round(s.h),iou:o.iou.toFixed(2),cont:o.containA.toFixed(2)});
             shapeObjs.splice(si,1);
             break;
@@ -6319,6 +6518,10 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       // PolyLines, inventing arrowheads that don't exist in the PDF.
       var _le=(curAnn && curAnn.lineEndings) || null;
       var _hasEnding = !!(_le && ((_le[0]&&_le[0]!=='None') || (_le[1]&&_le[1]!=='None')));
+      // Keep the ACTUAL /LE names so all ten survive a round trip; the old code
+      // only recorded "is it an arrow", collapsing Butt/Diamond/Circle/etc.
+      var _leS=(_le && LE_NAMES.indexOf(_le[0])>=0) ? _le[0] : 'None';
+      var _leE=(_le && LE_NAMES.indexOf(_le[1])>=0) ? _le[1] : 'None';
       var _isLine = !!(curAnn && curAnn.subtype==='Line');
       var shaft=null, head=null;
       if(_isLine && _hasEnding && curSubs.length===2){
@@ -6347,7 +6550,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           id:Date.now()+(made++), x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,
           color:shaft.stroke||'#000000', strokeW:Math.max(1,shaft.lw), opacity:1,
           lineStyle:(shaft.dash||'solid'), layerIdx:activeLayerIdx,
-          showLabel:false, isArrow:true, _editing:false, _fromExplode:true, _fromAnnot:true,
+          showLabel:false, isArrow:true, leStart:_leS, leEnd:_leE, _editing:false, _fromExplode:true, _fromAnnot:true,
           _oX1:p1.x,_oY1:p1.y,_oX2:p2.x,_oY2:p2.y
         });
         curSubs=[]; return;
@@ -6360,7 +6563,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           x1:_lp.pts[0].x, y1:_lp.pts[0].y, x2:_lp.pts[1].x, y2:_lp.pts[1].y,
           color:_lp.stroke||'#000000', strokeW:Math.max(1,_lp.lw), opacity:1,
           lineStyle:(_lp.dash||'solid'), layerIdx:activeLayerIdx,
-          showLabel:false, isArrow:false, _editing:false, _fromExplode:true, _fromAnnot:true,
+          showLabel:false, isArrow:false, leStart:_leS, leEnd:_leE, _editing:false, _fromExplode:true, _fromAnnot:true,
           _oX1:_lp.pts[0].x,_oY1:_lp.pts[0].y,_oX2:_lp.pts[1].x,_oY2:_lp.pts[1].y
         });
         curSubs=[]; return;
@@ -6527,6 +6730,19 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       else if(fnA===OPS.fillStroke || fnA===OPS.eoFillStroke){
         if(curSubs.length) curSubs[curSubs.length-1].painted='fillstroke';
       }
+      // `n` (endPath) ends a path WITHOUT painting it -- PDF's explicit discard.
+      // Acrobat opens a FreeText appearance with "<rect> re n" as a bounds
+      // artifact and uses "W n" to set a clip region; NEITHER is artwork. These
+      // subpaths never received a painted value, so they fell through to the
+      // stroke branch below and imported as a phantom outline -- the box that
+      // appeared around Typewriter text that has no border in the file at all.
+      // Drop every trailing unpainted subpath: a real painted path always got
+      // its value from one of the handlers above before `n` could be reached.
+      else if(OPS.endPath!==undefined && fnA===OPS.endPath){
+        var _dropped=0;
+        while(curSubs.length && !curSubs[curSubs.length-1].painted){ curSubs.pop(); _dropped++; }
+        if(_dropped){ try{ dbg('import','discarded '+_dropped+' unpainted subpath(s) at endPath (re n / W n)'); }catch(_ep){} }
+      }
       else if(fnA===OPS.paintImageXObject || fnA===OPS.paintJpegXObject || fnA===OPS.paintInlineImage){
         // IMAGE-BEARING ANNOTATION (e.g. an Acrobat Stamp with a company badge).
         // The page image pass walks the page-only operator list and the backdrop
@@ -6548,7 +6764,12 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
         try{
           var _annC2=(curAnn && (curAnn.contents!=null ? curAnn.contents
                         : (curAnn.contentsObj && curAnn.contentsObj.str))) || '';
-          _isAogImgStamp = /^AOG-IMG/.test(String(_annC2));
+          // Newer exports carry the tag in /T (titleObj) so that /Contents can
+          // stay empty and Acrobat draws no note marker. Older files still have
+          // it in /Contents, so check both and stay backward compatible.
+          var _annT2=(curAnn && (curAnn.title!=null ? curAnn.title
+                        : (curAnn.titleObj && curAnn.titleObj.str))) || '';
+          _isAogImgStamp = /^AOG-IMG/.test(String(_annC2)) || /^AOG-IMG/.test(String(_annT2));
         }catch(_ae){}
         if(!EXPLODE_SIGSEAL && !_isAogImgStamp){
           try{ dbg('import','annotation image (stamp) skipped — Signatures & seals unticked'); }catch(_d){}
@@ -7192,6 +7413,12 @@ function _normalizeFamily(fam){
   if(/arial|helvetica/i.test(fam)) return 'Arial';
   if(/times/i.test(fam)) return 'Times New Roman';
   if(/courier|mono/i.test(fam)) return 'Courier New';
+  // PDF /DA standard abbreviations: annotations name their font as Helv, HeBo,
+  // TiRo, Cour, ZaDb rather than a full family, so the tests above miss them and
+  // the raw abbreviation leaked out as a bogus family ("Cour").
+  if(/^helv/i.test(fam)) return 'Arial';
+  if(/^cour/i.test(fam)) return 'Courier New';
+  if(/^(tiro|timesnewroman)/i.test(fam)) return 'Times New Roman';
   // pdf.js often reports only a GENERIC family ('sans-serif','serif'). The old
   // fallback chopped 'sans-serif' into the literal (nonexistent) family "sans",
   // which the browser silently substitutes — map generics to real fonts instead.
@@ -9457,6 +9684,9 @@ function onUp(e){
       // Stay selected after placement so endpoints/size can be adjusted
       // immediately — no second click needed (matches touch behaviour).
       newLine._editing=true;
+      // Endings only -- isArrow stays false so this remains a LINE for the
+      // hit-test, whatever ending it is given.
+      applyLeDefaults(newLine);
       selectedMeasure=newLine;
       measureDragHandle=-1; measureDragStart=null;
       renderShapeAndMeasure();
@@ -9514,6 +9744,9 @@ function onUp(e){
         color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
         layerIdx:activeLayerIdx, showLabel:false, isArrow:true, _editing:false
       };
+      // Real /LE names rather than relying on the legacy isArrow flag, so the
+      // ENDS dropdowns reflect what was drawn; falls back to an open arrowhead.
+      applyLeDefaults(newA, 'OpenArrow');
       measureObjs.push(newA);
       // Stay selected after placement so endpoints/size can be adjusted
       // immediately — no second click needed.
@@ -9597,15 +9830,35 @@ function drawFinalShape(ctx,x1,y1,x2,y2,isTouch){
 
 function drawShapeOnCtx(ctx,t,x1,y1,x2,y2,final){
   ctx.beginPath();
+  // LIVE ENDINGS while dragging. The preview reads the same leStartDefault /
+  // leEndDefault the committed object will get, so what you drag out is what you
+  // end up with -- previously the preview always drew a plain line, or a fixed
+  // open arrowhead, regardless of what the ENDS dropdowns said.
+  var _pvS=(typeof leStartDefault!=='undefined')?leStartDefault:'None';
+  var _pvE=(typeof leEndDefault!=='undefined')?leEndDefault:'None';
   if(t==='line'||t==='measure'){
     ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    if(t==='line' && typeof drawLineEnding==='function' && (_pvS!=='None'||_pvE!=='None')){
+      var angL=Math.atan2(y2-y1,x2-x1), swL=Math.max(strokeW||2,1);
+      drawLineEnding(ctx,x1,y1,angL+Math.PI,_pvS,swL,color);
+      drawLineEnding(ctx,x2,y2,angL,_pvE,swL,color);
+    }
   } else if(t==='arrow'){
-    var ang=Math.atan2(y2-y1,x2-x1),hw=Math.max(strokeW*3,10);
+    var ang=Math.atan2(y2-y1,x2-x1), swA=Math.max(strokeW||2,1);
     ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x2,y2); ctx.lineTo(x2-hw*Math.cos(ang-Math.PI/6),y2-hw*Math.sin(ang-Math.PI/6));
-    ctx.moveTo(x2,y2); ctx.lineTo(x2-hw*Math.cos(ang+Math.PI/6),y2-hw*Math.sin(ang+Math.PI/6));
-    ctx.stroke();
+    // Same fallback the Arrow tool commits with: open arrowhead unless the
+    // dropdown says otherwise.
+    var _aS=_pvS, _aE=(_pvE==='None')?'OpenArrow':_pvE;
+    if(typeof drawLineEnding==='function'){
+      drawLineEnding(ctx,x1,y1,ang+Math.PI,_aS,swA,color);
+      drawLineEnding(ctx,x2,y2,ang,_aE,swA,color);
+    } else {
+      var hw=Math.max(strokeW*3,10);
+      ctx.beginPath();
+      ctx.moveTo(x2,y2); ctx.lineTo(x2-hw*Math.cos(ang-Math.PI/6),y2-hw*Math.sin(ang-Math.PI/6));
+      ctx.moveTo(x2,y2); ctx.lineTo(x2-hw*Math.cos(ang+Math.PI/6),y2-hw*Math.sin(ang+Math.PI/6));
+      ctx.stroke();
+    }
   } else if(t==='rect'){
     if(fillShape){
       ctx.save();
@@ -9776,15 +10029,11 @@ function drawMeasureObjOnCtx(ctx, m, highlight){
   // main line
   ctx.beginPath(); ctx.moveTo(m.x1,m.y1); ctx.lineTo(m.x2,m.y2); ctx.stroke();
   // Arrow: draw a solid arrowhead at P2, no ticks/label
-  if(m.isArrow){
-    ctx.setLineDash([]);
-    var hw=Math.max(m.strokeW*3.2,12);
-    ctx.beginPath();
-    ctx.moveTo(m.x2,m.y2);
-    ctx.lineTo(m.x2-hw*Math.cos(ang-Math.PI/6), m.y2-hw*Math.sin(ang-Math.PI/6));
-    ctx.moveTo(m.x2,m.y2);
-    ctx.lineTo(m.x2-hw*Math.cos(ang+Math.PI/6), m.y2-hw*Math.sin(ang+Math.PI/6));
-    ctx.stroke();
+  if(_leAny(m)){
+    // Start ending faces back down the line, end ending faces along it.
+    var _sw=Math.max(m.strokeW||2,1);
+    drawLineEnding(ctx, m.x1, m.y1, ang+Math.PI, _leOf(m,'start'), _sw, m.color);
+    drawLineEnding(ctx, m.x2, m.y2, ang,         _leOf(m,'end'),   _sw, m.color);
     ctx.restore();
     return;
   }
@@ -10696,6 +10945,19 @@ function _runPreviewMove(e){
     else if(lineStyle==='dotted') shCtx.setLineDash([strokeW,strokeW*2.5]);
     else shCtx.setLineDash([]);
     shCtx.beginPath(); shCtx.moveTo(startX,startY); shCtx.lineTo(lpos.x,lpos.y); shCtx.stroke();
+    // LIVE ENDINGS. The Line tool draws its own drag preview here instead of
+    // going through drawShapeOnCtx (which is what the Arrow tool uses), so the
+    // endings have to be drawn in both places or the line preview stays plain.
+    try{
+      var _lS=(typeof leStartDefault!=='undefined')?leStartDefault:'None';
+      var _lE=(typeof leEndDefault!=='undefined')?leEndDefault:'None';
+      if(typeof drawLineEnding==='function' && (_lS!=='None'||_lE!=='None')){
+        var _la=Math.atan2(lpos.y-startY, lpos.x-startX);
+        var _lw=Math.max(strokeW||2,1);
+        drawLineEnding(shCtx, startX, startY, _la+Math.PI, _lS, _lw, color);
+        drawLineEnding(shCtx, lpos.x, lpos.y, _la,         _lE, _lw, color);
+      }
+    }catch(_lp3){}
     shCtx.restore();
     return;
   }
@@ -10909,6 +11171,391 @@ function drawStamp(ctx,type,x,y,s){
 // ══════════════════════════════════════════════════════════════
 var textObjs   = [];       // [{id,x,y,text,color,fontSize,opacity,layerIdx}]
 var editingObj = null;     // text object currently being edited
+
+// ==== PDF LINE ENDINGS =======================================================
+// The ten /LE values Acrobat offers on Start and End. Stored on an object as
+// leStart / leEnd; the legacy isArrow flag maps to leEnd='OpenArrow'.
+var LE_NAMES=['None','OpenArrow','ClosedArrow','ROpenArrow','RClosedArrow',
+              'Butt','Diamond','Circle','Square','Slash'];
+// Short labels: the toolbar is tight, and "Closed (reverse)" was clipping to
+// nonsense. Full names go in each option's title attribute instead.
+var LE_LABELS={None:'None', OpenArrow:'Open', ClosedArrow:'Closed',
+               ROpenArrow:'R-Open', RClosedArrow:'R-Closed',
+               Butt:'Butt', Diamond:'Diamond', Circle:'Round',
+               Square:'Square', Slash:'Slash'};
+var LE_TITLES={None:'None', OpenArrow:'Open arrow', ClosedArrow:'Closed arrow',
+               ROpenArrow:'Open arrow (reverse)', RClosedArrow:'Closed arrow (reverse)',
+               Butt:'Butt (perpendicular tick)', Diamond:'Diamond', Circle:'Round',
+               Square:'Square', Slash:'Slash'};
+function _leOf(o, which){
+  if(!o) return 'None';
+  var v = (which==='start') ? o.leStart : o.leEnd;
+  if(v && LE_NAMES.indexOf(v)>=0) return v;
+  if(which==='end' && o.isArrow) return 'OpenArrow';   // legacy objects
+  return 'None';
+}
+function _leAny(o){ return _leOf(o,'start')!=='None' || _leOf(o,'end')!=='None'; }
+// Stamp the ENDS dropdowns' current values onto a newly created object. Every
+// creator must call this: without it a tool produced objects with no endings,
+// selecting one synced the dropdowns back to None, and the choice looked like it
+// had been forgotten. `fallbackEnd` lets the Arrow tool default to an arrowhead.
+function applyLeDefaults(o, fallbackEnd){
+  if(!o) return o;
+  try{
+    var s=(typeof leStartDefault!=='undefined') ? leStartDefault : 'None';
+    var e=(typeof leEndDefault!=='undefined') ? leEndDefault : 'None';
+    o.leStart = s;
+    o.leEnd   = (e==='None' && fallbackEnd) ? fallbackEnd : e;
+  }catch(_e){}
+  return o;
+}
+// Geometry for one ending, in a local frame: the tip sits at (0,0) and +x runs
+// BACK along the line. Returns {paths:[[[x,y],...],...], closed:bool, fill:bool}
+// so canvas and PDF can share one definition and stay identical.
+function _leGeom(name, sw){
+  var h=Math.max(sw*3.2,12);           // head length, matching the old arrow
+  var r=Math.max(sw*1.6,5);            // radius for round/square/diamond
+  switch(name){
+    case 'OpenArrow':    return {paths:[[[h*Math.cos(Math.PI/6), -h*Math.sin(Math.PI/6)],[0,0],[h*Math.cos(Math.PI/6), h*Math.sin(Math.PI/6)]]], closed:false, fill:false};
+    case 'ClosedArrow':  return {paths:[[[h*Math.cos(Math.PI/6), -h*Math.sin(Math.PI/6)],[0,0],[h*Math.cos(Math.PI/6), h*Math.sin(Math.PI/6)]]], closed:true,  fill:true};
+    case 'ROpenArrow':   return {paths:[[[-h*Math.cos(Math.PI/6), -h*Math.sin(Math.PI/6)],[0,0],[-h*Math.cos(Math.PI/6), h*Math.sin(Math.PI/6)]]], closed:false, fill:false};
+    case 'RClosedArrow': return {paths:[[[-h*Math.cos(Math.PI/6), -h*Math.sin(Math.PI/6)],[0,0],[-h*Math.cos(Math.PI/6), h*Math.sin(Math.PI/6)]]], closed:true,  fill:true};
+    case 'Butt':         return {paths:[[[0,-r],[0,r]]], closed:false, fill:false};
+    case 'Slash':        return {paths:[[[-r*0.7,-r],[r*0.7,r]]], closed:false, fill:false};
+    case 'Diamond':      return {paths:[[[0,-r],[r,0],[0,r],[-r,0]]], closed:true, fill:true};
+    case 'Square':       return {paths:[[[-r,-r],[r,-r],[r,r],[-r,r]]], closed:true, fill:true};
+    case 'Circle':       return {circle:r, closed:true, fill:true};
+    default:             return null;
+  }
+}
+// Draw an ending on canvas. (x,y) is the endpoint; ang points ALONG the line
+// toward that endpoint, so the local +x axis is the reverse of it.
+function drawLineEnding(ctx, x, y, ang, name, sw, color){
+  var g=_leGeom(name, sw); if(!g) return;
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.translate(x,y); ctx.rotate(ang+Math.PI);
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=sw;
+  if(g.circle){
+    ctx.beginPath(); ctx.arc(0,0,g.circle,0,Math.PI*2);
+    if(g.fill) ctx.fill(); else ctx.stroke();
+  } else {
+    g.paths.forEach(function(pa){
+      ctx.beginPath();
+      pa.forEach(function(pt,i){ if(i===0) ctx.moveTo(pt[0],pt[1]); else ctx.lineTo(pt[0],pt[1]); });
+      if(g.closed) ctx.closePath();
+      if(g.fill) ctx.fill(); else ctx.stroke();
+    });
+  }
+  ctx.restore();
+}
+
+// ==== PER-SELECTION TEXT COLOUR ==============================================
+// A text object stores ONE colour in o.color. o.runs adds an optional override:
+// an array of {len, c} covering o.text character by character, so a selection can
+// be coloured without splitting the object. Absent o.runs means "all o.color",
+// which is what every existing object has -- nothing changes until a run is set.
+// LAST TEXT SELECTION. Clicking the colour swatch blurs the textarea, and by the
+// time the colour handler runs selectionStart/End can already read as collapsed
+// -- which is why picking a colour recoloured nothing. Record the range as the
+// user makes it instead, and remember which object it belonged to.
+var _lastTextSel=null;
+(function(){
+  if(!textOv) return;
+  var cap=function(){
+    try{
+      if(textOv.selectionEnd>textOv.selectionStart){
+        _lastTextSel={o:(typeof editingObj!=='undefined'?editingObj:null),
+                      a:textOv.selectionStart, b:textOv.selectionEnd};
+      } else {
+        _lastTextSel=null;
+      }
+    }catch(_c){}
+  };
+  ['select','keyup','mouseup','touchend'].forEach(function(ev){
+    textOv.addEventListener(ev, cap);
+  });
+  // Typing changes the offsets, so a remembered range is stale -- but the editor
+  // also re-syncs its value without the user typing, and clearing on every input
+  // event threw the range away between the colour control's 'input' and 'change'
+  // passes. Only forget it when the text LENGTH actually moved.
+  // Live preview needs the canvas copy to track what is typed, since the
+  // textarea's own glyphs are invisible while a run-styled label is open.
+  textOv.addEventListener('input', function(){
+    try{
+      if(editingObj && editingObj.runs && editingObj.runs.length){
+        editingObj.text = textOv.value;
+        _normRuns(editingObj);
+        renderTextObjs();
+      }
+    }catch(_lv){}
+  });
+  var _lastLen=null;
+  textOv.addEventListener('input', function(){
+    try{
+      var n=String(textOv.value||'').length;
+      if(_lastLen!==null && n!==_lastLen) _lastTextSel=null;
+      _lastLen=n;
+    }catch(_i){ _lastTextSel=null; }
+  });
+})();
+// Current selection for o: live if the textarea still reports one, else the last
+// one recorded before focus moved to the colour control.
+// Hide or show the textarea's own glyphs. Transparent text plus a visible caret
+// colour lets the canvas underneath supply the real appearance while the
+// textarea keeps handling input, selection, IME and the mobile keyboard.
+function _syncLivePreview(o){
+  if(!textOv) return;
+  // Called on open AND after every run change, so removing the last run puts the
+  // textarea's own glyphs back rather than leaving an invisible editor.
+  var on = !!(o && o.runs && o.runs.length && textOv.style.display!=='none');
+  if(on){
+    if(!textOv._aogPrevColor) textOv._aogPrevColor = textOv.style.color || '';
+    textOv.style.color = 'transparent';
+    textOv.style.caretColor = (o.color || '#000000');
+  } else if(textOv._aogPrevColor){
+    if(textOv.style.color === 'transparent') textOv.style.color = textOv._aogPrevColor;
+    textOv.style.caretColor = '';
+    textOv._aogPrevColor = null;
+  }
+}
+function currentTextSel(o){
+  try{
+    if(o && textOv && textOv.selectionEnd>textOv.selectionStart){
+      return {a:textOv.selectionStart, b:textOv.selectionEnd};
+    }
+  }catch(_e){}
+  if(_lastTextSel && (!o || _lastTextSel.o===o)) return {a:_lastTextSel.a, b:_lastTextSel.b};
+  return null;
+}
+var _selColTarget=null, _selColInput=null;
+// Native <input type="color"> rather than a custom swatch grid: it is one
+// element, works on desktop and iPad, and remembers recent colours per OS.
+// Clicked programmatically so nothing is visible until the user right-clicks.
+function _openSelColorPicker(){
+  if(!_selColInput){
+    _selColInput=document.createElement('input');
+    _selColInput.type='color';
+    _selColInput.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0';
+    document.body.appendChild(_selColInput);
+    // 'input' fires live while dragging in the OS picker, so the canvas updates
+    // as the colour changes; 'change' commits one undo entry at the end.
+    _selColInput.addEventListener('input', function(){ _applySelColor(_selColInput.value, false); });
+    _selColInput.addEventListener('change', function(){ _applySelColor(_selColInput.value, true); });
+  }
+  try{
+    var t=_selColTarget;
+    var cur=(t && t.o && t.o.color) || '#000000';
+    if(t && t.o && t.o.runs){
+      var acc=0;
+      for(var i=0;i<t.o.runs.length;i++){
+        var s=acc, e=acc+t.o.runs[i].len; acc=e;
+        if(t.a>=s && t.a<e){ cur=t.o.runs[i].c; break; }
+      }
+    }
+    if(/^#[0-9a-f]{6}$/i.test(cur)) _selColInput.value=cur;
+  }catch(_p){}
+  _selColInput.click();
+}
+function _applySelColor(col, commit){
+  var t=_selColTarget;
+  if(!t || !t.o || !/^#[0-9a-f]{6}$/i.test(col||'')) return;
+  // While the editor is open the textarea holds the live text, so sync it
+  // before indexing runs against it.
+  try{ if(editingObj===t.o && textOv) t.o.text=textOv.value; }catch(_s){}
+  if(commit){ try{ if(typeof pushUndo==='function') pushUndo(); }catch(_u){} }
+  applyTextRunColor(t.o, t.a, t.b, col);
+  try{ renderTextObjs(); }catch(_r){ console.warn('[selcolor] redraw failed',_r); }
+}
+function _runsTotal(runs){ var n=0; for(var i=0;i<(runs||[]).length;i++) n+=runs[i].len; return n; }
+// Keep runs exactly as long as the text. Edits change length constantly, so this
+// pads the tail with the base colour or trims the overflow rather than trying to
+// track every insertion.
+// A run's style keys: c=colour, b=bold, i=italic, u=underline, st=strike.
+// An absent key means "inherit the object's value", so an old colour-only run
+// keeps working untouched.
+var _RUN_KEYS=['c','b','i','u','st','fs'];
+function _runSame(x,y){
+  for(var k=0;k<_RUN_KEYS.length;k++){ if(x[_RUN_KEYS[k]]!==y[_RUN_KEYS[k]]) return false; }
+  return true;
+}
+function _runIsBase(r,o){
+  return (r.c===undefined || r.c===(o.color||'#000000')) &&
+         (r.b===undefined || !!r.b===!!o.bold) &&
+         (r.i===undefined || !!r.i===!!o.italic) &&
+         (r.u===undefined || !!r.u===!!o.underline) &&
+         (r.st===undefined || !!r.st===!!o.strike) &&
+         (r.fs===undefined || +r.fs===+(o.fontSize||12));
+}
+function _runStyle(r,o){
+  return { c:(r&&r.c!==undefined)?r.c:(o.color||'#000000'),
+           b:(r&&r.b!==undefined)?!!r.b:!!o.bold,
+           i:(r&&r.i!==undefined)?!!r.i:!!o.italic,
+           u:(r&&r.u!==undefined)?!!r.u:!!o.underline,
+           st:(r&&r.st!==undefined)?!!r.st:!!o.strike,
+           fs:(r&&r.fs!==undefined)?+r.fs:+(o.fontSize||12) };
+}
+function _normRuns(o){
+  if(!o || !o.runs) return null;
+  var want=String(o.text||'').length;
+  if(!want){ delete o.runs; return null; }
+  var runs=o.runs.filter(function(r){ return r && r.len>0; });
+  var have=_runsTotal(runs);
+  if(have>want){
+    var acc=0, out=[];
+    for(var i=0;i<runs.length && acc<want;i++){
+      var take=Math.min(runs[i].len, want-acc);
+      out.push({len:take, c:runs[i].c}); acc+=take;
+    }
+    runs=out;
+  } else if(have<want){
+    runs.push({len:want-have, c:o.color||'#000000'});
+  }
+  // Merge neighbours of equal colour; drop runs entirely if nothing differs.
+  var m=[];
+  runs.forEach(function(r){
+    if(m.length && _runSame(m[m.length-1], r)) m[m.length-1].len+=r.len;
+    else { var n={len:r.len}; _RUN_KEYS.forEach(function(k){ if(r[k]!==undefined) n[k]=r[k]; }); m.push(n); }
+  });
+  // Collapse when every run matches the object's own formatting, not just when a
+  // single run is left. Styling text and then undoing it used to leave a stale
+  // multi-run table behind, which kept the object flagged as modified for export.
+  var allBase=true;
+  for(var _b=0;_b<m.length;_b++){ if(!_runIsBase(m[_b],o)){ allBase=false; break; } }
+  if(!m.length || allBase){ delete o.runs; return null; }
+  o.runs=m; return m;
+}
+// Apply a STYLE PATCH to characters [a,b) of o.text. patch may set any of
+// c/b/i/u/st; keys it omits are left as they were on each affected run.
+function applyTextRunStyle(o, a, b, patch){
+  if(!o || !(b>a) || !patch) return;
+  var len=String(o.text||'').length;
+  a=Math.max(0,Math.min(len,a)); b=Math.max(0,Math.min(len,b));
+  if(!(b>a)) return;
+  var cp=function(r,l){ var n={len:l}; _RUN_KEYS.forEach(function(k){ if(r[k]!==undefined) n[k]=r[k]; }); return n; };
+  var runs=o.runs ? o.runs.map(function(r){ return cp(r,r.len); }) : [{len:len}];
+  if(_runsTotal(runs)!==len) runs=[{len:len}];
+  var out=[], pos=0;
+  runs.forEach(function(r){
+    var s=pos, e=pos+r.len; pos=e;
+    if(e<=a || s>=b){ out.push(cp(r,r.len)); return; }
+    if(s<a) out.push(cp(r,a-s));
+    var mid=cp(r, Math.min(e,b)-Math.max(s,a));
+    _RUN_KEYS.forEach(function(k){ if(patch[k]!==undefined) mid[k]=patch[k]; });
+    out.push(mid);
+    if(e>b) out.push(cp(r,e-b));
+  });
+  o.runs=out; _normRuns(o);
+}
+// Back-compat wrapper used by the colour control.
+function applyTextRunColor(o, a, b, col){ applyTextRunStyle(o, a, b, {c:col}); }
+function _applyTextRunColorLegacy(o, a, b, col){
+  if(!o || !(b>a)) return;
+  var len=String(o.text||'').length;
+  a=Math.max(0,Math.min(len,a)); b=Math.max(0,Math.min(len,b));
+  if(!(b>a)) return;
+  var base=o.color||'#000000';
+  var runs=o.runs ? o.runs.slice() : [{len:len, c:base}];
+  if(_runsTotal(runs)!==len) runs=[{len:len, c:base}];
+  var out=[], pos=0;
+  runs.forEach(function(r){
+    var s=pos, e=pos+r.len; pos=e;
+    if(e<=a || s>=b){ out.push({len:r.len, c:r.c}); return; }
+    if(s<a) out.push({len:a-s, c:r.c});
+    out.push({len:Math.min(e,b)-Math.max(s,a), c:col});
+    if(e>b) out.push({len:e-b, c:r.c});
+  });
+  o.runs=out; _normRuns(o);
+}
+// Character offset of each wrapped/split line within o.text. getTextLines either
+// splits on \n or word-wraps; wrapping consumes the space at each break, so walk
+// the source and skip whitespace between lines instead of assuming offsets.
+function _lineOffsets(o, lines){
+  var t=String(o.text||''), offs=[], pos=0;
+  for(var i=0;i<lines.length;i++){
+    var ln=lines[i]||'';
+    var at=t.indexOf(ln, pos);
+    if(at<0) at=pos;
+    offs.push(at); pos=at+ln.length;
+    while(pos<t.length && /\s/.test(t.charAt(pos)) && t.charAt(pos)!=='\n') pos++;
+    if(t.charAt(pos)==='\n') pos++;
+  }
+  return offs;
+}
+// Split one line into [{s, c}] colour segments using the run table.
+function _lineSegs(o, line, off){
+  if(!o || !o.runs || !line) return null;
+  var segs=[], acc=0;
+  for(var i=0;i<o.runs.length;i++){
+    var s=acc, e=acc+o.runs[i].len; acc=e;
+    var a=Math.max(s,off), b=Math.min(e,off+line.length);
+    if(b>a){
+      var st=_runStyle(o.runs[i],o);
+      st.s=line.slice(a-off,b-off);
+      segs.push(st);
+    }
+  }
+  if(!segs.length) return null;
+  // Uniform against the OBJECT's own formatting = nothing to do, take the fast path.
+  var base=_runStyle(null,o);
+  var uni=segs.every(function(x){
+    return x.c===base.c && x.b===base.b && x.i===base.i && x.u===base.u &&
+           x.st===base.st && x.fs===base.fs;
+  });
+  return uni ? null : segs;
+}
+// Canvas font string for a segment style, matching renderTextObjs' own format.
+function _segCtxFont(o, sg, fpx){
+  // fpx is the OBJECT's size in canvas px; scale by this run's point size so a
+  // mixed-size line stays in the same units as the rest of the renderer.
+  var px=fpx*((sg.fs||o.fontSize||12)/(o.fontSize||12));
+  return (sg.i?'italic ':'')+(sg.b?'bold ':'')+px+'px '+(o.fontFamily||'Arial')+',sans-serif';
+}
+// Tallest run size on a line, in points.
+function _lineMaxFs(o, line, off){
+  var segs=_lineSegs(o, line, off);
+  if(!segs) return +(o.fontSize||12);
+  var m=+(o.fontSize||12);
+  segs.forEach(function(s){ if(s.fs>m) m=s.fs; });
+  return m;
+}
+// Draw one line honouring colour runs, matching _fillFitLine's fit behaviour.
+function _fillFitLineRuns(c, o, line, off, x, y, fw, nat, align, fpx){
+  var segs=_lineSegs(o, line, off);
+  if(!segs){ _fillFitLine(c, line, x, y, fw, nat); return; }
+  // Bold/italic change advance widths, so the line's natural width must be
+  // re-measured PER SEGMENT with that segment's own font -- the `nat` passed in
+  // was measured once in the object's base font and would be wrong.
+  var prevFont=c.font, prevAlign=c.textAlign, prevFill=c.fillStyle;
+  var natR=0;
+  segs.forEach(function(sg){
+    c.font=_segCtxFont(o,sg,fpx);
+    sg._w=c.measureText(sg.s).width; natR+=sg._w;
+  });
+  var s=(fw!==undefined && natR>0) ? (fw/natR) : 1;
+  var lw=(fw!==undefined) ? fw : natR;
+  var lx=(align==='center') ? x-lw/2 : (align==='right') ? x-lw : x;
+  c.textAlign='left';
+  c.save(); c.translate(lx,y); if(s!==1) c.scale(s,1);
+  var adv=0;
+  segs.forEach(function(sg){
+    c.font=_segCtxFont(o,sg,fpx);
+    c.fillStyle=sg.c;
+    c.fillText(sg.s, adv, 0);
+    // Underline / strike are per-segment now, drawn as thin rules under just
+    // those characters instead of across the whole line.
+    if(sg.u || sg.st){
+      var spx=fpx*((sg.fs||o.fontSize||12)/(o.fontSize||12));
+      c.save(); c.strokeStyle=sg.c; c.lineWidth=Math.max(1,spx*0.07);
+      if(sg.u){ c.beginPath(); c.moveTo(adv, spx*0.12); c.lineTo(adv+sg._w, spx*0.12); c.stroke(); }
+      if(sg.st){ c.beginPath(); c.moveTo(adv,-spx*0.32); c.lineTo(adv+sg._w,-spx*0.32); c.stroke(); }
+      c.restore();
+    }
+    adv+=sg._w;
+  });
+  c.restore();
+  c.fillStyle=prevFill; c.textAlign=prevAlign; c.font=prevFont;
+}
 
 // ── TEXT EDIT SESSION FLAG ────────────────────────────────────
 // commitText() used to gate on `textOv.style.display==='none'`. That worked on
@@ -11142,7 +11789,12 @@ function renderTextObjs(){
   // polylines) — matching the export stacking. txt-cv carries only text, which
   // still sits above the markups because txt-cv stacks over shapes-cv.
   textObjs.forEach(function(obj){
-    if(obj._editing) return;
+    // LIVE PREVIEW: a textarea can only show ONE colour/size/weight, so a
+    // run-styled label looked flat while editing. Keep drawing it on the canvas
+    // and make the textarea's own glyphs transparent (see _syncLivePreview), so
+    // what you see is the real styling with the native caret and selection on
+    // top. Only run-styled objects take this path -- plain text is untouched.
+    if(obj._editing && !(obj.runs && obj.runs.length)) return;
     // Never render an empty text object. A text with no visible characters can only
     // be a stray remnant (e.g. a text edit interrupted by an app kill and restored
     // from autosave); with a highlight set it shows as a lone colored box on the
@@ -11220,19 +11872,21 @@ function renderTextObjs(){
       tCtx.rotate(obj.angle);
       tCtx.textAlign=align;
       var axOff=(align==='center'?maxW/2:align==='right'?maxW:0);
+      var _offsR=_lineOffsets(obj,lines);
       lines.forEach(function(line,i){
         var ly=i*_lineAdvOf(obj,fpx);
         var _nat=tCtx.measureText(line).width;
         var _fw=_fitLineW(obj,i,_nat);
-        _fillFitLine(tCtx,line,axOff,ly,_fw,_nat,fpx);
-        if(obj.underline){
+        _fillFitLineRuns(tCtx,obj,line,_offsR[i],axOff,ly,_fw,_nat,align,fpx);
+        var _hasSegR=!!_lineSegs(obj,line,_offsR[i]);
+        if(obj.underline && !_hasSegR){
           var lw=(_fw!==undefined?_fw:tCtx.measureText(line).width);
           var lx=align==='center'?axOff-lw/2:align==='right'?axOff-lw:axOff;
           tCtx.save();tCtx.strokeStyle=obj.color;tCtx.lineWidth=Math.max(1,fpx*0.07);
           tCtx.beginPath();tCtx.moveTo(lx,ly+fpx*0.12);tCtx.lineTo(lx+lw,ly+fpx*0.12);tCtx.stroke();
           tCtx.restore();
         }
-        if(obj.strike){
+        if(obj.strike && !_hasSegR){
           var lw=(_fw!==undefined?_fw:tCtx.measureText(line).width);
           var lx=align==='center'?axOff-lw/2:align==='right'?axOff-lw:axOff;
           tCtx.save();tCtx.strokeStyle=obj.color;tCtx.lineWidth=Math.max(1,fpx*0.07);
@@ -11241,19 +11895,21 @@ function renderTextObjs(){
         }
       });
     } else {
+      var _offsU=_lineOffsets(obj,lines);
       lines.forEach(function(line,i){
         var ly=obj.y+i*_lineAdvOf(obj,fpx);
         var _nat=tCtx.measureText(line).width;
         var _fw=_fitLineW(obj,i,_nat);
-        _fillFitLine(tCtx,line,ax,ly,_fw,_nat,fpx);
-        if(obj.underline){
+        _fillFitLineRuns(tCtx,obj,line,_offsU[i],ax,ly,_fw,_nat,align,fpx);
+        var _hasSegU=!!_lineSegs(obj,line,_offsU[i]);
+        if(obj.underline && !_hasSegU){
           var lw=(_fw!==undefined?_fw:tCtx.measureText(line).width);
           var lx=align==='center'?ax-lw/2:align==='right'?ax-lw:ax;
           tCtx.save();tCtx.strokeStyle=obj.color;tCtx.lineWidth=Math.max(1,fpx*0.07);
           tCtx.beginPath();tCtx.moveTo(lx,ly+fpx*0.12);tCtx.lineTo(lx+lw,ly+fpx*0.12);tCtx.stroke();
           tCtx.restore();
         }
-        if(obj.strike){
+        if(obj.strike && !_hasSegU){
           var lw=(_fw!==undefined?_fw:tCtx.measureText(line).width);
           var lx=align==='center'?ax-lw/2:align==='right'?ax-lw:ax;
           tCtx.save();tCtx.strokeStyle=obj.color;tCtx.lineWidth=Math.max(1,fpx*0.07);
@@ -11918,6 +12574,7 @@ function _beginTextWrapResize(o,p,side){
   // like a normal text box from here on (undo restores it).
   if(o._fitWs){ delete o._fitWs; delete o._fitFs; delete o._fitBaseText; }
   o._editing=false; editingObj=null;
+  try{ _syncLivePreview(null); }catch(_lp2){}
   stopTextCursor();
   if(textOv.style.display!=='none'){ textOv.style.display='none'; textOv.blur(); textOv.value=''; }
   _textSessionOpen=false;
@@ -11938,6 +12595,7 @@ function _beginTextMove(o,p){
   captureState(false);
   if(editingObj===o){ _remapFitWs(o, textOv.value); o.text=textOv.value; }
   o._editing=false; editingObj=null;
+  try{ _syncLivePreview(null); }catch(_lp2){}
   stopTextCursor();
   if(textOv.style.display!=='none'){ textOv.style.display='none'; textOv.blur(); textOv.value=''; }
   _textSessionOpen=false;
@@ -11956,6 +12614,7 @@ function _beginTextRotate(o,p){
   captureState(false);   // vector op — snapshot for undo (no pixel copy needed)
   if(editingObj===o){ _remapFitWs(o, textOv.value); o.text=textOv.value; }
   o._editing=false; editingObj=null;
+  try{ _syncLivePreview(null); }catch(_lp2){}
   stopTextCursor();
   if(textOv.style.display!=='none'){ textOv.style.display='none'; textOv.blur(); textOv.value=''; }
   _textSessionOpen=false;
@@ -11989,6 +12648,7 @@ function _openTextEdit(o){
   editingObj=o;
   o._editing=true;
   renderTextObjs();
+  try{ setTimeout(function(){ _syncLivePreview(o); }, 0); }catch(_lp){}
   _textAnchorRight=(o._anchorRight===true && o._anchorX!=null);
   // A right-anchored leader label (left-hanging callout) is positioned by its
   // RIGHT edge, not its left. The inline editor / dashed box must anchor to that
@@ -12754,11 +13414,32 @@ function commitText(){
       editingObj=null; renderTextObjs(); pushUndo(); _aogRestoreTextCol();
     } else {
       _remapFitWs(editingObj,val);   // re-key imported line widths to the edited content
-      editingObj.text=val; editingObj.color=color;
-      editingObj.fontSize=FONT_SIZE; editingObj.opacity=1;
-      editingObj.fontFamily=textFontFamily; editingObj.bold=textBold;
-      editingObj.italic=textItalic; editingObj.underline=textUnderline;
-      editingObj.strike=textStrike; editingObj.textAlign=_textAnchorRight?'right':textAlign;
+      editingObj.text=val;
+      // PER-SELECTION COLOUR: this line used to stamp the toolbar colour onto the
+      // WHOLE object on every commit. Picking a colour for a selection is exactly
+      // what sets that toolbar value, so closing the editor immediately repainted
+      // the entire label in it and the runs were lost. With runs present the base
+      // colour is left alone; without runs it behaves as it always did.
+      if(!editingObj.runs){ editingObj.color=color; }
+      // Text may have changed length while editing -- realign the run table.
+      try{ _normRuns(editingObj); }catch(_nr){}
+      try{ if(editingObj.runs) dbg('text','commit kept runs',{n:editingObj.runs.length, base:editingObj.color}); }catch(_d3){}
+      // Same guard as the colour/style stamps: with runs present the toolbar size
+      // belongs to whatever selection it was applied to, not to the whole label.
+      if(!editingObj.runs){ editingObj.fontSize=FONT_SIZE; }
+      editingObj.opacity=1;
+      editingObj.fontFamily=textFontFamily;
+      // Same trap as the colour stamp above: clicking B/I/U/S to style a SELECTION
+      // flips the toolbar's global flag, and committing then applied that flag to
+      // the WHOLE label -- so styling three words turned the entire object bold.
+      // With runs present the base flags are left alone; the runs carry the style.
+      if(!editingObj.runs){
+        editingObj.bold=textBold;
+        editingObj.italic=textItalic;
+        editingObj.underline=textUnderline;
+        editingObj.strike=textStrike;
+      }
+      editingObj.textAlign=_textAnchorRight?'right':textAlign;
       editingObj.bgColor=textBgColor; editingObj.bgOpacity=textBgOpacity;
       editingObj.lineH=textLineH||undefined; editingObj.paraGap=textParaGap||undefined;
       editingObj.letterSpacing=textLetterSpacing||undefined;
@@ -13973,6 +14654,16 @@ function drawPolylineOnCtx(ctx, pl, sc){
   ctx.moveTo(pl.pts[0].x*sc, pl.pts[0].y*sc);
   for(var i=1;i<pl.pts.length;i++) ctx.lineTo(pl.pts[i].x*sc, pl.pts[i].y*sc);
   ctx.stroke();
+  // LINE ENDINGS at the two open ends. Direction comes from the FIRST and LAST
+  // segment rather than the overall span, so a bent polyline points correctly.
+  if(typeof _leAny==='function' && _leAny(pl)){
+    var _n=pl.pts.length;
+    var _a0=Math.atan2(pl.pts[0].y-pl.pts[1].y, pl.pts[0].x-pl.pts[1].x);
+    var _a1=Math.atan2(pl.pts[_n-1].y-pl.pts[_n-2].y, pl.pts[_n-1].x-pl.pts[_n-2].x);
+    var _swP=Math.max(pl.strokeW||2,1)*sc;
+    drawLineEnding(ctx, pl.pts[0].x*sc,    pl.pts[0].y*sc,    _a0, _leOf(pl,'start'), _swP, pl.color);
+    drawLineEnding(ctx, pl.pts[_n-1].x*sc, pl.pts[_n-1].y*sc, _a1, _leOf(pl,'end'),   _swP, pl.color);
+  }
   ctx.restore();
 }
 
@@ -14119,6 +14810,19 @@ function redrawPolylinePreview(mx,my){
   for(var i=1;i<pts.length;i++) shCtx.lineTo(pts[i].x,pts[i].y);
   shCtx.stroke();
   shCtx.setLineDash([]);
+  // Live endings on the in-progress polyline, aimed along the FIRST and LAST
+  // segment so a bend does not send the head off in the wrong direction.
+  try{
+    var _pS=(typeof leStartDefault!=='undefined')?leStartDefault:'None';
+    var _pE=(typeof leEndDefault!=='undefined')?leEndDefault:'None';
+    if(pts.length>=2 && typeof drawLineEnding==='function' && (_pS!=='None'||_pE!=='None')){
+      var _nn=pts.length, _swp=Math.max(strokeW||2,1);
+      var _b0=Math.atan2(pts[0].y-pts[1].y, pts[0].x-pts[1].x);
+      var _b1=Math.atan2(pts[_nn-1].y-pts[_nn-2].y, pts[_nn-1].x-pts[_nn-2].x);
+      drawLineEnding(shCtx, pts[0].x, pts[0].y, _b0, _pS, _swp, color);
+      drawLineEnding(shCtx, pts[_nn-1].x, pts[_nn-1].y, _b1, _pE, _swp, color);
+    }
+  }catch(_pv){}
   // Waypoint dots
   shCtx.fillStyle=color;
   plPoints.forEach(function(pt){
@@ -14157,6 +14861,7 @@ function closePolyline(){
     color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
     layerIdx:activeLayerIdx
   };
+  applyLeDefaults(_newPl);
   polylineObjs.push(_newPl);
   plPoints=[]; plActive=false;
   renderShapeAndMeasure(); composite(); pushUndo();
@@ -14334,6 +15039,7 @@ function updateToolbarForTool(t){
     opSep       : document.getElementById('tb-op-sep'),
     cmtGrp      : document.getElementById('cmt-clr-grp'),
     imageGrp    : document.getElementById('tb-image-grp'),
+    leGrp       : document.getElementById('tb-le-grp'),
   };
 
   // Groups by what each tool needs
@@ -14343,6 +15049,10 @@ function updateToolbarForTool(t){
   var NOTE      = ['comment'];
   var MARKUP    = ['highlight']; // strike/underline markup removed (now Text/Note-only)
   var NONE      = ['eraser','pan','stamp','image'];
+  // Line endings apply only to tools that produce an OPEN path with two ends.
+  // Narrower than STROKE on purpose: pen and polygon have no meaningful ends,
+  // and putting arrowheads on a dimension line would misread it.
+  var ENDS      = ['line','arrow','polyline'];
 
   function sh(el, show){ if(el) el.style.display = show ? (el._origDisplay || '') : 'none'; }
   function shFlex(el, show){ if(el) el.style.display = show ? 'flex' : 'none'; }
@@ -14351,7 +15061,7 @@ function updateToolbarForTool(t){
   // Save original displays on first call
   if(!updateToolbarForTool._init){
     updateToolbarForTool._init = true;
-    ['fontSizeGrp','lsGrp','lsSep','fillBtn','fillSep','strokeGrp','fillGrp','swGrp','swSep','opGrp','opSep'].forEach(function(k){
+    ['fontSizeGrp','lsGrp','lsSep','fillBtn','fillSep','strokeGrp','fillGrp','swGrp','swSep','opGrp','opSep','leGrp'].forEach(function(k){
       if(ids[k]) ids[k]._origDisplay = ids[k].style.display || '';
     });
   }
@@ -14381,6 +15091,16 @@ function updateToolbarForTool(t){
 
   // markup color picker (markup tools only)
   shFlex(ids.markupGrp, isMarkup);
+
+  // line endings (line / arrow / polyline only)
+  shFlex(ids.leGrp, ENDS.indexOf(t) > -1);
+
+  // Re-sync the stroke slider on EVERY tool change. Its point-mode range
+  // (0.25-12 pt) is applied only inside _swSyncUI, behind a `max!=='12'` guard,
+  // so a tool whose stroke group was hidden and then re-shown came back still
+  // carrying the old 0.5-30 px attributes -- imported objects read correctly in
+  // points while a new markup used the stale scale.
+  try{ if(typeof _swSyncUI==='function') _swSyncUI(); }catch(_sw){}
 
   // line style + fill button (shapes + stroke tools, not note/text/none)
   var showLS = isShape || isStroke;
@@ -14848,6 +15568,49 @@ document.querySelectorAll('.ls-btn').forEach(function(btn){
   });
 });
 
+// ---- LINE ENDINGS (the ten PDF /LE values, on Start and End) ----------------
+// Defaults for newly drawn lines; applied live to whatever is selected.
+var leStartDefault='None', leEndDefault='None';
+(function(){
+  var ss=document.getElementById('le-start-sel'), es=document.getElementById('le-end-sel');
+  if(!ss||!es) return;
+  LE_NAMES.forEach(function(n){
+    [ss,es].forEach(function(sel){
+      var o=document.createElement('option');
+      o.value=n; o.textContent=LE_LABELS[n]||n;
+      o.title=LE_TITLES[n]||n;
+      sel.appendChild(o);
+    });
+  });
+  function apply(which, val){
+    if(which==='start') leStartDefault=val; else leEndDefault=val;
+    var tgt=selectedMeasure||selectedPolyline||selectedLeader;
+    if(tgt){
+      if(which==='start') tgt.leStart=val; else tgt.leEnd=val;
+      // DO NOT touch isArrow here. It is the object's TYPE, not a style flag:
+      // the Arrow tool hit-tests `aHit.isArrow` and the Line tool `!mHit.isArrow`,
+      // so flipping it when an ending changed made a line unselectable with the
+      // Line tool (and an arrow unselectable once its endings were cleared).
+      // Endings are appearance; identity stays put.
+      try{ renderShapeAndMeasure(); }catch(_r){}
+      try{ if(selectedMeasure) renderMeasureSelection(); }catch(_r2){}
+      try{ if(selectedPolyline) renderPolylineSelection(); }catch(_r3){}
+      try{ if(selectedLeader) renderLeaderSelection(); }catch(_r4){}
+      try{ pushUndo(); }catch(_u){}
+      dbg('line','ending applied',{which:which, val:val});
+    }
+  }
+  ss.addEventListener('change', function(e){ apply('start', e.target.value); });
+  es.addEventListener('change', function(e){ apply('end', e.target.value); });
+  // Reflect the selected object's endings back into the two dropdowns.
+  window._syncLeSelects=function(o){
+    try{
+      ss.value = o ? _leOf(o,'start') : leStartDefault;
+      es.value = o ? _leOf(o,'end')   : leEndDefault;
+    }catch(_s){}
+  };
+})();
+
 fillBtn.addEventListener('click',function(){
   fillShape=!fillShape; fillBtn.classList.toggle('active',fillShape);
   // Update selected shape live
@@ -14874,6 +15637,17 @@ fontSizeSel.addEventListener('change',function(e){
   FONT_SIZE = parseInt(e.target.value);
   // Use the snapshotted editingObj — may be null if picker interaction cleared it
   var ref = editingObj || _fsEditRef;
+  // PER-SELECTION SIZE: highlighted characters get their own size on o.runs and
+  // the object's own fontSize is left alone. Nothing highlighted = whole object.
+  var _fsSel = ref ? currentTextSel(ref) : null;
+  if(_fsSel){
+    try{ if(editingObj===ref) ref.text=textOv.value; }catch(_tv){}
+    applyTextRunStyle(ref, _fsSel.a, _fsSel.b, {fs:FONT_SIZE});
+    try{ renderTextObjs(); }catch(_r){}
+    try{ _syncLivePreview(ref); }catch(_lp){}
+    try{ dbg('text','selection resized',{a:_fsSel.a,b:_fsSel.b,fs:FONT_SIZE}); }catch(_d){}
+    return;
+  }
   if(ref){ ref.fontSize = FONT_SIZE; }
 
   if(textOv.style.display !== 'none'){
@@ -14931,23 +15705,46 @@ if(fontFamilySel){
 function _syncFmtBtn(id, state){
   var el=document.getElementById(id); if(el) el.classList.toggle('active',state);
 }
+// PER-SELECTION FORMATTING. If characters are highlighted in the editor, the
+// B/I/U/S buttons style ONLY those characters (stored on o.runs) and the object's
+// own flags are left alone. Nothing highlighted = whole object, as before.
+// Returns true when the selection path handled it.
+function _fmtSelection(key, val){
+  try{
+    if(!editingObj) return false;
+    var sel=currentTextSel(editingObj);
+    if(!sel) return false;
+    try{ editingObj.text=textOv.value; }catch(_t){}
+    var patch={}; patch[key]=val;
+    applyTextRunStyle(editingObj, sel.a, sel.b, patch);
+    renderTextObjs();
+    try{ _syncLivePreview(editingObj); }catch(_lp){}
+    dbg('text','selection formatted',{a:sel.a,b:sel.b,key:key,val:val,
+        runs:editingObj.runs?editingObj.runs.length:0});
+    return true;
+  }catch(_e){ return false; }
+}
 document.getElementById('fmt-bold').addEventListener('click',function(){
   textBold=!textBold; _syncFmtBtn('fmt-bold',textBold);
+  if(_fmtSelection('b',textBold)) return;
   textOv.style.fontWeight=textBold?'bold':'normal';
   if(editingObj){ editingObj.bold=textBold; renderTextObjs(); }
 });
 document.getElementById('fmt-italic').addEventListener('click',function(){
   textItalic=!textItalic; _syncFmtBtn('fmt-italic',textItalic);
+  if(_fmtSelection('i',textItalic)) return;
   textOv.style.fontStyle=textItalic?'italic':'normal';
   if(editingObj){ editingObj.italic=textItalic; renderTextObjs(); }
 });
 document.getElementById('fmt-underline').addEventListener('click',function(){
   textUnderline=!textUnderline; _syncFmtBtn('fmt-underline',textUnderline);
+  if(_fmtSelection('u',textUnderline)) return;
   textOv.style.textDecoration=(textUnderline&&textStrike)?'underline line-through':(textUnderline?'underline':(textStrike?'line-through':'none'));
   if(editingObj){ editingObj.underline=textUnderline; renderTextObjs(); }
 });
 document.getElementById('fmt-strike').addEventListener('click',function(){
   textStrike=!textStrike; _syncFmtBtn('fmt-strike',textStrike);
+  if(_fmtSelection('st',textStrike)) return;
   textOv.style.textDecoration=(textUnderline&&textStrike)?'underline line-through':(textUnderline?'underline':(textStrike?'line-through':'none'));
   if(editingObj){ editingObj.strike=textStrike; renderTextObjs(); }
 });
@@ -15145,8 +15942,32 @@ function applyStrokeColor(v){
   var snap=(Date.now()-_clrSnapAt<30000) ? _clrSnap : null;
   // Live text-tool typing: recolor the overlay as you pick, before commit.
   if(textOv.style.display!=='none' && !_editingComment){
-    textOv.style.color=color;
-    if(editingObj){ editingObj.color=color; }
+    // SELECTION COLOUR: if characters are highlighted in the editor, the colour
+    // control recolours ONLY those characters (stored as o.runs) and leaves the
+    // rest of the label alone. Nothing selected = the whole object, as before.
+    // This deliberately does NOT hijack right-click: the native menu has to stay
+    // available for Cut/Copy/Paste, which is exactly what a selection wants.
+    var _sel = editingObj ? currentTextSel(editingObj) : null;
+    if(_sel){
+      try{ editingObj.text=textOv.value; }catch(_tv){}
+      applyTextRunColor(editingObj, _sel.a, _sel.b, color);
+      renderTextObjs();
+      // The FIRST run turns live preview on: until now the object had no runs,
+      // so the editor opened with opaque glyphs and the newly coloured canvas
+      // text was hidden behind black textarea text. Re-sync on every apply.
+      try{ _syncLivePreview(editingObj); }catch(_lp){}
+      try{ dbg('text','selection recoloured',{a:_sel.a,b:_sel.b,col:color}); }catch(_d){}
+    } else {
+      // No selection: set the BASE colour. Deliberately does NOT delete o.runs.
+      // These colour inputs fire 'input' AND 'change', so a second pass lands
+      // here after focus has left the textarea and the selection reads collapsed
+      // -- deleting runs there wiped the colour that had just been applied one
+      // event earlier, which is why "everything changed colour" intermittently.
+      // Characters with their own run colour keep it; the rest follow the base.
+      textOv.style.color=color;
+      if(editingObj){ editingObj.color=color; }
+      try{ dbg('text','base colour set',{col:color, runs:(editingObj&&editingObj.runs)?editingObj.runs.length:0}); }catch(_d2){}
+    }
   } else if(snap && snap.editing){
     snap.editing.color=color; renderTextObjs();
   }
@@ -16295,6 +17116,12 @@ function _movedExplodeObj(o){
       if(!!o.bold!==!!F.b || !!o.italic!==!!F.i) return true;
       if(o.underline || o.strike) return true;
       if((o.color||'')!==(F.col||'')) return true;
+      // PER-SELECTION COLOUR counts as an edit too. Colouring a highlighted range
+      // sets o.runs and leaves the BASE colour alone, so the check above missed it:
+      // the object read as unmodified, the painter skipped it as a duplicate of the
+      // kept page, and the export showed the ORIGINAL page words in their original
+      // colour while the canvas showed the recoloured copy.
+      if(o.runs && o.runs.length>1) return true;
       if((o.fontFamily||'')!==(F.fam||'')) return true;
       if((o.textAlign||'left')!==(F.al||'left')) return true;
       if((o.bgOpacity||0)>0) return true;
@@ -16653,7 +17480,7 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
   // Append one annotation dict (+AP stream) to the page's /Annots array.
   // fontRef (optional): when the appearance stream draws text (/F0), the font
   // is added to the form's /Resources so the caption renders in every viewer.
-  function addAnnot(dict, apOps, rect, strokeOp, fillOp, fontRef){
+  function addAnnot(dict, apOps, rect, strokeOp, fillOp, fontRef, extraFonts){
     try{
       // Guard: a non-finite coordinate (NaN/Infinity) serialized into Rect/BBox is
       // exactly what makes Acrobat call the file "damaged and could not be repaired"
@@ -16663,7 +17490,13 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       if(fillOp!=null && !isFinite(+fillOp)) fillOp=1;
       var res={ ExtGState:{ GS0:{ Type:'ExtGState', CA:strokeOp, ca:strokeOp } } };
       if(fillOp!=null) res.ExtGState.GSF={ Type:'ExtGState', CA:fillOp, ca:fillOp };
-      if(fontRef) res.Font={ F0: fontRef };
+      // F0 is the block font. Styled runs need their own faces, so extraFonts
+      // registers F1..F3 (bold / italic / bold-italic) alongside it -- an
+      // appearance stream can only use fonts named in its own /Resources.
+      if(fontRef){
+        res.Font={ F0: fontRef };
+        if(extraFonts){ for(var _k in extraFonts){ if(extraFonts[_k]) res.Font[_k]=extraFonts[_k]; } }
+      }
       var apRef=ctx.register(ctx.stream(apOps, {
         Type:'XObject', Subtype:'Form',
         BBox:[rect[0],rect[1],rect[2],rect[3]],
@@ -16723,18 +17556,41 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     var pts=[a,b];
     var ops=strokePrefix(sw,dash,c)+f2(a.x)+' '+f2(a.y)+' m '+f2(b.x)+' '+f2(b.y)+' l S ';
     var pad=sw/2+2;
-    if(m.isArrow){
-      // Draw the SAME open-arrowhead as the flattened painter so the appearance
-      // matches on-screen; the /LE entry tells Acrobat it is an arrow, so an
-      // edit there regenerates its own (very similar) head.
-      var hwPx=Math.max(swPx*3.2,12);
+    if(_leAny(m)){
+      // Bake the SAME geometry the canvas draws, from the shared _leGeom table,
+      // so the appearance matches on screen. The /LE entry alongside it lets
+      // Acrobat regenerate its own equivalent if the line is edited there.
       var angC=Math.atan2(m.y2-m.y1,m.x2-m.x1);
-      var w1=P(m.x2-hwPx*Math.cos(angC-Math.PI/6), m.y2-hwPx*Math.sin(angC-Math.PI/6));
-      var w2=P(m.x2-hwPx*Math.cos(angC+Math.PI/6), m.y2-hwPx*Math.sin(angC+Math.PI/6));
-      ops+='[] 0 d '+f2(b.x)+' '+f2(b.y)+' m '+f2(w1.x)+' '+f2(w1.y)+' l S '
-          +f2(b.x)+' '+f2(b.y)+' m '+f2(w2.x)+' '+f2(w2.y)+' l S ';
-      pts.push(w1,w2);
-      pad=Math.max(pad, W(hwPx)+sw/2+2);
+      [['start', m.x1, m.y1, angC+Math.PI], ['end', m.x2, m.y2, angC]].forEach(function(E){
+        var nm=_leOf(m, E[0]); if(nm==='None') return;
+        var g=_leGeom(nm, swPx); if(!g) return;
+        var ca=Math.cos(E[3]+Math.PI), sa=Math.sin(E[3]+Math.PI);
+        var toPage=function(lx,ly){ return P(E[1]+lx*ca-ly*sa, E[2]+lx*sa+ly*ca); };
+        ops+='[] 0 d ';
+        if(g.circle){
+          // Four Beziers: PDF has no arc operator.
+          var k=g.circle*0.5523, C=g.circle;
+          var p0=toPage(C,0), p1=toPage(C,-k), p2=toPage(k,-C), p3=toPage(0,-C),
+              p4=toPage(-k,-C), p5=toPage(-C,-k), p6=toPage(-C,0), p7=toPage(-C,k),
+              p8=toPage(-k,C), p9=toPage(0,C), pa2=toPage(k,C), pb2=toPage(C,k);
+          ops+=f2(p0.x)+' '+f2(p0.y)+' m '
+              +f2(p1.x)+' '+f2(p1.y)+' '+f2(p2.x)+' '+f2(p2.y)+' '+f2(p3.x)+' '+f2(p3.y)+' c '
+              +f2(p4.x)+' '+f2(p4.y)+' '+f2(p5.x)+' '+f2(p5.y)+' '+f2(p6.x)+' '+f2(p6.y)+' c '
+              +f2(p7.x)+' '+f2(p7.y)+' '+f2(p8.x)+' '+f2(p8.y)+' '+f2(p9.x)+' '+f2(p9.y)+' c '
+              +f2(pa2.x)+' '+f2(pa2.y)+' '+f2(pb2.x)+' '+f2(pb2.y)+' '+f2(p0.x)+' '+f2(p0.y)+' c '
+              +(g.fill?'f ':'S ');
+          [p0,p3,p6,p9].forEach(function(q){ pts.push(q); });
+        } else {
+          g.paths.forEach(function(pa){
+            pa.forEach(function(pt,i){
+              var q=toPage(pt[0],pt[1]); pts.push(q);
+              ops+=f2(q.x)+' '+f2(q.y)+(i===0?' m ':' l ');
+            });
+            ops+=(g.closed ? (g.fill?'h f ':'h S ') : 'S ');
+          });
+        }
+        pad=Math.max(pad, W(Math.max(swPx*3.2,12))+sw/2+2);
+      });
     }
     ops+='Q';
     var rect=bounds(pts,pad);
@@ -16743,7 +17599,7 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
                Math.round(b.x*100)/100, Math.round(b.y*100)/100],
             C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
             CA:op, BS:bsDict(Math.round(sw*100)/100,dash) };
-    if(m.isArrow) d.LE=['None','OpenArrow'];
+    if(_leAny(m)) d.LE=[_leOf(m,'start'), _leOf(m,'end')];
     var _capInfo=null;
     // ── Dimension line: perpendicular end ticks (baked + native /LE Butt) and a
     // SEPARATE FreeText caption. The caption is its own annotation so moving or
@@ -16820,12 +17676,49 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       verts.push(Math.round(p.x*100)/100, Math.round(p.y*100)/100);
       ops+=f2(p.x)+' '+f2(p.y)+(i===0?' m ':' l ');
     });
-    ops+='S Q';
-    var rect=bounds(pts, sw/2+2);
-    addAnnot({ Subtype:'PolyLine', Vertices:verts,
-               C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
-               CA:op, BS:bsDict(Math.round(sw*100)/100,dash) },
-             ops, rect, op, null);
+    ops+='S ';
+    var _padP=sw/2+2;
+    // Same shared _leGeom the canvas uses, so screen and PDF agree.
+    if(_leAny(pl)){
+      var _nP=pl.pts.length, _swPx=Math.max(1,pl.strokeW||2);
+      [['start', pl.pts[0], pl.pts[1]], ['end', pl.pts[_nP-1], pl.pts[_nP-2]]].forEach(function(E){
+        var nm=_leOf(pl, E[0]); if(nm==='None') return;
+        var g=_leGeom(nm, _swPx); if(!g) return;
+        var ang=Math.atan2(E[1].y-E[2].y, E[1].x-E[2].x);
+        var ca=Math.cos(ang+Math.PI), sa=Math.sin(ang+Math.PI);
+        var toPage=function(lx,ly){ return P(E[1].x+lx*ca-ly*sa, E[1].y+lx*sa+ly*ca); };
+        ops+='[] 0 d ';
+        if(g.circle){
+          var k=g.circle*0.5523, C2=g.circle;
+          var q0=toPage(C2,0), q1=toPage(C2,-k), q2=toPage(k,-C2), q3=toPage(0,-C2),
+              q4=toPage(-k,-C2), q5=toPage(-C2,-k), q6=toPage(-C2,0), q7=toPage(-C2,k),
+              q8=toPage(-k,C2), q9=toPage(0,C2), qa=toPage(k,C2), qb=toPage(C2,k);
+          ops+=f2(q0.x)+' '+f2(q0.y)+' m '
+              +f2(q1.x)+' '+f2(q1.y)+' '+f2(q2.x)+' '+f2(q2.y)+' '+f2(q3.x)+' '+f2(q3.y)+' c '
+              +f2(q4.x)+' '+f2(q4.y)+' '+f2(q5.x)+' '+f2(q5.y)+' '+f2(q6.x)+' '+f2(q6.y)+' c '
+              +f2(q7.x)+' '+f2(q7.y)+' '+f2(q8.x)+' '+f2(q8.y)+' '+f2(q9.x)+' '+f2(q9.y)+' c '
+              +f2(qa.x)+' '+f2(qa.y)+' '+f2(qb.x)+' '+f2(qb.y)+' '+f2(q0.x)+' '+f2(q0.y)+' c '
+              +(g.fill?'f ':'S ');
+          [q0,q3,q6,q9].forEach(function(q){ pts.push(q); });
+        } else {
+          g.paths.forEach(function(pa){
+            pa.forEach(function(pt,i){
+              var q=toPage(pt[0],pt[1]); pts.push(q);
+              ops+=f2(q.x)+' '+f2(q.y)+(i===0?' m ':' l ');
+            });
+            ops+=(g.closed ? (g.fill?'h f ':'h S ') : 'S ');
+          });
+        }
+        _padP=Math.max(_padP, W(Math.max(_swPx*3.2,12))+sw/2+2);
+      });
+    }
+    ops+='Q';
+    var rect=bounds(pts, _padP);
+    var _dP={ Subtype:'PolyLine', Vertices:verts,
+              C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
+              CA:op, BS:bsDict(Math.round(sw*100)/100,dash) };
+    if(_leAny(pl)) _dP.LE=[_leOf(pl,'start'), _leOf(pl,'end')];
+    addAnnot(_dP, ops, rect, op, null);
   }); }catch(e){ console.warn('[AcroAnnot] polylines',e); }
 
   // ── Leaders → /PolyLine with an open-arrow tip ────────────────────────────
@@ -16927,6 +17820,23 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
   // text). The dict carries /Contents + /DA + /C so Acrobat regenerates an
   // editable text box when the user edits it. Rotated notes are skipped at the
   // flagging stage (FreeText can't rotate cleanly) and stay flattened.
+  // Register a font under NAME in the AcroForm /DR so a /DA referencing it
+  // resolves. Acrobat reads /DA -- NOT the appearance stream -- to fill its font
+  // dropdown, so a note painted in Carlito while declaring /Helv reported
+  // "Helvetica" in the properties bar and would revert to it on edit.
+  function _ensureDR(name, ref){
+    if(!name || !ref) return;
+    try{
+      var _a=pdf.catalog.lookup(PDFLib.PDFName.of('AcroForm'));
+      if(!_a){ _a=ctx.obj({}); pdf.catalog.set(PDFLib.PDFName.of('AcroForm'), ctx.register(_a)); }
+      if(!_a.get(PDFLib.PDFName.of('Fields'))) _a.set(PDFLib.PDFName.of('Fields'), ctx.obj([]));
+      var _dr=_a.lookup(PDFLib.PDFName.of('DR'));
+      if(!_dr){ _dr=ctx.obj({}); _a.set(PDFLib.PDFName.of('DR'), _dr); }
+      var _fd=_dr.lookup(PDFLib.PDFName.of('Font'));
+      if(!_fd){ _fd=ctx.obj({}); _dr.set(PDFLib.PDFName.of('Font'), _fd); }
+      if(!_fd.get(PDFLib.PDFName.of(name))) _fd.set(PDFLib.PDFName.of(name), ref);
+    }catch(_dre){ console.warn('[AcroAnnot] /DR register '+name, _dre); }
+  }
   try{ if(typeof commentObjs!=='undefined') commentObjs.forEach(function(c){
     if(!c || !c._acroFlag) return;
     var noteA=(c.opacity==null?1:c.opacity);
@@ -16959,6 +17869,30 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       var _set=(fonts.custom && _famK && fonts.custom[_famK])?fonts.custom[_famK]:fonts;
       var f=c.bold?(c.italic?_set.boldItalic:_set.bold):(c.italic?_set.italic:_set.regular);
       fontRef=f && f.ref ? f.ref : (fonts.regular.ref||null);
+      // TOFU GUARD. The custom families (Calibri/Times/Courier) embed as
+      // Type0/Identity-H fonts whose content-stream operands are 2-byte GLYPH
+      // IDS. pdfStr() writes Latin-1 bytes, and Latin-1 against a Type0 font
+      // renders as a grid of empty boxes -- which is exactly what appeared once
+      // notes started importing with their real family instead of Arial. Only
+      // the STANDARD Helvetica set can take literal bytes; for anything else use
+      // pdf-lib's encodeText(), which emits the correct hex string per font kind.
+      // (The text emitter dodges this by always forcing standard Helvetica; the
+      // vector painters dodge it by going through page.drawText.)
+      var _isCustomF=(_set!==fonts);
+      // /DA font name must match what the appearance actually paints, and must
+      // be resolvable through /DR. Standard set keeps the Helv* names; a custom
+      // family gets its own name (Calibri, CalibriB, ...) registered below.
+      var _daNm = _isCustomF && _famK
+        ? (_famK + (c.bold?(c.italic?'BI':'B'):(c.italic?'I':'')))
+        : (c.bold?(c.italic?'HelvBO':'HelvB'):(c.italic?'HelvO':'Helv'));
+      _ensureDR(_daNm, fontRef);
+      function _tjOf(line){
+        if(_isCustomF && f && typeof f.encodeText==='function'){
+          try{ return f.encodeText(_winAnsiSafe(String(line==null?'':line))).toString()+' Tj '; }
+          catch(_te){ console.warn('[AcroAnnot] note encodeText failed, falling back:',_te); }
+        }
+        return '('+pdfStr(line)+') Tj ';
+      }
       fsize=W(fsPx); daFs=fsize;
       var lxN=c.cx-c.w/2, lyN=c.cy-c.h/2;
       ops+='q BT /F0 '+f2(fsize)+' Tf '+colStr(txCol)+' rg ';
@@ -16968,7 +17902,7 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
         if(ty+fsPx > lyN+c.h-pad+halfLead+0.5) return;   // overflow clip, as on screen
         var bx=lxN+pad, by=ty+fsPx*0.80;
         var pp=P(bx,by);
-        ops+=tmRotAt(pp.x,pp.y,rotDeg)+'('+pdfStr(line)+') Tj ';
+        ops+=tmRotAt(pp.x,pp.y,rotDeg)+_tjOf(line);
         // underline / strike as thin rules
         if(c.underline||c.strike){
           var lwTxt=0; try{ lwTxt=f.widthOfTextAtSize(line,fsize); }catch(_w){ lwTxt=line.length*fsize*0.5; }
@@ -16980,11 +17914,22 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     }
     var d={ Subtype:'FreeText',
             Contents:_pdfStrOf(c.text),
-            DA:PDFLib.PDFString.of('/Helv '+f2(daFs)+' Tf '+colStr(txCol)+' rg'),
+            DA:PDFLib.PDFString.of('/'+_daNm+' '+f2(daFs)+' Tf '+colStr(txCol)+' rg'),
             Q:0,
             C:[Math.round(bgCol[0]*1000)/1000, Math.round(bgCol[1]*1000)/1000, Math.round(bgCol[2]*1000)/1000],
             CA:noteA,
+            // ROUND-TRIP MARKER: "AOG-NOTE:<borderHex>:<bgOpacity>". /C on a
+            // FreeText is the BACKGROUND per spec, so the border colour has no
+            // standard key and the alpha lives only in the appearance stream's
+            // ExtGState -- neither survives a re-import. Both ride in /T, which
+            // pdf.js exposes as titleObj.str.
+            T:PDFLib.PDFString.of('AOG-NOTE:'
+                +String(c.borderColor||darkenHex(c.bgColor||'#FBBF24',0.35)).replace('#','')
+                +':'+(Math.round(((c.bgOpacity!==undefined?c.bgOpacity:1))*1000)/1000)),
             BS:bsDict(Math.round(bwPt*100)/100,null) };
+    // Annotation-level /DR as well, for viewers that resolve the /DA font from
+    // the annotation rather than from the AcroForm.
+    if(fontRef){ try{ var _frmN={}; _frmN[_daNm]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_frmN) }); }catch(_dn){} }
     // Keep text upright when Acrobat regenerates the appearance on edit (rotated
     // pages otherwise flip it sideways). Page rotations are always multiples of 90.
     if(rotDeg) d.Rotate=rotDeg;
@@ -17021,9 +17966,39 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     // against a WinAnsi simple font. A custom/embedded TTF is a Type0/Identity-H
     // font whose content stream needs 2-byte glyph IDs — Latin-1 bytes there come
     // out as tofu boxes (□□□). Helvetica keeps the edited text readable & editable.
-    var f=obj.bold?(obj.italic?fonts.boldItalic:fonts.bold):(obj.italic?fonts.italic:fonts.regular);
-    if(!f) f=fonts.regular;
+    // Custom family when the object has one. This block used to force the
+    // standard Helvetica set unconditionally (see the note above) purely because
+    // pdfStr() writes Latin-1 bytes, which render as tofu against an embedded
+    // Type0/Identity-H font. _tjTxt() below encodes per font kind instead, so the
+    // real family can be used and Calibri text no longer exports as Helvetica.
+    var _famKT=(typeof _customFamilyKey==='function')?_customFamilyKey(obj.fontFamily):null;
+    var _setT=(fonts.custom && _famKT && fonts.custom[_famKT]) ? fonts.custom[_famKT] : fonts;
+    var _isCustomT=(_setT!==fonts);
+    var f=obj.bold?(obj.italic?_setT.boldItalic:_setT.bold):(obj.italic?_setT.italic:_setT.regular);
+    if(!f) f=_setT.regular||fonts.regular;
     var fontRef=(f&&f.ref)?f.ref:(fonts.regular&&fonts.regular.ref)||null;
+    // /DA must name the font actually painted, and it must resolve via /DR --
+    // Acrobat's font dropdown reads /DA, not the appearance stream.
+    var _daNmT = _isCustomT && _famKT
+      ? (_famKT + (obj.bold?(obj.italic?'BI':'B'):(obj.italic?'I':'')))
+      : _daFontName(obj);
+    _ensureDR(_daNmT, fontRef);
+    var _segFonts={};
+    // Same encoding rule as _tjTxt but for an explicitly chosen face: a custom
+    // family embeds as Type0/Identity-H and needs glyph ids, not Latin-1 bytes.
+    function _tjSeg(sf, s){
+      if(_isCustomT && sf && typeof sf.encodeText==='function'){
+        try{ return sf.encodeText(String(s==null?'':s)).toString()+' Tj '; }catch(_e){}
+      }
+      return '('+pdfStr(s)+') Tj ';
+    }
+    function _tjTxt(s){
+      if(_isCustomT && f && typeof f.encodeText==='function'){
+        try{ return f.encodeText(String(s==null?'':s)).toString()+' Tj '; }
+        catch(_te){ console.warn('[AcroAnnot] text encodeText failed, falling back:',_te); }
+      }
+      return '('+pdfStr(s)+') Tj ';
+    }
     var efpx=ptToCanvasPx(obj.fontSize), fsize=efpx/sc;
     var lineH=(typeof _lineAdvOf==='function')?_lineAdvOf(obj,efpx):efpx*1.25;
     var txCol=rgb01(obj.color||'#000000');
@@ -17082,34 +18057,162 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
           +f2(q0.x)+' '+f2(q0.y)+' m '+f2(q1.x)+' '+f2(q1.y)+' l '+f2(q2.x)+' '+f2(q2.y)+' l '+f2(q3.x)+' '+f2(q3.y)+' l h f Q ';
     }
     ops+='q /GS0 gs BT /F0 '+f2(fsize)+' Tf '+colStr(txCol)+' rg ';
+    // Character offsets from the RAW lines: `lines` above has been through
+    // _winAnsiSafe/_repairLigArtifacts, which can change length, so indexing runs
+    // against those would drift.
+    var _offsE=[];
+    try{ _offsE=_lineOffsets(obj, getTextLines(obj,efpx)); }catch(_oe){ _offsE=[]; }
     lines.forEach(function(ln,i){
       if(ln==='') return;
       var twc=_wc(ln);
       var _off=(align==='center'?(maxW-twc)/2:align==='right'?(maxW-twc):0);
       var pp=P(obj.x+_off, obj.y+i*lineH);
-      ops+=tmRotAt(pp.x,pp.y,rotDeg)+'('+pdfStr(ln)+') Tj ';
+      // PER-SELECTION COLOUR. With no runs this is one Tj at one colour, exactly
+      // as before. With runs the line is emitted as consecutive Tj segments, each
+      // preceded by its own `rg`, advancing x by the measured width of the text
+      // already drawn. Rotated text never reaches this emitter (it stays vector),
+      // so a plain horizontal advance is correct here.
+      var _segs=null;
+      try{ _segs=_lineSegs(obj, ln, _offsE[i]); }catch(_se2){ _segs=null; }
+      try{ if(i===0) dbg('export','TEXT ANNOT line0',{hasRuns:!!obj.runs, nRuns:obj.runs?obj.runs.length:0, off:_offsE[i], segs:_segs?_segs.length:0, txt:String(ln).slice(0,24)}); }catch(_dg){}
+      if(!_segs){ ops+=tmRotAt(pp.x,pp.y,rotDeg)+_tjTxt(ln); return; }
+      var _adv=0;
+      _segs.forEach(function(sg){
+        if(sg.s==='') return;
+        var _fn=sg.b?(sg.i?'F3':'F1'):(sg.i?'F2':'F0');
+        var _sf=(sg.b?(sg.i?_setT.boldItalic:_setT.bold):(sg.i?_setT.italic:_setT.regular))||f;
+        _segFonts[_fn]=_sf;
+        // Per-run point size, scaled off the block size the same way the canvas
+        // renderer does, so a resized word exports at the size it shows at.
+        var _sfs=fsize*((sg.fs||obj.fontSize||12)/(obj.fontSize||12));
+        var sp=P(obj.x+_off+_adv, obj.y+i*lineH);
+        ops+='/'+_fn+' '+f2(_sfs)+' Tf '+colStr(rgb01(sg.c))+' rg ';
+        ops+=tmRotAt(sp.x,sp.y,rotDeg)+_tjSeg(_sf,sg.s);
+        var _sw=0;
+        try{ _sw=_sf.widthOfTextAtSize(sg.s,_sfs)*sc; }catch(_ws){ _sw=_wc(sg.s); }
+        // Underline / strike as thin rules under just this segment. Emitted
+        // outside BT/ET, so the text block is closed and reopened around them.
+        if(sg.u || sg.st){
+          var _th=Math.max(0.4, _sfs*0.07);
+          var _p0=P(obj.x+_off+_adv, obj.y+i*lineH);
+          var _p1=P(obj.x+_off+_adv+_sw, obj.y+i*lineH);
+          [sg.u?-_sfs*0.12:null, sg.st?_sfs*0.30:null].forEach(function(dy){
+            if(dy===null) return;
+            ops+='ET Q q /GS0 gs '+f2(_th)+' w '+colStr(rgb01(sg.c))+' RG '
+                +f2(_p0.x)+' '+f2(_p0.y+dy)+' m '+f2(_p1.x)+' '+f2(_p1.y+dy)+' l S Q '
+                +'q /GS0 gs BT /'+_fn+' '+f2(_sfs)+' Tf ';
+          });
+        }
+        _adv+=_sw;
+      });
+      ops+='/F0 '+f2(fsize)+' Tf ';
+      ops+=colStr(txCol)+' rg ';   // restore the block colour for the next line
     });
     ops+='ET Q ';
     var d={ Subtype:'FreeText',
             Contents:_pdfStrOf(obj.text),
             // DA points at the styled Helvetica variant (registered in AcroForm /DR
             // above) so Acrobat keeps bold/italic when it regenerates on open.
-            DA:PDFLib.PDFString.of('/'+_daFontName(obj)+' '+f2(fsize)+' Tf '+colStr(txCol)+' rg'),
+            DA:PDFLib.PDFString.of('/'+_daNmT+' '+f2(fsize)+' Tf '+colStr(txCol)+' rg'),
             Q:(align==='center'?1:align==='right'?2:0),
             CA:op,
             BS:bsDict(0,null) };
     // Annotation-level /DR too, mapping the same name → styled font, for viewers
     // that resolve the DA font from the annotation rather than the AcroForm.
-    if(fontRef){ try{ var _nm=_daFontName(obj); var _frm={}; _frm[_nm]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_frm) }); }catch(_dr){} }
-    // No /C (transparent background): any highlight is drawn in the appearance
-    // above (at its real opacity); the original page text is hidden by the page
-    // white box, so the annotation itself carries no opaque background box.
+    if(fontRef){ try{ var _frm={}; _frm[_daNmT]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_frm) }); }catch(_dr){} }
+    // ROUND-TRIP MARKER: "AOG-TEXT:<bgOpacity>" tells the import this is a TEXT
+    // object, not a note, and carries the highlight alpha (which otherwise exists
+    // only as the /GSF ExtGState value inside the appearance stream, where the
+    // import's operator walk never looks). /C carries the highlight COLOUR, and
+    // is written only when there actually is a highlight -- an un-highlighted
+    // text annotation still has no background box.
+    d.T=PDFLib.PDFString.of('AOG-TEXT:'+(Math.round((_bgOp||0)*1000)/1000));
+    if(_hasHi){
+      var _hc=rgb01(obj.bgColor||'#ffff00');
+      d.C=[Math.round(_hc[0]*1000)/1000, Math.round(_hc[1]*1000)/1000, Math.round(_hc[2]*1000)/1000];
+    }
     if(rotDeg) d.Rotate=rotDeg;
-    addAnnot(d, ops, rect, op, _fillA, fontRef);
+    var _extraF={};
+    try{ for(var _fk in _segFonts){ if(_fk!=='F0' && _segFonts[_fk] && _segFonts[_fk].ref) _extraF[_fk]=_segFonts[_fk].ref; } }catch(_ef){}
+    addAnnot(d, ops, rect, op, _fillA, fontRef, _extraF);
   }); }catch(e){ console.warn('[AcroAnnot] text',e); }
 
+  try{
+    if(typeof textObjs!=='undefined'){
+      var _rc=textObjs.filter(function(o){ return o && o.runs; });
+      if(_rc.length) dbg('export','text objects carrying colour runs: '+_rc.length+
+        ' (acroFlagged: '+_rc.filter(function(o){return !!o._acroFlag;}).length+')');
+    }
+  }catch(_rr){}
   if(emitted) dbg('export','Acrobat annotations emitted: '+emitted);
   return emitted;
+}
+
+// SAVE-TIME GARBAGE COLLECTION -----------------------------------------------
+// pdf-lib never drops objects it loaded, so every export/import round trip
+// stranded the previous cycle's images. Measured on a 3-cycle file: 36 orphaned
+// image XObjects, 7.32 MB of a 10.5 MB total, 1130 of 1544 objects unreachable,
+// growing a flat ~1.97 MB per cycle (mostly repeat copies of the 926x919 badge
+// and its soft mask). Copying the finished pages into a FRESH document walks
+// references, so unreachable objects are never visited and simply vanish.
+// Every failure path returns the original bytes: a bigger file is always better
+// than a broken one.
+function _gcPdfBytes(bytes, attachJson, attachName){
+  if(!bytes || !bytes.length || !window.PDFLib || !PDFLib.PDFDocument){ return Promise.resolve(bytes); }
+  var _before=bytes.length;
+  function _d(m){ try{ dbg('export',m); }catch(_e){} }
+  return PDFLib.PDFDocument.load(bytes, {ignoreEncryption:true, updateMetadata:false})
+    .then(function(src){
+      // copyPages does NOT carry the AcroForm dictionary. An empty AcroForm
+      // (/DR + /DA only, which is what survey plans normally carry) is safe to
+      // drop, but real form FIELDS would be lost -- bail out rather than eat them.
+      try{
+        var _af=src.catalog.lookup(PDFLib.PDFName.of('AcroForm'));
+        if(_af && _af.lookup){
+          var _fl=_af.lookup(PDFLib.PDFName.of('Fields'));
+          if(_fl && _fl.size && _fl.size()>0){
+            _d('GC skipped - AcroForm carries '+_fl.size()+' field(s)');
+            return bytes;
+          }
+        }
+      }catch(_e){}
+      return PDFLib.PDFDocument.create().then(function(dst){
+        return dst.copyPages(src, src.getPageIndices()).then(function(pages){
+          pages.forEach(function(pg){ dst.addPage(pg); });
+          // CARRY THE ACROFORM. copyPages does not bring it across, and /DR
+          // inside it is what resolves the font names our /DA strings use --
+          // without it Acrobat cannot find /Calibri and reports Helvetica in the
+          // properties dialog even though the appearance draws real Carlito.
+          try{
+            var _srcAF=src.catalog.lookup(PDFLib.PDFName.of('AcroForm'));
+            if(_srcAF && PDFLib.PDFObjectCopier && PDFLib.PDFObjectCopier.for){
+              var _copied=PDFLib.PDFObjectCopier.for(src.context, dst.context).copy(_srcAF);
+              dst.catalog.set(PDFLib.PDFName.of('AcroForm'), dst.context.register(_copied));
+              _d('GC: AcroForm /DR carried across');
+            } else if(_srcAF){
+              _d('GC: PDFObjectCopier unavailable - AcroForm /DR NOT carried');
+            }
+          }catch(_af){ console.warn('[GC] AcroForm copy failed:',_af); }
+          // The attachment lives on the catalog, so it does not survive the copy
+          // either -- rewrite it onto the clean document.
+          if(!attachJson) return dst.save();
+          return Promise.resolve(
+            dst.attach(new TextEncoder().encode(attachJson), attachName, {
+              mimeType:'application/json',
+              description:'AOG editable annotation data',
+              creationDate:new Date(), modificationDate:new Date()
+            })
+          ).then(function(){ return dst.save(); });
+        });
+      });
+    })
+    .then(function(out){
+      if(!out || !out.length) return bytes;
+      if(out.length>=_before){ _d('GC found nothing to reclaim - keeping original'); return bytes; }
+      _d('GC: '+(_before/1048576).toFixed(2)+' MB -> '+(out.length/1048576).toFixed(2)+' MB');
+      return out;
+    })
+    .catch(function(e){ console.warn('[GC] skipped:',e); return bytes; });
 }
 
 // Emit user-placed pictures as editable /Stamp annotations. Async: image bytes
@@ -17138,7 +18241,17 @@ function _emitImageStamps(pdf, page, sz, sc, list){
         var _sw=(ov.img&&(ov.img.naturalWidth||ov.img.width))||Math.round(ov.w);
         var _sh=(ov.img&&(ov.img.naturalHeight||ov.img.height))||Math.round(ov.h);
         var iw=Math.max(1,Math.round(_sw)), ih=Math.max(1,Math.round(_sh));
-        var CAP=2200, dn=Math.min(1, CAP/Math.max(iw,ih));
+        // Resolution cap. 2200 is the absolute pixel ceiling; _AOG_STAMP_DPI caps
+        // resolution RELATIVE to on-page size, which is what drives file size.
+        // The AOG badge is 926x919 but lands at ~125 pt, i.e. ~533 DPI -- far past
+        // what any plotter or reviewer resolves. The 256 px floor protects the
+        // small equipment symbols: a 240 px preset at 10 pt is left untouched, so
+        // it stays as crisp as it is now. Only oversized art is trimmed.
+        // Raise _AOG_STAMP_DPI (or set it to Infinity) to keep every source pixel.
+        var _AOG_STAMP_DPI=400;
+        var _ptMax=Math.max(1, W(ov.w), W(ov.h));
+        var CAP=Math.min(2200, Math.max(256, Math.round(_ptMax*(_AOG_STAMP_DPI/72))));
+        var dn=Math.min(1, CAP/Math.max(iw,ih));
         var cw=Math.max(1,Math.round(iw*dn)), ch=Math.max(1,Math.round(ih*dn));
         var cnv=document.createElement('canvas'); cnv.width=cw; cnv.height=ch;
         var g=cnv.getContext('2d');
@@ -17173,13 +18286,28 @@ function _emitImageStamps(pdf, page, sz, sc, list){
               var apRef=ctx.register(ctx.stream(apOps, {
                 Type:'XObject', Subtype:'Form', BBox:[rect[0],rect[1],rect[2],rect[3]], Resources:res
               }));
+              // NO COMMENT MARKER ----------------------------------------
+              // Pictures draw on the page and print normally (F:4). Do NOT add
+              // /Popup, /T or /M here: a markup annotation carrying a popup is
+              // what makes Acrobat paint the little yellow note icon beside the
+              // stamp, and a cluster of those icons crowds the sheet worse than
+              // the pictures do. No popup means no marker.
+              // If a marker still appears, /Contents is the remaining trigger --
+              // see the note below before blanking it.
+              // TAG LIVES IN /T, NOT /Contents ---------------------------
+              // Acrobat paints its yellow note marker beside any annotation
+              // that carries /Contents, because /Contents IS the note text.
+              // That marker is viewer chrome at a fixed screen size -- no PDF
+              // key sizes it and it does not scale with /Rect, so it cannot be
+              // shrunk, only avoided. /Contents is therefore left empty and the
+              // AOG-IMG re-import tag moves to /T (the author title), which
+              // pdf.js still exposes as titleObj.str. Stamp stays a Stamp, so
+              // the picture is still selectable and movable in Acrobat.
               var d2={ Type:'Annot', Subtype:'Stamp', Rect:[rect[0],rect[1],rect[2],rect[3]],
                        F:4, P:page.ref, CA:op,
                        NM:PDFLib.PDFString.of('AOG-IMG-'+Date.now().toString(36)+'-'+(seq++)),
-                       // Marker read on re-import: lets the reopen path recognise these
-                       // as OUR OWN picture/equipment stamps and always bring them back,
-                       // instead of gating them behind the "Signatures & seals" option.
-                       Contents:PDFLib.PDFString.of('AOG-IMG'),
+                       T:PDFLib.PDFString.of('AOG-IMG'),
+                       Contents:PDFLib.PDFString.of(''),
                        AP:{ N:apRef } };
               var annotRef=ctx.register(ctx.obj(d2));
               var arr=null; try{ arr=page.node.Annots(); }catch(_a){}
@@ -17537,6 +18665,53 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     var efpx=ptToCanvasPx(obj.fontSize);          // canvas px per line
     var fsize=efpx/sc;                             // pt
     var lines=getTextLines(obj,efpx);   // same wrap breaks as the screen render
+    // PER-SELECTION COLOUR for the vector path. Every drawText below routes
+    // through _dtRuns instead of passing col(obj.color) directly: with no runs it
+    // is a single drawText at the block colour (unchanged), and with runs it lays
+    // the line down as consecutive segments, advancing along the text direction by
+    // each segment's measured width. The advance is rotated by the same total
+    // angle as the glyphs so rotated labels stay on their baseline.
+    var _offsV=[];
+    try{ _offsV=_lineOffsets(obj, getTextLines(obj,efpx)); }catch(_ov){ _offsV=[]; }
+    var _famKV=(typeof _customFamilyKey==='function')?_customFamilyKey(obj.fontFamily):null;
+    var _setV=(fonts.custom && _famKV && fonts.custom[_famKV]) ? fonts.custom[_famKV] : fonts;
+    function _dtRuns(ln, li, o2){
+      var segs=null;
+      try{ segs=_lineSegs(obj, ln, _offsV[li]); }catch(_e){ segs=null; }
+      try{ if(li===0) dbg('export','TEXT VECTOR line0',{hasRuns:!!obj.runs, nRuns:obj.runs?obj.runs.length:0, off:_offsV[li], segs:segs?segs.length:0, txt:String(ln).slice(0,24)}); }catch(_dg2){}
+      if(!segs){ page.drawText(ln, o2); return; }
+      var totDeg = (o2.rotate && typeof o2.rotate.angle==='number') ? o2.rotate.angle : 0;
+      var rad = totDeg*Math.PI/180, cx2=Math.cos(rad), sy2=Math.sin(rad);
+      var adv=0;
+      segs.forEach(function(sg){
+        if(sg.s==='') return;
+        // Bold/italic pick a different embedded face, so width must be measured
+        // with THAT face or the following segments drift.
+        var sf=(sg.b?(sg.i?_setV.boldItalic:_setV.bold):(sg.i?_setV.italic:_setV.regular))||f;
+        var sfs=(o2.size||fsize)*((sg.fs||obj.fontSize||12)/(obj.fontSize||12));
+        var o3={}; for(var k in o2) o3[k]=o2[k];
+        o3.x = o2.x + adv*cx2;
+        o3.y = o2.y + adv*sy2;
+        o3.color = col(sg.c);
+        o3.font = sf;
+        o3.size = sfs;
+        page.drawText(sg.s, o3);
+        var sw=0;
+        try{ sw = sf.widthOfTextAtSize(sg.s, sfs); }
+        catch(_w){ sw = String(sg.s).length*sfs*0.5; }
+        if(sg.u || sg.st){
+          var th=Math.max(0.4, sfs*0.07);
+          var ux0=o3.x, uy0=o3.y;
+          [sg.u?-sfs*0.12:null, sg.st?sfs*0.30:null].forEach(function(dy){
+            if(dy===null) return;
+            page.drawLine({ start:{x:ux0 - dy*sy2, y:uy0 + dy*cx2},
+                            end:{x:ux0 + sw*cx2 - dy*sy2, y:uy0 + sw*sy2 + dy*cx2},
+                            thickness:th, color:col(sg.c), opacity:(o2.opacity==null?1:o2.opacity) });
+          });
+        }
+        adv += sw;
+      });
+    }
     // Final safety net: strip ligature artifacts right before PDF drawing, so
     // even a session that still carries the bogus char in memory exports clean.
     lines=lines.map(function(l){ return _winAnsiSafe(_repairLigArtifacts(l)); });
@@ -17637,16 +18812,16 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
         if(_useCSR){
           try{
             page.pushOperators(PDFLib.setCharacterSpacing(_csR));
-            page.drawText(ln,{x:tp.x, y:tp.y, size:fsize, font:f, color:col(obj.color),
+            _dtRuns(ln,i,{x:tp.x, y:tp.y, size:fsize, font:f, color:col(obj.color),
               opacity:op, rotate:degrees(-a*180/Math.PI + rotDeg)});
             page.pushOperators(PDFLib.setCharacterSpacing(0));
           }catch(_ce){
             try{ page.pushOperators(PDFLib.setCharacterSpacing(0)); }catch(_){}
-            page.drawText(ln,{x:tp.x, y:tp.y, size:fsize, font:f, color:col(obj.color),
+            _dtRuns(ln,i,{x:tp.x, y:tp.y, size:fsize, font:f, color:col(obj.color),
               opacity:op, rotate:degrees(-a*180/Math.PI + rotDeg)});
           }
         } else {
-          page.drawText(ln,{x:tp.x, y:tp.y, size:fsize, font:f, color:col(obj.color),
+          _dtRuns(ln,i,{x:tp.x, y:tp.y, size:fsize, font:f, color:col(obj.color),
             opacity:op, rotate:degrees(-a*180/Math.PI + rotDeg)});
         }
       } else {
@@ -17693,11 +18868,11 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
         if(_useCS){
           try{
             page.pushOperators(PDFLib.setCharacterSpacing(_csPt));
-            page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+            _dtRuns(ln,i,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
             page.pushOperators(PDFLib.setCharacterSpacing(0));
           }catch(e){
             try{ page.pushOperators(PDFLib.setCharacterSpacing(0)); }catch(_){}
-            page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+            _dtRuns(ln,i,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
           }
         } else if(Math.abs(_target-twH)>0.5 && twH>0 &&
                   PDFLib.pushGraphicsState && PDFLib.concatTransformationMatrix){
@@ -17708,14 +18883,14 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
           try{
             page.pushOperators(PDFLib.pushGraphicsState(),
               PDFLib.concatTransformationMatrix(_sxF,0,0,1, pp.x*(1-_sxF), 0));
-            page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+            _dtRuns(ln,i,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
             page.pushOperators(PDFLib.popGraphicsState());
           }catch(e){
             try{ page.pushOperators(PDFLib.popGraphicsState()); }catch(_){}
-            page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+            _dtRuns(ln,i,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
           }
         } else {
-          page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+          _dtRuns(ln,i,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
         }
         if(obj.underline) line(lx,ly+efpx*0.12,lx+tw2,ly+efpx*0.12,obj.color,Math.max(1,efpx*0.07),op);
         if(obj.strike)    line(lx,ly-efpx*0.32,lx+tw2,ly-efpx*0.32,obj.color,Math.max(1,efpx*0.07),op);
@@ -17784,7 +18959,14 @@ function _markAcroAnnotObjs(){
     (typeof shapeObjs!=='undefined')?shapeObjs:[],
     (typeof penObjs!=='undefined')?penObjs:[],
     (typeof leaderObjs!=='undefined')?leaderObjs:[],
-    (typeof commentObjs!=='undefined')?commentObjs:[]
+    (typeof commentObjs!=='undefined')?commentObjs:[],
+    // textObjs MUST be cleared here, not only in the text pass below. That pass
+    // sits after the `if(!EXPORT_ACRO_ANNOTS) return 0` bail, so unticking
+    // Acrobat-edit after an export left every text object still carrying
+    // _acroFlag from the previous run. The painter's visible() skips flagged
+    // objects and _emitAcrobatAnnots skips them too when the box is off, so the
+    // text was dropped by BOTH paths and vanished from the export entirely.
+    (typeof textObjs!=='undefined')?textObjs:[]
   ];
   lists.forEach(function(a){ try{ a.forEach(function(o){ if(o) delete o._acroFlag; }); }catch(_e){} });
   if(!EXPORT_ACRO_ANNOTS) return 0;
@@ -17997,15 +19179,23 @@ function _loadFontBytes(k){
 function _embedCustomExportFonts(pdf, fonts){
   var need={};          // family key → {regular:true, bold:true, …} actually used
   try{
-    textObjs.forEach(function(o){
-      if(!o.text) return;
+    var _scan=function(o){
+      if(!o || !o.text) return;
       var k=_customFamilyKey(o.fontFamily);
       if(k && _CUSTOM_FONT_SRC[k]){
         var v=o.bold?(o.italic?'boldItalic':'bold'):(o.italic?'italic':'regular');
         (need[k]=need[k]||{})[v]=true;
       }
-    });
+    };
+    textObjs.forEach(_scan);
+    // NOTES COUNT TOO. This only ever scanned textObjs, so a note set to Calibri
+    // never triggered the Carlito fetch: fonts.custom stayed empty, _set fell
+    // back to the standard Helvetica group, and the note exported in Helvetica
+    // no matter what family it carried. Notes hold fontFamily/bold/italic in the
+    // same shape as text objects, so the same scan applies.
+    try{ if(typeof commentObjs!=='undefined' && commentObjs) commentObjs.forEach(_scan); }catch(_ce){}
   }catch(e){}
+  try{ dbg('export','custom font families needed: '+(Object.keys(need).join(',')||'(none)')); }catch(_dn){}
   var keys=Object.keys(need);
   if(!keys.length) return Promise.resolve();
   return _ensureFontkit().then(function(ok){
@@ -18374,7 +19564,17 @@ function _buildVectorPdf(attachJson, onReady){
     // as vectors. (It was previously assigned only after the diversion block.)
     var _totRot = (((typeof _pdfPageRot!=='undefined'?_pdfPageRot:0) + (typeof _userRotDeg!=='undefined'?_userRotDeg:0)) % 360 + 360) % 360;
     var _acroImgList=[];
-    if(typeof EXPORT_ACRO_ANNOTS!=='undefined' && EXPORT_ACRO_ANNOTS){
+    // PICTURES NEVER BECOME STAMPS ------------------------------------------
+    // A /Stamp is a markup annotation, so Acrobat paints its little yellow
+    // comment marker next to every one -- and a cluster of photos turns into a
+    // cluster of markers that crowds the sheet worse than the photos did.
+    // There is no annotation flag or opacity setting that suppresses that
+    // marker (/CA dims the picture, not the marker), so the only real fix is to
+    // not emit an annotation: pictures embed straight into the page content
+    // stream instead. Shapes and pen strokes are unaffected and stay editable.
+    // Set this false to restore Acrobat-movable picture stamps (markers return).
+    var _AOG_PICTURES_NATIVE = false;
+    if(typeof EXPORT_ACRO_ANNOTS!=='undefined' && EXPORT_ACRO_ANNOTS && !_AOG_PICTURES_NATIVE){
       // Keep VECTOR-traceable line-art pictures (ov._trace) in the normal pipeline
       // so they still export as TRUE VECTORS (drawSvgPath) even with Acrobat-edit
       // on — otherwise they'd be flattened into raster /Stamp annotations and lose
@@ -19357,9 +20557,13 @@ function _buildVectorPdf(attachJson, onReady){
                       mimeType:'application/json',
                       description:'AOG editable annotation data',
                       creationDate:new Date(), modificationDate:new Date()
-                    }).then(function(){ return pdf.save(); }).then(_postFix);
+                    }).then(function(){ return pdf.save(); })
+                      .then(function(_b){ return _gcPdfBytes(_b, attachJson, AOG_PDF_ATTACH); })
+                      .then(_postFix);
                   }
-                  return pdf.save().then(_postFix);
+                  return pdf.save()
+                    .then(function(_b){ return _gcPdfBytes(_b, null, null); })
+                    .then(_postFix);
                 });
               });
             });
@@ -21462,7 +22666,10 @@ function handleImgPointerMove(e, sp){
     // minimum of 1 ft (converted to canvas units via ppu) — small enough for any
     // real object, large enough to prevent an accidental shrink to nothing.
     // With no scale set, keep the 20px screen-pixel guard.
-    var MIN_SIDE = (scaleSet && ppu > 0) ? Math.max(1, 1 / ppu) : 20;
+    // MIN_IMG_FT: smallest allowed side for an equipment icon, in real feet
+    // when a scale is set. Lower this to place smaller symbols; 0.25 = 3".
+    var MIN_IMG_FT = 0.25;
+    var MIN_SIDE = (scaleSet && ppu > 0) ? Math.max(0.5, MIN_IMG_FT / ppu) : 4;
 
     var isVEdge = (hi===1 || hi===5); // top/bottom centre → only HEIGHT changes
     var isHEdge = (hi===3 || hi===7); // left/right middle → only WIDTH changes
@@ -23223,7 +24430,7 @@ function applyWmScale(){
     if(_t === textOv ||
        (_t && (_t.tagName==='TEXTAREA' || _t.tagName==='INPUT' || _t.isContentEditable))){
       hideMenu();
-      return; // no preventDefault → native context menu shows
+      return; // no preventDefault -> native context menu shows
     }
     e.preventDefault();
     if(!baseLoaded){ hideMenu(); return; }
@@ -23787,6 +24994,22 @@ window.addEventListener('orientationchange', function(){
     cx.globalAlpha=1;cx.globalCompositeOperation='source-over';
     return true}
 
+  // Rebuild the snapshot if anything has been redrawn, or if the wrapper has
+  // moved or resized under us. Cheap in practice: the flag only trips once per
+  // redraw, not once per pointer move.
+  function refreshComposite(){
+    if(!dropping) return;
+    var stale = (typeof _eyeCompStale!=='undefined' && _eyeCompStale);
+    if(!stale && compRect){
+      try{
+        var r=document.querySelector('#canvas-wrap').getBoundingClientRect();
+        if(Math.abs(r.left-compRect.left)>0.5 || Math.abs(r.top-compRect.top)>0.5 ||
+           Math.abs(r.width-compRect.width)>0.5 || Math.abs(r.height-compRect.height)>0.5) stale=true;
+      }catch(_e){}
+    }
+    if(stale){ buildComposite(); try{ _eyeCompStale=false; }catch(_f){} }
+  }
+
   function pixAt(x,y){                        // screen coords -> hex or null
     if(!comp)return null;
     var px=Math.floor(x-compRect.left),py=Math.floor(y-compRect.top);
@@ -23819,11 +25042,21 @@ window.addEventListener('orientationchange', function(){
   eye.addEventListener('click',function(){
     pop.style.display='none';back.style.display='none';
     if(!buildComposite()){pop.style.display='block';back.style.display='block';return}
+    try{ _eyeCompStale=false; }catch(_e){}
     dropping=true;drop.style.display='block';tip.style.display='block'});
+
+  // The eyedropper overlay sits above the viewport and swallows wheel events, so
+  // the page could not be scrolled or zoomed while picking. Forward them to the
+  // viewport's own handler instead of duplicating its logic, then rebuild the
+  // snapshot and re-read under the cursor so the loupe tracks the new view.
+
+
+
 
   var lastPt=null,touched=false;
   function track(e){
     var t=!!(e.touches&&e.touches.length),p=t?e.touches[0]:e;
+    refreshComposite();
     lastPt={x:p.clientX,y:p.clientY};
     var c=pixAt(p.clientX,p.clientY);
     // lift the loupe further clear of a fingertip than of a mouse cursor
