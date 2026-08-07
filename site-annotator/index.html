@@ -13369,6 +13369,16 @@ function _aogRestoreTextCol(){
 }
 function commitText(){
   if(textOv.style.display==='none') return;
+  // _textAnchorRight is a GLOBAL that reflects the last-drawn object, and the
+  // right-anchor repositioning below is guarded on it. Re-editing a committed
+  // leader label could reach here with the flag already reset, so editingObj.x
+  // was never recomputed from _anchorX and the label jumped on commit. The
+  // object records the truth -- restore from it before anything reads the flag.
+  try{
+    if(editingObj && editingObj._anchorRight!==undefined){
+      _textAnchorRight = (editingObj._anchorRight===true && editingObj._anchorX!=null);
+    }
+  }catch(_ar2){}
   // No session open → this is a spurious call (e.g. _openTextEdit's leading
   // commitText() on touch, where onDown force-showed the textarea to raise the
   // iOS keyboard). Bail before the "new text" branch can push a duplicate from
@@ -15660,6 +15670,32 @@ fontSizeSel.addEventListener('change',function(e){
   }
   var _oldFs = (ref && ref.fontSize) ? ref.fontSize : FONT_SIZE;
   if(ref){ ref.fontSize = FONT_SIZE; }
+  // _textAnchorRight is a GLOBAL, set when a leader is first drawn. Re-open a
+  // committed leader label and it still holds whatever the last-drawn object
+  // used, so the box anchored the wrong way and the text landed over the arrow.
+  // The object itself records the truth (_anchorRight/_anchorX, written at
+  // commit) -- the same restore the editor-open path does at line ~12652.
+  try{
+    if(ref && ref._anchorRight!==undefined){
+      _textAnchorRight = (ref._anchorRight===true && ref._anchorX!=null);
+    }
+  }catch(_ar){}
+  // A right-anchored label's x is derived from its RIGHT edge (x = _anchorX -
+  // width) and was only recomputed at COMMIT. The selection chrome draws at o.x,
+  // so after a size change the text moved (editor anchors to _anchorX) while the
+  // dashed box stayed at the old x. Recompute it now, with the same formula
+  // commit uses, so box and glyphs stay together live.
+  try{
+    if(ref && _textAnchorRight && ref._anchorX!=null){
+      var _lnsA = String(textOv.value!=null?textOv.value:(ref.text||'')).split('\n');
+      var _fpxA = ptToCanvasPx(FONT_SIZE);
+      var _mwA  = measureLinesWFull(_lnsA, _fpxA, ref.fontFamily||'Arial', ref.bold, ref.italic);
+      var _eaA  = ref.angle||0;
+      var _ayA  = (ref._anchorY!=null ? ref._anchorY : ref.y);
+      ref.x = ref._anchorX - _mwA*Math.cos(_eaA);
+      ref.y = _ayA - _mwA*Math.sin(_eaA);
+    }
+  }catch(_rx){}
 
   if(textOv.style.display !== 'none'){
     // Apply font size directly without focus() — focus is blocked on iOS.
