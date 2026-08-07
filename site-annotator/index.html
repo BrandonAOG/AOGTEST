@@ -15484,6 +15484,13 @@ function closeStampPicker(){
       // Always re-render the canvas so the note box shows the new size
       renderShapeAndMeasure(); composite();
       if(_editingComment) _cmtAutoGrow(_editingComment);
+      // The textarea width was computed from target.w BEFORE _cmtAutoGrow ran,
+      // and auto-grow calls fitCommentToText which can change the box. Only the
+      // HEIGHT was re-applied after that (repositionCommentEditorHeight), so at a
+      // larger font the editor kept its old narrow width and the text clipped off
+      // the right edge until commit redrew it. Re-run the FULL reposition, which
+      // recomputes width, height and font size together.
+      try{ if(_editingComment===target) repositionCommentEditor(target); }catch(_rp){}
 
       // Desktop: restore focus + cursor position (safe; skipped silently on iOS)
       if(!('ontouchstart' in window)){
@@ -15498,7 +15505,10 @@ function closeStampPicker(){
       var _ref = target;
       setTimeout(function(){
         if(textOv.style.display !== 'none') textOv.style.fontSize = Math.max(1, cmtEffFontSize(_ref) * zoom) + 'px';
-        if(_editingComment === _ref) _cmtAutoGrow(_ref);
+        if(_editingComment === _ref){
+          _cmtAutoGrow(_ref);
+          try{ repositionCommentEditor(_ref); }catch(_rp2){}
+        }
       }, 0);
     });
   }
@@ -15648,6 +15658,7 @@ fontSizeSel.addEventListener('change',function(e){
     try{ dbg('text','selection resized',{a:_fsSel.a,b:_fsSel.b,fs:FONT_SIZE}); }catch(_d){}
     return;
   }
+  var _oldFs = (ref && ref.fontSize) ? ref.fontSize : FONT_SIZE;
   if(ref){ ref.fontSize = FONT_SIZE; }
 
   if(textOv.style.display !== 'none'){
@@ -15662,6 +15673,31 @@ fontSizeSel.addEventListener('change',function(e){
     textOv.style.transform = scaleV < 0.99 ? 'scale('+scaleV.toFixed(3)+')' : 'none';
     textOv.style.height    = 'auto';
     textOv.style.height    = Math.max(40, textOv.scrollHeight) + 'px';
+    // Width and POSITION were never recomputed here -- only size, transform and
+    // height. repositionTextOverlay recomputes all of it. But it also REUSES
+    // textOv._editBoxW, a width locked in at initial placement so the text does
+    // not re-wrap while panning or zooming -- and that lock still held the width
+    // measured at the OLD font size, so bigger text overflowed it and clipped.
+    // Drop the lock first: a font-size change is exactly when the box must be
+    // re-measured rather than preserved.
+    // SCALE the locked wrap width by the font-size ratio rather than clearing it.
+    // The lock exists so text does not re-wrap while panning, but it held the
+    // width measured at the OLD size, so bigger text clipped. Clearing it made
+    // boxW fall back to half the viewport -- far wider than the text -- which
+    // moved the glyphs away from the object's own x/y and left the selection box
+    // sitting somewhere else. Scaling keeps the box proportional to the text, so
+    // it grows just enough and stays put.
+    // Applies to right-anchored labels (leaders) too: their box pins its RIGHT
+    // edge and extends leftward, so a proportionally wider box keeps the text
+    // snug against the anchor while giving it room to grow. Rotated labels are
+    // excluded -- they size the box to measured CONTENT on every reposition, so
+    // scaling a stale lock would fight that.
+    try{
+      if(textOv._editBoxW && _oldFs > 0 && !(ref && ref.angle)){
+        textOv._editBoxW = textOv._editBoxW * (FONT_SIZE / _oldFs);
+      }
+    }catch(_bw){}
+    try{ repositionTextOverlay(false); }catch(_rp){}
 
     // Desktop only: restore focus + cursor (silently fails on iOS, that's fine)
     if(!('ontouchstart' in window)){
