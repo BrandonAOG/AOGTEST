@@ -17824,6 +17824,14 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
   // resolves. Acrobat reads /DA -- NOT the appearance stream -- to fill its font
   // dropdown, so a note painted in Carlito while declaring /Helv reported
   // "Helvetica" in the properties bar and would revert to it on edit.
+  // `ref` is the APPEARANCE-STREAM font (Type0 for custom families). /DR must get
+  // the SIMPLE sibling instead -- see _embedSimpleWinAnsi. Returning the Type0 ref
+  // would restore the scrambling, so when no simple copy exists we register
+  // nothing and the caller falls back to naming /Helv in /DA.
+  function _drRefFor(fontObj, ref){
+    try{ if(fontObj && fontObj._aogSimpleRef) return fontObj._aogSimpleRef; }catch(_e){}
+    return null;
+  }
   function _ensureDR(name, ref){
     if(!name || !ref) return;
     try{
@@ -17882,10 +17890,11 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       // /DA font name must match what the appearance actually paints, and must
       // be resolvable through /DR. Standard set keeps the Helv* names; a custom
       // family gets its own name (Calibri, CalibriB, ...) registered below.
-      var _daNm = _isCustomF && _famK
+      var _drN = _drRefFor(f, fontRef);
+      var _daNm = (_isCustomF && _famK && _drN)
         ? (_famK + (c.bold?(c.italic?'BI':'B'):(c.italic?'I':'')))
         : (c.bold?(c.italic?'HelvBO':'HelvB'):(c.italic?'HelvO':'Helv'));
-      _ensureDR(_daNm, fontRef);
+      if(_drN) _ensureDR(_daNm, _drN);
       function _tjOf(line){
         if(_isCustomF && f && typeof f.encodeText==='function'){
           try{ return f.encodeText(_winAnsiSafe(String(line==null?'':line))).toString()+' Tj '; }
@@ -17979,10 +17988,11 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     var fontRef=(f&&f.ref)?f.ref:(fonts.regular&&fonts.regular.ref)||null;
     // /DA must name the font actually painted, and it must resolve via /DR --
     // Acrobat's font dropdown reads /DA, not the appearance stream.
-    var _daNmT = _isCustomT && _famKT
+    var _drT = _drRefFor(f, fontRef);
+    var _daNmT = (_isCustomT && _famKT && _drT)
       ? (_famKT + (obj.bold?(obj.italic?'BI':'B'):(obj.italic?'I':'')))
       : _daFontName(obj);
-    _ensureDR(_daNmT, fontRef);
+    if(_drT) _ensureDR(_daNmT, _drT);
     var _segFonts={};
     // Same encoding rule as _tjTxt but for an explicitly chosen face: a custom
     // family embeds as Type0/Identity-H and needs glyph ids, not Latin-1 bytes.
@@ -18120,6 +18130,16 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     // Annotation-level /DR too, mapping the same name → styled font, for viewers
     // that resolve the DA font from the annotation rather than the AcroForm.
     if(fontRef){ try{ var _frm={}; _frm[_daNmT]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_frm) }); }catch(_dr){} }
+    // Rich content so per-run colour/size/weight survive an Acrobat edit.
+    try{
+      var _rcFam=(obj.fontFamily||'Helvetica');
+      var _rc=_rcForTextObj(obj, lines, _offsE, _rcFam);
+      if(_rc){
+        d.RC=PDFLib.PDFString.of(_rc);
+        d.DS=PDFLib.PDFString.of('font:'+(obj.bold?'bold ':'')+(obj.italic?'italic ':'')
+              +f2(fsize)+'pt '+_rcFam+';color:'+String(obj.color||'#000000').toUpperCase());
+      }
+    }catch(_rce){ console.warn('[AcroAnnot] /RC build failed',_rce); }
     // ROUND-TRIP MARKER: "AOG-TEXT:<bgOpacity>" tells the import this is a TEXT
     // object, not a note, and carries the highlight alpha (which otherwise exists
     // only as the /GSF ExtGState value inside the appearance stream, where the
@@ -19176,6 +19196,153 @@ function _loadFontBytes(k){
 // Embeds every custom font family actually used by current text objects into the
 // given pdf-lib document. Populates fonts.custom[key] = {regular,bold,italic,
 // boldItalic} (missing variants fall back within the family). Never rejects.
+// SIMPLE (non-Type0) COPY FOR /DR ---------------------------------------------
+// pdf-lib embeds TrueType as Type0/Identity-H, whose content-stream operands are
+// 2-byte GLYPH IDS. That is correct for the appearance stream we write, but a
+// /DA font must be a SIMPLE font: /DA drives Acrobat's own layout when it
+// regenerates an appearance, and that machinery emits plain byte codes. Pointing
+// /DA at the Type0 font made Acrobat read each byte as half a glyph id, so
+// clicking into a label scrambled it -- and left the font box blank, since a
+// Type0 cannot appear in a dropdown meant for simple fonts.
+//
+// So: build a second dictionary over the SAME embedded FontFile2 bytes, declared
+// /TrueType with /WinAnsiEncoding. Identical glyphs, an encoding Acrobat can lay
+// out with. Only the descriptor and widths are duplicated, not the font data.
+// SIMPLE (non-Type0) COPY FOR /DR ---------------------------------------------
+// pdf-lib embeds TrueType as Type0/Identity-H, whose operands are 2-byte GLYPH
+// IDS. Correct for the appearance stream we write, but a /DA font must be SIMPLE:
+// /DA drives Acrobat's own layout when it regenerates an appearance, and that
+// emits plain byte codes. Pointing /DA at the Type0 font made Acrobat read each
+// byte as half a glyph id, scrambling the text on edit.
+//
+// This builds a second dictionary over the SAME embedded FontFile2 bytes,
+// declared /TrueType with /WinAnsiEncoding. Metrics come from the font's own
+// tables via fontkit -- an earlier version guessed them and measured widths
+// through the Type0 object (which indexes by glyph id, not byte code), and
+// Acrobat rejected the result with "Incorrect PDEObject type".
+var _AOG_SIMPLE_DR = true;
+// WinAnsi bytes 128-159 are NOT Latin-1: they carry typographic characters.
+// Widths must be looked up for the codepoint the byte actually encodes.
+var _WINANSI_HI = [0x20AC,0x0000,0x201A,0x0192,0x201E,0x2026,0x2020,0x2021,
+                   0x02C6,0x2030,0x0160,0x2039,0x0152,0x0000,0x017D,0x0000,
+                   0x0000,0x2018,0x2019,0x201C,0x201D,0x2022,0x2013,0x2014,
+                   0x02DC,0x2122,0x0161,0x203A,0x0153,0x0000,0x017E,0x0178];
+function _winAnsiCodePoint(b){
+  if(b>=128 && b<=159) return _WINANSI_HI[b-128] || 0;
+  return b;                                   // 32-127 and 160-255 are Latin-1
+}
+// RICH CONTENT (/RC) ---------------------------------------------------------
+// /DA carries ONE colour, size and weight. When Acrobat regenerates a FreeText
+// appearance -- which it does the moment you click into it -- it lays the text
+// out from /DA and every per-run colour we baked into the appearance stream is
+// lost, so a part-red label came back solid black. Acrobat's own rich text lives
+// in /RC as XHTML spans and takes precedence over /DA when present, so writing
+// the runs there is what makes them survive an edit.
+function _xmlEsc(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+function _rcSpanStyle(st, fam){
+  var css='font-family:'+fam+';font-size:'+(Math.round((st.fs||12)*10)/10)+'pt';
+  css+=';color:'+String(st.c||'#000000').toUpperCase();
+  if(st.b)  css+=';font-weight:bold';
+  if(st.i)  css+=';font-style:italic';
+  var dec=[];
+  if(st.u)  dec.push('underline');
+  if(st.st) dec.push('line-through');
+  if(dec.length) css+=';text-decoration:'+dec.join(' ');
+  return css;
+}
+// Build the /RC XHTML for a text object. `lines` are the wrapped lines and
+// `offs` their character offsets, so runs map onto the same breaks the
+// appearance stream used.
+function _rcForTextObj(obj, lines, offs, fam){
+  try{
+    var base=_runStyle(null,obj), out='';
+    for(var i=0;i<lines.length;i++){
+      var ln=lines[i]||'', segs=null;
+      try{ segs=_lineSegs(obj, ln, offs[i]); }catch(_e){ segs=null; }
+      var inner='';
+      if(segs && segs.length){
+        segs.forEach(function(sg){
+          inner+='<span style="'+_rcSpanStyle(sg,fam)+'">'+_xmlEsc(sg.s)+'</span>';
+        });
+      } else {
+        inner='<span style="'+_rcSpanStyle(base,fam)+'">'+_xmlEsc(ln)+'</span>';
+      }
+      out+='<p dir="ltr">'+(inner||'<span>&#160;</span>')+'</p>';
+    }
+    return '<?xml version="1.0"?>'
+         + '<body xmlns="http://www.w3.org/1999/xhtml" '
+         + 'xmlns:xfa="http://www.xfa.org/schema/xfa-data/1.0/" '
+         + 'xfa:APIVersion="Acrobat:8.0.0" xfa:spec="2.4">'
+         + out + '</body>';
+  }catch(e){ return null; }
+}
+function _embedSimpleWinAnsi(pdf, ttfBytes, baseName, pdfLibFont){
+  if(!_AOG_SIMPLE_DR) return null;
+  try{
+    if(!window.fontkit) return null;
+    // Normalise ONCE. If these arrive as an ArrayBuffer, `.length` is undefined,
+    // /Length1 goes out missing, and Acrobat reports "Cannot extract the embedded
+    // font" -- the length of the UNCOMPRESSED font file is mandatory for a
+    // FontFile2 stream.
+    var bytes = (ttfBytes instanceof Uint8Array) ? ttfBytes : new Uint8Array(ttfBytes);
+    if(!bytes || !bytes.length) return null;
+    var fk = window.fontkit.create(bytes);
+    if(!fk) return null;
+    // /BaseFont and /FontName must match the PostScript name in the font's own
+    // `name` table. A made-up name ("Calibri-regular") also reads to Acrobat as a
+    // broken embed -- the real name here is "Carlito-Regular".
+    var psName = String(fk.postscriptName || baseName).replace(/[^A-Za-z0-9-]/g,'');
+    if(!psName) psName = baseName;
+    var upm = fk.unitsPerEm || 1000;
+    var S = function(v){ return Math.round((v||0) * 1000 / upm); };
+    var bb = fk.bbox || {minX:-500,minY:-300,maxX:1500,maxY:1000};
+
+    var ctx=pdf.context, N=PDFLib.PDFName.of;
+    var fileRef=ctx.register(ctx.flateStream(bytes, { Length1: bytes.length }));
+
+    // Widths indexed by BYTE CODE, resolved through the WinAnsi table.
+    var widths=[];
+    for(var b=32;b<=255;b++){
+      var w=0, cp=_winAnsiCodePoint(b);
+      if(cp){
+        try{
+          var g=fk.glyphForCodePoint(cp);
+          if(g && isFinite(g.advanceWidth)) w=S(g.advanceWidth);
+        }catch(_g){}
+      }
+      widths.push(w||0);
+    }
+
+    var italic = fk.italicAngle || 0;
+    var flags = 32;                          // nonsymbolic
+    if(italic) flags |= 64;
+    var desc=ctx.register(ctx.obj({
+      Type:'FontDescriptor',
+      FontName:N(psName),
+      Flags:flags,
+      FontBBox:[S(bb.minX), S(bb.minY), S(bb.maxX), S(bb.maxY)],
+      ItalicAngle: italic,
+      Ascent:  S(fk.ascent  || 0.75*upm),
+      Descent: S(fk.descent || -0.25*upm),
+      CapHeight: S(fk.capHeight || 0.7*upm),
+      StemV: 80,
+      MissingWidth: 0,
+      FontFile2: fileRef
+    }));
+    return ctx.register(ctx.obj({
+      Type:'Font', Subtype:'TrueType', BaseFont:N(psName),
+      FirstChar:32, LastChar:255,
+      Widths: widths,
+      Encoding:'WinAnsiEncoding',
+      FontDescriptor: desc
+    }));
+  }catch(e){ console.warn('[TrueFont] simple WinAnsi copy failed for '+baseName, e); return null; }
+}
+
 function _embedCustomExportFonts(pdf, fonts){
   var need={};          // family key → {regular:true, bold:true, …} actually used
   try{
@@ -19227,6 +19394,12 @@ function _embedCustomExportFonts(pdf, fonts){
                   // Record the uncompressed byte length for the pre-save
                   // /Length1 stamp (see _stampLength1PreSave).
                   try{ f._aogLen1 = vs[v].length || vs[v].byteLength || 0; }catch(_l){}
+                  // Simple sibling for /DR, so /DA can name a font Acrobat can
+                  // actually lay out with.
+                  try{
+                    f._aogSimpleRef = _embedSimpleWinAnsi(
+                      pdf, vs[v], (k+'-'+v).replace(/[^A-Za-z0-9-]/g,''), f);
+                  }catch(_sw){}
                 },
                 function(e){ console.warn('[TrueFont] embed '+k+'/'+v+' failed', e); });
             });
