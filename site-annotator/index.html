@@ -8767,6 +8767,11 @@ function selectShapeDirect(hit){
 
 function onDown(e){
   if(!baseLoaded||pinching) return;
+  // LEFT BUTTON ONLY. Nothing here checked which button was pressed, so a
+  // right-click started a stroke as well as opening the context menu -- every
+  // right-click on the canvas left a mark. Middle-click pan is handled
+  // separately on the viewport. Touch and pen events have button 0 or -1.
+  if(e.button!==undefined && e.button!==0 && e.button!==-1) return;
   // No tool selected (app loads in this neutral state): a press on the canvas
   // does nothing — no draw, no pan. The user must pick a tool first.
   if(tool==='none') return;
@@ -24907,6 +24912,11 @@ document.addEventListener('keydown',function(e){
       }
       _delClear=function(){ selectedShape=null; selHandle=-1; selDragStart=null;
                             if(typeof editShapeObj!=='undefined') editShapeObj=null; };
+    }
+    // A selected pen stroke: its own array, and the selection is released after.
+    if(!_delList && typeof selectedPen!=='undefined' && selectedPen && typeof penObjs!=='undefined'){
+      _delList=penObjs; _delObj=selectedPen;
+      _delClear=function(){ selectedPen=null; penDragStart=null; };
     }
     if(_delList && _delObj){
       var _di=_delList.indexOf(_delObj);
