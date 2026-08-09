@@ -9200,6 +9200,10 @@ function onDown(e){
         e.preventDefault();
         _suppressLeaderPlaceUntil=Date.now()+700;
         selectedLeader=other; leaderDragHandle=-1; leaderDragStart=null;
+        // Clear the resting copy off shapes-cv NOW. The renderer skips the
+        // selected leader, but only on the NEXT full redraw -- until then the
+        // committed copy stays painted and ghosts as the drag starts.
+        renderShapeAndMeasure(); composite();
         color=other.color; clrSwatch.style.background=color; clrInput.value=color;
         opacity=other.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
         if(other.strokeW){ strokeW=other.strokeW; _swSyncUI(); }
@@ -9217,6 +9221,7 @@ function onDown(e){
       e.preventDefault();
       _suppressLeaderPlaceUntil=Date.now()+700;
       selectedLeader=lSel; leaderDragHandle=-1; leaderDragStart=null;
+      renderShapeAndMeasure(); composite();   // clear the resting copy (see above)
       // Sync toolbar pickers to this leader so color/width edits apply to it.
       color=lSel.color; clrSwatch.style.background=color; clrInput.value=color;
       opacity=lSel.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
@@ -9604,7 +9609,12 @@ function onMove(e){
       if(selectedShape.type==='comment'&&selectedShape._commentObj){
         selectedShape._commentObj.cx=selectedShape.cx;
         selectedShape._commentObj.cy=selectedShape.cy;
+        // FIRST frame of the drag: the committed copy is still painted on
+        // shapes-cv and the renderer only skips it from the NEXT full redraw,
+        // so it ghosted for the first moment of the move. One redraw here.
+        var _cFirst=!_dragComment;
         _dragComment=selectedShape._commentObj;   // draw live on selCv
+        if(_cFirst){ renderShapeAndMeasure(); composite(); }
         scheduleSelRender();                       // ≤1 redraw per painted frame
         repositionCommentEditor(selectedShape._commentObj);
       }
@@ -9714,7 +9724,9 @@ function onMove(e){
       // move their single axis. Height is auto-fitted to the text on RELEASE
       // (see onUp), not here — re-fitting per move made corners feel width-only.
       selectedShape.w=_cobj.w; selectedShape.h=_cobj.h; selectedShape.cx=_cobj.cx; selectedShape.cy=_cobj.cy;
+      var _cFirst2=!_dragComment;
       _dragComment=_cobj;          // draw live on the lightweight selCv
+      if(_cFirst2){ renderShapeAndMeasure(); composite(); }   // clear the resting copy
       scheduleSelRender();         // ≤1 redraw per painted frame
       repositionCommentEditor(_cobj);
       return; // skip the unconditional renderSelection() below
