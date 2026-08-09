@@ -3741,6 +3741,8 @@ var markupOpacity = 0.45;
 var measureObjs=[];
 var selectedMeasure=null; // currently selected measure object
 var selectedPolyline=null; // currently selected polyline object (for recolor/restyle)
+var selectedPen=null;      // currently selected pen stroke (recolor/opacity/width)
+var penDragStart=null;     // {x,y,pts:[...]} while a selected stroke is being moved
 var measureDragHandle=-1; // -1=none, 0=p1 endpoint, 1=p2 endpoint, -2=move whole line
 var measureDragStart=null; // {x,y,orig:{x1,y1,x2,y2}}
 // ── LEADER SELECTION ──
@@ -9268,6 +9270,30 @@ function onDown(e){
   }
 
   // ── Polyline object: re-select for recolor/restyle ──
+  // PEN: a committed stroke can be re-selected to recolour / restyle it. Hit
+  // tested BEFORE polylines because a freehand stroke and a polyline can overlap
+  // and the pen tool should get its own strokes back.
+  if(tool==='pen'){
+    var penSel=findPenObjAt(sp.x,sp.y,_isTouchEvt);
+    if(penSel){
+      e.preventDefault();
+      selectedPen=penSel;
+      color=penSel.color; clrSwatch.style.background=color; clrInput.value=color;
+      opacity=(penSel.opacity==null?1:penSel.opacity);
+      opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
+      if(penSel.strokeW){ strokeW=penSel.strokeW; _swSyncUI(); }
+      drawing=false;
+      // Start moving straight away, so press-and-drag repositions the stroke in
+      // one gesture (same feel as polylines). The original points are snapshotted
+      // so every move frame offsets from the START, not cumulatively.
+      penDragStart={x:sp.x, y:sp.y,
+                    pts:penSel.pts.map(function(q){ return {x:q.x,y:q.y}; })};
+      renderShapeAndMeasure(); composite(); renderPenSelection();
+      return;
+    }
+    // Clicking empty canvas with the pen tool releases any selected stroke.
+    if(selectedPen){ selectedPen=null; penDragStart=null; _clearCv(selCtx,selCv); renderShapeAndMeasure(); composite(); }
+  }
   if(tool==='polyline' && !plActive){
     // If a polyline is already selected and we press on it (body or vertex),
     // start dragging it (move whole shape, or move a single vertex).
@@ -9588,6 +9614,18 @@ function onMove(e){
       }catch(_lm){}
     }
     renderLeaderSelection();
+    return;
+  }
+  // -- Pen stroke move --
+  if(selectedPen && penDragStart && !pinching){
+    if(e.cancelable) e.preventDefault();
+    var pp2=getPos(e);
+    var pdx=pp2.x-penDragStart.x, pdy=pp2.y-penDragStart.y;
+    for(var _pi2=0; _pi2<selectedPen.pts.length; _pi2++){
+      selectedPen.pts[_pi2].x=penDragStart.pts[_pi2].x+pdx;
+      selectedPen.pts[_pi2].y=penDragStart.pts[_pi2].y+pdy;
+    }
+    renderShapeAndMeasure(); composite(); renderPenSelection();
     return;
   }
   // ── Shape transform drag ──
@@ -10035,6 +10073,14 @@ function onUp(e){
     // handled by selectedShape system now — just clear stale refs
     return;
   }
+  // End a pen-stroke move. The stroke stays SELECTED afterwards so colour /
+  // opacity / width can still be changed without re-clicking it.
+  if(selectedPen && penDragStart){
+    penDragStart=null;
+    renderShapeAndMeasure(); composite(); renderPenSelection();
+    pushUndo();
+    return;
+  }
   // End leader handle/move drag — but KEEP the leader selected so the user can
   // keep editing (change color/width, drag again) and moving the cursor away
   // does NOT deselect it. Deselection only happens on an explicit click-off.
@@ -10154,16 +10200,23 @@ function onUp(e){
   }
   var lc=lctx();
   if(tool==='pen'){
+    var _newPen=null;
     if(penPathPoints.length>=1){
-      penObjs.push({
+      _newPen={
         id:Date.now(), pts:penPathPoints.slice(),
         color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
         layerIdx:activeLayerIdx
-      });
+      };
+      penObjs.push(_newPen);
     }
     penPathPoints=[];
+    // Stay selected after drawing, like the other tools: the stroke you just made
+    // is the one you are most likely to want to recolour, restyle or nudge, and
+    // it saves hunting for a thin freehand line to click on.
+    if(_newPen){ selectedPen=_newPen; penDragStart=null; }
     renderShapeAndMeasure();
     composite();
+    if(_newPen) renderPenSelection();
   } else if(tool==='eraser'){ composite(); }
   else if(tool==='line'){
     // Line = committed vector line; no auto-enter-edit on mouseup.
@@ -10681,6 +10734,8 @@ function renderShapeAndMeasure(){
   });
   // Pen / Polygon / Leader / Stamp objects (live, never burned)
   penObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return;
+    // Pen strokes always draw here, selected or not -- selection is indicated by
+    // the toolbar syncing to the stroke, not by any overlay.
     drawPenOnCtx(o.blend?hlCtx:shCtx,o,1); });
   polygonObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; drawPolygonOnCtx(shCtx,o,1); });
   leaderObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; if(o===selectedLeader) return; drawLeaderOnCtx(shCtx,o,1); });
@@ -12668,7 +12723,7 @@ function clearTextHover(){
   // Only collapse selCv if no shape/text/image/measure/polyline/leader selection
   // is showing. Collapsing it while a selection is active wipes the overlay —
   // this is what made a selected leader vanish as soon as the mouse moved.
-  if(!_txtCursorActive && !selectedShape && !selImg && !selectedMeasure && !selectedPolyline && !selectedLeader && selCv.width > 1){ selCv.width=1; selCv.height=1; }
+  if(!_txtCursorActive && !selectedShape && !selImg && !selectedMeasure && !selectedPolyline && !selectedLeader && !(typeof selectedPen!=='undefined' && selectedPen) && selCv.width > 1){ selCv.width=1; selCv.height=1; }
 }
 
 // ── END TEXT CURSOR INDICATOR ────────────────────────────────
@@ -14327,6 +14382,9 @@ function scheduleSelRender(){
 }
 function renderSelection(){
   if(!selectedShape){
+    // A selected pen stroke's dashed box lives on this canvas too -- blanking it
+    // whenever no SHAPE is selected wiped the box as soon as the cursor moved.
+    if(typeof selectedPen!=='undefined' && selectedPen){ renderPenSelection(); return; }
     if(selCv.width>1){ selCv.width=1; selCv.height=1; } _selPrevDirty=null; return;
   }
   // Match the SAME plan-coordinate setup every other overlay uses (shCv via
@@ -15358,6 +15416,28 @@ function endPolylineDrag(){
   if(moved){ renderShapeAndMeasure(); composite(); pushUndo(); }
 }
 // Draw a selection highlight + vertex dots for the selected polyline.
+// Selected pen stroke: a dashed bounding box, matching the note / text chrome.
+// A freehand stroke has no natural rectangle, so this is the box AROUND whatever
+// was drawn -- it marks the selection without recolouring the stroke itself.
+function renderPenSelection(){
+  if(!selectedPen || !selectedPen.pts || !selectedPen.pts.length) return;
+  _sizeSelCvRaw();
+  _clearCv(selCtx,selCv);
+  var pn=selectedPen, x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
+  for(var i=0;i<pn.pts.length;i++){
+    var q=pn.pts[i];
+    if(q.x<x0)x0=q.x; if(q.x>x1)x1=q.x;
+    if(q.y<y0)y0=q.y; if(q.y>y1)y1=q.y;
+  }
+  var pad=(pn.strokeW||2)/2 + 6/zoom;
+  selCtx.save();
+  selCtx.strokeStyle='rgba(0,212,255,0.9)';
+  selCtx.lineWidth=1.5/zoom;
+  selCtx.setLineDash([5/zoom,3/zoom]);
+  selCtx.strokeRect(x0-pad, y0-pad, (x1-x0)+pad*2, (y1-y0)+pad*2);
+  selCtx.restore();
+}
+
 function renderPolylineSelection(){
   if(!selectedPolyline){ return; }
   _sizeSelCvRaw();
@@ -16678,6 +16758,7 @@ function applyStrokeColor(v){
   if(sPoly){ sPoly.color=color; renderShapeAndMeasure(); renderPolylineSelection(); }
   var sLeader=selectedLeader||(snap&&snap.leader);
   if(sLeader){ sLeader.color=color; renderShapeAndMeasure(); renderLeaderSelection(); }
+  if(selectedPen){ selectedPen.color=color; renderShapeAndMeasure(); composite(); }
 }
 [clrInput,clrSwatch].forEach(function(el){
   if(!el) return;
@@ -16735,6 +16816,7 @@ function applyStrokeW(v){
   if(selectedShape){ selectedShape.strokeW=strokeW; renderSelection(); }
   if(selectedMeasure){ selectedMeasure.strokeW=strokeW; renderMeasureSelection(); renderShapeAndMeasure(); }
   if(selectedPolyline){ selectedPolyline.strokeW=strokeW; renderShapeAndMeasure(); renderPolylineSelection(); }
+  if(selectedPen){ selectedPen.strokeW=strokeW; renderShapeAndMeasure(); composite(); }
   if(selectedLeader){ selectedLeader.strokeW=strokeW; renderShapeAndMeasure(); renderLeaderSelection(); }
 }
 function applyOpacityAll(v){
@@ -16747,6 +16829,7 @@ function applyOpacityAll(v){
   if(selectedMeasure){ selectedMeasure.opacity=opacity; renderMeasureSelection(); renderShapeAndMeasure(); }
   if(selectedPolyline){ selectedPolyline.opacity=opacity; renderShapeAndMeasure(); renderPolylineSelection(); }
   if(selectedLeader){ selectedLeader.opacity=opacity; renderShapeAndMeasure(); renderLeaderSelection(); }
+  if(selectedPen){ selectedPen.opacity=opacity; renderShapeAndMeasure(); composite(); }
 }
 swSl.addEventListener('input',function(e){ applyStrokeW(parseFloat(e.target.value)); });
 opSl.addEventListener('input',function(e){ applyOpacityAll(parseInt(e.target.value)); });
@@ -24724,6 +24807,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     if(selImg){ commitImgSelection(); return; }
     stopTextCursor(); clearTextHover();
+    if(selectedPen){ selectedPen=null; penDragStart=null; _clearCv(selCtx,selCv); renderShapeAndMeasure(); composite(); return; }
     if(selectedLeader){ commitLeaderSelection(); return; }
     if(selectedMeasure){ commitMeasureSelection(); return; }
     if(selectedPolyline){ cancelPolylineSelection(); return; }
