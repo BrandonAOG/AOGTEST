@@ -895,6 +895,24 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
   <div style="flex:1"></div>
   <div id="aog-perf">
+    <span class="perf-chip" id="perf-edit" title="Objects that will survive as REAL, editable Acrobat annotations">
+      <span class="perf-k">EDITABLE</span><span class="perf-v" id="perf-edit-v">—</span>
+    </span>
+    <span class="perf-chip" id="perf-flat" title="Objects that will be baked into the page and cannot be edited in Acrobat">
+      <span class="perf-k">FLAT</span><span class="perf-v" id="perf-flat-v">—</span>
+    </span>
+    <span class="perf-chip" id="perf-img" title="Pictures on the sheet. Shows &quot;4 of 6&quot; when original page images have been deleted — those must be covered on export.">
+      <span class="perf-k">IMG</span><span class="perf-v" id="perf-img-v">0</span>
+    </span>
+    <span class="perf-chip" id="perf-scale" title="Drawing scale. Every dimension you place depends on this.">
+      <span class="perf-k">SCALE</span><span class="perf-v" id="perf-scale-v">—</span>
+    </span>
+    <span class="perf-chip" id="perf-rot" title="Canvas rotation applied to this sheet">
+      <span class="perf-k">ROT</span><span class="perf-v" id="perf-rot-v">0°</span>
+    </span>
+    <span class="perf-chip" id="perf-saved" title="Time since the work was last autosaved">
+      <span class="perf-k">SAVED</span><span class="perf-v" id="perf-saved-v">—</span>
+    </span>
     <span class="perf-chip" id="perf-exp" title="How the next PDF export will be built">
       <span class="perf-k">EXPORT</span><span class="perf-v" id="perf-exp-v">—</span>
     </span>
@@ -912,6 +930,65 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
 </div>
 
+<script>
+/* ---------- STATUS BAR: what the export will actually produce ----------------
+   Whether an object comes out as a REAL Acrobat annotation or is baked flat into
+   the page is invisible while you work -- you only find out by exporting and
+   opening the PDF. _markAcroAnnotObjs is the same function the exporter uses to
+   decide, so these counts match the export exactly. It walks every object, so it
+   runs on a debounce after edits rather than continuously. ------------------- */
+(function(){
+  var _t=null, _lastSave=0;
+  function el(id){ return document.getElementById(id); }
+  function set(chipId, valId, text, cls){
+    var c=el(chipId), v=el(valId);
+    if(v) v.textContent=text;
+    if(c){ c.classList.remove('warn','crit'); if(cls) c.classList.add(cls); }
+  }
+  function count(){
+    if(!window.AOG_statusSnapshot) return;   // app not ready yet
+    var snap=null;
+    try{ snap=window.AOG_statusSnapshot(); }catch(e){ return; }
+    if(!snap) return;
+    var editable=snap.editable||0, total=snap.total||0;
+    var flat=Math.max(0,total-editable);
+    set('perf-edit','perf-edit-v', String(editable));
+    set('perf-flat','perf-flat-v', String(flat), flat>0?'warn':null);
+    // SCALE -- red until calibrated: an uncalibrated sheet's dimensions are wrong.
+    set('perf-scale','perf-scale-v', snap.scale || 'NOT SET', snap.scale ? null : 'crit');
+    set('perf-rot','perf-rot-v', (snap.rot||0)+'\u00B0', snap.rot ? 'warn' : null);
+    // IMG — count on the sheet, plus any page images removed (shown as "-N"),
+    // since a deleted picture has to be actively covered on export.
+    // "4 of 6" once any original page image has been removed, so the number is
+    // meaningful without having to remember what it started at.
+    var _im=(snap.imgs||0), _pn=(snap.pageNow||0), _po=(snap.pageOrig||0);
+    var _txt=String(_im);
+    if(_po>_pn) _txt=_pn+' of '+_po;
+    set('perf-img','perf-img-v', _txt, (_po>_pn)?'warn':null);
+    // SAVED -- autosave is silent, so this says whether recent work is safe.
+    try{
+      var age=_lastSave?Math.round((Date.now()-_lastSave)/1000):null;
+      var txt = (age==null) ? '\u2014' : (age<60 ? age+'s ago' : Math.round(age/60)+'m ago');
+      set('perf-saved','perf-saved-v', txt, (age!=null&&age>180)?'warn':null);
+    }catch(e){}
+  }
+  window.AOG_statusDirty=function(){ clearTimeout(_t); _t=setTimeout(count, 700); };
+  // Typing a scale notation should update the badge straight away -- that field is
+  // how you make the badge match what is printed on the sheet.
+  window.addEventListener('load', function(){
+    var n=document.getElementById('dpi-notation');
+    if(n) n.addEventListener('input', function(){ window.AOG_statusDirty(); });
+  });
+  window.AOG_statusSaved=function(){ _lastSave=Date.now(); window.AOG_statusDirty(); };
+  setInterval(count, 15000);
+  // Early retries: a restore rebuilds the sheet asynchronously (images decode,
+  // the PDF re-renders), so a single check at 1.2s often ran before there was
+  // anything to count and the bar sat blank until the 15s tick.
+  window.addEventListener('load', function(){
+    [400, 1200, 2500, 4000, 6000].forEach(function(ms){ setTimeout(count, ms); });
+  });
+})();
+</script>
 <!-- CUSTOMER BAR -->
 <div id="customer-bar">
   <label for="cust-name">Customer</label>
@@ -2164,6 +2241,7 @@ function _scanImageDraws(cs, imageNames){
   return draws;
 }
 function _recordDeletedPageImg(ov){
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_si){}
   try{
     if(ov && ov._fromPdfPage && ov._origCx!=null){
       _deletedPageImgs.push({_origCx:ov._origCx,_origCy:ov._origCy,_origW:ov._origW,_origH:ov._origH,layerIdx:ov.layerIdx});
@@ -3905,7 +3983,94 @@ function captureState(includePixels){
   }catch(ex){ _preOp=null; }
 }
 
+// The whole app lives inside an IIFE, so textObjs / scaleSet / _userRotDeg and
+// _markAcroAnnotObjs are NOT globals -- the status bar script is a separate block
+// and could not see any of them (its counts stayed at zero and SCALE never left
+// NOT SET). Expose one read-only snapshot instead of leaking the internals.
+window.AOG_statusSnapshot=function(){
+  var editable=0, total=0;
+  try{ if(typeof _markAcroAnnotObjs==='function') editable=_markAcroAnnotObjs()||0; }catch(e){}
+  // Count only YOUR markup. Objects extracted from the page that you have not
+  // touched are deliberately left alone -- their originals stay on the sheet, so
+  // they are neither "editable" nor "flattened", and counting them made FLAT look
+  // alarming on a file where nothing was wrong.
+  try{
+    [ (typeof textObjs!=='undefined')?textObjs:[], (typeof shapeObjs!=='undefined')?shapeObjs:[],
+      (typeof measureObjs!=='undefined')?measureObjs:[], (typeof polylineObjs!=='undefined')?polylineObjs:[],
+      (typeof commentObjs!=='undefined')?commentObjs:[], (typeof leaderObjs!=='undefined')?leaderObjs:[]
+    ].forEach(function(a){
+      (a||[]).forEach(function(o){
+        if(!o) return;
+        var untouchedImport=false;
+        try{ untouchedImport = !!o._fromExplode && !_movedExplodeObj(o); }catch(e){}
+        if(!untouchedImport) total++;
+      });
+    });
+  }catch(e){}
+  // SCALE as a DRAWING scale (1" = 40'), not as the size of one canvas pixel.
+  // formatLength(ppu) answered "what does a single pixel measure" -- true, but
+  // 0.02ft tells nobody anything. One inch on the sheet is _lastLoadedDpi canvas
+  // pixels, so that many pixels x ppu is what an inch represents. Prefers the
+  // notation the user typed in Properties when there is one.
+  var scl=null;
+  try{
+    if(typeof scaleSet!=='undefined' && scaleSet){
+      // NEVER derive a "1 inch =" figure. That needs canvas-pixels-per-PHYSICAL-INCH,
+      // which assumes 72 PDF points is one inch of the real sheet -- true for a
+      // properly sized PDF, false for a scan dropped on a page whose dimensions do
+      // not match the drawing. On a 1"=30' survey it produced 39ft. Show the
+      // notation the user typed, or just say the scale is set. Better to say less
+      // than to state a scale that is wrong on a permit drawing.
+      var _nEl=document.getElementById('dpi-notation');
+      var _typed=_nEl && _nEl.value ? _nEl.value.trim() : '';
+      if(_typed){ scl=_typed; }
+      else{
+        // Canvas pixels per inch of THIS PDF page: an inch is 72 points, and
+        // _canvasPxPerPt is canvas pixels per point. Times ppu (units per canvas
+        // pixel) gives what one inch of the page represents.
+        var pxPerInch=0;
+        try{ if(typeof _canvasPxPerPt!=='undefined' && _canvasPxPerPt>0) pxPerInch=_canvasPxPerPt*72; }catch(e){}
+        if(!pxPerInch) pxPerInch=(typeof _lastLoadedDpi!=='undefined' && _lastLoadedDpi) ? _lastLoadedDpi : 96;
+        var perInch=pxPerInch*((typeof ppu!=='undefined')?(ppu||1):1);
+        var u=(typeof scaleUnit!=='undefined'?scaleUnit:'ft');
+        var r=(perInch>=100)?Math.round(perInch)
+             :(perInch>=10 ?Math.round(perInch*10)/10
+                           :Math.round(perInch*100)/100);
+        scl='1" = '+r+u;
+        // Log the INPUTS so a disagreement with the sheet's printed note can be
+        // traced to a number rather than guessed at.
+        try{ dbg('scale','chip inputs: canvasPxPerPt='+((typeof _canvasPxPerPt!=='undefined')?_canvasPxPerPt:'?')
+             +' pxPerInch='+Math.round(pxPerInch*100)/100
+             +' ppu='+((typeof ppu!=='undefined')?ppu:'?')+u+'/px'
+             +' refLinePixels='+((typeof refLinePixels!=='undefined')?refLinePixels:'?')
+             +' -> 1in = '+r+u); }catch(_sl){}
+      }
+    }
+  }catch(e){}
+  // Pictures are deliberately NOT part of editable/flat -- images are embedded
+  // page content, never annotations, so counting them would inflate FLAT on a
+  // healthy sheet. They get their own chip: how many are on the drawing, and how
+  // many page images have been deleted (those must be covered on export, which
+  // is the thing that quietly went wrong when a session was restored).
+  var imgs=0, delImgs=0, pageNow=0, pageOrig=0;
+  try{ imgs=(typeof imgOverlays!=='undefined' && imgOverlays) ? imgOverlays.length : 0; }catch(e){}
+  try{ delImgs=(typeof _deletedPageImgs!=='undefined' && _deletedPageImgs) ? _deletedPageImgs.length : 0; }catch(e){}
+  // How many of the ORIGINAL page images are still here. A bare count that just
+  // ticks down tells you nothing -- you cannot know 4 is wrong unless you
+  // remember it started at 6.
+  try{
+    (imgOverlays||[]).forEach(function(o){ if(o && o._fromPdfPage) pageNow++; });
+    pageOrig=(typeof _pageImgNamesAtImport!=='undefined' && _pageImgNamesAtImport)
+             ? _pageImgNamesAtImport.length : pageNow;
+  }catch(e){}
+  return { editable:editable, total:total, scale:scl, imgs:imgs, delImgs:delImgs,
+           pageNow:pageNow, pageOrig:pageOrig,
+           rot:(typeof _userRotDeg!=='undefined'?(_userRotDeg||0):0) };
+};
+
 function pushUndo(){
+  // Refresh the EDITABLE/FLAT counts after any committed change (debounced).
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_su){}
   try{
     var snap=_preOp;
     _preOp=null;
@@ -8106,6 +8271,20 @@ function afterLoad(){
   initLayers(baseCv.width,baseCv.height);
   undoStack=[]; redoStack=[]; textObjs=[]; editingObj=null; shapeObjs=[]; editShapeObj=null;
   try{ _userRotDeg=0; }catch(e){}   // fresh file → no accumulated screen rotation
+  // A new plan must NOT inherit the previous one's calibration. Nothing reset
+  // these, so the scale (and the status chip) carried over from the last file and
+  // every dimension on the new sheet was silently measured with the old ratio.
+  // Reuse resetScale() rather than clearing a few variables by hand: it also
+  // clears the "1 pixel =" inputs, hides the Recalibrate / Reset buttons and drops
+  // the reference line. Doing it piecemeal left the panel showing the PREVIOUS
+  // plan's calibration while the badge correctly said NOT SET -- one of them had
+  // to be lying. Suppress its toast; nothing was reset from the user's point of
+  // view, this is just a new file starting clean.
+  try{
+    if(typeof resetScale==='function') resetScale(true);   // true = no toast
+    var _nEl=document.getElementById('dpi-notation'); if(_nEl) _nEl.value='';
+    if(window.AOG_statusDirty) window.AOG_statusDirty();
+  }catch(e){}
   measureObjs=[]; selectedMeasure=null; measureDragHandle=-1; measureDragStart=null;
   pathMeasureObjs=[]; pmPoints=[]; pmActive=false;
   polylineObjs=[]; plPoints=[]; plActive=false; selectedPolyline=null;
@@ -8167,6 +8346,7 @@ btnRotR.addEventListener('click',function(){ rotateCanvas(90); });
 // annotations land off the linework).
 var _userRotDeg = 0;
 function rotateCanvas(deg){
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sr){}
   _userRotDeg = ((_userRotDeg + deg) % 360 + 360) % 360;
   // Commit any in-progress text (or note) edit FIRST. The editor is a DOM overlay
   // positioned in screen space; rotating with it still open left the textarea
@@ -16680,7 +16860,7 @@ function showScaleDlg(){
 }
 
 // ── Shared scale reset — called from both the dialog and the properties panel ──
-function resetScale(){
+function resetScale(silent){
   ppu=1; scaleUnit='ft'; scaleSet=false;
   ppuIn.value='1'; unitIn.value='ft';
   scaleStatus.textContent='Scale not set';
@@ -16701,7 +16881,9 @@ function resetScale(){
   document.getElementById('btn-reset-scale').style.display='none';
   document.getElementById('scale-dlg').style.display='none';
   document.getElementById('scale-ov').style.display='none';
-  toast('Scale reset to default','ok',2000);
+  // silent: called when a NEW plan loads, where nothing was "reset" from the
+  // user's point of view -- the file is simply starting clean.
+  if(!silent) toast('Scale reset to default','ok',2000);
 }
 
 document.getElementById('scale-reset').addEventListener('click', resetScale);
@@ -16746,6 +16928,23 @@ document.getElementById('scale-ok').addEventListener('click',function(){
   }
   if(!len||len<=0||!refLinePixels){ toast('Draw a reference line first, then enter its real length.','warn'); return; }
   ppu=len/refLinePixels; scaleUnit=unit; scaleSet=true;
+  // Prefill the Scale notation with the scale of THIS PDF page, so the badge has
+  // something real to show immediately. It is the scale of the page as it exists
+  // -- which can differ from the note printed on the drawing when the sheet has
+  // been reduced (an 18x11 plot fitted onto a 14x8.5 page reads 1"=38.6' even
+  // though the sheet says 1"=30'). The field is editable on purpose: type what the
+  // sheet says and the badge matches it, so anyone can verify badge against sheet.
+  try{
+    var _nf=document.getElementById('dpi-notation');
+    if(_nf && !_nf.value.trim() && typeof _canvasPxPerPt!=='undefined' && _canvasPxPerPt>0){
+      var _pi=_canvasPxPerPt*72*ppu;
+      var _rr=(_pi>=100)?Math.round(_pi):(_pi>=10?Math.round(_pi*10)/10:Math.round(_pi*100)/100);
+      _nf.value='1"='+_rr+unit;
+      _nf.title='Scale of this PDF page. If the drawing was reduced to fit, edit this '
+               +'to match the scale PRINTED on the sheet.';
+    }
+  }catch(_nfp){}
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sd){}
   ppuIn.value=(1/ppu).toFixed(4); unitIn.value=unit;
   scaleStatus.textContent='1 px = '+(1/ppu).toFixed(4)+' '+unit;
   // Show the Recalibrate button now that scale is set
@@ -16764,6 +16963,7 @@ ppuIn.addEventListener('change',function(){
   var v=parseFloat(ppuIn.value);
   if(v>0){
     ppu=1/v; scaleUnit=unitIn.value.trim()||'ft'; scaleSet=true;
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sd){}
     scaleStatus.textContent='1 px = '+v+' '+scaleUnit;
     document.getElementById('btn-recalibrate').style.display='';
     document.getElementById('btn-reset-scale').style.display='';
@@ -16873,6 +17073,7 @@ function applyDpiScale(parsed, dpi){
   ppu=parsed.value/dpi;
   scaleUnit=parsed.unit;
   scaleSet=true;
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sd){}
   ppuIn.value=(1/ppu).toFixed(4);
   unitIn.value=scaleUnit;
   scaleStatus.textContent='1 px = '+(1/ppu).toFixed(4)+' '+scaleUnit;
@@ -22382,6 +22583,7 @@ function buildProjectRecord(quality, cb){
 }
 
 function doSave(){
+  try{ if(window.AOG_statusSaved) window.AOG_statusSaved(); }catch(_ss){}
   if(!baseLoaded||!_saveDb) return;
   // Don't save while user is actively drawing or pinching (memory already high)
   // Don't serialize the whole document to IndexedDB while the user is actively
@@ -22966,6 +23168,10 @@ function doRestore(rec){
                     _trace:(od.trace&&od.trace.paths&&od.trace.paths.length)?od.trace:undefined});
                   if(typeof renderImgOverlays==='function') renderImgOverlays();
                   composite();
+                  // Restored overlays load asynchronously, so the counts settle
+                  // well after page load -- without this the bar only caught up
+                  // on its 15s interval.
+                  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sq){}
                 };
                 oi.src=od.src;
               });
@@ -24980,6 +25186,7 @@ function hideHint(){ panHint.classList.remove('show'); }
     ppu = 1 / ncDpi;       // pixels per inch
     scaleUnit = 'in';
     scaleSet = true;
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sd){}
     ppuIn.value = ncDpi;   // 1 inch = ncDpi px
     unitIn.value = 'in';
     scaleStatus.textContent = '1 px = ' + (1/ncDpi).toFixed(4) + ' in · ' + ncDpi + ' dpi';
