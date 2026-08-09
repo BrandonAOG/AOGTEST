@@ -6335,7 +6335,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       var importBgC = importBd;
       var _ftTitle='', _mT=null, _mN=null, _hiOp=0, _bgOpIn=null;
       try{ _ftTitle=String((an.title!=null?an.title:(an.titleObj&&an.titleObj.str))||''); }catch(_tt){}
-      _mT=/^AOG-TEXT(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::([01]))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?/.exec(_ftTitle);
+      _mT=/^AOG-TEXT(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::([01]))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::([^:]*))?/.exec(_ftTitle);
       _mN=/^AOG-NOTE(?::([0-9a-fA-F]{6}))?(?::([0-9.]+))?(?::(-?[0-9.]+))?/.exec(_ftTitle);
       // Object rotation in degrees -> radians for the rebuilt object.
       var _angDeg=0;
@@ -6533,6 +6533,16 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
             // Restores the callout: border, and a background filling the box
             // rather than hugging each line.
             _leaderLabel:_wasLeader,
+            // Re-link to the leader rebuilt earlier in this import (the markup
+            // pass runs before the freetext pass), so the two move together again.
+            _leaderId:(function(){
+              try{
+                var tok=(_mT && _mT[7]) ? String(_mT[7]) : '';
+                if(tok && window._aogLeaderMap && window._aogLeaderMap[tok]!=null)
+                  return window._aogLeaderMap[tok];
+              }catch(e){}
+              return null;
+            })(),
             // Callout box weight from the marker (field 6); 0 means no box.
             borderStrokeW:(_mT && _mT[6]!=null) ? (parseFloat(_mT[6])||0) : 1,
             calloutBox:(_mT && _mT[6]!=null) ? (parseFloat(_mT[6])>0) : true,
@@ -7011,7 +7021,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       var _ldTitle='';
       try{ _ldTitle=String((curAnn && (curAnn.title!=null?curAnn.title
                     :(curAnn.titleObj&&curAnn.titleObj.str)))||''); }catch(_lt){}
-      var _ldM=/^AOG-LEADER:([^:]*):(-?[0-9.]+):(-?[0-9.]+):(-?[0-9.]+)/.exec(_ldTitle);
+      var _ldM=/^AOG-LEADER:([^:]*):(-?[0-9.]+):(-?[0-9.]+):(-?[0-9.]+)(?::([^:]*))?/.exec(_ldTitle);
       if(_ldM && typeof leaderObjs!=='undefined'){
         var _lp=null;
         curSubs.forEach(function(sp){ if(!_lp && sp.pts && sp.pts.length>=2) _lp=sp; });
@@ -7036,6 +7046,14 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
             strokeW:Math.max(1.5,_lp.lw||2), opacity:1,
             layerIdx:activeLayerIdx, _fromExplode:true, _fromAnnot:true
           };
+          // Remember which ORIGINAL leader id this rebuilt leader came from, so a
+          // label carrying that id can be re-linked below.
+          try{
+            if(_ldM[5]){
+              if(typeof window._aogLeaderMap!=='object' || !window._aogLeaderMap) window._aogLeaderMap={};
+              window._aogLeaderMap[String(_ldM[5])]=_lo.id;
+            }
+          }catch(_lm2){}
           leaderObjs.push(_lo);
           dbg('import','LEADER rebuilt '+_ldTitle
               +' tip='+Math.round(_tip.x)+','+Math.round(_tip.y)
@@ -11879,6 +11897,23 @@ var _lastTextSel=null;
         renderTextObjs();
       }
     }catch(_lv){}
+    // RIGHT-ANCHORED labels (left-hanging leader callouts) derive x from their
+    // RIGHT edge: x = _anchorX - width. That was only recomputed at commit, so
+    // while typing the box kept drawing from the old left edge and grew the wrong
+    // way as the text got longer. Same formula commit uses.
+    try{
+      if(editingObj && editingObj._anchorRight===true && editingObj._anchorX!=null){
+        var _lns=String(textOv.value!=null?textOv.value:(editingObj.text||'')).split('\n');
+        var _fpx=ptToCanvasPx(editingObj.fontSize);
+        var _mw=measureLinesWFull(_lns,_fpx,editingObj.fontFamily||'Arial',editingObj.bold,editingObj.italic);
+        var _ea=editingObj.angle||0;
+        var _ay=(editingObj._anchorY!=null?editingObj._anchorY:editingObj.y);
+        editingObj.x=editingObj._anchorX-_mw*Math.cos(_ea);
+        editingObj.y=_ay-_mw*Math.sin(_ea);
+        renderTextObjs();
+        if(typeof renderSelection==='function') renderSelection();
+      }
+    }catch(_ra){}
   });
   var _lastLen=null;
   textOv.addEventListener('input', function(){
@@ -14196,7 +14231,25 @@ function _calloutPad(o){
 // the callout wants the glyphs.
 function _calloutBounds(o){
   var fpx=ptToCanvasPx(o.fontSize);
-  var lines=getTextLines(o,fpx);
+  // While a label is being edited its text lives in the TEXTAREA -- o.text still
+  // holds whatever it contained when the editor opened. Measuring that gave a box
+  // sized for the old contents, which is why it looked wrong until commit. Use the
+  // live value so the box tracks what is actually on screen.
+  var lines;
+  var _live=null;
+  try{
+    if(o && o._editing && typeof editingObj!=='undefined' && editingObj===o
+       && typeof textOv!=='undefined' && textOv && textOv.style.display!=='none'){
+      _live=String(textOv.value==null?'':textOv.value);
+    }
+  }catch(e){}
+  if(_live!==null){
+    var _save=o.text;
+    o.text=_live;
+    try{ lines=getTextLines(o,fpx); }finally{ o.text=_save; }
+  } else {
+    lines=getTextLines(o,fpx);
+  }
   var adv=_lineAdvOf(o,fpx);
   var asc=null, desc=null;
   // Measure the ACTUAL INK. The font's ascent includes internal leading -- space
@@ -18677,10 +18730,14 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     // label as loose TEXT, selectable and deletable independently. /T carries the
     // shape the app needs to rebuild it: shoulder direction, unit vector and
     // length. The label's own /T already ends in :1 to mark it as a leader label.
+    // Fifth field: the leader's id, matched by the label's marker so the two are
+    // reunited on import. Without it a re-imported leader and its wording were
+    // unrelated objects again -- moving one left the other behind.
     var _ldT='AOG-LEADER:'+String(o.shoulderDir||'')
              +':'+(Math.round((o.sdx||0)*10000)/10000)
              +':'+(Math.round((o.sdy||0)*10000)/10000)
-             +':'+(Math.round((o.shoulderLen||0)*100)/100);
+             +':'+(Math.round((o.shoulderLen||0)*100)/100)
+             +':'+String(o.id||'');
     addAnnot({ Subtype:'PolyLine', Vertices:verts, LE:['None','OpenArrow'],
                T:PDFLib.PDFString.of(_ldT),
                C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
@@ -19210,7 +19267,10 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
         // with the same border on re-import.
         +':'+(obj._leaderLabel
                 ? (obj.calloutBox===false ? 0 : (obj.borderStrokeW==null?1:obj.borderStrokeW))
-                : 0));
+                : 0)
+        // Seventh field: the id of the leader this label belongs to (see the
+        // leader emitter), so the pair can be reunited on import.
+        +':'+(obj._leaderLabel && obj._leaderId!=null ? String(obj._leaderId) : ''));
     if(_hasHi){
       var _hc=rgb01(obj.bgColor||'#ffff00');
       d.C=[Math.round(_hc[0]*1000)/1000, Math.round(_hc[1]*1000)/1000, Math.round(_hc[2]*1000)/1000];
