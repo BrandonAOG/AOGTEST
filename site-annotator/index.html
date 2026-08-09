@@ -1268,6 +1268,15 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
   <!-- LINE ENDINGS: a SIBLING of the stroke group. Nested inside it, the parent's
        flex-direction:column stacked these two under the colour swatch. -->
+  <!-- Leader callout border width. Same control the note tool has, so a callout
+       box and a note box can be given matching weight. -->
+  <div id="tb-cb-grp" style="display:none;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+    <span style="font-size:8px;color:var(--txt2);letter-spacing:.5px">BOX</span>
+    <div class="sl-wrap" style="min-width:44px">
+      <input type="range" id="cb-w-sl" min="0" max="8" step="0.5" value="1">
+      <span id="cb-w-val" style="font-size:8px">1px</span>
+    </div>
+  </div>
   <div id="tb-le-grp" style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
     <span style="font-size:8px;color:var(--txt2);letter-spacing:.5px">ENDS</span>
     <div style="display:flex;align-items:center;gap:3px">
@@ -3547,6 +3556,25 @@ function syncPickersToSelected(){
   // Line endings follow the same rule as the other pickers: show whatever the
   // selected object actually has, so drawing an arrow reads "Open" at the End
   // instead of leaving the dropdowns on their stale defaults.
+  // Callout box weight follows the selected leader label -- reached either through
+  // a text selection or through the leader itself.
+  try{
+    var _lt=(selectedShape && selectedShape._textObj && selectedShape._textObj._leaderLabel)
+            ? selectedShape._textObj : null;
+    if(!_lt && typeof selectedLeader!=='undefined' && selectedLeader && typeof textObjs!=='undefined'){
+      for(var _li=0; _li<textObjs.length; _li++){
+        var _c2=textObjs[_li];
+        if(_c2 && _c2._leaderLabel && _c2._leaderId!=null && _c2._leaderId===selectedLeader.id){ _lt=_c2; break; }
+      }
+    }
+    if(_lt){
+      var _w=(_lt.calloutBox===false)?0:(_lt.borderStrokeW==null?1:_lt.borderStrokeW);
+      var _sl=document.getElementById('cb-w-sl'), _lb=document.getElementById('cb-w-val');
+      if(_sl){ _sl.value=_w; }
+      if(_lb){ _lb.textContent=(_w?_w+'px':'off'); }
+      if(typeof _calloutW!=='undefined') _calloutW=_w;
+    }
+  }catch(_cw){}
   try{
     if(window._syncLeSelects){
       var _leTgt = selectedMeasure ||
@@ -6307,7 +6335,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       var importBgC = importBd;
       var _ftTitle='', _mT=null, _mN=null, _hiOp=0, _bgOpIn=null;
       try{ _ftTitle=String((an.title!=null?an.title:(an.titleObj&&an.titleObj.str))||''); }catch(_tt){}
-      _mT=/^AOG-TEXT(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::([01]))?(?::(-?[0-9.]+))?/.exec(_ftTitle);
+      _mT=/^AOG-TEXT(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::([01]))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?/.exec(_ftTitle);
       _mN=/^AOG-NOTE(?::([0-9a-fA-F]{6}))?(?::([0-9.]+))?(?::(-?[0-9.]+))?/.exec(_ftTitle);
       // Object rotation in degrees -> radians for the rebuilt object.
       var _angDeg=0;
@@ -6505,6 +6533,9 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
             // Restores the callout: border, and a background filling the box
             // rather than hugging each line.
             _leaderLabel:_wasLeader,
+            // Callout box weight from the marker (field 6); 0 means no box.
+            borderStrokeW:(_mT && _mT[6]!=null) ? (parseFloat(_mT[6])||0) : 1,
+            calloutBox:(_mT && _mT[6]!=null) ? (parseFloat(_mT[6])>0) : true,
             _fromFreeText:true
           });
           dbg('freetext','FALLBACK to text',{text:txt.slice(0,30), x:Math.round(x0), y:Math.round(y0)});
@@ -12975,7 +13006,7 @@ function _drawTextChrome(o){
   // what you see while typing is what gets committed.
   if(o._leaderLabel && o.calloutBox!==false){
     try{
-      var _cpad=CALLOUT_PAD/zoom, _cb=_calloutBounds(o);
+      var _cpad=_calloutPad(o)/zoom, _cb=_calloutBounds(o);
       selCtx.save();
       selCtx.setLineDash([]);
       selCtx.strokeStyle=o.color||'#000000';
@@ -14073,7 +14104,14 @@ function commitText(){
              letterSpacing:textLetterSpacing||undefined,
              hScale:(textHScale&&textHScale!==100)?textHScale:undefined,
              _anchorRight:_textAnchorRight, _anchorX:textX, _anchorY:textY};
-    if(_textLeaderPending){ obj._leaderLabel=true; obj._leaderId=_textLeaderPendingId; }
+    if(_textLeaderPending){
+      obj._leaderLabel=true; obj._leaderId=_textLeaderPendingId;
+      // Inherit the current callout box weight, like every other tool default.
+      if(typeof _calloutW!=='undefined'){
+        obj.borderStrokeW=_calloutW;
+        obj.calloutBox=(_calloutW>0);
+      }
+    }
     textObjs.push(obj); renderTextObjs(); pushUndo(); _aogRestoreTextCol();
     // (No transform box — a freshly placed text just sits there. Re-click to edit.)
   }
@@ -14136,6 +14174,15 @@ var selDragStart  = null;
 // Small on purpose: the box should hug the text the way Acrobat's Text Callout
 // does. Raise for a roomier box.
 var CALLOUT_PAD   = 2.5;
+// Gap from the glyphs to the border, aware of how THICK that border is. A stroke
+// is centred on its path, so half of it lies inside the rectangle -- with a fixed
+// gap a heavy border grew inward and crowded (or touched) the text. Adding half
+// the width keeps the visible gap constant whatever the weight.
+function _calloutPad(o){
+  var bw=0;
+  try{ bw=(o && o.calloutBox!==false) ? (o.borderStrokeW==null?1:o.borderStrokeW) : 0; }catch(e){}
+  return CALLOUT_PAD + (bw>0 ? bw/2 : 0);
+}
 // Draw a leader label's callout box, rotation included. The rect is expressed in
 // the label's LOCAL frame (origin at its baseline anchor) and the context is
 // translated+rotated first -- the same approach _drawTextChrome uses -- so the
@@ -14188,7 +14235,7 @@ function _calloutBounds(o){
 function _drawCalloutBox(ctx, o, mode){
   if(!o || !o._leaderLabel || o.calloutBox===false) return false;
   try{
-    var d=_calloutBounds(o), p=CALLOUT_PAD;
+    var d=_calloutBounds(o), p=_calloutPad(o);
     ctx.save();
     ctx.translate(o.x, o.y);
     if(o.angle) ctx.rotate(o.angle);
@@ -15753,6 +15800,7 @@ function updateToolbarForTool(t){
     cmtGrp      : document.getElementById('cmt-clr-grp'),
     imageGrp    : document.getElementById('tb-image-grp'),
     leGrp       : document.getElementById('tb-le-grp'),
+    cbGrp       : document.getElementById('tb-cb-grp'),
   };
 
   // Groups by what each tool needs
@@ -15812,6 +15860,8 @@ function updateToolbarForTool(t){
 
   // line endings (line / arrow / polyline only)
   shFlex(ids.leGrp, ENDS.indexOf(t) > -1);
+  // Callout box weight: leader tool only (it is the only thing that draws one).
+  shFlex(ids.cbGrp, t === 'leader');
 
   // Re-sync the stroke slider on EVERY tool change. Its point-mode range
   // (0.25-12 pt) is applied only inside _swSyncUI, behind a `max!=='12'` guard,
@@ -16762,7 +16812,23 @@ function applyStrokeColor(v){
   var sPoly=selectedPolyline||(snap&&snap.polyline);
   if(sPoly){ sPoly.color=color; renderShapeAndMeasure(); renderPolylineSelection(); }
   var sLeader=selectedLeader||(snap&&snap.leader);
-  if(sLeader){ sLeader.color=color; renderShapeAndMeasure(); renderLeaderSelection(); }
+  if(sLeader){
+    sLeader.color=color;
+    // Recolour its LABEL too. A leader is an arrow plus a text object, and only
+    // the arrow was changing -- so recolouring left the wording (and its callout
+    // border, which is drawn in the label's colour) on the old colour.
+    try{
+      if(typeof textObjs!=='undefined'){
+        textObjs.forEach(function(t){
+          if(t && t._leaderLabel && t._leaderId!=null && t._leaderId===sLeader.id){
+            t.color=color;
+            if(t.runs && t.runs.length){ delete t.runs; }   // whole-label recolour
+          }
+        });
+      }
+    }catch(_lc){}
+    renderShapeAndMeasure(); renderTextObjs(); renderLeaderSelection();
+  }
   if(selectedPen){ selectedPen.color=color; renderShapeAndMeasure(); composite(); }
 }
 [clrInput,clrSwatch].forEach(function(el){
@@ -16838,6 +16904,44 @@ function applyOpacityAll(v){
 }
 swSl.addEventListener('input',function(e){ applyStrokeW(parseFloat(e.target.value)); });
 opSl.addEventListener('input',function(e){ applyOpacityAll(parseInt(e.target.value)); });
+
+// CALLOUT BOX WIDTH (leader labels). 0 hides the box entirely, which is the
+// escape hatch for a callout that reads better as bare text.
+var _calloutW = 1;
+(function(){
+  var sl=document.getElementById('cb-w-sl'), lb=document.getElementById('cb-w-val');
+  if(!sl) return;
+  function apply(v){
+    _calloutW=parseFloat(v)||0;
+    if(lb) lb.textContent=(_calloutW?_calloutW+'px':'off');
+    // Live-apply to whatever leader label is selected or being edited.
+    // Find the label to act on. Selecting a leader with the LEADER tool sets
+    // selectedLeader -- the arrow -- not the text object, so looking only at
+    // editingObj / selectedShape found nothing and the slider did nothing.
+    // Resolve the label from the leader's id as well.
+    var targets=[];
+    try{
+      if(typeof editingObj!=='undefined' && editingObj && editingObj._leaderLabel) targets.push(editingObj);
+      if(typeof selectedShape!=='undefined' && selectedShape && selectedShape._textObj
+         && selectedShape._textObj._leaderLabel) targets.push(selectedShape._textObj);
+      if(typeof selectedLeader!=='undefined' && selectedLeader && typeof textObjs!=='undefined'){
+        textObjs.forEach(function(t2){
+          if(t2 && t2._leaderLabel && t2._leaderId!=null && t2._leaderId===selectedLeader.id) targets.push(t2);
+        });
+      }
+    }catch(e){}
+    if(targets.length){
+      targets.forEach(function(t){
+        t.borderStrokeW=_calloutW;
+        t.calloutBox=(_calloutW>0);
+      });
+      try{ renderTextObjs(); }catch(e){}
+      try{ renderSelection(); }catch(e){}
+      try{ if(typeof renderLeaderSelection==='function' && selectedLeader) renderLeaderSelection(); }catch(e){}
+    }
+  }
+  sl.addEventListener('input', function(e){ apply(e.target.value); });
+})();
 
 // Fill color + opacity pickers
 function applyFillColor(v){
@@ -18900,7 +19004,7 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     // sat slightly off the one on screen. Re-derive from the same source.
     if(obj._leaderLabel && obj.calloutBox!==false && !obj.angle){
       try{
-        var _cb2=_calloutBounds(obj), _cp2=CALLOUT_PAD;
+        var _cb2=_calloutBounds(obj), _cp2=_calloutPad(obj);
         boxL   = obj.x - _cp2;
         boxTop = obj.y + _cb2.top - _cp2;
         boxW   = _cb2.w + _cp2*2;
@@ -19101,7 +19205,12 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     d.T=PDFLib.PDFString.of('AOG-TEXT:'+(Math.round((_bgOp||0)*1000)/1000)
         +':'+(Math.round(_oxF*10000)/10000)+':'+(Math.round(_oyF*10000)/10000)
         +':'+(obj._leaderLabel?'1':'0')
-        +':'+(Math.round(((obj.angle||0)*180/Math.PI)*100)/100));
+        +':'+(Math.round(((obj.angle||0)*180/Math.PI)*100)/100)
+        // Sixth field: callout box weight (0 = no box), so the label comes back
+        // with the same border on re-import.
+        +':'+(obj._leaderLabel
+                ? (obj.calloutBox===false ? 0 : (obj.borderStrokeW==null?1:obj.borderStrokeW))
+                : 0));
     if(_hasHi){
       var _hc=rgb01(obj.bgColor||'#ffff00');
       d.C=[Math.round(_hc[0]*1000)/1000, Math.round(_hc[1]*1000)/1000, Math.round(_hc[2]*1000)/1000];
@@ -19678,7 +19787,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     // before P() maps them, so the box turns with the glyphs.
     if(obj._leaderLabel && obj.calloutBox!==false){
       try{
-        var _vb=_calloutBounds(obj), _vp2=CALLOUT_PAD;
+        var _vb=_calloutBounds(obj), _vp2=_calloutPad(obj);
         // WIDTH from the PAINTER's own font, not the browser's. _calloutBounds
         // measures through a canvas context; the painter lays the glyphs out with
         // the embedded PDF font, and on a rotated label the difference showed as
@@ -19742,10 +19851,24 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
         }
         var _bwv=Math.max(0.4, W(Math.max(1,(obj.borderStrokeW||1))));
         var _bcol=col(obj.color||'#000000'), _bop=(obj.opacity==null?1:obj.opacity);
-        for(var _e=0;_e<4;_e++){
-          var _a=_pts[_e], _b2=_pts[(_e+1)%4];
-          page.drawLine({ start:{x:_a.x,y:_a.y}, end:{x:_b2.x,y:_b2.y},
-                          thickness:_bwv, color:_bcol, opacity:_bop });
+        if(!_oa2){
+          // Axis-aligned: ONE rectangle, so the corners mitre properly. Four
+          // separate drawLine calls do not join -- each end has a flat cap, which
+          // left a notch at every corner, worsening as the border got thicker.
+          page.drawRectangle({ x:_minX, y:_minY, width:_maxX-_minX, height:_maxY-_minY,
+                               borderWidth:_bwv, borderColor:_bcol, borderOpacity:_bop });
+        } else {
+          // Rotated: a rectangle cannot be turned, so still four lines -- but with
+          // ROUND caps, so the ends overlap and fill each corner.
+          var _cap=null;
+          try{ _cap=PDFLib.LineCapStyle && PDFLib.LineCapStyle.Round; }catch(_lc2){}
+          for(var _e=0;_e<4;_e++){
+            var _a=_pts[_e], _b2=_pts[(_e+1)%4];
+            var _ln={ start:{x:_a.x,y:_a.y}, end:{x:_b2.x,y:_b2.y},
+                      thickness:_bwv, color:_bcol, opacity:_bop };
+            if(_cap!=null) _ln.lineCap=_cap;
+            page.drawLine(_ln);
+          }
         }
       }catch(_vcb){ console.warn('[VectorExport] callout box',_vcb); }
     }
