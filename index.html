@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Lets it open full screen, like an app, when added to the iPhone Home Screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AOG Test">
+  <meta name="theme-color" content="#000000">
   <title>AOG Test</title>
   <style>
     html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
@@ -39,6 +45,13 @@
     function send(func, args) {
       frame.contentWindow.postMessage(
         JSON.stringify({ event: 'command', func: func, args: args || [] }), '*');
+    }
+
+    // On iPhones and other touch screens, sound can only be switched on by a
+    // tap on the YouTube player itself, so get out of the way and let the tap
+    // reach the player (it shows its own "Tap to unmute" button).
+    if (window.matchMedia('(pointer: coarse)').matches) {
+      overlay.remove();
     }
 
     overlay.addEventListener('click', function () {
