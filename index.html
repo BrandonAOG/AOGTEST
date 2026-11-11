@@ -55,9 +55,8 @@
     var frame = document.getElementById('player');
     var revealed = false;
 
-    frame.src = 'https://www.youtube.com/embed/dQw4w9WgXcQ' +
-      '?playsinline=1&loop=1&playlist=dQw4w9WgXcQ&rel=0&enablejsapi=1' +
-      '&origin=' + encodeURIComponent(location.origin);
+    frame.src = 'https://player.vimeo.com/video/545391922' +
+      '?playsinline=1&loop=1&title=0&byline=0&portrait=0&dnt=1';
 
     function reveal() {
       if (revealed) return;
@@ -65,32 +64,27 @@
       document.body.classList.add('playing');
     }
 
-    // Ask the player to report its state, so we know when it starts.
-    var heard = false;
-    function listen() {
-      if (heard || !frame.contentWindow) return;
-      frame.contentWindow.postMessage(
-        JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
+    // Ask the player to tell us when it starts playing.
+    function subscribe() {
+      if (!frame.contentWindow) return;
+      ['play', 'playing', 'timeupdate'].forEach(function (name) {
+        frame.contentWindow.postMessage(
+          JSON.stringify({ method: 'addEventListener', value: name }),
+          'https://player.vimeo.com');
+      });
     }
-    frame.addEventListener('load', function () {
-      listen();
-      var tries = 0;
-      var t = setInterval(function () {
-        if (heard || ++tries > 20) return clearInterval(t);
-        listen();
-      }, 500);
-    });
+    frame.addEventListener('load', subscribe);
 
     window.addEventListener('message', function (e) {
-      if (!/youtube\.com$/.test(new URL(e.origin).hostname)) return;
-      var data;
-      try { data = JSON.parse(e.data); } catch (err) { return; }
-      heard = true;
-      var info = data && data.info;
-      var state = (info && typeof info === 'object') ? info.playerState : info;
-      // 1 = playing, 3 = buffering
-      if (state === 1 || state === 3) reveal();
-      if (info && typeof info === 'object' && info.currentTime > 0) reveal();
+      if (e.origin !== 'https://player.vimeo.com') return;
+      var data = e.data;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (err) { return; }
+      }
+      if (!data) return;
+      if (data.event === 'ready') subscribe();
+      if (data.event === 'play' || data.event === 'playing' ||
+          data.event === 'playProgress' || data.event === 'timeupdate') reveal();
     });
 
     // Backups in case the player never reports in: a tap on the video moves
