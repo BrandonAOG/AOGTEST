@@ -12,54 +12,95 @@
   <title>AOG Test</title>
   <style>
     html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
-    #player { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
-    /* Invisible layer that catches the first click/tap to turn the sound on */
-    #unmute {
-      position: fixed; inset: 0; z-index: 2; cursor: pointer;
-      display: flex; align-items: flex-end; justify-content: center;
-      background: transparent; border: 0; padding: 0 16px 12vh;
+
+    /* The innocent-looking screen people see first */
+    #cover {
+      position: fixed; inset: 0; z-index: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+      background: #111; color: #fff; font-family: system-ui, -apple-system, sans-serif; text-align: center;
+      padding: 16px;
     }
-    #unmute span {
-      font: 600 18px system-ui, sans-serif; color: #fff;
-      background: rgba(0, 0, 0, .7); padding: 12px 20px; border-radius: 999px;
+    #cover h1 { font-size: 28px; margin: 0; }
+    #cover .btn {
+      font-size: 18px; font-weight: 600; padding: 14px 32px; border-radius: 999px;
+      background: #f5a623; color: #111;
     }
+
+    /* The player sits on top of the cover, nearly invisible, so the tap on
+       "Tap to continue" actually lands on the video and starts it WITH sound. */
+    #player {
+      position: fixed; inset: 0; z-index: 2; width: 100%; height: 100%; border: 0;
+      opacity: 0.01;
+    }
+    body.playing #player { opacity: 1; }
+    body.playing #cover { display: none; }
   </style>
 </head>
 <body>
+  <div id="cover">
+    <h1>AOG Test</h1>
+    <div class="btn">Tap to continue</div>
+  </div>
+
   <iframe
     id="player"
-    src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&playsinline=1&loop=1&playlist=dQw4w9WgXcQ&rel=0&enablejsapi=1"
     title="Video"
     allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
     referrerpolicy="strict-origin-when-cross-origin"
     allowfullscreen></iframe>
 
-  <button id="unmute" aria-label="Turn sound on"><span>&#128266; Tap for sound</span></button>
-
   <script>
-    // Browsers only allow autoplay when muted, so the video starts silent
-    // and the first click or tap anywhere turns the sound on.
+    // iPhones only allow sound when the person taps the video itself, so this
+    // page does not autoplay. The first tap anywhere starts the video with sound.
     var frame = document.getElementById('player');
-    var overlay = document.getElementById('unmute');
+    var revealed = false;
 
-    function send(func, args) {
+    frame.src = 'https://www.youtube.com/embed/dQw4w9WgXcQ' +
+      '?playsinline=1&loop=1&playlist=dQw4w9WgXcQ&rel=0&enablejsapi=1' +
+      '&origin=' + encodeURIComponent(location.origin);
+
+    function reveal() {
+      if (revealed) return;
+      revealed = true;
+      document.body.classList.add('playing');
+    }
+
+    // Ask the player to report its state, so we know when it starts.
+    var heard = false;
+    function listen() {
+      if (heard || !frame.contentWindow) return;
       frame.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: func, args: args || [] }), '*');
+        JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
     }
-
-    // On iPhones and other touch screens, sound can only be switched on by a
-    // tap on the YouTube player itself, so get out of the way and let the tap
-    // reach the player (it shows its own "Tap to unmute" button).
-    if (window.matchMedia('(pointer: coarse)').matches) {
-      overlay.remove();
-    }
-
-    overlay.addEventListener('click', function () {
-      send('unMute');
-      send('setVolume', [100]);
-      send('playVideo');
-      overlay.remove();
+    frame.addEventListener('load', function () {
+      listen();
+      var tries = 0;
+      var t = setInterval(function () {
+        if (heard || ++tries > 20) return clearInterval(t);
+        listen();
+      }, 500);
     });
+
+    window.addEventListener('message', function (e) {
+      if (!/youtube\.com$/.test(new URL(e.origin).hostname)) return;
+      var data;
+      try { data = JSON.parse(e.data); } catch (err) { return; }
+      heard = true;
+      var info = data && data.info;
+      var state = (info && typeof info === 'object') ? info.playerState : info;
+      // 1 = playing, 3 = buffering
+      if (state === 1 || state === 3) reveal();
+      if (info && typeof info === 'object' && info.currentTime > 0) reveal();
+    });
+
+    // Backups in case the player never reports in: a tap on the video moves
+    // focus into it, which we can notice from out here.
+    window.addEventListener('blur', function () {
+      if (document.activeElement === frame) reveal();
+    });
+    setInterval(function () {
+      if (document.activeElement === frame) reveal();
+    }, 250);
   </script>
 </body>
 </html>
