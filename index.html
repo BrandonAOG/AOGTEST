@@ -4,16 +4,49 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AOG Test</title>
-  <!-- Fallback redirect if JavaScript is off -->
-  <meta http-equiv="refresh" content="0; url=https://www.youtube.com/watch?v=dQw4w9WgXcQ">
-  <script>
-    window.location.replace("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-  </script>
   <style>
-    body { font-family: system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+    #player { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+    /* Invisible layer that catches the first click/tap to turn the sound on */
+    #unmute {
+      position: fixed; inset: 0; z-index: 2; cursor: pointer;
+      display: flex; align-items: flex-end; justify-content: center;
+      background: transparent; border: 0; padding: 0 16px 12vh;
+    }
+    #unmute span {
+      font: 600 18px system-ui, sans-serif; color: #fff;
+      background: rgba(0, 0, 0, .7); padding: 12px 20px; border-radius: 999px;
+    }
   </style>
 </head>
 <body>
-  <p>Loading&hellip; <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">Click here if nothing happens</a>.</p>
+  <iframe
+    id="player"
+    src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&playsinline=1&loop=1&playlist=dQw4w9WgXcQ&rel=0&enablejsapi=1"
+    title="Video"
+    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen></iframe>
+
+  <button id="unmute" aria-label="Turn sound on"><span>&#128266; Tap for sound</span></button>
+
+  <script>
+    // Browsers only allow autoplay when muted, so the video starts silent
+    // and the first click or tap anywhere turns the sound on.
+    var frame = document.getElementById('player');
+    var overlay = document.getElementById('unmute');
+
+    function send(func, args) {
+      frame.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: func, args: args || [] }), '*');
+    }
+
+    overlay.addEventListener('click', function () {
+      send('unMute');
+      send('setVolume', [100]);
+      send('playVideo');
+      overlay.remove();
+    });
+  </script>
 </body>
 </html>
